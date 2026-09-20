@@ -22,84 +22,102 @@ import type { SubscriptionProduct } from '@/types/enums';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
 // manually for now — single shared types lib is a Phase F cleanup.
-const schema = z.object({
-  // Identity
-  groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-  // Must match the group_type Postgres enum EXACTLY — derived from the shared
-  // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
-  groupType: z.enum(GROUP_TYPES),
+const schema = z
+  .object({
+    // Identity
+    groupName: z.string().min(3, 'Group name must be at least 3 characters'),
+    // Must match the group_type Postgres enum EXACTLY — derived from the shared
+    // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
+    groupType: z.enum(GROUP_TYPES),
 
-  // Registrant
-  firstName: z.string().min(2, 'Required'),
-  lastName:  z.string().min(2, 'Required'),
-  phone:     z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Valid Kenyan phone required'),
-  email:     z.string().email('Invalid email').optional().or(z.literal('')),
-  password:  z.string().min(8, 'At least 8 characters')
-                .regex(/[A-Z]/, 'Needs an uppercase letter')
-                .regex(/[0-9]/, 'Needs a number'),
-  confirm:   z.string(),
+    // Registrant
+    firstName: z.string().min(2, 'Required'),
+    lastName: z.string().min(2, 'Required'),
+    phone: z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Valid Kenyan phone required'),
+    email: z.string().email('Invalid email').optional().or(z.literal('')),
+    password: z
+      .string()
+      .min(8, 'At least 8 characters')
+      .regex(/[A-Z]/, 'Needs an uppercase letter')
+      .regex(/[0-9]/, 'Needs a number'),
+    confirm: z.string(),
 
-  // Governance — registrant must hold one of the three mandatory roles.
-  creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
-    errorMap: () => ({ message: 'Select your role' }),
-  }),
+    // Governance — registrant must hold one of the three mandatory roles.
+    creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
+      errorMap: () => ({ message: 'Select your role' }),
+    }),
 
-  // Location
-  countyId:      z.string().uuid('Please pick a county'),
-  subCountyText: z.string().max(80).optional().or(z.literal('')),
-  wardText:      z.string().max(100).optional().or(z.literal('')),
-  villageEstate: z.string().max(200).optional().or(z.literal('')),
+    // Location
+    countyId: z.string().uuid('Please pick a county'),
+    subCountyText: z.string().max(80).optional().or(z.literal('')),
+    wardText: z.string().max(100).optional().or(z.literal('')),
+    villageEstate: z.string().max(200).optional().or(z.literal('')),
 
-  // Purpose + cadence (optional in Phase D MVP; required later by activation gate)
-  primaryObjective: z.enum([
-    'savings','table_banking','welfare','women_empowerment','youth_development',
-    'agriculture','business_investment','housing','education','health',
-    'community_development','other',
-  ]).optional(),
-  meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
-  meetingDay:       z.enum(['monday','tuesday','wednesday','thursday','friday','saturday','sunday']).optional(),
-  meetingTime:      z.string().regex(/^\d{2}:\d{2}$/, 'HH:MM').optional().or(z.literal('')),
-}).refine((d) => d.password === d.confirm, {
-  message: 'Passwords do not match',
-  path:    ['confirm'],
-});
+    // Purpose + cadence (optional in Phase D MVP; required later by activation gate)
+    primaryObjective: z
+      .enum([
+        'savings',
+        'table_banking',
+        'welfare',
+        'women_empowerment',
+        'youth_development',
+        'agriculture',
+        'business_investment',
+        'housing',
+        'education',
+        'health',
+        'community_development',
+        'other',
+      ])
+      .optional(),
+    meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+    meetingDay: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
+    meetingTime: z
+      .string()
+      .regex(/^\d{2}:\d{2}$/, 'HH:MM')
+      .optional()
+      .or(z.literal('')),
+  })
+  .refine((d) => d.password === d.confirm, {
+    message: 'Passwords do not match',
+    path: ['confirm'],
+  });
 
 type FormValues = z.infer<typeof schema>;
 
 interface County {
-  id:     string;
-  code:   string;
-  name:   string;
+  id: string;
+  code: string;
+  name: string;
   region: string | null;
 }
 
 const OBJECTIVES: { value: NonNullable<FormValues['primaryObjective']>; label: string }[] = [
-  { value: 'savings',              label: 'Savings' },
-  { value: 'table_banking',        label: 'Table banking' },
-  { value: 'welfare',              label: 'Welfare' },
-  { value: 'women_empowerment',    label: 'Women empowerment' },
-  { value: 'youth_development',    label: 'Youth development' },
-  { value: 'agriculture',          label: 'Agriculture' },
-  { value: 'business_investment',  label: 'Business / investment' },
-  { value: 'housing',              label: 'Housing' },
-  { value: 'education',            label: 'Education' },
-  { value: 'health',               label: 'Health' },
+  { value: 'savings', label: 'Savings' },
+  { value: 'table_banking', label: 'Table banking' },
+  { value: 'welfare', label: 'Welfare' },
+  { value: 'women_empowerment', label: 'Women empowerment' },
+  { value: 'youth_development', label: 'Youth development' },
+  { value: 'agriculture', label: 'Agriculture' },
+  { value: 'business_investment', label: 'Business / investment' },
+  { value: 'housing', label: 'Housing' },
+  { value: 'education', label: 'Education' },
+  { value: 'health', label: 'Health' },
   { value: 'community_development', label: 'Community development' },
-  { value: 'other',                label: 'Other' },
+  { value: 'other', label: 'Other' },
 ];
 
 const DAYS: { value: NonNullable<FormValues['meetingDay']>; label: string }[] = [
-  { value: 'monday',    label: 'Monday' },
-  { value: 'tuesday',   label: 'Tuesday' },
+  { value: 'monday', label: 'Monday' },
+  { value: 'tuesday', label: 'Tuesday' },
   { value: 'wednesday', label: 'Wednesday' },
-  { value: 'thursday',  label: 'Thursday' },
-  { value: 'friday',    label: 'Friday' },
-  { value: 'saturday',  label: 'Saturday' },
-  { value: 'sunday',    label: 'Sunday' },
+  { value: 'thursday', label: 'Thursday' },
+  { value: 'friday', label: 'Friday' },
+  { value: 'saturday', label: 'Saturday' },
+  { value: 'sunday', label: 'Sunday' },
 ];
 
-const selectCls =
-  'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
+const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
 const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-brand-blue-500 pt-2';
 
@@ -114,14 +132,14 @@ const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-brand-
  */
 const PRODUCT_COPY = {
   kitabu_yetu: {
-    title:    'Create your group',
+    title: 'Create your group',
     subtitle: 'Build Vibrant Communities',
-    cta:      'Create group',
+    cta: 'Create group',
   },
   chama_reminder: {
-    title:    'Start with Chama Reminder',
+    title: 'Start with Chama Reminder',
     subtitle: 'Remind. Inform. Celebrate. Mobilize.',
-    cta:      'Create group',
+    cta: 'Create group',
   },
 } as const;
 
@@ -139,7 +157,11 @@ function RegisterForm() {
     searchParams.get('product') === 'chama_reminder' ? 'chama_reminder' : 'kitabu_yetu';
   const copy = PRODUCT_COPY[product];
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { groupType: 'chama', creatorRole: 'chairperson' },
   });
@@ -148,7 +170,8 @@ function RegisterForm() {
     configureApiClient({ getToken: () => null, onUnauthorized: () => {} });
     // Fetch counties for the dropdown; CDN-cached on the server side so this
     // is essentially a no-op after the first request in a region.
-    api.get<County[]>('/jurisdictions/counties')
+    api
+      .get<County[]>('/jurisdictions/counties')
       .then(setCounties)
       .catch((err) => {
         // Non-fatal — the form still renders, the user just can't pick a county.
@@ -164,18 +187,19 @@ function RegisterForm() {
   const onSubmit = async (values: FormValues) => {
     try {
       const { confirm: _unused, ...body } = values;
-      const data = await authApi.register({ ...body, product }) as Awaited<ReturnType<typeof authApi.register>> & {
-        groupCode?:     string;
-        membershipNo?:  string;
+      const data = (await authApi.register({ ...body, product })) as Awaited<ReturnType<typeof authApi.register>> & {
+        groupCode?: string;
+        membershipNo?: string;
         signupProduct?: SubscriptionProduct;
       };
       login(data);
       // The Membership Number is the member's payment account number — the
       // only payment identifier we ever show (payment architecture §1.1).
       toast({
-        title:       product === 'chama_reminder' ? 'Welcome to Chama Reminder!' : 'Welcome to Kitabu Yetu!',
-        description: `Your group is ${data.groupCode ?? 'created'}.`
-          + (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
+        title: product === 'chama_reminder' ? 'Welcome to Chama Reminder!' : 'Welcome to Kitabu Yetu!',
+        description:
+          `Your group is ${data.groupCode ?? 'created'}.` +
+          (data.membershipNo ? ` Your account number: ${formatMembershipNo(data.membershipNo)}.` : ''),
       });
       // Verification comes first either way; postLoginPath decides the portal
       // once the group is active. The new group holds no subscription yet
@@ -205,13 +229,15 @@ function RegisterForm() {
         // only as the follow-on.
         toast({
           variant: 'destructive',
-          title:   'This phone number already has an account',
+          title: 'This phone number already has an account',
           description: (
             <>
-              If your last attempt showed an error, your group may already have been
-              created — <Link href="/login" className="underline">log in</Link> to check
-              and finish verifying it. Already have a different group? Log in and use
-              &ldquo;Create another group&rdquo; to add {productLabel}.
+              If your last attempt showed an error, your group may already have been created —{' '}
+              <Link href="/login" className="underline">
+                log in
+              </Link>{' '}
+              to check and finish verifying it. Already have a different group? Log in and use &ldquo;Create another
+              group&rdquo; to add {productLabel}.
             </>
           ),
         });
@@ -219,8 +245,8 @@ function RegisterForm() {
       }
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
-        variant:     'destructive',
-        title:       'Registration failed',
+        variant: 'destructive',
+        title: 'Registration failed',
         description: `${getErrorMessage(err)}${code}`,
       });
     }
@@ -239,7 +265,6 @@ function RegisterForm() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-
           {/* ─── Group identity ─── */}
           <p className={sectionTitle}>Group</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -258,7 +283,9 @@ function RegisterForm() {
                   behind it was fixed. One map now feeds both dropdowns. */}
               <select {...register('groupType')} className={selectCls}>
                 {GROUP_TYPES.map((t) => (
-                  <option key={t} value={t}>{GROUP_TYPE_LABELS[t]}</option>
+                  <option key={t} value={t}>
+                    {GROUP_TYPE_LABELS[t]}
+                  </option>
                 ))}
               </select>
             </div>
@@ -267,7 +294,9 @@ function RegisterForm() {
               <select {...register('primaryObjective')} className={selectCls} defaultValue="">
                 <option value="">— Optional —</option>
                 {OBJECTIVES.map((o) => (
-                  <option key={o.value} value={o.value}>{o.label}</option>
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
                 ))}
               </select>
             </div>
@@ -283,27 +312,38 @@ function RegisterForm() {
                   {counties.length === 0 ? 'Loading counties…' : 'Select a county'}
                 </option>
                 {counties.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}{c.region ? ` — ${c.region}` : ''}</option>
+                  <option key={c.id} value={c.id}>
+                    {c.name}
+                    {c.region ? ` — ${c.region}` : ''}
+                  </option>
                 ))}
               </select>
               {errors.countyId && <p className="text-xs text-destructive">{errors.countyId.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Sub-county <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>
+                Sub-county <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input placeholder="e.g. Bungoma West" {...register('subCountyText')} />
             </div>
             <div className="space-y-1.5">
-              <Label>Ward <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>
+                Ward <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input placeholder="e.g. Township" {...register('wardText')} />
             </div>
             <div className="space-y-1.5 sm:col-span-2">
-              <Label>Village / estate <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>
+                Village / estate <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input placeholder="e.g. Sang'alo Plot 24" {...register('villageEstate')} />
             </div>
           </div>
 
           {/* ─── Meeting schedule ─── */}
-          <p className={sectionTitle}>Meeting schedule <span className="lowercase font-normal text-muted-foreground normal-case">(optional)</span></p>
+          <p className={sectionTitle}>
+            Meeting schedule <span className="lowercase font-normal text-muted-foreground normal-case">(optional)</span>
+          </p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label>Frequency</Label>
@@ -318,7 +358,11 @@ function RegisterForm() {
               <Label>Day</Label>
               <select {...register('meetingDay')} className={selectCls} defaultValue="">
                 <option value="">—</option>
-                {DAYS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                {DAYS.map((d) => (
+                  <option key={d.value} value={d.value}>
+                    {d.label}
+                  </option>
+                ))}
               </select>
             </div>
             <div className="space-y-1.5">
@@ -347,7 +391,9 @@ function RegisterForm() {
               {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
             </div>
             <div className="space-y-1.5">
-              <Label>Email <span className="text-muted-foreground">(optional)</span></Label>
+              <Label>
+                Email <span className="text-muted-foreground">(optional)</span>
+              </Label>
               <Input type="email" placeholder="jane@example.com" {...register('email')} />
               {errors.email && <p className="text-xs text-destructive">{errors.email.message}</p>}
             </div>
@@ -387,7 +433,9 @@ function RegisterForm() {
 
         <p className="mt-4 text-center text-sm text-muted-foreground">
           Already have an account?{' '}
-          <Link href="/login" className="text-brand-600 hover:underline font-medium">Sign in</Link>
+          <Link href="/login" className="text-brand-600 hover:underline font-medium">
+            Sign in
+          </Link>
         </p>
       </CardContent>
     </Card>
@@ -402,14 +450,16 @@ function RegisterForm() {
  */
 export default function RegisterPage() {
   return (
-    <Suspense fallback={
-      <Card>
-        <CardHeader>
-          <CardTitle>Create your group</CardTitle>
-          <CardDescription>Loading…</CardDescription>
-        </CardHeader>
-      </Card>
-    }>
+    <Suspense
+      fallback={
+        <Card>
+          <CardHeader>
+            <CardTitle>Create your group</CardTitle>
+            <CardDescription>Loading…</CardDescription>
+          </CardHeader>
+        </Card>
+      }
+    >
       <RegisterForm />
     </Suspense>
   );

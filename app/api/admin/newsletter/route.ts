@@ -6,10 +6,7 @@ import { ok } from '@/lib/utils/response';
 
 export function GET(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
-    const [subscribers, stats] = await Promise.all([
-      listNewsletterSubscribers(),
-      getNewsletterStats(),
-    ]);
+    const [subscribers, stats] = await Promise.all([listNewsletterSubscribers(), getNewsletterStats()]);
     return ok({ subscribers, stats });
   });
 }

@@ -35,7 +35,7 @@ interface Row {
 
 async function main() {
   const groupId = process.argv[2];
-  const apply   = process.argv.includes('--apply');
+  const apply = process.argv.includes('--apply');
 
   if (!groupId || groupId.startsWith('--')) {
     console.error('usage: backfill-member-welcome-sms.ts <groupId> [--apply]');
@@ -71,7 +71,9 @@ async function main() {
 
   console.log(`${rows.length} member(s) in ${rows[0].group_name} without a welcome:\n`);
   for (const r of rows) {
-    console.log(`  ${r.membership_no.padEnd(10)} ${`${r.first_name} ${r.last_name}`.padEnd(20)} ${r.phone}  (joined ${r.joined_at.toISOString().slice(0, 10)})`);
+    console.log(
+      `  ${r.membership_no.padEnd(10)} ${`${r.first_name} ${r.last_name}`.padEnd(20)} ${r.phone}  (joined ${r.joined_at.toISOString().slice(0, 10)})`,
+    );
   }
 
   if (!apply) {
@@ -89,13 +91,13 @@ async function main() {
     // copies the payload and injects nothing of its own.
     const summary = await emitBusinessEvent({
       eventType: SMS_EVENTS.MEMBER_REGISTERED,
-      eventId:   r.id,
+      eventId: r.id,
       groupId,
       payload: {
-        memberId:      r.id,
-        first_name:    r.first_name,
-        last_name:     r.last_name,
-        group_name:    r.group_name,
+        memberId: r.id,
+        first_name: r.first_name,
+        last_name: r.last_name,
+        group_name: r.group_name,
         membership_no: r.membership_no,
       },
     });
@@ -114,4 +116,7 @@ async function main() {
 
 main()
   .then(() => process.exit(0))
-  .catch((err) => { console.error(err); process.exit(1); });
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

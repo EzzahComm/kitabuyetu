@@ -13,7 +13,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -26,19 +26,23 @@ beforeEach(() => {
 const ctx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' };
 
 describe('campaignsService.createCampaign', () => {
-  const input = { title: 'Water for Kianjege', story: 'Our borehole broke and the village needs a new one urgently.', targetAmount: 50000 };
+  const input = {
+    title: 'Water for Kianjege',
+    story: 'Our borehole broke and the village needs a new one urgently.',
+    targetAmount: 50000,
+  };
 
   it('rejects a member (not an officer)', async () => {
-    await expect(
-      campaignsService.createCampaign({ ...ctx, role: 'member' }, input),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(campaignsService.createCampaign({ ...ctx, role: 'member' }, input)).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('rejects a non-positive target amount', async () => {
-    await expect(
-      campaignsService.createCampaign(ctx, { ...input, targetAmount: 0 }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(campaignsService.createCampaign(ctx, { ...input, targetAmount: 0 })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 
   it('creates a draft campaign with a unique slug', async () => {
@@ -58,7 +62,7 @@ describe('campaignsService.createCampaign', () => {
 
   it('appends a numeric suffix when the slug is already taken', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ x: 1 }] }); // 'water-for-kianjege' taken
-    mockQuery.mockResolvedValueOnce({ rows: [] });         // 'water-for-kianjege-2' free
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // 'water-for-kianjege-2' free
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'camp-2', title: input.title, slug: 'water-for-kianjege-2', status: 'draft' }],
     });
@@ -85,7 +89,7 @@ describe('campaignsService.submitForReview', () => {
     expect(campaign.status).toBe('pending_review');
   });
 
-  it('throws NotFoundError for a campaign outside the caller\'s group', async () => {
+  it("throws NotFoundError for a campaign outside the caller's group", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(campaignsService.submitForReview(ctx, 'camp-x')).rejects.toBeInstanceOf(NotFoundError);
   });
@@ -108,7 +112,9 @@ describe('campaignsService admin review', () => {
 
   it('rejectCampaign moves pending_review to rejected with a reason', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', group_id: 'grp-1', status: 'pending_review' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'rejected', rejection_reason: 'Incomplete story' }] });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'camp-1', status: 'rejected', rejection_reason: 'Incomplete story' }],
+    });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
     const campaign = await campaignsService.rejectCampaign('admin-1', 'camp-1', 'Incomplete story');

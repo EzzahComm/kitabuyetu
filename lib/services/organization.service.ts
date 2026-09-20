@@ -21,64 +21,63 @@ const orgId = (ctx: TenantContext): string => {
 };
 
 export interface OrganizationBranding {
-  logoUrl:      string | null;
+  logoUrl: string | null;
   primaryColor: string | null;
 }
 
 export interface OrganizationAuditLogRow {
-  id:           string;
-  groupId:      string | null;
-  groupName:    string | null;
-  actorId:      string | null;
-  actorName:    string | null;
-  action:       string;
+  id: string;
+  groupId: string | null;
+  groupName: string | null;
+  actorId: string | null;
+  actorName: string | null;
+  action: string;
   resourceType: string;
-  resourceId:   string | null;
-  createdAt:    string;
+  resourceId: string | null;
+  createdAt: string;
 }
 
 export interface OrganizationMemberDetail {
-  memberId:     string;
-  firstName:    string;
-  lastName:     string;
-  phone:        string;
-  email:        string | null;
-  groupId:      string;
-  groupName:    string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  groupId: string;
+  groupName: string;
   /** The payment account reference (§2.1), e.g. BG1025. Lives on the membership. */
   membershipNo: string | null;
-  role:         string;
-  isActive:     boolean;
-  joinedAt:     string;
+  role: string;
+  isActive: boolean;
+  joinedAt: string;
   /**
    * null when the snapshot could not be read — never zero-filled (R10).
    * Numbers, not strings, because that is computeMemberFinancialSnapshot's
    * existing contract; forking a second money representation for this one
    * screen would be worse than inheriting its precision choice.
    */
-  financials:   {
-    savings:               number;
-    loanBalance:           number;
-    shares:                number;
+  financials: {
+    savings: number;
+    loanBalance: number;
+    shares: number;
     contributedThisPeriod: number;
   } | null;
 }
 
 export interface OrganizationMemberRow {
-  memberId:   string;
-  firstName:  string;
-  lastName:   string;
-  phone:      string;
-  email:      string | null;
-  groupId:    string;
-  groupName:  string;
-  role:       string;
-  isActive:   boolean;
-  joinedAt:   string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  groupId: string;
+  groupName: string;
+  role: string;
+  isActive: boolean;
+  joinedAt: string;
 }
 
 export const organizationService = {
-
   async assertOrganizationCoordinator(ctx: TenantContext): Promise<void> {
     if (ctx.role !== 'organization_coordinator' && ctx.role !== 'super_admin') {
       throw new ForbiddenError('Only Organization coordinators can access this resource');
@@ -185,7 +184,7 @@ export const organizationService = {
     params: { page?: number; limit?: number } = {},
   ): Promise<PaginatedResult<OrganizationGroupSummary>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page  = Math.max(1, params.page ?? 1);
+    const page = Math.max(1, params.page ?? 1);
     const limit = Math.min(500, Math.max(1, params.limit ?? 200));
 
     return withDb(ctx, async (client) => {
@@ -278,8 +277,8 @@ export const organizationService = {
     params: { page?: number; limit?: number; search?: string } = {},
   ): Promise<PaginatedResult<OrganizationMemberRow>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page   = Math.max(1, params.page ?? 1);
-    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
@@ -289,7 +288,7 @@ export const organizationService = {
       // limit/offset params, so `search` sits at a different position than
       // in the list query below.
       const countSearchClause = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $2 OR m.phone ILIKE $2)` : '';
-      const listSearchClause  = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $4 OR m.phone ILIKE $4)` : '';
+      const listSearchClause = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $4 OR m.phone ILIKE $4)` : '';
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
         client.query<{ n: string }>(
@@ -346,14 +345,14 @@ export const organizationService = {
     params: { page?: number; limit?: number; search?: string } = {},
   ): Promise<PaginatedResult<OrganizationAuditLogRow>> {
     await this.assertOrganizationCoordinator(ctx);
-    const page   = Math.max(1, params.page ?? 1);
-    const limit  = Math.min(100, Math.max(1, params.limit ?? 25));
+    const page = Math.max(1, params.page ?? 1);
+    const limit = Math.min(100, Math.max(1, params.limit ?? 25));
     const search = params.search?.trim();
 
     return withDb(ctx, async (client) => {
       const organizationId = orgId(ctx);
       const searchClause = search ? `AND al.resource_type ILIKE $2` : '';
-      const searchParam  = search ? [`%${search}%`] : [];
+      const searchParam = search ? [`%${search}%`] : [];
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
         client.query<{ n: string }>(
@@ -482,9 +481,9 @@ export const organizationService = {
         const [snapshot] = await computeMemberFinancialSnapshot(client, groupId, memberId);
         member.financials = snapshot
           ? {
-              savings:               snapshot.savings,
-              loanBalance:           snapshot.loanBalance,
-              shares:                snapshot.shares,
+              savings: snapshot.savings,
+              loanBalance: snapshot.loanBalance,
+              shares: snapshot.shares,
               contributedThisPeriod: snapshot.contributedThisPeriod,
             }
           : null;

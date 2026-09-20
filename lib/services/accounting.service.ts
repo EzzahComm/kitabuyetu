@@ -4,8 +4,19 @@ import { cached, keys } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import type { Account, JournalEntry, JournalLine } from '@/types/db.types';
-import type { CreateAccountInput, UpdateAccountInput, CreateJournalInput, VoidJournalInput } from '@/lib/validators/accounting.schema';
-import type { TrialBalanceLine, ProfitAndLoss, BalanceSheet, CashFlowStatement, EquityChanges } from '@/types/api.types';
+import type {
+  CreateAccountInput,
+  UpdateAccountInput,
+  CreateJournalInput,
+  VoidJournalInput,
+} from '@/lib/validators/accounting.schema';
+import type {
+  TrialBalanceLine,
+  ProfitAndLoss,
+  BalanceSheet,
+  CashFlowStatement,
+  EquityChanges,
+} from '@/types/api.types';
 import { loadActiveSplitRules } from './contribution-splits.service';
 import { allocateSplit } from '@/lib/utils/split-allocator';
 import { getEffectiveThreshold } from './approval-policy.service';
@@ -14,33 +25,33 @@ import { getEffectiveThreshold } from './approval-policy.service';
 // posting-template engine can validate platform-wide templates against the
 // codes every group is guaranteed to have.
 export const DEFAULT_ACCOUNTS = [
-  { code: '1001', name: 'Cash and M-Pesa',          type: 'asset' },
-  { code: '1002', name: 'Bank Account',              type: 'asset' },
-  { code: '1101', name: 'Loans Receivable',          type: 'asset' },
-  { code: '1201', name: 'Fixed Assets',              type: 'asset' },
-  { code: '2001', name: 'Accounts Payable',          type: 'liability' },
-  { code: '2101', name: 'Member Savings',            type: 'liability' },
-  { code: '2102', name: 'Welfare Fund',               type: 'liability' },
-  { code: '2103', name: 'Dividends Payable',          type: 'liability' },
-  { code: '2104', name: 'Withholding Tax Payable',    type: 'liability' },
-  { code: '3001', name: 'Member Equity',             type: 'equity' },
-  { code: '3101', name: 'Retained Surplus',          type: 'equity' },
-  { code: '4001', name: 'Member Contributions',      type: 'income' },
-  { code: '4002', name: 'Interest Income — Loans',   type: 'income' },
-  { code: '4003', name: 'Registration Fees',         type: 'income' },
-  { code: '4004', name: 'Other Income',              type: 'income' },
-  { code: '4005', name: 'External Funding',          type: 'income' },
-  { code: '4006', name: 'Changi$ha Donations',       type: 'income' },
-  { code: '5001', name: 'Administrative Expenses',   type: 'expense' },
-  { code: '5002', name: 'SMS Expenses',              type: 'expense' },
-  { code: '5003', name: 'Platform Subscription',     type: 'expense' },
-  { code: '5004', name: 'Loan Write-offs',           type: 'expense' },
+  { code: '1001', name: 'Cash and M-Pesa', type: 'asset' },
+  { code: '1002', name: 'Bank Account', type: 'asset' },
+  { code: '1101', name: 'Loans Receivable', type: 'asset' },
+  { code: '1201', name: 'Fixed Assets', type: 'asset' },
+  { code: '2001', name: 'Accounts Payable', type: 'liability' },
+  { code: '2101', name: 'Member Savings', type: 'liability' },
+  { code: '2102', name: 'Welfare Fund', type: 'liability' },
+  { code: '2103', name: 'Dividends Payable', type: 'liability' },
+  { code: '2104', name: 'Withholding Tax Payable', type: 'liability' },
+  { code: '3001', name: 'Member Equity', type: 'equity' },
+  { code: '3101', name: 'Retained Surplus', type: 'equity' },
+  { code: '4001', name: 'Member Contributions', type: 'income' },
+  { code: '4002', name: 'Interest Income — Loans', type: 'income' },
+  { code: '4003', name: 'Registration Fees', type: 'income' },
+  { code: '4004', name: 'Other Income', type: 'income' },
+  { code: '4005', name: 'External Funding', type: 'income' },
+  { code: '4006', name: 'Changi$ha Donations', type: 'income' },
+  { code: '5001', name: 'Administrative Expenses', type: 'expense' },
+  { code: '5002', name: 'SMS Expenses', type: 'expense' },
+  { code: '5003', name: 'Platform Subscription', type: 'expense' },
+  { code: '5004', name: 'Loan Write-offs', type: 'expense' },
 ];
 
 export interface SystemJournalLine {
   accountCode: string;
-  debit?:      number;
-  credit?:     number;
+  debit?: number;
+  credit?: number;
 }
 
 /**
@@ -65,13 +76,15 @@ export interface SystemJournalLine {
  * the same reason.
  */
 export async function postSystemJournal(
-  client:      PoolClient,
-  groupId:     string,
-  userId:      string | null,
+  client: PoolClient,
+  groupId: string,
+  userId: string | null,
   description: string,
-  lines:       SystemJournalLine[],
+  lines: SystemJournalLine[],
   opts?: {
-    reference?: string; memberId?: string; groupMembershipId?: string;
+    reference?: string;
+    memberId?: string;
+    groupMembershipId?: string;
     /** Defaults to CURRENT_DATE. Pass the source transaction's own date when it has one (e.g. a contribution's contribution_date). */
     entryDate?: string;
     /** Tags the entry so sandbox activity never mixes into production reports. Defaults to false. */
@@ -86,7 +99,9 @@ export async function postSystemJournal(
   const byCode = new Map(accts.map((a) => [a.account_code, a.id]));
   if (byCode.size !== codes.length) {
     logger.warn('[accounting] postSystemJournal: missing chart-of-accounts row(s), skipping posting', {
-      groupId, description, missing: codes.filter((c) => !byCode.has(c)),
+      groupId,
+      description,
+      missing: codes.filter((c) => !byCode.has(c)),
     });
     return null;
   }
@@ -96,9 +111,15 @@ export async function postSystemJournal(
        (group_id, entry_date, reference, description, status, created_by, member_id, group_membership_id, is_test, posted_via)
      VALUES ($1, COALESCE($2, CURRENT_DATE), $3, $4, 'posted', $5, $6, $7, $8, $9) RETURNING id`,
     [
-      groupId, opts?.entryDate ?? null, opts?.reference ?? null, description, userId,
-      opts?.memberId ?? null, opts?.groupMembershipId ?? null,
-      opts?.isTest ?? false, userId ? 'user' : 'system',
+      groupId,
+      opts?.entryDate ?? null,
+      opts?.reference ?? null,
+      description,
+      userId,
+      opts?.memberId ?? null,
+      opts?.groupMembershipId ?? null,
+      opts?.isTest ?? false,
+      userId ? 'user' : 'system',
     ],
   );
   const jeId = je[0].id;
@@ -114,7 +135,14 @@ export async function postSystemJournal(
       // previously asserted otherwise.
       `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
        VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE))`,
-      [groupId, jeId, byCode.get(line.accountCode), (line.debit ?? 0).toFixed(2), (line.credit ?? 0).toFixed(2), opts?.entryDate ?? null],
+      [
+        groupId,
+        jeId,
+        byCode.get(line.accountCode),
+        (line.debit ?? 0).toFixed(2),
+        (line.credit ?? 0).toFixed(2),
+        opts?.entryDate ?? null,
+      ],
     );
   }
 
@@ -141,14 +169,19 @@ export async function postSystemJournal(
 export async function postContributionJournal(
   client: PoolClient,
   args: {
-    groupId: string; contributionId: string; amount: number; entryDate: string | Date;
-    reference?: string | null; createdBy: string | null; isTest?: boolean;
+    groupId: string;
+    contributionId: string;
+    amount: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<string | null> {
-  const cashCode      = '1001';
+  const cashCode = '1001';
   const defaultIncome = '4001';
 
-  const rules       = await loadActiveSplitRules(client, args.groupId);
+  const rules = await loadActiveSplitRules(client, args.groupId);
   const allocations = allocateSplit(args.amount, rules, defaultIncome);
   if (allocations.length === 0) return null; // amount <= 0 guard
 
@@ -171,7 +204,8 @@ export async function postContributionJournal(
     const targetId = idByCode.get(alloc.account_code) ?? defaultId;
     if (!targetId) {
       logger.warn('[accounting] skipped contribution journal — split target + default both missing', {
-        groupId: args.groupId, code: alloc.account_code,
+        groupId: args.groupId,
+        code: alloc.account_code,
       });
       return null;
     }
@@ -187,9 +221,13 @@ export async function postContributionJournal(
      FROM   contributions c WHERE c.id = $8
      RETURNING id`,
     [
-      args.groupId, args.entryDate, args.reference ?? null,
+      args.groupId,
+      args.entryDate,
+      args.reference ?? null,
       `Contribution — ${args.contributionId}`,
-      args.createdBy, args.isTest ?? false, args.createdBy ? 'user' : 'system',
+      args.createdBy,
+      args.isTest ?? false,
+      args.createdBy ? 'user' : 'system',
       args.contributionId,
     ],
   );
@@ -216,7 +254,7 @@ export async function postContributionJournal(
 
 async function writeJournalAuditLog(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   journalEntryId: string,
   payload: Record<string, unknown>,
@@ -229,7 +267,6 @@ async function writeJournalAuditLog(
 }
 
 export const accountingService = {
-
   async seedDefaultAccounts(ctx: TenantContext): Promise<void> {
     return withTransaction(ctx, async (client) => {
       await accountingService.seedDefaultAccountsInTx(client, ctx.groupId);
@@ -251,10 +288,9 @@ export const accountingService = {
 
   async listAccounts(ctx: TenantContext): Promise<Account[]> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<Account>(
-        `SELECT * FROM accounts WHERE group_id = $1 ORDER BY account_code`,
-        [ctx.groupId],
-      );
+      const { rows } = await client.query<Account>(`SELECT * FROM accounts WHERE group_id = $1 ORDER BY account_code`, [
+        ctx.groupId,
+      ]);
       return rows;
     });
   },
@@ -274,14 +310,23 @@ export const accountingService = {
     return withTransaction(ctx, async (client) => {
       const sets: string[] = [];
       const vals: unknown[] = [];
-      let   idx = 1;
-      if (data.name        !== undefined) { sets.push(`name = $${idx++}`);       vals.push(data.name); }
-      if (data.description !== undefined) { sets.push(`description = $${idx++}`); vals.push(data.description); }
-      if (data.isActive    !== undefined) { sets.push(`is_active = $${idx++}`);  vals.push(data.isActive); }
+      let idx = 1;
+      if (data.name !== undefined) {
+        sets.push(`name = $${idx++}`);
+        vals.push(data.name);
+      }
+      if (data.description !== undefined) {
+        sets.push(`description = $${idx++}`);
+        vals.push(data.description);
+      }
+      if (data.isActive !== undefined) {
+        sets.push(`is_active = $${idx++}`);
+        vals.push(data.isActive);
+      }
       if (!sets.length) throw new ValidationError('No fields to update');
       vals.push(id, ctx.groupId);
       const { rows } = await client.query<Account>(
-        `UPDATE accounts SET ${sets.join(',')} WHERE id = $${idx} AND group_id = $${idx+1} AND is_system = false RETURNING *`,
+        `UPDATE accounts SET ${sets.join(',')} WHERE id = $${idx} AND group_id = $${idx + 1} AND is_system = false RETURNING *`,
         vals,
       );
       if (!rows[0]) throw new NotFoundError('Account', id);
@@ -289,7 +334,10 @@ export const accountingService = {
     });
   },
 
-  async createJournalEntry(ctx: TenantContext, data: CreateJournalInput): Promise<JournalEntry & { lines: JournalLine[] }> {
+  async createJournalEntry(
+    ctx: TenantContext,
+    data: CreateJournalInput,
+  ): Promise<JournalEntry & { lines: JournalLine[] }> {
     return withTransaction(ctx, async (client) => {
       const { rows: jeRows } = await client.query<JournalEntry>(
         `INSERT INTO journal_entries (group_id, entry_date, reference, description, created_by)
@@ -306,12 +354,22 @@ export const accountingService = {
           // journal_entries row above.
           `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, description, entry_date)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-          [ctx.groupId, je.id, line.accountId, line.debit.toFixed(2), line.credit.toFixed(2), line.description ?? null, data.entryDate],
+          [
+            ctx.groupId,
+            je.id,
+            line.accountId,
+            line.debit.toFixed(2),
+            line.credit.toFixed(2),
+            line.description ?? null,
+            data.entryDate,
+          ],
         );
         lineRows.push(rows[0]);
       }
       await writeJournalAuditLog(client, ctx, 'journal.created', je.id, {
-        entryDate: data.entryDate, reference: data.reference ?? null, description: data.description,
+        entryDate: data.entryDate,
+        reference: data.reference ?? null,
+        description: data.description,
         lineCount: lineRows.length,
       });
       return { ...je, lines: lineRows };
@@ -389,7 +447,10 @@ export const accountingService = {
         [ctx.userId, data.reason, id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Posted journal entry', id);
-      await writeJournalAuditLog(client, ctx, 'journal.voided', id, { reason: data.reason, postedBy: postedRows[0].posted_by });
+      await writeJournalAuditLog(client, ctx, 'journal.voided', id, {
+        reason: data.reason,
+        postedBy: postedRows[0].posted_by,
+      });
       return rows[0];
     });
   },
@@ -400,11 +461,12 @@ export const accountingService = {
   // load recomputed a full-year journal_lines x journal_entries x accounts
   // aggregate from scratch (docs/audits/optimization-2026-09).
   async getTrialBalance(ctx: TenantContext): Promise<TrialBalanceLine[]> {
-    return cached(keys.cache('trial-balance', ctx.groupId), 60, () => withDb(ctx, async (client) => {
-      // netBalance: asset/expense accounts are debit-normal (positive balance stored as-is).
-      // Credit-normal accounts (liability, equity, income) are stored as negative; negate for display.
-      const { rows } = await client.query<TrialBalanceLine>(
-        `SELECT
+    return cached(keys.cache('trial-balance', ctx.groupId), 60, () =>
+      withDb(ctx, async (client) => {
+        // netBalance: asset/expense accounts are debit-normal (positive balance stored as-is).
+        // Credit-normal accounts (liability, equity, income) are stored as negative; negate for display.
+        const { rows } = await client.query<TrialBalanceLine>(
+          `SELECT
            a.account_code  AS "accountCode",
            a.name          AS "accountName",
            a.type          AS "accountType",
@@ -420,18 +482,23 @@ export const accountingService = {
          WHERE a.group_id = $1 AND a.is_active = true
          GROUP BY a.account_code, a.name, a.type, a.balance
          ORDER BY a.account_code`,
-        [ctx.groupId],
-      );
-      return rows;
-    }));
+          [ctx.groupId],
+        );
+        return rows;
+      }),
+    );
   },
 
   async getProfitAndLoss(ctx: TenantContext, from: string, to: string): Promise<ProfitAndLoss> {
-    return cached(keys.cache('profit-and-loss', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
-      const { rows } = await client.query<{
-        account_code: string; account_name: string; type: string; total: string;
-      }>(
-        `SELECT
+    return cached(keys.cache('profit-and-loss', `${ctx.groupId}:${from}:${to}`), 60, () =>
+      withDb(ctx, async (client) => {
+        const { rows } = await client.query<{
+          account_code: string;
+          account_name: string;
+          type: string;
+          total: string;
+        }>(
+          `SELECT
            a.account_code,
            a.name AS account_name,
            a.type,
@@ -463,36 +530,46 @@ export const accountingService = {
          WHERE a.group_id = $1 AND a.type IN ('income','expense') AND a.is_active = true
          GROUP BY a.account_code, a.name, a.type
          ORDER BY a.account_code`,
-        [ctx.groupId, from, to],
-      );
+          [ctx.groupId, from, to],
+        );
 
-      const income   = rows.filter(r => r.type === 'income').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
-      const expenses = rows.filter(r => r.type === 'expense').map(r => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
-      const totalIncome   = income.reduce((s, r)   => s + parseFloat(r.amount), 0);
-      const totalExpenses = expenses.reduce((s, r) => s + parseFloat(r.amount), 0);
+        const income = rows
+          .filter((r) => r.type === 'income')
+          .map((r) => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
+        const expenses = rows
+          .filter((r) => r.type === 'expense')
+          .map((r) => ({ accountCode: r.account_code, accountName: r.account_name, amount: r.total }));
+        const totalIncome = income.reduce((s, r) => s + parseFloat(r.amount), 0);
+        const totalExpenses = expenses.reduce((s, r) => s + parseFloat(r.amount), 0);
 
-      return {
-        period: { from, to },
-        income, expenses,
-        totalIncome:   totalIncome.toFixed(2),
-        totalExpenses: totalExpenses.toFixed(2),
-        netProfit:     (totalIncome - totalExpenses).toFixed(2),
-      };
-    }));
+        return {
+          period: { from, to },
+          income,
+          expenses,
+          totalIncome: totalIncome.toFixed(2),
+          totalExpenses: totalExpenses.toFixed(2),
+          netProfit: (totalIncome - totalExpenses).toFixed(2),
+        };
+      }),
+    );
   },
 
   async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
-    return cached(keys.cache('balance-sheet', `${ctx.groupId}:${asOf}`), 60, () => withDb(ctx, async (client) => {
-      // Computed from journal_lines as of the requested date — NOT the
-      // denormalized accounts.balance column, which is always the *current*
-      // running total and has no notion of "as of a past date". Same
-      // debit-minus-credit convention the update_account_balance trigger
-      // uses: assets (debit-normal) are positive as-is; liabilities/equity
-      // (credit-normal) are negated for display.
-      const { rows } = await client.query<{
-        account_code: string; account_name: string; type: string; balance: string;
-      }>(
-        `SELECT
+    return cached(keys.cache('balance-sheet', `${ctx.groupId}:${asOf}`), 60, () =>
+      withDb(ctx, async (client) => {
+        // Computed from journal_lines as of the requested date — NOT the
+        // denormalized accounts.balance column, which is always the *current*
+        // running total and has no notion of "as of a past date". Same
+        // debit-minus-credit convention the update_account_balance trigger
+        // uses: assets (debit-normal) are positive as-is; liabilities/equity
+        // (credit-normal) are negated for display.
+        const { rows } = await client.query<{
+          account_code: string;
+          account_name: string;
+          type: string;
+          balance: string;
+        }>(
+          `SELECT
            a.account_code,
            a.name AS account_name,
            a.type,
@@ -507,22 +584,29 @@ export const accountingService = {
          WHERE a.group_id = $1 AND a.type IN ('asset','liability','equity') AND a.is_active = true
          GROUP BY a.account_code, a.name, a.type
          ORDER BY a.account_code`,
-        [ctx.groupId, asOf],
-      );
+          [ctx.groupId, asOf],
+        );
 
-      const toLine = (r: typeof rows[0]) => ({ accountCode: r.account_code, accountName: r.account_name, balance: r.balance });
-      const assets      = rows.filter(r => r.type === 'asset').map(toLine);
-      const liabilities = rows.filter(r => r.type === 'liability').map(toLine);
-      const equity      = rows.filter(r => r.type === 'equity').map(toLine);
+        const toLine = (r: (typeof rows)[0]) => ({
+          accountCode: r.account_code,
+          accountName: r.account_name,
+          balance: r.balance,
+        });
+        const assets = rows.filter((r) => r.type === 'asset').map(toLine);
+        const liabilities = rows.filter((r) => r.type === 'liability').map(toLine);
+        const equity = rows.filter((r) => r.type === 'equity').map(toLine);
 
-      return {
-        asOf,
-        assets, liabilities, equity,
-        totalAssets:      assets.reduce((s, r)      => s + parseFloat(r.balance), 0).toFixed(2),
-        totalLiabilities: liabilities.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
-        totalEquity:      equity.reduce((s, r)       => s + parseFloat(r.balance), 0).toFixed(2),
-      };
-    }));
+        return {
+          asOf,
+          assets,
+          liabilities,
+          equity,
+          totalAssets: assets.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
+          totalLiabilities: liabilities.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
+          totalEquity: equity.reduce((s, r) => s + parseFloat(r.balance), 0).toFixed(2),
+        };
+      }),
+    );
   },
 
   /**
@@ -544,13 +628,17 @@ export const accountingService = {
    *  - financing: equity accounts (share capital) and 2103 Dividends Payable.
    */
   async getCashFlowStatement(ctx: TenantContext, from: string, to: string): Promise<CashFlowStatement> {
-    return cached(keys.cache('cash-flow', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
-      const CASH_CODES = ['1001', '1002'];
+    return cached(keys.cache('cash-flow', `${ctx.groupId}:${from}:${to}`), 60, () =>
+      withDb(ctx, async (client) => {
+        const CASH_CODES = ['1001', '1002'];
 
-      const { rows: movements } = await client.query<{
-        account_code: string; account_name: string; type: string; cash_impact: string;
-      }>(
-        `SELECT a.account_code, a.name AS account_name, a.type,
+        const { rows: movements } = await client.query<{
+          account_code: string;
+          account_name: string;
+          type: string;
+          cash_impact: string;
+        }>(
+          `SELECT a.account_code, a.name AS account_name, a.type,
                 SUM(jl.credit - jl.debit)::text AS cash_impact
          FROM journal_lines jl
          JOIN accounts a         ON a.id  = jl.account_id
@@ -570,11 +658,11 @@ export const accountingService = {
          GROUP BY a.account_code, a.name, a.type
          HAVING ABS(SUM(jl.credit - jl.debit)) > 0.005
          ORDER BY a.account_code`,
-        [ctx.groupId, from, to, CASH_CODES],
-      );
+          [ctx.groupId, from, to, CASH_CODES],
+        );
 
-      const { rows: cashBal } = await client.query<{ opening: string; closing: string }>(
-        `SELECT
+        const { rows: cashBal } = await client.query<{ opening: string; closing: string }>(
+          `SELECT
            COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <  $2), 0)::text AS opening,
            COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.entry_date <= $3), 0)::text AS closing
          FROM journal_lines jl
@@ -582,41 +670,47 @@ export const accountingService = {
          JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.account_code = ANY($4) AND je.status = 'posted'
            AND jl.entry_date <= $3`,
-        [ctx.groupId, from, to, CASH_CODES],
-      );
+          [ctx.groupId, from, to, CASH_CODES],
+        );
 
-      const sectionOf = (r: { account_code: string; type: string }): 'operating' | 'investing' | 'financing' => {
-        if (r.type === 'equity' || r.account_code === '2103') return 'financing';
-        if (r.type === 'asset' && r.account_code !== '1101')  return 'investing';
-        return 'operating';
-      };
+        const sectionOf = (r: { account_code: string; type: string }): 'operating' | 'investing' | 'financing' => {
+          if (r.type === 'equity' || r.account_code === '2103') return 'financing';
+          if (r.type === 'asset' && r.account_code !== '1101') return 'investing';
+          return 'operating';
+        };
 
-      const toLine = (r: typeof movements[0]) =>
-        ({ accountCode: r.account_code, accountName: r.account_name, amount: r.cash_impact });
-      const operating = movements.filter((r) => sectionOf(r) === 'operating').map(toLine);
-      const investing = movements.filter((r) => sectionOf(r) === 'investing').map(toLine);
-      const financing = movements.filter((r) => sectionOf(r) === 'financing').map(toLine);
+        const toLine = (r: (typeof movements)[0]) => ({
+          accountCode: r.account_code,
+          accountName: r.account_name,
+          amount: r.cash_impact,
+        });
+        const operating = movements.filter((r) => sectionOf(r) === 'operating').map(toLine);
+        const investing = movements.filter((r) => sectionOf(r) === 'investing').map(toLine);
+        const financing = movements.filter((r) => sectionOf(r) === 'financing').map(toLine);
 
-      const sum = (lines: { amount: string }[]) => lines.reduce((s, l) => s + parseFloat(l.amount), 0);
-      const netOperating = sum(operating);
-      const netInvesting = sum(investing);
-      const netFinancing = sum(financing);
-      const netChange    = netOperating + netInvesting + netFinancing;
-      const openingCash  = parseFloat(cashBal[0].opening);
-      const closingCash  = parseFloat(cashBal[0].closing);
+        const sum = (lines: { amount: string }[]) => lines.reduce((s, l) => s + parseFloat(l.amount), 0);
+        const netOperating = sum(operating);
+        const netInvesting = sum(investing);
+        const netFinancing = sum(financing);
+        const netChange = netOperating + netInvesting + netFinancing;
+        const openingCash = parseFloat(cashBal[0].opening);
+        const closingCash = parseFloat(cashBal[0].closing);
 
-      return {
-        period: { from, to },
-        operating, investing, financing,
-        netOperating: netOperating.toFixed(2),
-        netInvesting: netInvesting.toFixed(2),
-        netFinancing: netFinancing.toFixed(2),
-        netChange:    netChange.toFixed(2),
-        openingCash:  openingCash.toFixed(2),
-        closingCash:  closingCash.toFixed(2),
-        reconciles:   Math.abs(openingCash + netChange - closingCash) < 0.01,
-      };
-    }));
+        return {
+          period: { from, to },
+          operating,
+          investing,
+          financing,
+          netOperating: netOperating.toFixed(2),
+          netInvesting: netInvesting.toFixed(2),
+          netFinancing: netFinancing.toFixed(2),
+          netChange: netChange.toFixed(2),
+          openingCash: openingCash.toFixed(2),
+          closingCash: closingCash.toFixed(2),
+          reconciles: Math.abs(openingCash + netChange - closingCash) < 0.01,
+        };
+      }),
+    );
   },
 
   /**
@@ -627,12 +721,16 @@ export const accountingService = {
    * Retained Surplus, and this platform has no automated year-end close.
    */
   async getEquityChanges(ctx: TenantContext, from: string, to: string): Promise<EquityChanges> {
-    return cached(keys.cache('equity-changes', `${ctx.groupId}:${from}:${to}`), 60, () => withDb(ctx, async (client) => {
-      const { rows } = await client.query<{
-        account_code: string; account_name: string;
-        opening: string; increases: string; decreases: string;
-      }>(
-        `SELECT a.account_code, a.name AS account_name,
+    return cached(keys.cache('equity-changes', `${ctx.groupId}:${from}:${to}`), 60, () =>
+      withDb(ctx, async (client) => {
+        const { rows } = await client.query<{
+          account_code: string;
+          account_name: string;
+          opening: string;
+          increases: string;
+          decreases: string;
+        }>(
+          `SELECT a.account_code, a.name AS account_name,
            -COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date < $2), 0)::text AS opening,
             COALESCE(SUM(jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)::text AS increases,
             COALESCE(SUM(jl.debit)  FILTER (WHERE je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3), 0)::text AS decreases
@@ -643,39 +741,43 @@ export const accountingService = {
          WHERE a.group_id = $1 AND a.type = 'equity' AND a.is_active = true
          GROUP BY a.account_code, a.name
          ORDER BY a.account_code`,
-        [ctx.groupId, from, to],
-      );
+          [ctx.groupId, from, to],
+        );
 
-      // Net profit = income (credit-normal) minus expenses (debit-normal);
-      // both reduce to SUM(credit - debit) over income+expense lines.
-      const { rows: pnl } = await client.query<{ net: string }>(
-        `SELECT COALESCE(SUM(jl.credit - jl.debit), 0)::text AS net
+        // Net profit = income (credit-normal) minus expenses (debit-normal);
+        // both reduce to SUM(credit - debit) over income+expense lines.
+        const { rows: pnl } = await client.query<{ net: string }>(
+          `SELECT COALESCE(SUM(jl.credit - jl.debit), 0)::text AS net
          FROM journal_lines jl
          JOIN accounts a         ON a.id  = jl.account_id
          JOIN journal_entries je ON je.id = jl.journal_entry_id
          WHERE a.group_id = $1 AND a.type IN ('income','expense')
            AND je.status = 'posted' AND je.entry_date BETWEEN $2 AND $3
            AND jl.entry_date BETWEEN $2 AND $3`,
-        [ctx.groupId, from, to],
-      );
+          [ctx.groupId, from, to],
+        );
 
-      const lines = rows.map((r) => {
-        const closing = parseFloat(r.opening) + parseFloat(r.increases) - parseFloat(r.decreases);
+        const lines = rows.map((r) => {
+          const closing = parseFloat(r.opening) + parseFloat(r.increases) - parseFloat(r.decreases);
+          return {
+            accountCode: r.account_code,
+            accountName: r.account_name,
+            opening: r.opening,
+            increases: r.increases,
+            decreases: r.decreases,
+            closing: closing.toFixed(2),
+          };
+        });
+
         return {
-          accountCode: r.account_code, accountName: r.account_name,
-          opening: r.opening, increases: r.increases, decreases: r.decreases,
-          closing: closing.toFixed(2),
+          period: { from, to },
+          lines,
+          totalOpening: lines.reduce((s, l) => s + parseFloat(l.opening), 0).toFixed(2),
+          totalClosing: lines.reduce((s, l) => s + parseFloat(l.closing), 0).toFixed(2),
+          periodNetProfit: parseFloat(pnl[0]?.net ?? '0').toFixed(2),
         };
-      });
-
-      return {
-        period: { from, to },
-        lines,
-        totalOpening: lines.reduce((s, l) => s + parseFloat(l.opening), 0).toFixed(2),
-        totalClosing: lines.reduce((s, l) => s + parseFloat(l.closing), 0).toFixed(2),
-        periodNetProfit: parseFloat(pnl[0]?.net ?? '0').toFixed(2),
-      };
-    }));
+      }),
+    );
   },
 };
 
@@ -683,16 +785,16 @@ export const accountingService = {
 
 export interface BalanceDriftResult {
   accountsChecked: number;
-  driftsFound:     number;
+  driftsFound: number;
 }
 
 interface DriftRow {
-  account_id:   string;
-  group_id:     string;
+  account_id: string;
+  group_id: string;
   account_code: string;
-  name:         string;
-  stored:       string;
-  computed:     string;
+  name: string;
+  stored: string;
+  computed: string;
 }
 
 /**
@@ -727,11 +829,11 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
 
     for (const d of drifts) {
       logger.error('[accounting] balance drift detected', {
-        groupId:     d.group_id,
+        groupId: d.group_id,
         accountCode: d.account_code,
-        account:     d.name,
-        stored:      d.stored,
-        computed:    d.computed,
+        account: d.name,
+        stored: d.stored,
+        computed: d.computed,
       });
     }
 
@@ -750,11 +852,11 @@ export async function detectBalanceDrift(): Promise<BalanceDriftResult> {
 // ─── GL-to-real-cash reconciliation (platform-wide scheduled job) ───────────
 
 export interface GLCashReconciliationResult {
-  status:        'ok' | 'mismatch' | 'no_snapshot' | 'stale_snapshot';
-  glCashTotal?:  string;
+  status: 'ok' | 'mismatch' | 'no_snapshot' | 'stale_snapshot';
+  glCashTotal?: string;
   mpesaBalance?: string;
-  difference?:   string;
-  snapshotAge?:  string;
+  difference?: string;
+  snapshotAge?: string;
 }
 
 const GL_CASH_RECONCILE_TOLERANCE = 1; // KES — allows for sub-shilling rounding only
@@ -819,11 +921,13 @@ export async function reconcileGLCashToMpesaBalance(): Promise<GLCashReconciliat
        WHERE account_code = '1001' AND is_active = true`,
     );
     const glCashTotal = parseFloat(glRows[0]?.total ?? '0');
-    const difference  = mpesaBalance - glCashTotal;
+    const difference = mpesaBalance - glCashTotal;
 
     if (Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE) {
       logger.error('[accounting] GL-to-cash mismatch detected', {
-        glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2),
+        glCashTotal: glCashTotal.toFixed(2),
+        mpesaBalance: mpesaBalance.toFixed(2),
+        difference: difference.toFixed(2),
       });
     }
 
@@ -834,15 +938,19 @@ export async function reconcileGLCashToMpesaBalance(): Promise<GLCashReconciliat
        VALUES (NULL, NULL, 'completed', 'gl_cash_mismatch', 1, $1, 0, $2, NOW())`,
       [
         Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 1 : 0,
-        JSON.stringify({ glCashTotal: glCashTotal.toFixed(2), mpesaBalance: mpesaBalance.toFixed(2), difference: difference.toFixed(2) }),
+        JSON.stringify({
+          glCashTotal: glCashTotal.toFixed(2),
+          mpesaBalance: mpesaBalance.toFixed(2),
+          difference: difference.toFixed(2),
+        }),
       ],
     );
 
     return {
-      status:       Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 'mismatch' : 'ok',
-      glCashTotal:  glCashTotal.toFixed(2),
+      status: Math.abs(difference) > GL_CASH_RECONCILE_TOLERANCE ? 'mismatch' : 'ok',
+      glCashTotal: glCashTotal.toFixed(2),
       mpesaBalance: mpesaBalance.toFixed(2),
-      difference:   difference.toFixed(2),
+      difference: difference.toFixed(2),
     };
   });
 }

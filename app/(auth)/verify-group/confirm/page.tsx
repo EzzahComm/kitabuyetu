@@ -19,9 +19,9 @@ type Status = 'checking' | 'success' | 'error';
  */
 function ConfirmBody() {
   const params = useSearchParams();
-  const token  = params.get('token');
+  const token = params.get('token');
 
-  const [status, setStatus]   = useState<Status>(token ? 'checking' : 'error');
+  const [status, setStatus] = useState<Status>(token ? 'checking' : 'error');
   const [message, setMessage] = useState<string>(token ? '' : 'This verification link is missing its token.');
 
   useEffect(() => {
@@ -29,7 +29,8 @@ function ConfirmBody() {
 
     if (!token) return;
 
-    authApi.verifyEmailToken(token)
+    authApi
+      .verifyEmailToken(token)
       .then(() => setStatus('success'))
       .catch((err: unknown) => {
         setStatus('error');
@@ -55,7 +56,9 @@ function ConfirmBody() {
             <CheckCircle2 className="h-10 w-10 text-green-600" />
             <p className="font-medium">Your group is verified!</p>
             <p className="text-sm text-muted-foreground">Log in to start using your dashboard.</p>
-            <Button asChild className="w-full"><Link href="/login">Go to login</Link></Button>
+            <Button asChild className="w-full">
+              <Link href="/login">Go to login</Link>
+            </Button>
           </div>
         )}
         {status === 'error' && (
@@ -63,7 +66,9 @@ function ConfirmBody() {
             <XCircle className="h-10 w-10 text-destructive" />
             <p className="font-medium">Verification failed</p>
             <p className="text-sm text-muted-foreground">{message}</p>
-            <Button asChild variant="outline" className="w-full"><Link href="/login">Back to login</Link></Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/login">Back to login</Link>
+            </Button>
           </div>
         )}
       </CardContent>

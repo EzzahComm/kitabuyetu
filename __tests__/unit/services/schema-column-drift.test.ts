@@ -70,9 +70,7 @@ describe('schema column drift', () => {
   it('billing-email.service.ts remains the reference implementation', () => {
     // This file always did it correctly; it is what the fix was modelled on.
     // If it ever regresses, the pattern the others copied is gone too.
-    expect(read('billing-email.service.ts')).toMatch(
-      /m\.first_name\s*\|\|\s*' '\s*\|\|\s*m\.last_name\s+AS full_name/,
-    );
+    expect(read('billing-email.service.ts')).toMatch(/m\.first_name\s*\|\|\s*' '\s*\|\|\s*m\.last_name\s+AS full_name/);
   });
 
   it('report-email.service.ts sums loan_repayments.amount_paid, not amount', () => {

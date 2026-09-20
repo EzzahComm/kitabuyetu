@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { membersService } from '@/lib/services/members.service';
@@ -13,10 +13,10 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const { id, kinId } = await params;
   return withAuth(req, async (auth) => {
     requirePermission(auth, 'members.manage');
-    const body  = await req.json();
+    const body = await req.json();
     const input = UpdateNextOfKinSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const row   = await membersService.updateNextOfKin(ctx, id, kinId, input);
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const row = await membersService.updateNextOfKin(ctx, id, kinId, input);
     return ok(row);
   });
 }

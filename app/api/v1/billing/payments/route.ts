@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { billingService } from '@/lib/services/billing.service';
@@ -8,7 +8,7 @@ import { ok, created } from '@/lib/utils/response';
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'billing.manage', async (auth) => {
     const body = await req.json();
-    const ctx  = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     if (body.type === 'sms_topup') {
       const input = SmsTopupSchema.parse(body);

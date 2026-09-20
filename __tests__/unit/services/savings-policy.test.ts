@@ -8,7 +8,9 @@
 import { withDb, withTransaction } from '@/lib/db';
 import { resolvePolicy, resolvePolicyDetailed, setPolicy } from '@/lib/services/configuration.service';
 import {
-  savingsPolicyService, getEffectiveSavingsLimits, type SavingsLimits,
+  savingsPolicyService,
+  getEffectiveSavingsLimits,
+  type SavingsLimits,
 } from '@/lib/services/savings-policy.service';
 import { ValidationError } from '@/lib/utils/errors';
 
@@ -17,12 +19,12 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 jest.mock('@/lib/services/configuration.service', () => ({
-  resolvePolicy:         jest.fn(),
+  resolvePolicy: jest.fn(),
   resolvePolicyDetailed: jest.fn(),
-  setPolicy:             jest.fn(),
+  setPolicy: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -49,31 +51,52 @@ describe('getEffectiveSavingsLimits', () => {
 
 describe('savingsPolicyService.setGroupLimitsOverride', () => {
   it('rejects a negative minContribution', async () => {
-    await expect(savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, minContribution: -1 }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, minContribution: -1 }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(setPolicy).not.toHaveBeenCalled();
   });
 
   it('rejects a maxContribution that is not greater than minContribution', async () => {
-    await expect(savingsPolicyService.setGroupLimitsOverride(ctx, { minContribution: 500, maxContribution: 500, gracePeriodDays: 0 }))
-      .rejects.toBeInstanceOf(ValidationError);
-    await expect(savingsPolicyService.setGroupLimitsOverride(ctx, { minContribution: 500, maxContribution: 100, gracePeriodDays: 0 }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      savingsPolicyService.setGroupLimitsOverride(ctx, {
+        minContribution: 500,
+        maxContribution: 500,
+        gracePeriodDays: 0,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      savingsPolicyService.setGroupLimitsOverride(ctx, {
+        minContribution: 500,
+        maxContribution: 100,
+        gracePeriodDays: 0,
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('accepts a null maxContribution (no maximum)', async () => {
-    await savingsPolicyService.setGroupLimitsOverride(ctx, { minContribution: 0, maxContribution: null, gracePeriodDays: 0 });
+    await savingsPolicyService.setGroupLimitsOverride(ctx, {
+      minContribution: 0,
+      maxContribution: null,
+      gracePeriodDays: 0,
+    });
     expect(setPolicy).toHaveBeenCalledWith(
-      mockClient, 'savings', 'limits', { groupId: 'g1' },
-      { minContribution: 0, maxContribution: null, gracePeriodDays: 0 }, 'user-1',
+      mockClient,
+      'savings',
+      'limits',
+      { groupId: 'g1' },
+      { minContribution: 0, maxContribution: null, gracePeriodDays: 0 },
+      'user-1',
     );
   });
 
   it('rejects a fractional or negative gracePeriodDays', async () => {
-    await expect(savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, gracePeriodDays: 2.5 }))
-      .rejects.toBeInstanceOf(ValidationError);
-    await expect(savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, gracePeriodDays: -1 }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, gracePeriodDays: 2.5 }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      savingsPolicyService.setGroupLimitsOverride(ctx, { ...VALID_LIMITS, gracePeriodDays: -1 }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('accepts valid limits and writes them at group scope', async () => {

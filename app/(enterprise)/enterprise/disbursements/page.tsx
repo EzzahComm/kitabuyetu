@@ -31,11 +31,11 @@ import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 import { DISBURSEMENT_TYPES, PAYMENT_METHODS } from '@/lib/validators/organization.schema';
 
-const PAYMENT_METHOD_LABELS: Record<typeof PAYMENT_METHODS[number], string> = {
-  mpesa:          'M-Pesa',
-  cash:           'Cash',
-  cheque:         'Cheque',
-  bank_transfer:  'Bank transfer',
+const PAYMENT_METHOD_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
+  mpesa: 'M-Pesa',
+  cash: 'Cash',
+  cheque: 'Cheque',
+  bank_transfer: 'Bank transfer',
   standing_order: 'Standing order',
 };
 
@@ -43,12 +43,20 @@ const PAYMENT_METHOD_LABELS: Record<typeof PAYMENT_METHODS[number], string> = {
 const METHODS_WITH_REFERENCE = ['cheque', 'bank_transfer', 'standing_order'] as const;
 
 interface DisbursementRow {
-  id: string; group_id: string; group_name?: string;
-  funding_program_id: string | null; program_name?: string | null;
-  disbursement_type: string; amount: string; status: string;
-  reference: string; notes: string | null; created_at: string;
+  id: string;
+  group_id: string;
+  group_name?: string;
+  funding_program_id: string | null;
+  program_name?: string | null;
+  disbursement_type: string;
+  amount: string;
+  status: string;
+  reference: string;
+  notes: string | null;
+  created_at: string;
   /** NULL for anything disbursed before migration 150 — "not recorded". */
-  payment_method: string | null; payment_reference: string | null;
+  payment_method: string | null;
+  payment_reference: string | null;
 }
 
 export default function DisbursementsPage() {
@@ -60,12 +68,12 @@ export default function DisbursementsPage() {
   const [creating, setCreating] = useState(false);
   const [groupId, setGroupId] = useState('');
   const [amount, setAmount] = useState('');
-  const [disbursementType, setDisbursementType] = useState<typeof DISBURSEMENT_TYPES[number]>('grant');
+  const [disbursementType, setDisbursementType] = useState<(typeof DISBURSEMENT_TYPES)[number]>('grant');
   const [fundingProgramId, setFundingProgramId] = useState('');
   const [notes, setNotes] = useState('');
   // '' means "not recorded" and is sent as undefined — never defaulted to a
   // channel, because guessing invents an audit trail for real money.
-  const [paymentMethod, setPaymentMethod] = useState<'' | typeof PAYMENT_METHODS[number]>('');
+  const [paymentMethod, setPaymentMethod] = useState<'' | (typeof PAYMENT_METHODS)[number]>('');
   const [paymentReference, setPaymentReference] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -75,7 +83,7 @@ export default function DisbursementsPage() {
 
   const { data: walletData } = useQuery({
     queryKey: enterpriseKeys.wallet(),
-    queryFn:  () => organizationApi.wallet(),
+    queryFn: () => organizationApi.wallet(),
     staleTime: 30_000,
   });
   // { limit: 200 }, not the bare groups() call Portfolio/Branches use — a
@@ -83,17 +91,17 @@ export default function DisbursementsPage() {
   // colliding with theirs (see enterpriseKeys.groups' header comment).
   const { data: groupsPage } = useQuery({
     queryKey: enterpriseKeys.groups({ limit: 200 }),
-    queryFn:  () => organizationApi.groups({ limit: 200 }),
+    queryFn: () => organizationApi.groups({ limit: 200 }),
     staleTime: 30_000,
   });
   const { data: programsData } = useQuery({
     queryKey: enterpriseKeys.programs(),
-    queryFn:  () => organizationApi.programs(),
+    queryFn: () => organizationApi.programs(),
     staleTime: 30_000,
   });
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<DisbursementRow>>({
     queryKey: enterpriseKeys.disbursements({ page, limit: 20 }),
-    queryFn:  async () => {
+    queryFn: async () => {
       const res = await organizationApi.disbursements({ page, limit: 20 });
       return { ...res, pageSize: res.limit ?? 20, totalPages: Math.max(1, Math.ceil(res.total / (res.limit ?? 20))) };
     },
@@ -101,23 +109,32 @@ export default function DisbursementsPage() {
   });
 
   const groups = groupsPage?.items ?? [];
-  const programs = (programsData as unknown as {
-    items: { id: string; name: string; status: string; processing_fee_pct: string | null }[];
-  } | undefined)?.items ?? [];
+  const programs =
+    (
+      programsData as unknown as
+        | {
+            items: { id: string; name: string; status: string; processing_fee_pct: string | null }[];
+          }
+        | undefined
+    )?.items ?? [];
   const selectedProgram = programs.find((p) => p.id === fundingProgramId);
   const feePct = selectedProgram?.processing_fee_pct ? parseFloat(selectedProgram.processing_fee_pct) : 0;
   const parsedAmountPreview = parseFloat(amount);
-  const netPreview = feePct > 0 && parsedAmountPreview > 0
-    ? parsedAmountPreview - Math.round(parsedAmountPreview * feePct) / 100
-    : null;
+  const netPreview =
+    feePct > 0 && parsedAmountPreview > 0 ? parsedAmountPreview - Math.round(parsedAmountPreview * feePct) / 100 : null;
   const availableBalance = walletData ? parseFloat(walletData.wallet.available_balance) : null;
 
   const refresh = () => qc.invalidateQueries({ queryKey: enterpriseKeys.disbursements() });
   const refreshWallet = () => qc.invalidateQueries({ queryKey: enterpriseKeys.wallet() });
 
   const resetForm = () => {
-    setGroupId(''); setAmount(''); setDisbursementType('grant'); setFundingProgramId(''); setNotes('');
-    setPaymentMethod(''); setPaymentReference('');
+    setGroupId('');
+    setAmount('');
+    setDisbursementType('grant');
+    setFundingProgramId('');
+    setNotes('');
+    setPaymentMethod('');
+    setPaymentReference('');
   };
 
   const submitDisbursement = async () => {
@@ -129,22 +146,26 @@ export default function DisbursementsPage() {
     setBusy(true);
     try {
       const res = await organizationApi.disburse({
-        groupId, amount: parsedAmount, disbursementType,
+        groupId,
+        amount: parsedAmount,
+        disbursementType,
         fundingProgramId: fundingProgramId || undefined,
         notes: notes.trim() || undefined,
         paymentMethod: paymentMethod || undefined,
         paymentReference: paymentReference.trim() || undefined,
       });
       toast({
-        title: res.needsApproval
-          ? 'Disbursement submitted — awaiting a second officer'
-          : 'Disbursement sent',
+        title: res.needsApproval ? 'Disbursement submitted — awaiting a second officer' : 'Disbursement sent',
       });
       setCreating(false);
       resetForm();
       await Promise.all([refresh(), refreshWallet()]);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Disbursement failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Disbursement failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -158,7 +179,11 @@ export default function DisbursementsPage() {
       setApproving(null);
       await Promise.all([refresh(), refreshWallet()]);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Approval failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Approval failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -173,10 +198,15 @@ export default function DisbursementsPage() {
     try {
       await organizationApi.disbursementAction(rejecting.id, { action: 'reject', reason: rejectReason.trim() });
       toast({ title: 'Disbursement rejected — reservation released' });
-      setRejecting(null); setRejectReason('');
+      setRejecting(null);
+      setRejectReason('');
       await Promise.all([refresh(), refreshWallet()]);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Rejection failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Rejection failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -224,7 +254,8 @@ export default function DisbursementsPage() {
         emptyIcon={Banknote}
         columns={[
           {
-            key: 'group', header: 'Branch',
+            key: 'group',
+            header: 'Branch',
             render: (r) => (
               <div>
                 <p className="font-medium text-foreground">{r.group_name ?? '—'}</p>
@@ -233,33 +264,42 @@ export default function DisbursementsPage() {
             ),
           },
           {
-            key: 'program', header: 'Program',
+            key: 'program',
+            header: 'Program',
             render: (r) => <span className="text-muted-foreground">{r.program_name ?? '—'}</span>,
           },
           {
-            key: 'type', header: 'Type',
-            render: (r) => <span className="capitalize text-muted-foreground">{r.disbursement_type.replace(/_/g, ' ')}</span>,
+            key: 'type',
+            header: 'Type',
+            render: (r) => (
+              <span className="capitalize text-muted-foreground">{r.disbursement_type.replace(/_/g, ' ')}</span>
+            ),
           },
           {
-            key: 'amount', header: 'Amount', className: 'text-right',
+            key: 'amount',
+            header: 'Amount',
+            className: 'text-right',
             render: (r) => <MoneyDisplay amount={parseFloat(r.amount)} size="sm" />,
           },
           {
             // "Not recorded" is shown plainly rather than blank — a dash reads
             // as "no data available", when the real meaning is that nobody
             // captured how the money moved.
-            key: 'paid_by', header: 'Paid by',
-            render: (r) => (r.payment_method ? (
-              <span className="text-muted-foreground">
-                {PAYMENT_METHOD_LABELS[r.payment_method as typeof PAYMENT_METHODS[number]] ?? r.payment_method}
-                {r.payment_reference ? ` · ${r.payment_reference}` : ''}
-              </span>
-            ) : (
-              <span className="text-xs italic text-muted-foreground/70">Not recorded</span>
-            )),
+            key: 'paid_by',
+            header: 'Paid by',
+            render: (r) =>
+              r.payment_method ? (
+                <span className="text-muted-foreground">
+                  {PAYMENT_METHOD_LABELS[r.payment_method as (typeof PAYMENT_METHODS)[number]] ?? r.payment_method}
+                  {r.payment_reference ? ` · ${r.payment_reference}` : ''}
+                </span>
+              ) : (
+                <span className="text-xs italic text-muted-foreground/70">Not recorded</span>
+              ),
           },
           {
-            key: 'status', header: 'Status',
+            key: 'status',
+            header: 'Status',
             render: (r) => (
               <StatusPill
                 status={r.status}
@@ -270,23 +310,33 @@ export default function DisbursementsPage() {
             ),
           },
           {
-            key: 'date', header: 'Date',
+            key: 'date',
+            header: 'Date',
             render: (r) => <span className="text-muted-foreground">{formatDate(r.created_at)}</span>,
           },
           {
-            key: 'actions', header: '', className: 'text-right',
-            render: (r) => (
+            key: 'actions',
+            header: '',
+            className: 'text-right',
+            render: (r) =>
               r.status === 'pending_approval' && canManageDisbursements ? (
                 <div className="flex justify-end gap-2">
-                  <Button size="sm" variant="outline" onClick={() => { setRejecting(r); setRejectReason(''); }} disabled={busy}>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setRejecting(r);
+                      setRejectReason('');
+                    }}
+                    disabled={busy}
+                  >
                     Reject
                   </Button>
                   <Button size="sm" onClick={() => setApproving(r)} disabled={busy}>
                     Approve
                   </Button>
                 </div>
-              ) : null
-            ),
+              ) : null,
           },
         ]}
       />
@@ -294,7 +344,9 @@ export default function DisbursementsPage() {
       {/* New disbursement */}
       <Dialog open={creating} onOpenChange={(o) => !o && setCreating(false)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Send a disbursement</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Send a disbursement</DialogTitle>
+          </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-1">
               <Label>Branch</Label>
@@ -305,13 +357,21 @@ export default function DisbursementsPage() {
               >
                 <option value="">Select branch…</option>
                 {groups.map((g) => (
-                  <option key={g.groupId} value={g.groupId}>{g.groupName}</option>
+                  <option key={g.groupId} value={g.groupId}>
+                    {g.groupName}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="space-y-1">
               <Label>Amount (KES)</Label>
-              <Input type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+              <Input
+                type="number"
+                min="1"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+              />
             </div>
             <div className="space-y-1">
               <Label>Type</Label>
@@ -321,7 +381,9 @@ export default function DisbursementsPage() {
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm capitalize"
               >
                 {DISBURSEMENT_TYPES.map((t) => (
-                  <option key={t} value={t} className="capitalize">{t.replace(/_/g, ' ')}</option>
+                  <option key={t} value={t} className="capitalize">
+                    {t.replace(/_/g, ' ')}
+                  </option>
                 ))}
               </select>
             </div>
@@ -336,7 +398,8 @@ export default function DisbursementsPage() {
                   <option value="">None</option>
                   {programs.map((p) => (
                     <option key={p.id} value={p.id}>
-                      {p.name}{p.processing_fee_pct ? ` (${p.processing_fee_pct}% processing fee)` : ''}
+                      {p.name}
+                      {p.processing_fee_pct ? ` (${p.processing_fee_pct}% processing fee)` : ''}
                     </option>
                   ))}
                 </select>
@@ -347,10 +410,10 @@ export default function DisbursementsPage() {
                 <AlertTriangle size={14} />
                 <AlertTitle>Processing fee applies</AlertTitle>
                 <AlertDescription>
-                  Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash
-                  (KES {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) —
-                  the branch still owes the full KES {parsedAmountPreview.toLocaleString()} as principal.
-                  Enter a larger amount if you need a specific net figure to reach the branch.
+                  Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash (KES{' '}
+                  {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) — the branch still owes the
+                  full KES {parsedAmountPreview.toLocaleString()} as principal. Enter a larger amount if you need a
+                  specific net figure to reach the branch.
                 </AlertDescription>
               </Alert>
             )}
@@ -369,7 +432,9 @@ export default function DisbursementsPage() {
               >
                 <option value="">Not recorded</option>
                 {PAYMENT_METHODS.map((m) => (
-                  <option key={m} value={m}>{PAYMENT_METHOD_LABELS[m]}</option>
+                  <option key={m} value={m}>
+                    {PAYMENT_METHOD_LABELS[m]}
+                  </option>
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
@@ -380,9 +445,7 @@ export default function DisbursementsPage() {
                 channels that actually produce one. */}
             {METHODS_WITH_REFERENCE.includes(paymentMethod as never) && (
               <div className="space-y-1">
-                <Label>
-                  {paymentMethod === 'cheque' ? 'Cheque number' : 'Transfer reference'} (optional)
-                </Label>
+                <Label>{paymentMethod === 'cheque' ? 'Cheque number' : 'Transfer reference'} (optional)</Label>
                 <Input
                   value={paymentReference}
                   onChange={(e) => setPaymentReference(e.target.value)}
@@ -392,14 +455,20 @@ export default function DisbursementsPage() {
             )}
             <div className="space-y-1">
               <Label>Notes (optional)</Label>
-              <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Q3 revolving fund top-up" />
+              <Input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="e.g. Q3 revolving fund top-up"
+              />
             </div>
             <p className="text-xs text-muted-foreground">
               Disbursements above your organization&apos;s approval threshold need a second officer to approve.
             </p>
           </div>
           <DialogFooter>
-            <Button onClick={submitDisbursement} loading={busy} disabled={!canManageDisbursements}>Send disbursement</Button>
+            <Button onClick={submitDisbursement} loading={busy} disabled={!canManageDisbursements}>
+              Send disbursement
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -426,13 +495,21 @@ export default function DisbursementsPage() {
       {/* Reject */}
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Reject disbursement</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reject disbursement</DialogTitle>
+          </DialogHeader>
           <div className="space-y-1">
             <Label>Rejection reason</Label>
-            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Why is this disbursement being rejected?" />
+            <Input
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Why is this disbursement being rejected?"
+            />
           </div>
           <DialogFooter>
-            <Button variant="destructive" onClick={reject} loading={busy} disabled={!canManageDisbursements}>Reject disbursement</Button>
+            <Button variant="destructive" onClick={reject} loading={busy} disabled={!canManageDisbursements}>
+              Reject disbursement
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

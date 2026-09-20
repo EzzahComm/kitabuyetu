@@ -53,7 +53,15 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
  * the fully-static JSON-LD on the homepage, so `<` is escaped before
  * embedding to rule out a `</script>`-breakout edge case in a title/excerpt.
  */
-function StructuredData({ post, url, coverImageUrl }: { post: NonNullable<Awaited<ReturnType<typeof getPostBySlug>>>; url: string; coverImageUrl: string | null }) {
+function StructuredData({
+  post,
+  url,
+  coverImageUrl,
+}: {
+  post: NonNullable<Awaited<ReturnType<typeof getPostBySlug>>>;
+  url: string;
+  coverImageUrl: string | null;
+}) {
   const json = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
@@ -104,9 +112,7 @@ export default async function PostPage({ params }: PostPageProps) {
           <Image src={coverImageUrl} alt="" fill className="object-cover" sizes="100vw" priority />
         </div>
       )}
-      {post.authorName && (
-        <p className="not-prose text-sm font-medium text-brand-blue-900/50">By {post.authorName}</p>
-      )}
+      {post.authorName && <p className="not-prose text-sm font-medium text-brand-blue-900/50">By {post.authorName}</p>}
       <PortableText value={post.content} components={portableTextComponents} />
     </PageShell>
   );

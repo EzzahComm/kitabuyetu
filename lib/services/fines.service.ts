@@ -32,9 +32,7 @@ import { assertActiveMembership } from './membership-guard';
 import { finePolicyService } from './fine-policy.service';
 import { paymentRequestsService } from './payment-requests.service';
 import { postTemplatedJournal } from './posting-templates.service';
-import type {
-  IssueFineInput, WaiveFineInput, CancelFineInput, FineQueryInput,
-} from '@/lib/validators/fine.schema';
+import type { IssueFineInput, WaiveFineInput, CancelFineInput, FineQueryInput } from '@/lib/validators/fine.schema';
 
 const FINE_SELECT = `
   SELECT f.*,
@@ -51,7 +49,6 @@ const FINE_SELECT = `
 `;
 
 export const finesService = {
-
   async list(ctx: TenantContext, params: FineQueryInput) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
@@ -59,8 +56,14 @@ export const finesService = {
       const args: unknown[] = [ctx.groupId];
       let i = 2;
 
-      if (params.status)   { conditions.push(`f.status = $${i++}`);    args.push(params.status); }
-      if (params.memberId) { conditions.push(`f.member_id = $${i++}`); args.push(params.memberId); }
+      if (params.status) {
+        conditions.push(`f.status = $${i++}`);
+        args.push(params.status);
+      }
+      if (params.memberId) {
+        conditions.push(`f.member_id = $${i++}`);
+        args.push(params.memberId);
+      }
 
       const where = conditions.join(' AND ');
 
@@ -71,24 +74,22 @@ export const finesService = {
          LIMIT  $${i++} OFFSET $${i++}`,
         [...args, params.limit, offset],
       );
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*) FROM fines f WHERE ${where}`,
-        args,
-      );
+      const {
+        rows: [{ count }],
+      } = await client.query(`SELECT COUNT(*) FROM fines f WHERE ${where}`, args);
       return {
-        items, total: Number(count),
+        items,
+        total: Number(count),
         totalPages: Math.ceil(Number(count) / params.limit),
-        page: params.page, pageSize: params.limit,
+        page: params.page,
+        pageSize: params.limit,
       };
     });
   },
 
   async getById(ctx: TenantContext, id: string) {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query(
-        `${FINE_SELECT} WHERE f.id = $1 AND f.group_id = $2`,
-        [id, ctx.groupId],
-      );
+      const { rows } = await client.query(`${FINE_SELECT} WHERE f.id = $1 AND f.group_id = $2`, [id, ctx.groupId]);
       if (!rows[0]) throw new NotFoundError('Fine', id);
       return rows[0];
     });
@@ -108,7 +109,7 @@ export const finesService = {
         if (suggested === undefined) {
           throw new ValidationError(
             `No tariff amount for offence '${input.fineType}' and none was supplied — ` +
-            `add it to the fine schedule (PUT /api/v1/fines/policy) or pass an explicit amount`,
+              `add it to the fine schedule (PUT /api/v1/fines/policy) or pass an explicit amount`,
           );
         }
         amount = suggested;
@@ -127,8 +128,13 @@ export const finesService = {
          VALUES ($1,$2,$3,$4,$5,$6,'issued',$7,now())
          RETURNING *`,
         [
-          ctx.groupId, input.memberId, membershipId, input.fineType,
-          amount.toFixed(2), input.reason ?? null, ctx.userId,
+          ctx.groupId,
+          input.memberId,
+          membershipId,
+          input.fineType,
+          amount.toFixed(2),
+          input.reason ?? null,
+          ctx.userId,
         ],
       );
       const fine = rows[0];
@@ -138,10 +144,17 @@ export const finesService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          ctx.groupId, ctx.userId, 'fine.issue', 'fine', fine.id, null,
+          ctx.groupId,
+          ctx.userId,
+          'fine.issue',
+          'fine',
+          fine.id,
+          null,
           JSON.stringify({
-            member_id: input.memberId, fine_type: input.fineType,
-            amount, status: 'issued',
+            member_id: input.memberId,
+            fine_type: input.fineType,
+            amount,
+            status: 'issued',
           }),
         ],
       );
@@ -152,10 +165,9 @@ export const finesService = {
 
   async waive(ctx: TenantContext, id: string, data: WaiveFineInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [fine] } = await client.query(
-        'SELECT * FROM fines WHERE id=$1 AND group_id=$2',
-        [id, ctx.groupId],
-      );
+      const {
+        rows: [fine],
+      } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!fine) throw new NotFoundError('Fine', id);
       if (fine.status !== 'issued') {
         throw new ValidationError(`Cannot waive a fine with status '${fine.status}'`);
@@ -173,7 +185,11 @@ export const finesService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          ctx.groupId, ctx.userId, 'fine.waive', 'fine', id,
+          ctx.groupId,
+          ctx.userId,
+          'fine.waive',
+          'fine',
+          id,
           JSON.stringify({ status: 'issued' }),
           JSON.stringify({ status: 'waived', waived_reason: data.reason }),
         ],
@@ -185,10 +201,9 @@ export const finesService = {
 
   async cancel(ctx: TenantContext, id: string, data: CancelFineInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [fine] } = await client.query(
-        'SELECT * FROM fines WHERE id=$1 AND group_id=$2',
-        [id, ctx.groupId],
-      );
+      const {
+        rows: [fine],
+      } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!fine) throw new NotFoundError('Fine', id);
       // Administrative correction ("issued in error") — only before any
       // money has moved. Once paid/waived this must stay an honest record
@@ -198,10 +213,9 @@ export const finesService = {
       }
 
       if (fine.payment_request_id) {
-        const { rows: [request] } = await client.query(
-          'SELECT status FROM payment_requests WHERE id=$1',
-          [fine.payment_request_id],
-        );
+        const {
+          rows: [request],
+        } = await client.query('SELECT status FROM payment_requests WHERE id=$1', [fine.payment_request_id]);
         if (request?.status === 'fulfilled') {
           throw new ValidationError(
             'This fine has already been collected via its linked payment request — mark it paid instead of cancelling',
@@ -221,7 +235,11 @@ export const finesService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          ctx.groupId, ctx.userId, 'fine.cancel', 'fine', id,
+          ctx.groupId,
+          ctx.userId,
+          'fine.cancel',
+          'fine',
+          id,
           JSON.stringify({ status: 'issued' }),
           JSON.stringify({ status: 'cancelled', cancel_reason: data.reason }),
         ],
@@ -242,10 +260,9 @@ export const finesService = {
 
   async initiateCollection(ctx: TenantContext, id: string) {
     const fine = await withDb(ctx, async (client) => {
-      const { rows: [f] } = await client.query(
-        'SELECT * FROM fines WHERE id=$1 AND group_id=$2',
-        [id, ctx.groupId],
-      );
+      const {
+        rows: [f],
+      } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!f) throw new NotFoundError('Fine', id);
       if (f.status !== 'issued') {
         throw new ValidationError(`Cannot initiate collection for a fine with status '${f.status}'`);
@@ -264,8 +281,8 @@ export const finesService = {
     // result back onto the fine below.
     const paymentRequest = await paymentRequestsService.create(ctx, {
       memberId: fine.member_id,
-      product:  'fine',
-      amount:   Number(fine.amount),
+      product: 'fine',
+      amount: Number(fine.amount),
       entityId: fine.id,
     });
 
@@ -273,15 +290,12 @@ export const finesService = {
       return await withTransaction(ctx, async (client) => {
         // Re-check under lock: guards the (rare) race of two concurrent
         // initiateCollection calls both passing the read-check above.
-        const { rows: [f] } = await client.query(
-          'SELECT * FROM fines WHERE id=$1 AND group_id=$2 FOR UPDATE',
-          [id, ctx.groupId],
-        );
+        const {
+          rows: [f],
+        } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2 FOR UPDATE', [id, ctx.groupId]);
         if (!f) throw new NotFoundError('Fine', id);
         if (f.status !== 'issued' || f.payment_request_id) {
-          throw new ValidationError(
-            `Fine status changed to '${f.status}' while initiating collection — try again`,
-          );
+          throw new ValidationError(`Fine status changed to '${f.status}' while initiating collection — try again`);
         }
 
         const { rows } = await client.query(
@@ -295,7 +309,11 @@ export const finesService = {
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
           [
-            ctx.groupId, ctx.userId, 'fine.initiateCollection', 'fine', id,
+            ctx.groupId,
+            ctx.userId,
+            'fine.initiateCollection',
+            'fine',
+            id,
             JSON.stringify({ payment_request_id: null }),
             JSON.stringify({ payment_request_id: paymentRequest.id }),
           ],
@@ -323,10 +341,9 @@ export const finesService = {
    */
   async markPaid(ctx: TenantContext, id: string) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [fine] } = await client.query(
-        'SELECT * FROM fines WHERE id=$1 AND group_id=$2 FOR UPDATE',
-        [id, ctx.groupId],
-      );
+      const {
+        rows: [fine],
+      } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2 FOR UPDATE', [id, ctx.groupId]);
       if (!fine) throw new NotFoundError('Fine', id);
       if (fine.status !== 'issued') {
         throw new ValidationError(`Cannot mark paid a fine with status '${fine.status}'`);
@@ -343,7 +360,11 @@ export const finesService = {
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          ctx.groupId, ctx.userId, 'fine.markPaid', 'fine', id,
+          ctx.groupId,
+          ctx.userId,
+          'fine.markPaid',
+          'fine',
+          id,
           JSON.stringify({ status: 'issued' }),
           JSON.stringify({ status: 'paid' }),
         ],
@@ -352,7 +373,10 @@ export const finesService = {
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7 pattern: a real cash inflow with
       // previously zero GL trace.
       await postTemplatedJournal(
-        client, ctx.groupId, ctx.userId, 'fine_collection',
+        client,
+        ctx.groupId,
+        ctx.userId,
+        'fine_collection',
         `Fine collected — ${fine.fine_type} (fine ${id})`,
         { amount: Number(fine.amount) },
         { reference: id, memberId: fine.member_id, groupMembershipId: fine.group_membership_id },

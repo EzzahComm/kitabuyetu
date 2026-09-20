@@ -25,9 +25,9 @@ export default function VerifyGroupPage() {
   const { toast } = useToast();
   const { user, accessToken, isLoading, login } = useAuth();
 
-  const [step, setStep]         = useState<Step>('choose');
-  const [busy, setBusy]         = useState(false);
-  const [code, setCode]         = useState('');
+  const [step, setStep] = useState<Step>('choose');
+  const [busy, setBusy] = useState(false);
+  const [code, setCode] = useState('');
 
   useEffect(() => {
     configureApiClient({ getToken: () => accessToken, onUnauthorized: () => router.push('/login') });
@@ -47,14 +47,22 @@ export default function VerifyGroupPage() {
    * shell quoting Kitabu Yetu prices with no route back to what it signed up
    * for.
    */
-  const goToPortal = useCallback(async (groupRole: string | undefined) => {
-    router.push(await resolvePostLoginPath(groupRole));
-  }, [router]);
+  const goToPortal = useCallback(
+    async (groupRole: string | undefined) => {
+      router.push(await resolvePostLoginPath(groupRole));
+    },
+    [router],
+  );
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user || !isTenantUser(user)) { router.push('/login'); return; }
-    if (user.groupStatus !== 'pending_verification') { void goToPortal(user.groupRole); }
+    if (!user || !isTenantUser(user)) {
+      router.push('/login');
+      return;
+    }
+    if (user.groupStatus !== 'pending_verification') {
+      void goToPortal(user.groupRole);
+    }
   }, [isLoading, user, router, goToPortal]);
 
   if (isLoading || !user || !isTenantUser(user)) return null;
@@ -66,9 +74,10 @@ export default function VerifyGroupPage() {
       setStep(channel === 'email' ? 'email-sent' : 'sms-code');
       toast({
         title: channel === 'email' ? 'Verification link sent' : 'Verification code sent',
-        description: channel === 'email'
-          ? `Check ${user.email} for a link to verify your group.`
-          : `A 6-digit code was sent to ${user.phone}.`,
+        description:
+          channel === 'email'
+            ? `Check ${user.email} for a link to verify your group.`
+            : `A 6-digit code was sent to ${user.phone}.`,
       });
     } catch (err) {
       toast({ variant: 'destructive', title: 'Could not send verification', description: getErrorMessage(err) });
@@ -99,7 +108,9 @@ export default function VerifyGroupPage() {
       <CardHeader>
         <CardTitle>Verify your group</CardTitle>
         <CardDescription>
-          {"You're almost done — verify "}<strong>{user.groupName}</strong>{" to unlock your dashboard."}
+          {"You're almost done — verify "}
+          <strong>{user.groupName}</strong>
+          {' to unlock your dashboard.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

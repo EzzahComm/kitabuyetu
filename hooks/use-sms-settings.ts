@@ -3,7 +3,7 @@ import { smsApi } from '@/lib/api/endpoints';
 import type { SmsGroupSettingsUpdateInput } from '@/lib/validators/sms.schema';
 
 export const smsSettingsKeys = {
-  settings:  ['sms', 'settings'] as const,
+  settings: ['sms', 'settings'] as const,
   birthdays: ['sms', 'birthdays'] as const,
 };
 
@@ -15,7 +15,7 @@ export function useUpdateSmsSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: SmsGroupSettingsUpdateInput) => smsApi.updateSettings(body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: smsSettingsKeys.settings }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: smsSettingsKeys.settings }),
   });
 }
 

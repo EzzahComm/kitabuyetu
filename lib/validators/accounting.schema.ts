@@ -2,41 +2,42 @@ import { z } from 'zod';
 
 export const CreateAccountSchema = z.object({
   accountCode: z.string().min(1).max(20),
-  name:        z.string().min(2).max(255),
-  type:        z.enum(['asset', 'liability', 'equity', 'income', 'expense']),
-  parentId:    z.string().uuid().optional().nullable(),
+  name: z.string().min(2).max(255),
+  type: z.enum(['asset', 'liability', 'equity', 'income', 'expense']),
+  parentId: z.string().uuid().optional().nullable(),
   description: z.string().max(500).optional().nullable(),
 });
 
 export const UpdateAccountSchema = z.object({
-  name:        z.string().min(2).max(255).optional(),
+  name: z.string().min(2).max(255).optional(),
   description: z.string().max(500).optional().nullable(),
-  isActive:    z.boolean().optional(),
+  isActive: z.boolean().optional(),
 });
 
-const JournalLineSchema = z.object({
-  accountId:   z.string().uuid(),
-  debit:       z.number().min(0).default(0),
-  credit:      z.number().min(0).default(0),
-  description: z.string().max(255).optional().nullable(),
-}).refine(
-  (l) => (l.debit > 0) !== (l.credit > 0),
-  { message: 'Each line must have either a debit or credit, not both' },
-);
+const JournalLineSchema = z
+  .object({
+    accountId: z.string().uuid(),
+    debit: z.number().min(0).default(0),
+    credit: z.number().min(0).default(0),
+    description: z.string().max(255).optional().nullable(),
+  })
+  .refine((l) => l.debit > 0 !== l.credit > 0, { message: 'Each line must have either a debit or credit, not both' });
 
-export const CreateJournalSchema = z.object({
-  entryDate:   z.string().date(),
-  reference:   z.string().max(100).optional().nullable(),
-  description: z.string().min(3).max(500),
-  lines:       z.array(JournalLineSchema).min(2, 'A journal entry needs at least 2 lines'),
-}).refine(
-  (e) => {
-    const debits  = e.lines.reduce((s, l) => s + l.debit,  0);
-    const credits = e.lines.reduce((s, l) => s + l.credit, 0);
-    return Math.abs(debits - credits) < 0.01;
-  },
-  { message: 'Journal entry is unbalanced: debits must equal credits' },
-);
+export const CreateJournalSchema = z
+  .object({
+    entryDate: z.string().date(),
+    reference: z.string().max(100).optional().nullable(),
+    description: z.string().min(3).max(500),
+    lines: z.array(JournalLineSchema).min(2, 'A journal entry needs at least 2 lines'),
+  })
+  .refine(
+    (e) => {
+      const debits = e.lines.reduce((s, l) => s + l.debit, 0);
+      const credits = e.lines.reduce((s, l) => s + l.credit, 0);
+      return Math.abs(debits - credits) < 0.01;
+    },
+    { message: 'Journal entry is unbalanced: debits must equal credits' },
+  );
 
 export const VoidJournalSchema = z.object({
   reason: z.string().min(5).max(500),
@@ -44,15 +45,15 @@ export const VoidJournalSchema = z.object({
 
 export const ReportQuerySchema = z.object({
   from: z.string().date(),
-  to:   z.string().date(),
+  to: z.string().date(),
 });
 
 // GET /accounting/journals was the only list endpoint on the group surface
 // with no cap at all (parseInt with no schema, no .max(), no NaN guard) —
 // every peer list endpoint caps at 100-200 (docs/audits/optimization-2026-09).
 export const JournalQuerySchema = z.object({
-  page:   z.coerce.number().int().min(1).default(1),
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(20),
   status: z.string().optional(),
 });
 
@@ -60,17 +61,19 @@ export const BalanceSheetQuerySchema = z.object({
   asOf: z.string().date().optional(),
 });
 
-export const ClosePeriodSchema = z.object({
-  periodStart: z.string().date(),
-  periodEnd:   z.string().date(),
-}).refine((p) => p.periodEnd >= p.periodStart, { message: 'periodEnd must not be before periodStart' });
+export const ClosePeriodSchema = z
+  .object({
+    periodStart: z.string().date(),
+    periodEnd: z.string().date(),
+  })
+  .refine((p) => p.periodEnd >= p.periodStart, { message: 'periodEnd must not be before periodStart' });
 
 export const ReopenPeriodSchema = z.object({
   reason: z.string().min(5).max(500),
 });
 
 export const SetApprovalPolicySchema = z.object({
-  key:       z.enum(['journal_threshold', 'group_disbursement_threshold', 'org_disbursement_threshold']),
+  key: z.enum(['journal_threshold', 'group_disbursement_threshold', 'org_disbursement_threshold']),
   threshold: z.number().nonnegative().max(1_000_000_000),
 });
 
@@ -84,32 +87,46 @@ export const SetPostingTemplateSchema = z.object({
   // events in the UI produced a 400 no override could get past. loan_charge
   // (migration 179) and fine_collection (migration 180) below, same reason.
   event: z.enum([
-    'share_purchase', 'share_redemption', 'welfare_disbursement',
-    'welfare_pool_contribution', 'dividend_declaration', 'dividend_payment',
-    'subscription_payment', 'loan_writeoff',
-    'loan_disbursement', 'loan_repayment', 'loan_charge',
-    'settlement_sweep', 'vendor_payment', 'fine_collection',
+    'share_purchase',
+    'share_redemption',
+    'welfare_disbursement',
+    'welfare_pool_contribution',
+    'dividend_declaration',
+    'dividend_payment',
+    'subscription_payment',
+    'loan_writeoff',
+    'loan_disbursement',
+    'loan_repayment',
+    'loan_charge',
+    'settlement_sweep',
+    'vendor_payment',
+    'fine_collection',
   ]),
-  lines: z.array(z.object({
-    accountCode: z.string().regex(/^\d{4}$/),
-    side:        z.enum(['debit', 'credit']),
-    amount:      z.string().min(1).max(40),
-  })).min(2).max(10),
+  lines: z
+    .array(
+      z.object({
+        accountCode: z.string().regex(/^\d{4}$/),
+        side: z.enum(['debit', 'credit']),
+        amount: z.string().min(1).max(40),
+      }),
+    )
+    .min(2)
+    .max(10),
 });
 
-export type CreateAccountInput  = z.infer<typeof CreateAccountSchema>;
-export type UpdateAccountInput  = z.infer<typeof UpdateAccountSchema>;
+export type CreateAccountInput = z.infer<typeof CreateAccountSchema>;
+export type UpdateAccountInput = z.infer<typeof UpdateAccountSchema>;
 // Now also the client's payload type: the accounting page used to post
 // `{ memo, lines }` against this schema's required `entryDate` + `description`,
 // so every "Post journal" click 400'd. Nothing caught it because
 // accountingApi.createJournal took `body: unknown` — it is typed against this
 // now, so a drifting payload is a compile error rather than a runtime 400.
-export type CreateJournalInput  = z.infer<typeof CreateJournalSchema>;
-export type VoidJournalInput    = z.infer<typeof VoidJournalSchema>;
-export type ReportQueryInput    = z.infer<typeof ReportQuerySchema>;
-export type JournalQueryInput   = z.infer<typeof JournalQuerySchema>;
-export type ClosePeriodInput    = z.infer<typeof ClosePeriodSchema>;
-export type ReopenPeriodInput   = z.infer<typeof ReopenPeriodSchema>;
+export type CreateJournalInput = z.infer<typeof CreateJournalSchema>;
+export type VoidJournalInput = z.infer<typeof VoidJournalSchema>;
+export type ReportQueryInput = z.infer<typeof ReportQuerySchema>;
+export type JournalQueryInput = z.infer<typeof JournalQuerySchema>;
+export type ClosePeriodInput = z.infer<typeof ClosePeriodSchema>;
+export type ReopenPeriodInput = z.infer<typeof ReopenPeriodSchema>;
 export type SetApprovalPolicyInput = z.infer<typeof SetApprovalPolicySchema>;
 export type SetPostingTemplateInput = z.infer<typeof SetPostingTemplateSchema>;
 

@@ -38,7 +38,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   org_staff_invite: {
-    subject: 'You\'ve been invited to join {{organizationName}} on Kitabu Yetu',
+    subject: "You've been invited to join {{organizationName}} on Kitabu Yetu",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">You're invited</h2>
       <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{firstName}}</strong>,</p>
@@ -358,7 +358,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   newsletter_welcome: {
-    subject: 'You\'re subscribed to Kitabu Yetu updates',
+    subject: "You're subscribed to Kitabu Yetu updates",
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome to Kitabu Yetu Updates!</h2>
       <p style="margin:0 0 20px;color:#374151;">Thank you for confirming your subscription. You will receive updates about new features, community finance tips, and product announcements.</p>

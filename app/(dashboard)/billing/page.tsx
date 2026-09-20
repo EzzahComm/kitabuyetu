@@ -25,33 +25,39 @@ export default function BillingPage() {
 
   const [topupAmount, setTopupAmount] = useState<number>(SMS_TOPUP_PRESETS[0]);
 
-  const onTopupPaid = useCallback((amount: number) => {
-    // Crediting itself happens server-side off the M-Pesa callback
-    // (mpesa/callback/route.ts → billingService.addSmsCredits) — nothing left
-    // to do here but refresh the balance and confirm. Note the callback is
-    // processed asynchronously (Next's after()), so the invalidated balance
-    // query may still read the pre-credit value on the first refetch; the
-    // balance card catches up on the next poll/refocus.
-    qc.invalidateQueries({ queryKey: billingKeys.smsCredits });
-    toast({ title: 'Credits added', description: `KES ${amount.toLocaleString()} of SMS credits added to your balance` });
-  }, [qc, toast]);
+  const onTopupPaid = useCallback(
+    (amount: number) => {
+      // Crediting itself happens server-side off the M-Pesa callback
+      // (mpesa/callback/route.ts → billingService.addSmsCredits) — nothing left
+      // to do here but refresh the balance and confirm. Note the callback is
+      // processed asynchronously (Next's after()), so the invalidated balance
+      // query may still read the pre-credit value on the first refetch; the
+      // balance card catches up on the next poll/refocus.
+      qc.invalidateQueries({ queryKey: billingKeys.smsCredits });
+      toast({
+        title: 'Credits added',
+        description: `KES ${amount.toLocaleString()} of SMS credits added to your balance`,
+      });
+    },
+    [qc, toast],
+  );
 
   const topupCheckout = useStkCheckout(onTopupPaid);
 
   const handleBuySmsCredits = () => {
     if (!topupAmount || topupAmount < 1) return;
     topupCheckout.start({
-      amount:           Math.round(topupAmount),
+      amount: Math.round(topupAmount),
       accountReference: 'SMSTOPUP',
-      description:      'SMS credits top-up'.slice(0, 20),
-      purpose:          'sms_topup' as const,
+      description: 'SMS credits top-up'.slice(0, 20),
+      purpose: 'sms_topup' as const,
     });
   };
 
-  const smsCredits  = smsBalance ? Number(smsBalance.credits) : null;
-  const smsRate     = smsBalance ? Number(smsBalance.rate) : null;
+  const smsCredits = smsBalance ? Number(smsBalance.credits) : null;
+  const smsRate = smsBalance ? Number(smsBalance.rate) : null;
   const smsKesValue = smsCredits != null && smsRate != null ? smsCredits * smsRate : null;
-  const smsLow      = smsCredits != null && smsCredits < LOW_SMS_CREDITS_THRESHOLD;
+  const smsLow = smsCredits != null && smsCredits < LOW_SMS_CREDITS_THRESHOLD;
 
   return (
     <div className="space-y-6">
@@ -78,7 +84,8 @@ export default function BillingPage() {
               <p className="text-2xl font-bold text-foreground">
                 KES {smsKesValue != null ? smsKesValue.toFixed(2) : '0.00'}
                 <span className="text-sm font-normal text-muted-foreground ml-2">
-                  ({smsCredits != null ? smsCredits.toFixed(0) : '0'} purchased{smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
+                  ({smsCredits != null ? smsCredits.toFixed(0) : '0'} purchased
+                  {smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
                 </span>
               </p>
               {/* The plan's BUNDLED messages, a separate pool from purchased

@@ -55,10 +55,7 @@ export interface DownloadOptions {
  * Throws on non-OK responses, surfacing the API's JSON `error` message
  * when available so callers can toast it.
  */
-export async function downloadAuthenticated(
-  url: string,
-  options: DownloadOptions,
-): Promise<void> {
+export async function downloadAuthenticated(url: string, options: DownloadOptions): Promise<void> {
   const token = readAccessToken();
   const headers: Record<string, string> = {};
   if (token) headers['Authorization'] = `Bearer ${token}`;
@@ -67,7 +64,7 @@ export async function downloadAuthenticated(
   if (!res.ok) {
     let detail = `HTTP ${res.status}`;
     try {
-      const body = await res.json() as { error?: string };
+      const body = (await res.json()) as { error?: string };
       if (body?.error) detail = body.error;
     } catch {
       // Body wasn't JSON — keep the HTTP status as the error message.
@@ -75,11 +72,9 @@ export async function downloadAuthenticated(
     throw new Error(detail);
   }
 
-  const filename =
-    filenameFromContentDisposition(res.headers.get('content-disposition'))
-    ?? options.fallbackFilename;
+  const filename = filenameFromContentDisposition(res.headers.get('content-disposition')) ?? options.fallbackFilename;
 
-  const blob      = await res.blob();
+  const blob = await res.blob();
   const objectUrl = URL.createObjectURL(blob);
 
   if (options.openInNewTab) {

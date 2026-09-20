@@ -19,8 +19,7 @@
 import crypto from 'crypto';
 
 /** RFC 4122 canonical form: 8-4-4-4-12 lowercase hex. */
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isUuid(value: string): boolean {
   return UUID_RE.test(value);
@@ -43,11 +42,7 @@ export function deriveUuid(namespace: string, name: string): string {
   }
 
   const nsBytes = Buffer.from(namespace.replace(/-/g, ''), 'hex');
-  const digest = crypto
-    .createHash('sha1')
-    .update(nsBytes)
-    .update(name, 'utf8')
-    .digest();
+  const digest = crypto.createHash('sha1').update(nsBytes).update(name, 'utf8').digest();
 
   // Take the first 16 bytes, then stamp version (5) and RFC 4122 variant.
   const bytes = Buffer.from(digest.subarray(0, 16));
@@ -55,11 +50,5 @@ export function deriveUuid(namespace: string, name: string): string {
   bytes[8] = (bytes[8] & 0x3f) | 0x80; // variant 10x, high bits of byte 8
 
   const hex = bytes.toString('hex');
-  return [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    hex.slice(12, 16),
-    hex.slice(16, 20),
-    hex.slice(20, 32),
-  ].join('-');
+  return [hex.slice(0, 8), hex.slice(8, 12), hex.slice(12, 16), hex.slice(16, 20), hex.slice(20, 32)].join('-');
 }

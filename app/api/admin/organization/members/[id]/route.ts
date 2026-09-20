@@ -22,12 +22,9 @@ import { ok } from '@/lib/utils/response';
 // Both ids reach `WHERE … = $1` against uuid columns, so a malformed value
 // would surface as a Postgres cast error (500) instead of a client error (R14).
 const ParamsSchema = z.object({ id: z.string().uuid('Invalid member id') });
-const QuerySchema  = z.object({ groupId: z.string().uuid('groupId must be a valid uuid') });
+const QuerySchema = z.object({ groupId: z.string().uuid('groupId must be a valid uuid') });
 
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.members.view', async (auth) => {
     const { id } = ParamsSchema.parse(await params);
     const { groupId } = QuerySchema.parse({ groupId: req.nextUrl.searchParams.get('groupId') });

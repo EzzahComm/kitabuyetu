@@ -1,21 +1,15 @@
-"use client";
+'use client';
 
-import Image from "next/image";
-import Link from "next/link";
-import { useEffect, useState } from "react";
-import {
-  AnimatePresence,
-  LazyMotion,
-  domAnimation,
-  m,
-  useReducedMotion,
-} from "framer-motion";
-import { Container } from "@/components/Container";
-import { signUpUrl } from "@/lib/app-links";
-import bookkeeperImg from "../public/img/bookkeeper.jpg";
-import chamaReminderImg from "../public/img/chama-reminder.jpg";
-import fundraiseImg from "../public/img/fundraise.jpg";
-import enterpriseImg from "../public/img/enterprise.jpg";
+import Image from 'next/image';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { AnimatePresence, LazyMotion, domAnimation, m, useReducedMotion } from 'framer-motion';
+import { Container } from '@/components/Container';
+import { signUpUrl } from '@/lib/app-links';
+import bookkeeperImg from '../public/img/bookkeeper.jpg';
+import chamaReminderImg from '../public/img/chama-reminder.jpg';
+import fundraiseImg from '../public/img/fundraise.jpg';
+import enterpriseImg from '../public/img/enterprise.jpg';
 
 /**
  * The four product pillars rotate through the home hero so the platform is
@@ -27,40 +21,36 @@ import enterpriseImg from "../public/img/enterprise.jpg";
  */
 const HERO_MESSAGES = [
   {
-    id: "bookkeeper",
-    product: "Bookkeeper",
-    title: "Keep the whole group book in one place.",
-    subtitle:
-      "Members, contributions, savings, loans, welfare and M-Pesa on one reliable record.",
+    id: 'bookkeeper',
+    product: 'Bookkeeper',
+    title: 'Keep the whole group book in one place.',
+    subtitle: 'Members, contributions, savings, loans, welfare and M-Pesa on one reliable record.',
     image: bookkeeperImg,
-    imageAlt: "A group of women meeting together, laughing and talking",
+    imageAlt: 'A group of women meeting together, laughing and talking',
   },
   {
-    id: "chama-reminder",
-    product: "Chama Reminder",
-    title: "Keep every member in the conversation.",
-    subtitle:
-      "Send contribution reminders, meeting notices and updates by SMS, without rebuilding your list.",
+    id: 'chama-reminder',
+    product: 'Chama Reminder',
+    title: 'Keep every member in the conversation.',
+    subtitle: 'Send contribution reminders, meeting notices and updates by SMS, without rebuilding your list.',
     image: chamaReminderImg,
-    imageAlt: "A woman smiling while checking her phone",
+    imageAlt: 'A woman smiling while checking her phone',
   },
   {
-    id: "fundraise",
-    product: "Fundraise / Changi$ha",
-    title: "Turn a shared idea into a funded project.",
-    subtitle:
-      "Create a campaign, track every contribution and keep project money separate from ordinary group funds.",
+    id: 'fundraise',
+    product: 'Fundraise / Changi$ha',
+    title: 'Turn a shared idea into a funded project.',
+    subtitle: 'Create a campaign, track every contribution and keep project money separate from ordinary group funds.',
     image: fundraiseImg,
-    imageAlt: "Community members meeting around a shared project",
+    imageAlt: 'Community members meeting around a shared project',
   },
   {
-    id: "enterprise",
-    product: "Enterprise",
-    title: "See the portfolio. Support every group.",
-    subtitle:
-      "Give organizations one accountable view across programmes, groups, members and financial activity.",
+    id: 'enterprise',
+    product: 'Enterprise',
+    title: 'See the portfolio. Support every group.',
+    subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
     image: enterpriseImg,
-    imageAlt: "A community leader reviewing information on a phone",
+    imageAlt: 'A community leader reviewing information on a phone',
   },
 ] as const;
 
@@ -94,10 +84,10 @@ export const Hero = () => {
     };
 
     start();
-    document.addEventListener("visibilitychange", handleVisibility);
+    document.addEventListener('visibilitychange', handleVisibility);
     return () => {
       stop();
-      document.removeEventListener("visibilitychange", handleVisibility);
+      document.removeEventListener('visibilitychange', handleVisibility);
     };
   }, [prefersReducedMotion]);
 
@@ -118,8 +108,9 @@ export const Hero = () => {
                   initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: prefersReducedMotion ? 0 : -20 }}
-                  transition={{ duration: 0.5, ease: "easeInOut" }}
-                  className="col-start-1 row-start-1">
+                  transition={{ duration: 0.5, ease: 'easeInOut' }}
+                  className="col-start-1 row-start-1"
+                >
                   <p className="mb-3 text-sm font-bold uppercase tracking-wider text-brand-600">{current.product}</p>
                   <h1 className="text-4xl font-bold leading-tight tracking-tight text-brand-blue-900 lg:text-5xl lg:leading-tight xl:text-6xl dark:text-white">
                     {current.title}
@@ -132,31 +123,29 @@ export const Hero = () => {
             </div>
 
             <p className="max-w-xl py-5 text-lg leading-8 text-gray-600 dark:text-gray-300">
-              Kitabu Yetu helps chamas, VSLAs, welfare groups, cooperatives and
-              community organizations manage themselves, grow their track record
-              and access useful opportunities.
+              Kitabu Yetu helps chamas, VSLAs, welfare groups, cooperatives and community organizations manage
+              themselves, grow their track record and access useful opportunities.
             </p>
 
             <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <a
                 href={signUpUrl()}
-                className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500">
+                className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-8 py-4 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500"
+              >
                 Get Started
               </a>
               <Link
                 href="/contact"
-                className="inline-flex min-h-12 items-center justify-center rounded-md border border-brand-600 px-8 py-4 text-lg font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-brand-400 dark:text-brand-300 dark:hover:bg-trueGray-800">
+                className="inline-flex min-h-12 items-center justify-center rounded-md border border-brand-600 px-8 py-4 text-lg font-semibold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:ring-2 focus-visible:ring-brand-500 dark:border-brand-400 dark:text-brand-300 dark:hover:bg-trueGray-800"
+              >
                 Talk to Us
               </Link>
             </div>
 
             <p className="mt-6 text-gray-500 dark:text-gray-400">
-              Simple to start · M-Pesa integrated · Secure · Built for Kenyan
-              groups
+              Simple to start · M-Pesa integrated · Secure · Built for Kenyan groups
             </p>
-            <p className="mt-1 font-medium text-gray-600 dark:text-gray-300">
-              From KES 150/month · Pay by M-Pesa
-            </p>
+            <p className="mt-1 font-medium text-gray-600 dark:text-gray-300">From KES 150/month · Pay by M-Pesa</p>
           </div>
         </div>
         <div className="flex items-center justify-center">
@@ -168,7 +157,8 @@ export const Hero = () => {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: prefersReducedMotion ? 0 : -40 }}
                 transition={{ duration: 0.6, ease: [0.32, 0.94, 0.6, 1] }}
-                  className="col-start-1 row-start-1 aspect-[4/3]">
+                className="col-start-1 row-start-1 aspect-[4/3]"
+              >
                 <Image
                   src={current.image}
                   width={1200}
@@ -188,19 +178,15 @@ export const Hero = () => {
       <Container className="mb-20 pt-0">
         <div className="flex flex-col justify-center">
           <div className="text-xl text-center text-gray-700 dark:text-white">
-            Built for Kenyan groups, on{" "}
-            <span className="text-indigo-600">Kenyan rails</span>
+            Built for Kenyan groups, on <span className="text-indigo-600">Kenyan rails</span>
           </div>
 
           <p className="max-w-2xl mx-auto mt-5 text-center text-gray-500 dark:text-gray-400">
-            Partner and customer logos go here once we have permission to show
-            them. We would rather leave this empty than fill it with names that
-            have not agreed to appear.
+            Partner and customer logos go here once we have permission to show them. We would rather leave this empty
+            than fill it with names that have not agreed to appear.
           </p>
         </div>
       </Container>
     </LazyMotion>
   );
 };
-
-

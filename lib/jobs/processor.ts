@@ -12,9 +12,9 @@
  *   Jobs left in 'processing' for > 6 min are reset to 'pending'.
  *   This handles Vercel Hobby function timeouts (10 s limit).
  */
-import type { Job, JobType, ProcessResult } from "./types";
-import { logger } from "@/lib/logger";
-import { setTickDeadline } from "./deadline";
+import type { Job, JobType, ProcessResult } from './types';
+import { logger } from '@/lib/logger';
+import { setTickDeadline } from './deadline';
 import {
   claimPendingJobs,
   getJobQueueSnapshot,
@@ -24,8 +24,8 @@ import {
   markJobFailed,
   scheduleRetry,
   logJob,
-} from "./db";
-import { handleJob } from "./handlers";
+} from './db';
+import { handleJob } from './handlers';
 
 /**
  * Ceiling on jobs claimed per tick. Raised from 25 alongside TIME_BUDGET_MS
@@ -140,9 +140,7 @@ export async function processJobBatch(): Promise<ProcessResult> {
     }
     if (failed > 0) {
       result.failed += failed;
-      logger.error(
-        `[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`,
-      );
+      logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
     }
 
     const snapshot = await getJobQueueSnapshot();
@@ -204,9 +202,7 @@ function emitQueueDepth(depth: JobQueueSnapshot): void {
   try {
     if (depth.pending === 0) return;
 
-    const starving = depth.byType.filter(
-      (t) => t.oldestMins >= STARVATION_MINS,
-    );
+    const starving = depth.byType.filter((t) => t.oldestMins >= STARVATION_MINS);
     const summary = {
       pending: depth.pending,
       oldestPendingMins: depth.oldestPendingMins,
@@ -214,15 +210,15 @@ function emitQueueDepth(depth: JobQueueSnapshot): void {
     };
 
     if (starving.length > 0) {
-      logger.error("[jobs] queue STARVATION — job types not getting a turn", {
+      logger.error('[jobs] queue STARVATION — job types not getting a turn', {
         ...summary,
         starving,
       });
     } else {
-      logger.info("[jobs] queue depth", summary);
+      logger.info('[jobs] queue depth', summary);
     }
   } catch (err) {
-    logger.warn("[jobs] queue-depth logging failed", {
+    logger.warn('[jobs] queue-depth logging failed', {
       err: err instanceof Error ? err.message : String(err),
     });
   }
@@ -243,10 +239,7 @@ function rotateStartingType(types: JobType[], now: number): JobType[] {
   return [...types.slice(offset), ...types.slice(0, offset)];
 }
 
-async function processSingleJob(
-  job: Job,
-  result: ProcessResult,
-): Promise<void> {
+async function processSingleJob(job: Job, result: ProcessResult): Promise<void> {
   const startedAt = Date.now();
 
   // Skip the 'started' row on a job's very first attempt — it carried no
@@ -257,11 +250,7 @@ async function processSingleJob(
   // exactly the signal that first caught the email_retry_failed poison-job
   // incident, and that detector still needs it.
   if (job.attempts > 0) {
-    await logJob(
-      job.id,
-      "started",
-      `Starting ${job.type} (attempt ${job.attempts + 1}/${job.max_attempts})`,
-    );
+    await logJob(job.id, 'started', `Starting ${job.type} (attempt ${job.attempts + 1}/${job.max_attempts})`);
   }
 
   try {
@@ -269,7 +258,7 @@ async function processSingleJob(
     const durationMs = Date.now() - startedAt;
 
     await markJobCompleted(job.id);
-    await logJob(job.id, "completed", handlerResult.message, durationMs);
+    await logJob(job.id, 'completed', handlerResult.message, durationMs);
 
     result.succeeded++;
   } catch (err) {
@@ -279,12 +268,7 @@ async function processSingleJob(
 
     if (newAttempts >= job.max_attempts) {
       await markJobFailed(job.id, error);
-      await logJob(
-        job.id,
-        "failed",
-        `Permanently failed after ${newAttempts} attempt(s): ${error}`,
-        durationMs,
-      );
+      await logJob(job.id, 'failed', `Permanently failed after ${newAttempts} attempt(s): ${error}`, durationMs);
       result.failed++;
 
       logger.error(`[jobs] Job ${job.id} (${job.type}) permanently failed`, {
@@ -296,18 +280,15 @@ async function processSingleJob(
       // Exponential backoff: 2^attempts * 60 seconds
       const delaySecs = Math.pow(2, newAttempts) * 60;
       await scheduleRetry(job.id, newAttempts, delaySecs, error);
-      await logJob(
-        job.id,
-        "retried",
-        `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`,
-        durationMs,
-      );
+      await logJob(job.id, 'retried', `Attempt ${newAttempts} failed, retrying in ${delaySecs}s: ${error}`, durationMs);
       result.retried++;
 
-      logger.warn(
-        `[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`,
-        { jobId: job.id, type: job.type, delaySecs, error },
-      );
+      logger.warn(`[jobs] Job ${job.id} (${job.type}) failed, retry in ${delaySecs}s`, {
+        jobId: job.id,
+        type: job.type,
+        delaySecs,
+        error,
+      });
     }
   }
 }

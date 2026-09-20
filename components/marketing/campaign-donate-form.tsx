@@ -86,15 +86,17 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
     <form onSubmit={onSubmit} className="rounded-2xl border border-brand-blue-900/10 bg-white p-6">
       <p className="font-display text-xl font-normal text-brand-blue-900">Support this campaign</p>
 
-      {step === 'error' && (
-        <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
-      )}
+      {step === 'error' && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
 
       <div className="mt-5 space-y-4">
         <label className="block text-sm font-medium text-brand-blue-900">
           Amount (KES)
           <input
-            required type="number" min={1} step="1" value={amount}
+            required
+            type="number"
+            min={1}
+            step="1"
+            value={amount}
             onChange={(e) => setAmount(e.target.value)}
             className="mt-1.5 w-full rounded-md border border-brand-blue-900/15 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
@@ -102,7 +104,10 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
         <label className="block text-sm font-medium text-brand-blue-900">
           M-Pesa phone number
           <input
-            required type="tel" placeholder="07XX XXX XXX" value={phone}
+            required
+            type="tel"
+            placeholder="07XX XXX XXX"
+            value={phone}
             onChange={(e) => setPhone(e.target.value)}
             className="mt-1.5 w-full rounded-md border border-brand-blue-900/15 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
@@ -110,14 +115,18 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
         <label className="block text-sm font-medium text-brand-blue-900">
           Your name (optional)
           <input
-            type="text" value={donorName} onChange={(e) => setDonorName(e.target.value)}
+            type="text"
+            value={donorName}
+            onChange={(e) => setDonorName(e.target.value)}
             className="mt-1.5 w-full rounded-md border border-brand-blue-900/15 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>
         <label className="block text-sm font-medium text-brand-blue-900">
           Message (optional)
           <textarea
-            rows={2} value={message} onChange={(e) => setMessage(e.target.value)}
+            rows={2}
+            value={message}
+            onChange={(e) => setMessage(e.target.value)}
             className="mt-1.5 w-full rounded-md border border-brand-blue-900/15 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>

@@ -5,66 +5,88 @@ import { z } from 'zod';
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
 export const CreateInvestmentSchema = z.object({
-  name:                z.string().min(3).max(255),
-  description:         z.string().optional(),
-  investmentType:      z.enum(['real_estate','shares','bonds','fixed_deposit','business','land','treasury_bills','money_market','other']),
-  principalAmount:     z.coerce.number().positive(),
-  expectedReturnRate:  z.coerce.number().min(0).max(100).optional(),
-  startDate:           z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  maturityDate:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  custodian:           z.string().optional(),
-  registrationNumber:  z.string().optional(),
-  location:            z.string().optional(),
-  notes:               z.string().optional(),
+  name: z.string().min(3).max(255),
+  description: z.string().optional(),
+  investmentType: z.enum([
+    'real_estate',
+    'shares',
+    'bonds',
+    'fixed_deposit',
+    'business',
+    'land',
+    'treasury_bills',
+    'money_market',
+    'other',
+  ]),
+  principalAmount: z.coerce.number().positive(),
+  expectedReturnRate: z.coerce.number().min(0).max(100).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  maturityDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  custodian: z.string().optional(),
+  registrationNumber: z.string().optional(),
+  location: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const UpdateInvestmentSchema = z.object({
-  currentValue:       z.coerce.number().positive().optional(),
-  status:             z.enum(['pending_approval','active','matured','liquidated','cancelled']).optional(),
-  custodian:          z.string().optional(),
-  notes:              z.string().optional(),
-  liquidationValue:   z.coerce.number().positive().optional(),
+  currentValue: z.coerce.number().positive().optional(),
+  status: z.enum(['pending_approval', 'active', 'matured', 'liquidated', 'cancelled']).optional(),
+  custodian: z.string().optional(),
+  notes: z.string().optional(),
+  liquidationValue: z.coerce.number().positive().optional(),
 });
 
 export const RecordReturnSchema = z.object({
   // Must stay in lockstep with public.return_type (migration 022). 'coupon'
   // used to be listed here and is not a member of that enum — it passed
   // validation and then failed at INSERT with an invalid-input-value error.
-  returnType:    z.enum(['dividend','interest','capital_gain','rental_income','other']),
-  amount:        z.coerce.number().positive(),
-  returnDate:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  returnType: z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
+  amount: z.coerce.number().positive(),
+  returnDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const RecordExpenseSchema = z.object({
   // Must stay in lockstep with public.expense_type (migration 156), for the
   // same reason RecordReturnSchema must match return_type: zod accepting a
   // value the enum does not hold fails at INSERT, not at validation.
-  expenseType:   z.enum(['inputs','labour','maintenance','transport','utilities','fees','tax','insurance','other']),
-  amount:        z.coerce.number().positive(),
-  expenseDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  expenseType: z.enum([
+    'inputs',
+    'labour',
+    'maintenance',
+    'transport',
+    'utilities',
+    'fees',
+    'tax',
+    'insurance',
+    'other',
+  ]),
+  amount: z.coerce.number().positive(),
+  expenseDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const InvestmentQuerySchema = z.object({
-  page:   z.coerce.number().int().positive().default(1),
-  limit:  z.coerce.number().int().positive().max(100).default(20),
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
   status: z.string().optional(),
-  type:   z.string().optional(),
+  type: z.string().optional(),
 });
 
-export type CreateInvestmentInput  = z.infer<typeof CreateInvestmentSchema>;
-export type UpdateInvestmentInput  = z.infer<typeof UpdateInvestmentSchema>;
-export type RecordReturnInput      = z.infer<typeof RecordReturnSchema>;
-export type RecordExpenseInput     = z.infer<typeof RecordExpenseSchema>;
-export type InvestmentQueryInput   = z.infer<typeof InvestmentQuerySchema>;
+export type CreateInvestmentInput = z.infer<typeof CreateInvestmentSchema>;
+export type UpdateInvestmentInput = z.infer<typeof UpdateInvestmentSchema>;
+export type RecordReturnInput = z.infer<typeof RecordReturnSchema>;
+export type RecordExpenseInput = z.infer<typeof RecordExpenseSchema>;
+export type InvestmentQueryInput = z.infer<typeof InvestmentQuerySchema>;
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
 export const investmentsService = {
-
   async list(ctx: TenantContext, params: InvestmentQueryInput) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
@@ -72,8 +94,14 @@ export const investmentsService = {
       const args: unknown[] = [ctx.groupId];
       let p = 2;
 
-      if (params.status) { conditions.push(`i.status = $${p++}`); args.push(params.status); }
-      if (params.type)   { conditions.push(`i.investment_type = $${p++}`); args.push(params.type); }
+      if (params.status) {
+        conditions.push(`i.status = $${p++}`);
+        args.push(params.status);
+      }
+      if (params.type) {
+        conditions.push(`i.investment_type = $${p++}`);
+        args.push(params.type);
+      }
 
       const where = conditions.join(' AND ');
 
@@ -95,11 +123,16 @@ export const investmentsService = {
          LIMIT  $${p++} OFFSET $${p++}`,
         [...args, params.limit, offset],
       );
-      const { rows: [{ count }] } = await client.query(
-        `SELECT COUNT(*) FROM investments i WHERE ${where}`,
-        args,
-      );
-      return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit), page: params.page, pageSize: params.limit };
+      const {
+        rows: [{ count }],
+      } = await client.query(`SELECT COUNT(*) FROM investments i WHERE ${where}`, args);
+      return {
+        items,
+        total: Number(count),
+        totalPages: Math.ceil(Number(count) / params.limit),
+        page: params.page,
+        pageSize: params.limit,
+      };
     });
   },
 
@@ -112,7 +145,9 @@ export const investmentsService = {
       // selected these fields even though the shared TypeScript type
       // declares them as always present, so the fix is on this query, not
       // just the page that reads it.
-      const { rows: [inv] } = await client.query(
+      const {
+        rows: [inv],
+      } = await client.query(
         `SELECT i.*,
                 cb.first_name || ' ' || cb.last_name AS created_by_name,
                 ab.first_name || ' ' || ab.last_name AS approved_by_name,
@@ -163,19 +198,36 @@ export const investmentsService = {
             registration_number, location, notes, created_by, status)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'pending_approval')
          RETURNING *`,
-        [ctx.groupId, data.name, data.description ?? null, data.investmentType,
-         data.principalAmount, data.expectedReturnRate ?? null, data.startDate,
-         data.maturityDate ?? null, data.custodian ?? null,
-         data.registrationNumber ?? null, data.location ?? null,
-         data.notes ?? null, ctx.userId],
+        [
+          ctx.groupId,
+          data.name,
+          data.description ?? null,
+          data.investmentType,
+          data.principalAmount,
+          data.expectedReturnRate ?? null,
+          data.startDate,
+          data.maturityDate ?? null,
+          data.custodian ?? null,
+          data.registrationNumber ?? null,
+          data.location ?? null,
+          data.notes ?? null,
+          ctx.userId,
+        ],
       );
       if (rows[0]) {
         await client.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, 'investment', $4, NULL, $5)`,
           [
-            ctx.groupId, ctx.userId, 'investment.created', rows[0].id,
-            JSON.stringify({ name: data.name, investment_type: data.investmentType, principal_amount: data.principalAmount }),
+            ctx.groupId,
+            ctx.userId,
+            'investment.created',
+            rows[0].id,
+            JSON.stringify({
+              name: data.name,
+              investment_type: data.investmentType,
+              principal_amount: data.principalAmount,
+            }),
           ],
         );
       }
@@ -185,21 +237,35 @@ export const investmentsService = {
 
   async update(ctx: TenantContext, id: string, data: UpdateInvestmentInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [inv] } = await client.query(
-        'SELECT * FROM investments WHERE id=$1 AND group_id=$2',
-        [id, ctx.groupId],
-      );
+      const {
+        rows: [inv],
+      } = await client.query('SELECT * FROM investments WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!inv) throw new NotFoundError('Investment', id);
 
       const updates: string[] = ['updated_at=now()'];
       const args: unknown[] = [];
       let p = 1;
 
-      if (data.currentValue !== undefined)     { updates.push(`current_value=$${p++}`);     args.push(data.currentValue); }
-      if (data.status !== undefined)           { updates.push(`status=$${p++}`);             args.push(data.status); }
-      if (data.custodian !== undefined)        { updates.push(`custodian=$${p++}`);          args.push(data.custodian); }
-      if (data.notes !== undefined)            { updates.push(`notes=$${p++}`);              args.push(data.notes); }
-      if (data.liquidationValue !== undefined) { updates.push(`liquidation_value=$${p++}`); args.push(data.liquidationValue); }
+      if (data.currentValue !== undefined) {
+        updates.push(`current_value=$${p++}`);
+        args.push(data.currentValue);
+      }
+      if (data.status !== undefined) {
+        updates.push(`status=$${p++}`);
+        args.push(data.status);
+      }
+      if (data.custodian !== undefined) {
+        updates.push(`custodian=$${p++}`);
+        args.push(data.custodian);
+      }
+      if (data.notes !== undefined) {
+        updates.push(`notes=$${p++}`);
+        args.push(data.notes);
+      }
+      if (data.liquidationValue !== undefined) {
+        updates.push(`liquidation_value=$${p++}`);
+        args.push(data.liquidationValue);
+      }
 
       if (data.status === 'active' && inv.status === 'pending_approval') {
         updates.push(`approved_by=$${p++}`, `approved_at=now()`);
@@ -221,7 +287,10 @@ export const investmentsService = {
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, 'investment', $4, $5, $6)`,
           [
-            ctx.groupId, ctx.userId, 'investment.updated', id,
+            ctx.groupId,
+            ctx.userId,
+            'investment.updated',
+            id,
             JSON.stringify({ status: inv.status, current_value: inv.current_value }),
             JSON.stringify({ status: rows[0].status, current_value: rows[0].current_value }),
           ],
@@ -234,18 +303,25 @@ export const investmentsService = {
 
   async recordReturn(ctx: TenantContext, investmentId: string, data: RecordReturnInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [inv] } = await client.query(
-        'SELECT * FROM investments WHERE id=$1 AND group_id=$2',
-        [investmentId, ctx.groupId],
-      );
+      const {
+        rows: [inv],
+      } = await client.query('SELECT * FROM investments WHERE id=$1 AND group_id=$2', [investmentId, ctx.groupId]);
       if (!inv) throw new NotFoundError('Investment', investmentId);
 
       const { rows } = await client.query(
         `INSERT INTO investment_returns
            (investment_id, group_id, return_type, amount, return_date, receipt_number, notes, recorded_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-        [investmentId, ctx.groupId, data.returnType, data.amount,
-         data.returnDate, data.receiptNumber ?? null, data.notes ?? null, ctx.userId],
+        [
+          investmentId,
+          ctx.groupId,
+          data.returnType,
+          data.amount,
+          data.returnDate,
+          data.receiptNumber ?? null,
+          data.notes ?? null,
+          ctx.userId,
+        ],
       );
 
       if (rows[0]) {
@@ -253,7 +329,10 @@ export const investmentsService = {
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, 'investment_return', $4, NULL, $5)`,
           [
-            ctx.groupId, ctx.userId, 'investment_return.recorded', rows[0].id,
+            ctx.groupId,
+            ctx.userId,
+            'investment_return.recorded',
+            rows[0].id,
             JSON.stringify({ return_type: data.returnType, amount: data.amount, return_date: data.returnDate }),
           ],
         );
@@ -265,18 +344,25 @@ export const investmentsService = {
 
   async recordExpense(ctx: TenantContext, investmentId: string, data: RecordExpenseInput) {
     return withTransaction(ctx, async (client) => {
-      const { rows: [inv] } = await client.query(
-        'SELECT * FROM investments WHERE id=$1 AND group_id=$2',
-        [investmentId, ctx.groupId],
-      );
+      const {
+        rows: [inv],
+      } = await client.query('SELECT * FROM investments WHERE id=$1 AND group_id=$2', [investmentId, ctx.groupId]);
       if (!inv) throw new NotFoundError('Investment', investmentId);
 
       const { rows } = await client.query(
         `INSERT INTO investment_expenses
            (investment_id, group_id, expense_type, amount, expense_date, receipt_number, notes, recorded_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
-        [investmentId, ctx.groupId, data.expenseType, data.amount,
-         data.expenseDate, data.receiptNumber ?? null, data.notes ?? null, ctx.userId],
+        [
+          investmentId,
+          ctx.groupId,
+          data.expenseType,
+          data.amount,
+          data.expenseDate,
+          data.receiptNumber ?? null,
+          data.notes ?? null,
+          ctx.userId,
+        ],
       );
 
       if (rows[0]) {
@@ -284,7 +370,10 @@ export const investmentsService = {
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, 'investment_expense', $4, NULL, $5)`,
           [
-            ctx.groupId, ctx.userId, 'investment_expense.recorded', rows[0].id,
+            ctx.groupId,
+            ctx.userId,
+            'investment_expense.recorded',
+            rows[0].id,
             JSON.stringify({ expense_type: data.expenseType, amount: data.amount, expense_date: data.expenseDate }),
           ],
         );
@@ -314,7 +403,9 @@ export const investmentsService = {
       // Together those produced total_current_value = 0 against a non-zero
       // principal, i.e. a flat -100% ROI the moment a group added its first
       // investment. A liquidated holding is carried at its realised proceeds.
-      const { rows: [s] } = await client.query(
+      const {
+        rows: [s],
+      } = await client.query(
         `SELECT
            COUNT(*)                                                                AS total_investments,
            COUNT(*) FILTER (WHERE status='active')                                 AS active_count,
@@ -343,22 +434,22 @@ export const investmentsService = {
 
       // numeric comes back from pg as a string — Number() before arithmetic or
       // comparison, or `'0' > 0` style coercion decides the branch.
-      const totalPrincipal    = Number(s.total_principal);
+      const totalPrincipal = Number(s.total_principal);
       const totalCurrentValue = Number(s.total_current_value);
-      const totalReturns      = Number(s.total_returns);
+      const totalReturns = Number(s.total_returns);
       // `?? 0` is not redundant with the query's COALESCE: it guards the
       // JS side. A missing field here yields Number(undefined) === NaN, and
       // NaN propagates silently through the ROI arithmetic all the way to a
       // literal "NaN%" on the dashboard — which is exactly how six tests
       // failed the moment this column was added to the SELECT.
-      const totalExpenses     = Number(s.total_expenses ?? 0);
+      const totalExpenses = Number(s.total_expenses ?? 0);
 
       const revaluedCount = Number(s.revalued_count);
 
       return {
         totalInvestments: Number(s.total_investments),
-        activeCount:      Number(s.active_count),
-        heldCount:        Number(s.held_count),
+        activeCount: Number(s.active_count),
+        heldCount: Number(s.held_count),
         revaluedCount,
         totalPrincipal,
         totalCurrentValue,
@@ -371,17 +462,17 @@ export const investmentsService = {
          * farming project can return well and still lose money once feed and
          * labour are counted, and the old formula could not express that.
          */
-        roi: totalPrincipal > 0
-          ? ((totalCurrentValue + totalReturns - totalExpenses - totalPrincipal) / totalPrincipal) * 100
-          : 0,
+        roi:
+          totalPrincipal > 0
+            ? ((totalCurrentValue + totalReturns - totalExpenses - totalPrincipal) / totalPrincipal) * 100
+            : 0,
         /**
          * Whether `roi` means anything yet. With nothing revalued and no
          * returns or expenses recorded, every holding is carried at cost and
          * the formula yields exactly 0% — a number that looks like a real
          * answer but is really "no data". The UI shows a dash instead.
          */
-        roiMeasurable:
-          totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0 || totalExpenses > 0),
+        roiMeasurable: totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0 || totalExpenses > 0),
       };
     });
   },

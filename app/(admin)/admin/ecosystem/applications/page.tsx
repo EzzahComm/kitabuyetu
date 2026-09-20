@@ -48,7 +48,11 @@ export default function AdminEcosystemApplicationsPage() {
   const onRespond = async () => {
     if (!respondingId || !respondingAction) return;
     try {
-      await updateStatus.mutateAsync({ id: respondingId, status: respondingAction, response_message: responseMessage || undefined });
+      await updateStatus.mutateAsync({
+        id: respondingId,
+        status: respondingAction,
+        response_message: responseMessage || undefined,
+      });
       toast({ title: respondingAction === 'accepted' ? 'Application accepted' : 'Application rejected' });
       setRespondingId(null);
       setRespondingAction(null);
@@ -68,9 +72,7 @@ export default function AdminEcosystemApplicationsPage() {
         <p className="text-sm text-muted-foreground">Loading…</p>
       ) : !applications || applications.length === 0 ? (
         <Card>
-          <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            No applications yet.
-          </CardContent>
+          <CardContent className="py-16 text-center text-sm text-muted-foreground">No applications yet.</CardContent>
         </Card>
       ) : (
         <div className="space-y-3">
@@ -86,12 +88,19 @@ export default function AdminEcosystemApplicationsPage() {
                     Contact: {a.contact_member_name} · {a.contact_member_phone}
                     {a.contact_member_email ? ` · ${a.contact_member_email}` : ''}
                   </p>
-                  {a.message && <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">&ldquo;{a.message}&rdquo;</p>}
+                  {a.message && (
+                    <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">&ldquo;{a.message}&rdquo;</p>
+                  )}
                   <p className="mt-2 text-xs text-muted-foreground">Submitted {formatDate(a.created_at)}</p>
                 </div>
                 {a.application_status === 'submitted' && (
                   <div className="flex shrink-0 items-center gap-2">
-                    <Button size="sm" variant="outline" onClick={() => onShortlist(a.id)} disabled={updateStatus.isPending}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onShortlist(a.id)}
+                      disabled={updateStatus.isPending}
+                    >
                       Shortlist
                     </Button>
                     <Button size="sm" variant="outline" onClick={() => openRespond(a.id, 'rejected')}>

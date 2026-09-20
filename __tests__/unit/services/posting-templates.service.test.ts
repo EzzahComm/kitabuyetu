@@ -6,10 +6,16 @@ import { withDb, withTransaction } from '@/lib/db';
 import { resolvePolicy, resolvePolicyDetailed, setPolicy } from '@/lib/services/configuration.service';
 import { postSystemJournal } from '@/lib/services/accounting.service';
 import {
-  buildTemplateLines, postTemplatedJournal, postingTemplatesService,
-  postLoanDisbursementJournal, postLoanRepaymentJournal,
-  postSettlementSweepJournal, postVendorPaymentJournal,
-  DEFAULT_TEMPLATES, POSTING_EVENTS, type TemplateLine,
+  buildTemplateLines,
+  postTemplatedJournal,
+  postingTemplatesService,
+  postLoanDisbursementJournal,
+  postLoanRepaymentJournal,
+  postSettlementSweepJournal,
+  postVendorPaymentJournal,
+  DEFAULT_TEMPLATES,
+  POSTING_EVENTS,
+  type TemplateLine,
 } from '@/lib/services/posting-templates.service';
 import { ValidationError } from '@/lib/utils/errors';
 
@@ -18,16 +24,16 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 jest.mock('@/lib/services/configuration.service', () => ({
-  resolvePolicy:         jest.fn(),
+  resolvePolicy: jest.fn(),
   resolvePolicyDetailed: jest.fn(),
-  setPolicy:             jest.fn(),
+  setPolicy: jest.fn(),
 }));
 jest.mock('@/lib/services/accounting.service', () => ({
   ...jest.requireActual('@/lib/services/accounting.service'),
   postSystemJournal: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -77,13 +83,13 @@ describe('buildTemplateLines', () => {
   });
 
   it('throws when a referenced amount role was not supplied', () => {
-    expect(() => buildTemplateLines(DEFAULT_TEMPLATES.dividend_declaration, { gross: 1000, net: 1000 }))
-      .toThrow(ValidationError);
+    expect(() => buildTemplateLines(DEFAULT_TEMPLATES.dividend_declaration, { gross: 1000, net: 1000 })).toThrow(
+      ValidationError,
+    );
   });
 
   it('throws on a negative amount', () => {
-    expect(() => buildTemplateLines(DEFAULT_TEMPLATES.share_purchase, { amount: -5 }))
-      .toThrow(ValidationError);
+    expect(() => buildTemplateLines(DEFAULT_TEMPLATES.share_purchase, { amount: -5 })).toThrow(ValidationError);
   });
 });
 
@@ -91,15 +97,31 @@ describe('postTemplatedJournal', () => {
   it('resolves the group template and posts the built lines in the same transaction', async () => {
     (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.welfare_disbursement);
     const jeId = await postTemplatedJournal(
-      mockClient as never, 'g1', 'user-1', 'welfare_disbursement', 'Welfare payout', { amount: 200 }, { reference: 'r1' },
+      mockClient as never,
+      'g1',
+      'user-1',
+      'welfare_disbursement',
+      'Welfare payout',
+      { amount: 200 },
+      { reference: 'r1' },
     );
     expect(jeId).toBe('je-1');
     expect(resolvePolicy).toHaveBeenCalledWith(
-      mockClient, 'accounting', 'posting_template.welfare_disbursement', { groupId: 'g1' }, DEFAULT_TEMPLATES.welfare_disbursement,
+      mockClient,
+      'accounting',
+      'posting_template.welfare_disbursement',
+      { groupId: 'g1' },
+      DEFAULT_TEMPLATES.welfare_disbursement,
     );
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'g1', 'user-1', 'Welfare payout',
-      [{ accountCode: '2102', debit: 200 }, { accountCode: '1001', credit: 200 }],
+      mockClient,
+      'g1',
+      'user-1',
+      'Welfare payout',
+      [
+        { accountCode: '2102', debit: 200 },
+        { accountCode: '1001', credit: 200 },
+      ],
       { reference: 'r1' },
     );
   });
@@ -107,7 +129,12 @@ describe('postTemplatedJournal', () => {
   it('posts nothing when every line resolves to zero', async () => {
     (resolvePolicy as jest.Mock).mockResolvedValueOnce(DEFAULT_TEMPLATES.share_purchase);
     const jeId = await postTemplatedJournal(
-      mockClient as never, 'g1', 'user-1', 'share_purchase', 'Zero-cash allocation', { amount: 0 },
+      mockClient as never,
+      'g1',
+      'user-1',
+      'share_purchase',
+      'Zero-cash allocation',
+      { amount: 0 },
     );
     expect(jeId).toBeNull();
     expect(postSystemJournal).not.toHaveBeenCalled();
@@ -128,15 +155,30 @@ describe('postLoanDisbursementJournal', () => {
       .mockResolvedValueOnce({ rows: [] }); // final UPDATE
 
     const result = await postLoanDisbursementJournal(mockClient as never, {
-      groupId: 'group-1', loanId: 'loan-1', principal: 50000,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      loanId: 'loan-1',
+      principal: 50000,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toEqual({ journalEntryId: 'je-1', chargePosted: false });
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'group-1', 'user-1', 'Loan disbursement — loan-1',
-      [{ accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 }],
-      { reference: undefined, memberId: 'mem-1', groupMembershipId: 'gm-1', entryDate: '2026-01-15', isTest: undefined },
+      mockClient,
+      'group-1',
+      'user-1',
+      'Loan disbursement — loan-1',
+      [
+        { accountCode: '1101', debit: 50000 },
+        { accountCode: '1001', credit: 50000 },
+      ],
+      {
+        reference: undefined,
+        memberId: 'mem-1',
+        groupMembershipId: 'gm-1',
+        entryDate: '2026-01-15',
+        isTest: undefined,
+      },
     );
   });
 
@@ -149,18 +191,34 @@ describe('postLoanDisbursementJournal', () => {
     (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-2');
 
     const result = await postLoanDisbursementJournal(mockClient as never, {
-      groupId: 'group-1', loanId: 'loan-2', principal: 50000, charge: 55,
-      entryDate: '2026-01-15', createdBy: null, isTest: true,
+      groupId: 'group-1',
+      loanId: 'loan-2',
+      principal: 50000,
+      charge: 55,
+      entryDate: '2026-01-15',
+      createdBy: null,
+      isTest: true,
     });
 
     expect(result).toEqual({ journalEntryId: 'je-2', chargePosted: true });
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'group-1', null, 'Loan disbursement — loan-2',
+      mockClient,
+      'group-1',
+      null,
+      'Loan disbursement — loan-2',
       [
-        { accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 },
-        { accountCode: '5001', debit: 55 },    { accountCode: '1001', credit: 55 },
+        { accountCode: '1101', debit: 50000 },
+        { accountCode: '1001', credit: 50000 },
+        { accountCode: '5001', debit: 55 },
+        { accountCode: '1001', credit: 55 },
       ],
-      { reference: undefined, memberId: undefined, groupMembershipId: undefined, entryDate: '2026-01-15', isTest: true },
+      {
+        reference: undefined,
+        memberId: undefined,
+        groupMembershipId: undefined,
+        entryDate: '2026-01-15',
+        isTest: true,
+      },
     );
   });
 
@@ -173,14 +231,24 @@ describe('postLoanDisbursementJournal', () => {
     (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-3');
 
     const result = await postLoanDisbursementJournal(mockClient as never, {
-      groupId: 'group-1', loanId: 'loan-3', principal: 50000, charge: 55,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      loanId: 'loan-3',
+      principal: 50000,
+      charge: 55,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toEqual({ journalEntryId: 'je-3', chargePosted: false });
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'group-1', 'user-1', 'Loan disbursement — loan-3',
-      [{ accountCode: '1101', debit: 50000 }, { accountCode: '1001', credit: 50000 }],
+      mockClient,
+      'group-1',
+      'user-1',
+      'Loan disbursement — loan-3',
+      [
+        { accountCode: '1101', debit: 50000 },
+        { accountCode: '1001', credit: 50000 },
+      ],
       expect.objectContaining({ memberId: 'mem-3' }),
     );
   });
@@ -191,8 +259,11 @@ describe('postLoanDisbursementJournal', () => {
     (postSystemJournal as jest.Mock).mockResolvedValueOnce(null);
 
     const result = await postLoanDisbursementJournal(mockClient as never, {
-      groupId: 'group-1', loanId: 'loan-4', principal: 50000,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      loanId: 'loan-4',
+      principal: 50000,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toBeNull();
@@ -209,19 +280,34 @@ describe('postLoanRepaymentJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await postLoanRepaymentJournal(mockClient as never, {
-      groupId: 'group-1', repaymentId: 'rep-1', loanId: 'loan-1',
-      principalPortion: 4000, interestPortion: 500,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      repaymentId: 'rep-1',
+      loanId: 'loan-1',
+      principalPortion: 4000,
+      interestPortion: 500,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toBe('je-1');
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'group-1', 'user-1', 'Loan repayment — loan-1 #rep-1',
+      mockClient,
+      'group-1',
+      'user-1',
+      'Loan repayment — loan-1 #rep-1',
       [
-        { accountCode: '1001', debit: 4000 }, { accountCode: '1101', credit: 4000 },
-        { accountCode: '1001', debit: 500 },  { accountCode: '4002', credit: 500 },
+        { accountCode: '1001', debit: 4000 },
+        { accountCode: '1101', credit: 4000 },
+        { accountCode: '1001', debit: 500 },
+        { accountCode: '4002', credit: 500 },
       ],
-      { reference: undefined, memberId: 'mem-1', groupMembershipId: 'gm-1', entryDate: '2026-01-15', isTest: undefined },
+      {
+        reference: undefined,
+        memberId: 'mem-1',
+        groupMembershipId: 'gm-1',
+        entryDate: '2026-01-15',
+        isTest: undefined,
+      },
     );
   });
 
@@ -233,15 +319,26 @@ describe('postLoanRepaymentJournal', () => {
     (postSystemJournal as jest.Mock).mockResolvedValueOnce('je-2');
 
     const result = await postLoanRepaymentJournal(mockClient as never, {
-      groupId: 'group-1', repaymentId: 'rep-2', loanId: 'loan-2',
-      principalPortion: 4500, interestPortion: 0,
-      entryDate: '2026-01-15', createdBy: null, isTest: true,
+      groupId: 'group-1',
+      repaymentId: 'rep-2',
+      loanId: 'loan-2',
+      principalPortion: 4500,
+      interestPortion: 0,
+      entryDate: '2026-01-15',
+      createdBy: null,
+      isTest: true,
     });
 
     expect(result).toBe('je-2');
     expect(postSystemJournal).toHaveBeenCalledWith(
-      mockClient, 'group-1', null, 'Loan repayment — loan-2 #rep-2',
-      [{ accountCode: '1001', debit: 4500 }, { accountCode: '1101', credit: 4500 }],
+      mockClient,
+      'group-1',
+      null,
+      'Loan repayment — loan-2 #rep-2',
+      [
+        { accountCode: '1001', debit: 4500 },
+        { accountCode: '1101', credit: 4500 },
+      ],
       expect.anything(),
     );
   });
@@ -252,9 +349,13 @@ describe('postLoanRepaymentJournal', () => {
     (postSystemJournal as jest.Mock).mockResolvedValueOnce(null);
 
     const result = await postLoanRepaymentJournal(mockClient as never, {
-      groupId: 'group-1', repaymentId: 'rep-3', loanId: 'loan-3',
-      principalPortion: 4000, interestPortion: 500,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      repaymentId: 'rep-3',
+      loanId: 'loan-3',
+      principalPortion: 4000,
+      interestPortion: 500,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toBeNull();
@@ -263,7 +364,7 @@ describe('postLoanRepaymentJournal', () => {
 
 describe('postingTemplatesService.setGroupOverride', () => {
   const remapped: TemplateLine[] = [
-    { accountCode: '1002', side: 'debit',  amount: 'amount' }, // Bank instead of Cash
+    { accountCode: '1002', side: 'debit', amount: 'amount' }, // Bank instead of Cash
     { accountCode: '3001', side: 'credit', amount: 'amount' },
   ];
 
@@ -271,17 +372,23 @@ describe('postingTemplatesService.setGroupOverride', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ account_code: '1002' }, { account_code: '3001' }] });
     await postingTemplatesService.setGroupOverride(ctx, 'share_purchase', remapped);
     expect(setPolicy).toHaveBeenCalledWith(
-      mockClient, 'accounting', 'posting_template.share_purchase', { groupId: 'g1' }, { lines: remapped }, 'user-1',
+      mockClient,
+      'accounting',
+      'posting_template.share_purchase',
+      { groupId: 'g1' },
+      { lines: remapped },
+      'user-1',
     );
   });
 
   it('rejects an amount-role change (structure is locked)', async () => {
     const roleChange: TemplateLine[] = [
-      { accountCode: '1001', side: 'debit',  amount: 'gross' },
+      { accountCode: '1001', side: 'debit', amount: 'gross' },
       { accountCode: '3001', side: 'credit', amount: 'amount' },
     ];
-    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', roleChange))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', roleChange)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 
   it('rejects an unbalanced side change (all lines on one side)', async () => {
@@ -289,24 +396,27 @@ describe('postingTemplatesService.setGroupOverride', () => {
       { accountCode: '1001', side: 'debit', amount: 'amount' },
       { accountCode: '3001', side: 'debit', amount: 'amount' },
     ];
-    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', oneSided))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', oneSided)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 
   it('rejects a line-count change', async () => {
     const extra: TemplateLine[] = [
-      { accountCode: '1001', side: 'debit',  amount: 'amount' },
+      { accountCode: '1001', side: 'debit', amount: 'amount' },
       { accountCode: '3001', side: 'credit', amount: 'amount' },
       { accountCode: '4004', side: 'credit', amount: 'amount' },
     ];
-    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', extra))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', extra)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 
   it('rejects codes missing from the group chart of accounts', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ account_code: '3001' }] }); // 1002 missing
-    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', remapped))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(postingTemplatesService.setGroupOverride(ctx, 'share_purchase', remapped)).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(setPolicy).not.toHaveBeenCalled();
   });
 });
@@ -314,21 +424,27 @@ describe('postingTemplatesService.setGroupOverride', () => {
 describe('postingTemplatesService.setPlatformDefault', () => {
   it('rejects non-standard chart codes at platform scope', async () => {
     const custom: TemplateLine[] = [
-      { accountCode: '9999', side: 'debit',  amount: 'amount' },
+      { accountCode: '9999', side: 'debit', amount: 'amount' },
       { accountCode: '3001', side: 'credit', amount: 'amount' },
     ];
-    await expect(postingTemplatesService.setPlatformDefault('admin-1', mockClient as never, 'share_purchase', custom))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      postingTemplatesService.setPlatformDefault('admin-1', mockClient as never, 'share_purchase', custom),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('accepts standard codes and writes at platform scope', async () => {
     const remap: TemplateLine[] = [
-      { accountCode: '1002', side: 'debit',  amount: 'amount' },
+      { accountCode: '1002', side: 'debit', amount: 'amount' },
       { accountCode: '3001', side: 'credit', amount: 'amount' },
     ];
     await postingTemplatesService.setPlatformDefault('admin-1', mockClient as never, 'share_purchase', remap);
     expect(setPolicy).toHaveBeenCalledWith(
-      mockClient, 'accounting', 'posting_template.share_purchase', {}, { lines: remap }, 'admin-1',
+      mockClient,
+      'accounting',
+      'posting_template.share_purchase',
+      {},
+      { lines: remap },
+      'admin-1',
     );
   });
 });
@@ -360,18 +476,24 @@ describe('postSettlementSweepJournal', () => {
       .mockResolvedValueOnce({ rows: [] }); // UPDATE settlement_requests
 
     const jeId = await postSettlementSweepJournal(mockClient as never, {
-      groupId: 'g1', settlementId: 'set-1', amount: 5000, fee: 20,
-      entryDate: '2026-08-11', createdBy: null,
+      groupId: 'g1',
+      settlementId: 'set-1',
+      amount: 5000,
+      fee: 20,
+      entryDate: '2026-08-11',
+      createdBy: null,
     });
 
     expect(jeId).toBe('je-1');
     const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
-    expect(lines).toEqual(expect.arrayContaining([
-      { accountCode: '1002', debit: 5000 },
-      { accountCode: '1001', credit: 5000 },
-      { accountCode: '5001', debit: 20 },
-      { accountCode: '1001', credit: 20 },
-    ]));
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        { accountCode: '1002', debit: 5000 },
+        { accountCode: '1001', credit: 5000 },
+        { accountCode: '5001', debit: 20 },
+        { accountCode: '1001', credit: 20 },
+      ]),
+    );
 
     const update = mockQuery.mock.calls[1];
     expect(String(update[0])).toContain('UPDATE settlement_requests');
@@ -384,16 +506,22 @@ describe('postSettlementSweepJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     await postSettlementSweepJournal(mockClient as never, {
-      groupId: 'g1', settlementId: 'set-1', amount: 5000, fee: 20,
-      entryDate: '2026-08-11', createdBy: null,
+      groupId: 'g1',
+      settlementId: 'set-1',
+      amount: 5000,
+      fee: 20,
+      entryDate: '2026-08-11',
+      createdBy: null,
     });
 
     const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
     expect(lines).toHaveLength(2); // principal only — the sweep still posts
-    expect(lines).toEqual(expect.arrayContaining([
-      { accountCode: '1002', debit: 5000 },
-      { accountCode: '1001', credit: 5000 },
-    ]));
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        { accountCode: '1002', debit: 5000 },
+        { accountCode: '1001', credit: 5000 },
+      ]),
+    );
   });
 });
 
@@ -402,22 +530,29 @@ describe('postVendorPaymentJournal', () => {
     (resolvePolicy as jest.Mock).mockResolvedValue(DEFAULT_TEMPLATES.vendor_payment);
   });
 
-  it('overrides the expense line with the row\'s own expense_account_code', async () => {
+  it("overrides the expense line with the row's own expense_account_code", async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     await postVendorPaymentJournal(mockClient as never, {
-      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000, fee: 10,
-      expenseAccountCode: '5010', entryDate: '2026-08-11', createdBy: null,
+      groupId: 'g1',
+      vendorPaymentId: 'vp-1',
+      amount: 1000,
+      fee: 10,
+      expenseAccountCode: '5010',
+      entryDate: '2026-08-11',
+      createdBy: null,
     });
 
     const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
     // The main expense debit uses the per-row override, not the template's 5001.
-    expect(lines).toEqual(expect.arrayContaining([
-      { accountCode: '5010', debit: 1000 },
-      { accountCode: '1001', credit: 1000 },
-    ]));
+    expect(lines).toEqual(
+      expect.arrayContaining([
+        { accountCode: '5010', debit: 1000 },
+        { accountCode: '1001', credit: 1000 },
+      ]),
+    );
     // The fee line keeps the template's own account — the override is
     // scoped to the payment's expense, not the Safaricom charge.
     expect(lines).toEqual(expect.arrayContaining([{ accountCode: '5001', debit: 10 }]));
@@ -430,8 +565,12 @@ describe('postVendorPaymentJournal', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
     await postVendorPaymentJournal(mockClient as never, {
-      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000,
-      expenseAccountCode: '5001', entryDate: '2026-08-11', createdBy: null,
+      groupId: 'g1',
+      vendorPaymentId: 'vp-1',
+      amount: 1000,
+      expenseAccountCode: '5001',
+      entryDate: '2026-08-11',
+      createdBy: null,
     });
 
     const update = mockQuery.mock.calls.find(([sql]) => String(sql).includes('UPDATE vendor_payments'));
@@ -444,8 +583,13 @@ describe('postVendorPaymentJournal', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ account_code: '5001' }, { account_code: '1001' }] });
 
     const jeId = await postVendorPaymentJournal(mockClient as never, {
-      groupId: 'g1', vendorPaymentId: 'vp-1', amount: 1000, fee: 10,
-      expenseAccountCode: '5001', entryDate: '2026-08-11', createdBy: null,
+      groupId: 'g1',
+      vendorPaymentId: 'vp-1',
+      amount: 1000,
+      fee: 10,
+      expenseAccountCode: '5001',
+      entryDate: '2026-08-11',
+      createdBy: null,
     });
 
     expect(jeId).toBeNull();

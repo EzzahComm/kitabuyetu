@@ -32,12 +32,20 @@ describe('financial products', () => {
     await resetDatabase();
   });
 
-  const ctxA = (): TenantContext => ({
-    userId: coordAId, groupId: null, role: 'organization_coordinator', organizationId: orgAId,
-  } as unknown as TenantContext);
-  const ctxB = (): TenantContext => ({
-    userId: coordBId, groupId: null, role: 'organization_coordinator', organizationId: orgBId,
-  } as unknown as TenantContext);
+  const ctxA = (): TenantContext =>
+    ({
+      userId: coordAId,
+      groupId: null,
+      role: 'organization_coordinator',
+      organizationId: orgAId,
+    }) as unknown as TenantContext;
+  const ctxB = (): TenantContext =>
+    ({
+      userId: coordBId,
+      groupId: null,
+      role: 'organization_coordinator',
+      organizationId: orgBId,
+    }) as unknown as TenantContext;
 
   const seedCapitalInput = {
     name: 'Seed Capital',
@@ -66,7 +74,8 @@ describe('financial products', () => {
 
     it('persists the product terms as given, with the rate as a percentage', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        ...seedCapitalInput, name: 'Seed Capital II',
+        ...seedCapitalInput,
+        name: 'Seed Capital II',
       });
 
       expect(product.is_repayable).toBe(true);
@@ -83,11 +92,14 @@ describe('financial products', () => {
   describe('capitalize / decapitalize', () => {
     it('raises available capital and records a ledger entry', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'Revolving Fund', programType: 'revolving_fund', budget: 1_000_000,
+        name: 'Revolving Fund',
+        programType: 'revolving_fund',
+        budget: 1_000_000,
       });
 
       await organizationFinanceService.capitalizeProduct(ctxA(), product.id, {
-        amount: 4_000_000, notes: 'Q3 top-up',
+        amount: 4_000_000,
+        notes: 'Q3 top-up',
       });
 
       const [balances] = await organizationFinanceService.productBalances(ctxA(), product.id);
@@ -106,7 +118,9 @@ describe('financial products', () => {
 
     it('lowers capital and records a decapitalization entry', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'Overfunded Fund', programType: 'grant', budget: 2_000_000,
+        name: 'Overfunded Fund',
+        programType: 'grant',
+        budget: 2_000_000,
       });
 
       await organizationFinanceService.decapitalizeProduct(ctxA(), product.id, { amount: 500_000 });
@@ -126,7 +140,9 @@ describe('financial products', () => {
       const before = await organizationFinanceService.getWallet(ctxA());
 
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'Authority Only', programType: 'grant', budget: 100_000,
+        name: 'Authority Only',
+        programType: 'grant',
+        budget: 100_000,
       });
       await organizationFinanceService.capitalizeProduct(ctxA(), product.id, { amount: 900_000 });
 
@@ -137,7 +153,9 @@ describe('financial products', () => {
 
     it('refuses to withdraw more than the uncommitted capital', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'Tight Fund', programType: 'grant', budget: 100_000,
+        name: 'Tight Fund',
+        programType: 'grant',
+        budget: 100_000,
       });
 
       await expect(
@@ -153,17 +171,22 @@ describe('financial products', () => {
       // any freshly created organization threw "Organization wallet not found".
       const { organizationId, coordinatorId } = await createTestOrganization();
       const freshCtx = {
-        userId: coordinatorId, groupId: null,
-        role: 'organization_coordinator', organizationId,
+        userId: coordinatorId,
+        groupId: null,
+        role: 'organization_coordinator',
+        organizationId,
       } as unknown as TenantContext;
 
       const walletsBefore = await rawQuery<{ n: string }>(
-        `SELECT count(*) AS n FROM organization_wallets WHERE organization_id = $1`, [organizationId],
+        `SELECT count(*) AS n FROM organization_wallets WHERE organization_id = $1`,
+        [organizationId],
       );
       expect(Number(walletsBefore[0].n)).toBe(0);
 
       const product = await organizationFinanceService.createProgram(freshCtx, {
-        name: 'Fresh Org Fund', programType: 'seed_capital', budget: 1_000_000,
+        name: 'Fresh Org Fund',
+        programType: 'seed_capital',
+        budget: 1_000_000,
       });
 
       await expect(
@@ -176,12 +199,14 @@ describe('financial products', () => {
 
     it('rejects a non-positive adjustment', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'Zero Fund', programType: 'grant', budget: 100_000,
+        name: 'Zero Fund',
+        programType: 'grant',
+        budget: 100_000,
       });
 
-      await expect(
-        organizationFinanceService.capitalizeProduct(ctxA(), product.id, { amount: 0 }),
-      ).rejects.toThrow(/positive/i);
+      await expect(organizationFinanceService.capitalizeProduct(ctxA(), product.id, { amount: 0 })).rejects.toThrow(
+        /positive/i,
+      );
     });
   });
 
@@ -201,15 +226,11 @@ describe('financial products', () => {
     });
 
     it('rejects a non-repayable product carrying interest', async () => {
-      await expect(
-        insertRaw('is_repayable, interest_rate_annual', 'false, $2', [10]),
-      ).rejects.toThrow();
+      await expect(insertRaw('is_repayable, interest_rate_annual', 'false, $2', [10])).rejects.toThrow();
     });
 
     it("rejects an interest_method the loans engine doesn't use", async () => {
-      await expect(
-        insertRaw('interest_method', '$2', ['declining_balance']),
-      ).rejects.toThrow();
+      await expect(insertRaw('interest_method', '$2', ['declining_balance'])).rejects.toThrow();
     });
 
     it('rejects an unknown member_visibility', async () => {
@@ -223,19 +244,22 @@ describe('financial products', () => {
     it('enforces product_code uniqueness per organization, but allows reuse across organizations', async () => {
       await rawQuery(
         `INSERT INTO funding_programs (organization_id, name, program_type, budget, status, product_code)
-         VALUES ($1,'Coded A','grant',1000,'active','SEED-01')`, [orgAId],
+         VALUES ($1,'Coded A','grant',1000,'active','SEED-01')`,
+        [orgAId],
       );
       await expect(
         rawQuery(
           `INSERT INTO funding_programs (organization_id, name, program_type, budget, status, product_code)
-           VALUES ($1,'Coded A dup','grant',1000,'active','SEED-01')`, [orgAId],
+           VALUES ($1,'Coded A dup','grant',1000,'active','SEED-01')`,
+          [orgAId],
         ),
       ).rejects.toThrow();
       // Same code under a different organization is fine.
       await expect(
         rawQuery(
           `INSERT INTO funding_programs (organization_id, name, program_type, budget, status, product_code)
-           VALUES ($1,'Coded B','grant',1000,'active','SEED-01')`, [orgBId],
+           VALUES ($1,'Coded B','grant',1000,'active','SEED-01')`,
+          [orgBId],
         ),
       ).resolves.toBeDefined();
     });
@@ -253,7 +277,9 @@ describe('financial products', () => {
   describe('cross-organization isolation', () => {
     it("organization B cannot see or capitalize organization A's products", async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), {
-        name: 'A Private Fund', programType: 'grant', budget: 750_000,
+        name: 'A Private Fund',
+        programType: 'grant',
+        budget: 750_000,
       });
 
       const bBalances = await organizationFinanceService.productBalances(ctxB());

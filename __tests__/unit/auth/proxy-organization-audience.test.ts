@@ -62,7 +62,10 @@ afterAll(() => {
 describe('proxy: organization API audience', () => {
   it('lets an organization_coordinator backoffice token reach /api/admin/organization/* as backoffice', async () => {
     const token = signBackofficeAccessToken({
-      sub: 'coordinator-1', aud: 'backoffice', platformRole: 'organization_coordinator', organizationId: 'org-1',
+      sub: 'coordinator-1',
+      aud: 'backoffice',
+      platformRole: 'organization_coordinator',
+      organizationId: 'org-1',
     });
     const res = await proxy(bearerReq('/api/admin/organization/profile', token));
 
@@ -84,7 +87,10 @@ describe('proxy: organization API audience', () => {
 
   it('rejects a backoffice token on /api/v1/* — the carve-out is gone', async () => {
     const token = signBackofficeAccessToken({
-      sub: 'coordinator-1', aud: 'backoffice', platformRole: 'organization_coordinator', organizationId: 'org-1',
+      sub: 'coordinator-1',
+      aud: 'backoffice',
+      platformRole: 'organization_coordinator',
+      organizationId: 'org-1',
     });
     // The old carve-out path specifically: it must no longer be special.
     expect((await proxy(bearerReq('/api/v1/organization/profile', token))).status).toBe(403);
@@ -93,7 +99,10 @@ describe('proxy: organization API audience', () => {
 
   it('rejects a TENANT token on the organization tree — it is not a group-scoped surface', async () => {
     const token = signAccessToken({
-      sub: 'member-1', groupId: 'group-1', role: 'organization_coordinator', organizationId: 'org-1',
+      sub: 'member-1',
+      groupId: 'group-1',
+      role: 'organization_coordinator',
+      organizationId: 'org-1',
     });
     const res = await proxy(bearerReq('/api/admin/organization/profile', token));
 

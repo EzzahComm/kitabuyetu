@@ -8,7 +8,7 @@ import { ok, created } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'welfare.view', async (auth) => {
     const params = WelfareQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     await featureFlagsService.assertEnabled(ctx, 'welfare_module');
     const result = await welfareService.listRequests(ctx, params);
     return ok(result);
@@ -19,11 +19,11 @@ export async function GET(req: NextRequest): Promise<Response> {
 // welfare.request stays member-reachable, unlike welfare.manage below.
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'welfare.request', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = CreateWelfareRequestSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     await featureFlagsService.assertEnabled(ctx, 'welfare_module');
-    const req_  = await welfareService.createRequest(ctx, input);
+    const req_ = await welfareService.createRequest(ctx, input);
     return created(req_);
   });
 }

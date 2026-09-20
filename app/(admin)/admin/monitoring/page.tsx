@@ -3,8 +3,18 @@
 import * as React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Activity, Play, Pause, Server, Smartphone, MessageSquare,
-  ArrowDownLeft, ArrowUpRight, Zap, Info, RefreshCw, AlertTriangle,
+  Activity,
+  Play,
+  Pause,
+  Server,
+  Smartphone,
+  MessageSquare,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Zap,
+  Info,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -22,10 +32,14 @@ import { adminFetch } from '@/hooks/use-admin';
 import { relativeTime } from './_data';
 
 const statusToneMap: Record<'operational' | 'degraded' | 'down', Tone> = {
-  operational: 'positive', degraded: 'warning', down: 'negative',
+  operational: 'positive',
+  degraded: 'warning',
+  down: 'negative',
 };
 const txnStatusTone: Record<'success' | 'pending' | 'failed', Tone> = {
-  success: 'positive', pending: 'pending', failed: 'negative',
+  success: 'positive',
+  pending: 'pending',
+  failed: 'negative',
 };
 const typeStyle: Record<'C2B' | 'B2C' | 'STK', { label: string; cls: string; Icon: React.ElementType }> = {
   C2B: { label: 'C2B', cls: 'bg-green-50 text-green-700', Icon: ArrowDownLeft },
@@ -56,7 +70,14 @@ export default function MonitoringPage() {
 
   const services = data?.services ?? [];
   const hourlyVolume = data?.hourlyVolume ?? [];
-  const smsUsage = data?.smsUsage ?? { sentToday: 0, delivered: 0, failed: 0, pending: 0, creditsRemaining: 0, creditsTotal: 0 };
+  const smsUsage = data?.smsUsage ?? {
+    sentToday: 0,
+    delivered: 0,
+    failed: 0,
+    pending: 0,
+    creditsRemaining: 0,
+    creditsTotal: 0,
+  };
   const feed = data?.transactions ?? [];
   const [live, setLive] = React.useState(true);
 
@@ -81,7 +102,15 @@ export default function MonitoringPage() {
             className={live ? 'bg-blue-600 text-xs hover:bg-blue-700' : 'text-xs'}
             onClick={() => setLive((l) => !l)}
           >
-            {live ? <><Pause size={13} className="mr-1" /> Pause feed</> : <><Play size={13} className="mr-1" /> Resume feed</>}
+            {live ? (
+              <>
+                <Pause size={13} className="mr-1" /> Pause feed
+              </>
+            ) : (
+              <>
+                <Play size={13} className="mr-1" /> Resume feed
+              </>
+            )}
           </Button>
         }
       />
@@ -90,17 +119,45 @@ export default function MonitoringPage() {
       {degraded.length > 0 && (
         <Alert>
           <AlertTriangle size={14} />
-          <AlertTitle>{degraded.length} service{degraded.length > 1 ? 's' : ''} degraded</AlertTitle>
+          <AlertTitle>
+            {degraded.length} service{degraded.length > 1 ? 's' : ''} degraded
+          </AlertTitle>
           <AlertDescription>{degraded.map((s) => s.name).join(', ')}. Monitoring upstream.</AlertDescription>
         </Alert>
       )}
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Transactions today" value={isLoading ? '—' : txnsToday.toLocaleString()} description={isLoading ? 'Loading…' : formatKES(valueToday)} icon={Activity} accent="blue" />
-        <StatCard title="M-Pesa success" value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`} description={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'} icon={Smartphone} accent="green" />
-        <StatCard title="STK Push p95" value={isLoading ? '—' : `${stk?.latency ?? 0}ms`} description={isLoading ? 'Loading…' : stk?.note} icon={Zap} accent={stk?.status === 'operational' ? 'green' : 'orange'} />
-        <StatCard title="SMS delivered" value={isLoading ? '—' : `${smsRate.toFixed(1)}%`} description={isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`} icon={MessageSquare} accent="purple" />
+        <StatCard
+          title="Transactions today"
+          value={isLoading ? '—' : txnsToday.toLocaleString()}
+          description={isLoading ? 'Loading…' : formatKES(valueToday)}
+          icon={Activity}
+          accent="blue"
+        />
+        <StatCard
+          title="M-Pesa success"
+          value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`}
+          description={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'}
+          icon={Smartphone}
+          accent="green"
+        />
+        <StatCard
+          title="STK Push p95"
+          value={isLoading ? '—' : `${stk?.latency ?? 0}ms`}
+          description={isLoading ? 'Loading…' : stk?.note}
+          icon={Zap}
+          accent={stk?.status === 'operational' ? 'green' : 'orange'}
+        />
+        <StatCard
+          title="SMS delivered"
+          value={isLoading ? '—' : `${smsRate.toFixed(1)}%`}
+          description={
+            isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`
+          }
+          icon={MessageSquare}
+          accent="purple"
+        />
       </div>
 
       {/* Service health grid */}
@@ -116,20 +173,22 @@ export default function MonitoringPage() {
                 <Icon size={13} /> {title}
               </p>
               <div className="grid gap-2 sm:grid-cols-2">
-                {services.filter((s) => s.group === title).map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{s.note}</p>
+                {services
+                  .filter((s) => s.group === title)
+                  .map((s) => (
+                    <div key={s.id} className="flex items-center justify-between gap-3 rounded-lg border p-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium text-foreground">{s.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{s.note}</p>
+                      </div>
+                      <div className="flex shrink-0 flex-col items-end gap-1">
+                        <StatusPill status={s.status} tone={statusToneMap[s.status]} label={s.status} size="sm" />
+                        <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
+                          {s.latency}ms · {s.success}%
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 flex-col items-end gap-1">
-                      <StatusPill status={s.status} tone={statusToneMap[s.status]} label={s.status} size="sm" />
-                      <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-                        {s.latency}ms · {s.success}%
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             </div>
           ))}
@@ -138,7 +197,12 @@ export default function MonitoringPage() {
 
       {/* Volume chart + SMS usage */}
       <div className="grid gap-6 lg:grid-cols-3">
-        <ChartCard title="Transaction value (today)" description="Hourly M-Pesa throughput" height={260} className="lg:col-span-2">
+        <ChartCard
+          title="Transaction value (today)"
+          description="Hourly M-Pesa throughput"
+          height={260}
+          className="lg:col-span-2"
+        >
           <TrendChart data={hourlyVolume} xKey="hour" series={[{ key: 'value', label: 'Value' }]} />
         </ChartCard>
 
@@ -154,7 +218,9 @@ export default function MonitoringPage() {
                   {smsUsage.creditsRemaining.toLocaleString()} / {smsUsage.creditsTotal.toLocaleString()}
                 </span>
               </div>
-              <Progress value={smsUsage.creditsTotal > 0 ? (smsUsage.creditsRemaining / smsUsage.creditsTotal) * 100 : 0} />
+              <Progress
+                value={smsUsage.creditsTotal > 0 ? (smsUsage.creditsRemaining / smsUsage.creditsTotal) * 100 : 0}
+              />
             </div>
             <div className="grid grid-cols-3 gap-2 text-center">
               {[
@@ -187,7 +253,9 @@ export default function MonitoringPage() {
                   Live
                 </>
               ) : (
-                <><Pause size={12} /> Paused</>
+                <>
+                  <Pause size={12} /> Paused
+                </>
               )}
             </span>
           </div>
@@ -209,34 +277,55 @@ export default function MonitoringPage() {
               <tbody>
                 {isLoading ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Loading live transaction feed…</td>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      Loading live transaction feed…
+                    </td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">Unable to load monitoring data right now.</td>
+                    <td colSpan={7} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                      Unable to load monitoring data right now.
+                    </td>
                   </tr>
-                ) : feed.map((tx, i) => {
-                  const ts = typeStyle[tx.type] ?? typeStyle.C2B;
-                  return (
-                    <tr key={tx.id} className={`border-t transition-colors hover:bg-muted/30 ${i === 0 && live ? 'animate-in fade-in slide-in-from-top-1' : ''}`}>
-                      <td className="px-4 py-2.5">
-                        <span className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${ts.cls}`}>
-                          <ts.Icon size={11} /> {ts.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2.5 font-medium text-foreground">{tx.org}</td>
-                      <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground sm:table-cell">{tx.phone}</td>
-                      <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground md:table-cell">{tx.ref}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <MoneyDisplay amount={tx.amount} size="sm" color={tx.status === 'failed' ? 'red' : 'default'} />
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <StatusPill status={tx.status} tone={txnStatusTone[tx.status]} label={tx.status} size="sm" />
-                      </td>
-                      <td className="px-4 py-2.5 text-right text-xs text-muted-foreground tabular-nums">{relativeTime(tx.at)}</td>
-                    </tr>
-                  );
-                })}
+                ) : (
+                  feed.map((tx, i) => {
+                    const ts = typeStyle[tx.type] ?? typeStyle.C2B;
+                    return (
+                      <tr
+                        key={tx.id}
+                        className={`border-t transition-colors hover:bg-muted/30 ${i === 0 && live ? 'animate-in fade-in slide-in-from-top-1' : ''}`}
+                      >
+                        <td className="px-4 py-2.5">
+                          <span
+                            className={`inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] font-semibold ${ts.cls}`}
+                          >
+                            <ts.Icon size={11} /> {ts.label}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 font-medium text-foreground">{tx.org}</td>
+                        <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground sm:table-cell">
+                          {tx.phone}
+                        </td>
+                        <td className="hidden px-4 py-2.5 font-mono text-xs text-muted-foreground md:table-cell">
+                          {tx.ref}
+                        </td>
+                        <td className="px-4 py-2.5 text-right">
+                          <MoneyDisplay
+                            amount={tx.amount}
+                            size="sm"
+                            color={tx.status === 'failed' ? 'red' : 'default'}
+                          />
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <StatusPill status={tx.status} tone={txnStatusTone[tx.status]} label={tx.status} size="sm" />
+                        </td>
+                        <td className="px-4 py-2.5 text-right text-xs text-muted-foreground tabular-nums">
+                          {relativeTime(tx.at)}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
@@ -245,7 +334,10 @@ export default function MonitoringPage() {
 
       <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>The monitoring page now uses the live admin dashboard payload for service health, SMS usage, and recent M-Pesa activity. <span className="text-green-600">●</span></span>
+        <span>
+          The monitoring page now uses the live admin dashboard payload for service health, SMS usage, and recent M-Pesa
+          activity. <span className="text-green-600">●</span>
+        </span>
       </div>
     </div>
   );

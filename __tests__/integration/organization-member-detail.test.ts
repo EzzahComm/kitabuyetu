@@ -18,26 +18,39 @@ import { resetDatabase } from './helpers/cleanup';
 import { assignGroupToOrganization } from '@/lib/services/admin-organizations.service';
 
 interface MemberDetail {
-  memberId: string; firstName: string; lastName: string;
-  phone: string; email: string | null;
-  groupId: string; groupName: string; membershipNo: string | null;
-  role: string; isActive: boolean; joinedAt: string;
+  memberId: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string | null;
+  groupId: string;
+  groupName: string;
+  membershipNo: string | null;
+  role: string;
+  isActive: boolean;
+  joinedAt: string;
   financials: { savings: number; loanBalance: number; shares: number; contributedThisPeriod: number } | null;
 }
-interface Body { member: MemberDetail; incomplete: string[] }
+interface Body {
+  member: MemberDetail;
+  incomplete: string[];
+}
 
 const call = (userId: string, organizationId: string, memberId: string, groupId: string | null) =>
   memberDetailGet(
-    buildRequest(
-      `/api/admin/organization/members/${memberId}${groupId ? `?groupId=${groupId}` : ''}`,
-      { headers: backofficeHeaders({ userId, platformRole: 'organization_coordinator', organizationId }) },
-    ),
+    buildRequest(`/api/admin/organization/members/${memberId}${groupId ? `?groupId=${groupId}` : ''}`, {
+      headers: backofficeHeaders({ userId, platformRole: 'organization_coordinator', organizationId }),
+    }),
     { params: Promise.resolve({ id: memberId }) },
   );
 
 describe('Organization member drill-down', () => {
-  beforeAll(async () => { await resetDatabase(); });
-  afterAll(async ()  => { await resetDatabase(); });
+  beforeAll(async () => {
+    await resetDatabase();
+  });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   it('returns the membership detail with its financial snapshot', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
@@ -46,7 +59,7 @@ describe('Organization member drill-down', () => {
 
     const res = await call(coordinatorId, organizationId, officerId, groupId);
     expect(res.status).toBe(200);
-    const { data } = await res.json() as { data: Body };
+    const { data } = (await res.json()) as { data: Body };
 
     expect(data.incomplete).toEqual([]);
     expect(data.member.memberId).toBe(officerId);
@@ -90,7 +103,7 @@ describe('Organization member drill-down', () => {
   it('404s when the member is not in the named group', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     const linked = await createTestGroup();
-    const other  = await createTestGroup();
+    const other = await createTestGroup();
     await assignGroupToOrganization(organizationId, linked.groupId, coordinatorId, 'read');
 
     // Valid linked group + a real member who belongs to a DIFFERENT group.

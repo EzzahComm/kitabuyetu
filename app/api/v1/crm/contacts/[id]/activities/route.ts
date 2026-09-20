@@ -17,7 +17,9 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const activity = await logActivityForContact(ctx, {
-      contact_id: params.id, activity_type, body: activityBody,
+      contact_id: params.id,
+      activity_type,
+      body: activityBody,
     });
 
     return created(activity);

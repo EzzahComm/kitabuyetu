@@ -31,7 +31,10 @@ export function PassbookRow({ entry }: { entry: PassbookEntry }) {
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-foreground">
-          <span className="mr-1" aria-hidden>{meta.emoji}</span>{entry.label}
+          <span className="mr-1" aria-hidden>
+            {meta.emoji}
+          </span>
+          {entry.label}
         </p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <MethodIcon size={11} /> {time}
@@ -41,11 +44,10 @@ export function PassbookRow({ entry }: { entry: PassbookEntry }) {
 
       <div className="shrink-0 text-right">
         <p className={cn('money text-sm font-semibold tabular-nums', isIn ? 'text-brand-600' : 'text-foreground')}>
-          {isIn ? '+' : '−'}{formatKES(entry.amount)}
+          {isIn ? '+' : '−'}
+          {formatKES(entry.amount)}
         </p>
-        {entry.status !== 'success' && (
-          <StatusPill status={entry.status} size="sm" dot={false} className="mt-0.5" />
-        )}
+        {entry.status !== 'success' && <StatusPill status={entry.status} size="sm" dot={false} className="mt-0.5" />}
       </div>
     </div>
   );

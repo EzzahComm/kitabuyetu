@@ -94,8 +94,10 @@ describe('Supabase host detection (TLS relaxation boundary)', () => {
     try {
       const host = new URL(dsn).hostname.toLowerCase();
       return (
-        host === 'supabase.com' || host.endsWith('.supabase.com') ||
-        host === 'supabase.co'  || host.endsWith('.supabase.co')
+        host === 'supabase.com' ||
+        host.endsWith('.supabase.com') ||
+        host === 'supabase.co' ||
+        host.endsWith('.supabase.co')
       );
     } catch {
       return false;
@@ -104,24 +106,24 @@ describe('Supabase host detection (TLS relaxation boundary)', () => {
 
   it.each([
     ['pooler (session mode)', 'postgresql://u:p@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'],
-    ['direct db host',        'postgresql://u:p@db.qztcgryhoanennsizcll.supabase.co:5432/postgres'],
+    ['direct db host', 'postgresql://u:p@db.qztcgryhoanennsizcll.supabase.co:5432/postgres'],
   ])('accepts a real Supabase host — %s', (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(true);
   });
 
   it.each([
-    ['suffix spoof',   'postgresql://u:p@supabase.com.attacker.net:5432/db'],
-    ['prefix spoof',   'postgresql://u:p@evilsupabase.com:5432/db'],
-    ['path-only match','postgresql://u:p@attacker.net:5432/supabase.com'],
-    ['local dev',      'postgresql://u:p@localhost:5432/kitabuyetu'],
+    ['suffix spoof', 'postgresql://u:p@supabase.com.attacker.net:5432/db'],
+    ['prefix spoof', 'postgresql://u:p@evilsupabase.com:5432/db'],
+    ['path-only match', 'postgresql://u:p@attacker.net:5432/supabase.com'],
+    ['local dev', 'postgresql://u:p@localhost:5432/kitabuyetu'],
   ])('rejects %s', (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(false);
   });
 
   it.each([
     ['undefined', undefined],
-    ['empty',     ''],
-    ['garbage',   'not-a-url'],
+    ['empty', ''],
+    ['garbage', 'not-a-url'],
   ])('rejects an absent or unparseable DSN — %s', (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(false);
   });

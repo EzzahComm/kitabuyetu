@@ -12,16 +12,19 @@ describe('getAuthContext', () => {
   });
 
   it('throws UnauthorizedError when groupId is missing', () => {
-    expect(() =>
-      getAuthContext(req({ 'x-user-id': 'u1', 'x-role': 'treasurer' })),
-    ).toThrow(UnauthorizedError);
+    expect(() => getAuthContext(req({ 'x-user-id': 'u1', 'x-role': 'treasurer' }))).toThrow(UnauthorizedError);
   });
 
   it('throws ForbiddenError when a backoffice token (x-aud: backoffice) hits a tenant route', () => {
     expect(() =>
-      getAuthContext(req({
-        'x-user-id': 'u1', 'x-group-id': 'g1', 'x-role': 'treasurer', 'x-aud': 'backoffice',
-      })),
+      getAuthContext(
+        req({
+          'x-user-id': 'u1',
+          'x-group-id': 'g1',
+          'x-role': 'treasurer',
+          'x-aud': 'backoffice',
+        }),
+      ),
     ).toThrow(ForbiddenError);
   });
 
@@ -33,15 +36,13 @@ describe('getAuthContext', () => {
 
 describe('getBackofficeContext', () => {
   it('throws ForbiddenError when a tenant token (no x-aud: backoffice) hits a backoffice route', () => {
-    expect(() =>
-      getBackofficeContext(req({ 'x-user-id': 'u1', 'x-platform-role': 'super_admin' })),
-    ).toThrow(ForbiddenError);
+    expect(() => getBackofficeContext(req({ 'x-user-id': 'u1', 'x-platform-role': 'super_admin' }))).toThrow(
+      ForbiddenError,
+    );
   });
 
   it('throws UnauthorizedError when userId or platformRole is missing', () => {
-    expect(() =>
-      getBackofficeContext(req({ 'x-aud': 'backoffice', 'x-user-id': 'u1' })),
-    ).toThrow(UnauthorizedError);
+    expect(() => getBackofficeContext(req({ 'x-aud': 'backoffice', 'x-user-id': 'u1' }))).toThrow(UnauthorizedError);
   });
 
   it('throws ForbiddenError for a platform role outside the allowed set', () => {
@@ -51,9 +52,13 @@ describe('getBackofficeContext', () => {
   });
 
   it('returns the backoffice context for a valid super_admin token', () => {
-    const ctx = getBackofficeContext(req({
-      'x-aud': 'backoffice', 'x-user-id': 'u1', 'x-platform-role': 'super_admin',
-    }));
+    const ctx = getBackofficeContext(
+      req({
+        'x-aud': 'backoffice',
+        'x-user-id': 'u1',
+        'x-platform-role': 'super_admin',
+      }),
+    );
     expect(ctx).toMatchObject({ userId: 'u1', platformRole: 'super_admin' });
   });
 });

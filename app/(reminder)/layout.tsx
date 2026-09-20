@@ -4,8 +4,16 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Users2, Send, BellRing, Megaphone,
-  LayoutTemplate, Cake, BarChart2, CreditCard, Menu,
+  LayoutDashboard,
+  Users2,
+  Send,
+  BellRing,
+  Megaphone,
+  LayoutTemplate,
+  Cake,
+  BarChart2,
+  CreditCard,
+  Menu,
 } from 'lucide-react';
 import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
 import { useEntitlements } from '@/hooks/use-entitlements';
@@ -34,35 +42,35 @@ const NAV: PortalNavSection[] = [
   {
     title: 'Overview',
     items: [
-      { href: '/reminder',            label: 'Dashboard', icon: LayoutDashboard },
-      { href: '/reminder/members',    label: 'Members',   icon: Users2 },
+      { href: '/reminder', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/reminder/members', label: 'Members', icon: Users2 },
     ],
   },
   {
     title: 'Messaging',
     items: [
-      { href: '/reminder/messages',   label: 'Messages',  icon: Send },
-      { href: '/reminder/campaigns',  label: 'Campaigns', icon: Megaphone },
-      { href: '/reminder/templates',  label: 'Templates', icon: LayoutTemplate },
-      { href: '/reminder/birthdays',  label: 'Birthdays', icon: Cake },
+      { href: '/reminder/messages', label: 'Messages', icon: Send },
+      { href: '/reminder/campaigns', label: 'Campaigns', icon: Megaphone },
+      { href: '/reminder/templates', label: 'Templates', icon: LayoutTemplate },
+      { href: '/reminder/birthdays', label: 'Birthdays', icon: Cake },
       // Meeting/event/custom reminders are Phase 5 — there is no table, job or
       // service behind them yet. `soon` shows the planned IA as a disabled item
       // rather than a link into a 404.
-      { href: '/reminder/reminders',  label: 'Reminders', icon: BellRing, soon: true },
+      { href: '/reminder/reminders', label: 'Reminders', icon: BellRing, soon: true },
     ],
   },
   {
     title: 'Account',
     items: [
-      { href: '/reminder/usage',        label: 'SMS Usage',    icon: BarChart2 },
-      { href: SUBSCRIBE_PATH,           label: 'Subscription', icon: CreditCard },
+      { href: '/reminder/usage', label: 'SMS Usage', icon: BarChart2 },
+      { href: SUBSCRIBE_PATH, label: 'Subscription', icon: CreditCard },
     ],
   },
 ];
 
 export default function ReminderLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router   = useRouter();
+  const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const { user, isLoading, accessToken, audience, logout } = useAuth();
   const entitlements = useEntitlements();
@@ -75,21 +83,27 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
   // directly would re-run the redirect effect on every render; depending on
   // its *values* keeps the effect keyed to what actually changed.
   const entitlementsLoading = entitlements.isLoading;
-  const hasReminder         = entitlements.has('chama_reminder');
-  const awaitingPayment     = entitlements.awaitingReminderPayment;
-  const products            = entitlements.products;
-  const signupProduct       = entitlements.signupProduct;
+  const hasReminder = entitlements.has('chama_reminder');
+  const awaitingPayment = entitlements.awaitingReminderPayment;
+  const products = entitlements.products;
+  const signupProduct = entitlements.signupProduct;
 
   React.useEffect(() => {
     configureApiClient({
-      getToken:       () => accessToken,
-      onUnauthorized: () => { logout(); router.push('/login'); },
+      getToken: () => accessToken,
+      onUnauthorized: () => {
+        logout();
+        router.push('/login');
+      },
       // Both 402s land here. PRODUCT_NOT_ENTITLED means this group pays for
       // Chama Reminder but the page reached for something else — sending it to
       // the subscribe page would be nonsense, so it goes home. Anything else
       // means it owes money, and the subscribe page is where that is fixed.
       onPaymentRequired: (code) => {
-        if (code === 'PRODUCT_NOT_ENTITLED') { router.replace('/reminder'); return; }
+        if (code === 'PRODUCT_NOT_ENTITLED') {
+          router.replace('/reminder');
+          return;
+        }
         if (!onSubscribePage) router.replace(SUBSCRIBE_PATH);
       },
     });
@@ -97,10 +111,17 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
 
   React.useEffect(() => {
     if (isLoading || entitlementsLoading) return;
-    if (!user) { router.push('/login'); return; }
-    if (isBackoffice) { router.replace('/admin'); return; }
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (isBackoffice) {
+      router.replace('/admin');
+      return;
+    }
     if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
-      router.replace('/verify-group'); return;
+      router.replace('/verify-group');
+      return;
     }
     if (hasReminder) return;
 
@@ -116,23 +137,28 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
 
     // Anything else — a Kitabu Yetu group, or a group with nothing at all —
     // belongs on its own portal, not this one.
-    router.replace(postLoginPath(
-      isTenantUser(user) ? user.groupRole : undefined,
-      { products, signupProduct },
-    ));
+    router.replace(postLoginPath(isTenantUser(user) ? user.groupRole : undefined, { products, signupProduct }));
   }, [
-    isLoading, user, isBackoffice, router, onSubscribePage,
-    entitlementsLoading, hasReminder, awaitingPayment, products, signupProduct,
+    isLoading,
+    user,
+    isBackoffice,
+    router,
+    onSubscribePage,
+    entitlementsLoading,
+    hasReminder,
+    awaitingPayment,
+    products,
+    signupProduct,
   ]);
 
-  const ready = !isLoading
-    && !entitlementsLoading
-    && !!user
-    && !isBackoffice
-    && (hasReminder || (awaitingPayment && onSubscribePage));
+  const ready =
+    !isLoading &&
+    !entitlementsLoading &&
+    !!user &&
+    !isBackoffice &&
+    (hasReminder || (awaitingPayment && onSubscribePage));
 
-  const isActive = (href: string) =>
-    href === '/reminder' ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => (href === '/reminder' ? pathname === href : pathname.startsWith(href));
 
   if (!ready) {
     return (
@@ -160,8 +186,12 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
         widthExpanded="w-[240px]"
         logo={() => (
           <Link href="/reminder" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">C</span>
-            <span className="text-sm font-semibold text-foreground">Chama <span className="text-brand-600">Reminder</span></span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">
+              C
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              Chama <span className="text-brand-600">Reminder</span>
+            </span>
           </Link>
         )}
       />
@@ -179,7 +209,9 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
           <div className="ml-auto flex items-center gap-3">
             {isTenantUser(user) && (
               <div className="hidden text-right leading-tight sm:block">
-                <p className="text-xs font-medium text-foreground">{user.firstName} {user.lastName}</p>
+                <p className="text-xs font-medium text-foreground">
+                  {user.firstName} {user.lastName}
+                </p>
                 <p className="text-[11px] text-muted-foreground">{user.groupName}</p>
               </div>
             )}

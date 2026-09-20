@@ -9,13 +9,7 @@ import { useEffect } from 'react';
  * screen crash inside the phone-width shell with a retry, instead of Next's
  * bare global error page, and logs the error for diagnosis.
  */
-export default function MemberError({
-  error,
-  reset,
-}: {
-  error: Error & { digest?: string };
-  reset: () => void;
-}) {
+export default function MemberError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error('[member] page error boundary:', error);
   }, [error]);

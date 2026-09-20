@@ -27,7 +27,7 @@ export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       [name]: value,
       // Auto-generate slug from name
@@ -72,7 +72,11 @@ export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {
 
       onSuccess?.(program);
     } catch (error) {
-      toast({ variant: 'destructive', title: 'Error', description: error instanceof Error ? error.message : 'Failed to create program' });
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to create program',
+      });
     } finally {
       setLoading(false);
     }
@@ -153,23 +157,13 @@ export function ProgramForm({ organizationId, onSuccess }: ProgramFormProps) {
 
         <div>
           <label className="block text-sm font-medium mb-2">Start Date</label>
-          <Input
-            type="date"
-            name="startDate"
-            value={formData.startDate}
-            onChange={handleChange}
-          />
+          <Input type="date" name="startDate" value={formData.startDate} onChange={handleChange} />
         </div>
       </div>
 
       <div>
         <label className="block text-sm font-medium mb-2">End Date</label>
-        <Input
-          type="date"
-          name="endDate"
-          value={formData.endDate}
-          onChange={handleChange}
-        />
+        <Input type="date" name="endDate" value={formData.endDate} onChange={handleChange} />
       </div>
 
       <Button type="submit" disabled={loading} className="w-full">

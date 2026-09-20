@@ -6,11 +6,11 @@ import { ok } from '@/lib/utils/response';
 import type { PoolClient } from 'pg';
 
 const QuerySchema = z.object({
-  page:     z.coerce.number().int().min(1).default(1),
-  limit:    z.coerce.number().int().min(1).max(100).default(50),
-  status:   z.string().optional(),
+  page: z.coerce.number().int().min(1).default(1),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+  status: z.string().optional(),
   category: z.string().optional(),
-  days:     z.coerce.number().int().min(1).default(30),
+  days: z.coerce.number().int().min(1).default(30),
 });
 
 // Phase 1 Week 1.2: `super_admin` intentionally sees email_logs across every
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const offset = (page - 1) * limit;
 
     const conditions: string[] = [`created_at >= NOW() - ($1 || ' days')::interval`];
-    const params: unknown[]    = [days];
+    const params: unknown[] = [days];
 
     const scoped = auth.role !== 'super_admin';
     if (scoped) {
@@ -48,7 +48,12 @@ export async function GET(req: NextRequest): Promise<Response> {
 
     const where = conditions.map((c) => `(${c})`).join(' AND ');
 
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const runQuery = <T extends Record<string, unknown>>(sql: string, p: unknown[]) =>
       scoped
         ? withDb(ctx, (db: PoolClient) => db.query<T>(sql, p))

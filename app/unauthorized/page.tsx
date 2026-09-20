@@ -25,9 +25,11 @@ export default function UnauthorizedPage() {
   // app/api/v1/auth/admin/login/route.ts) — sending an organization_coordinator
   // to /admin-login would just get them turned away again.
   const signOutHref =
-    audience !== 'backoffice' ? '/login'
-    : user?.platformRole === 'organization_coordinator' ? '/enterprise/login'
-    : '/admin-login';
+    audience !== 'backoffice'
+      ? '/login'
+      : user?.platformRole === 'organization_coordinator'
+        ? '/enterprise/login'
+        : '/admin-login';
 
   const handleSignOut = () => {
     logout();

@@ -8,20 +8,25 @@ import { ok } from '@/lib/utils/response';
 import { logger } from '@/lib/logger';
 
 const CreateCampaignSchema = z.object({
-  name:             z.string().min(1),
-  subject:          z.string().min(1),
-  templateKey:      z.string().optional(),
-  htmlBody:         z.string().optional(),
-  recipientFilter:  z.unknown().optional(),
-  scheduledAt:      z.string().datetime().optional(),
-  launch:           z.boolean().optional(),
+  name: z.string().min(1),
+  subject: z.string().min(1),
+  templateKey: z.string().optional(),
+  htmlBody: z.string().optional(),
+  recipientFilter: z.unknown().optional(),
+  scheduledAt: z.string().datetime().optional(),
+  launch: z.boolean().optional(),
 });
 
 // Was withAuth only (any authenticated member) — matches SMS campaigns'
 // existing messaging.send gate on its equivalent GET (list) route.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
     const { rows } = await withDb(ctx, (db) =>
       db.query(
         `SELECT id, name, subject, status, total_recipients, sent_count, failed_count,
@@ -41,14 +46,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     const body = CreateCampaignSchema.parse(await req.json());
 
     const id = await createCampaign({
-      groupId:         auth.groupId,
-      createdBy:       auth.userId,
-      name:            body.name,
-      subject:         body.subject,
-      templateKey:     body.templateKey,
-      htmlBody:        body.htmlBody,
+      groupId: auth.groupId,
+      createdBy: auth.userId,
+      name: body.name,
+      subject: body.subject,
+      templateKey: body.templateKey,
+      htmlBody: body.htmlBody,
       recipientFilter: body.recipientFilter as never,
-      scheduledAt:     body.scheduledAt ? new Date(body.scheduledAt) : undefined,
+      scheduledAt: body.scheduledAt ? new Date(body.scheduledAt) : undefined,
     });
 
     if (body.launch) {

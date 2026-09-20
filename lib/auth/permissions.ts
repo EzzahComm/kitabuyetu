@@ -14,7 +14,7 @@
 import { ForbiddenError } from '@/lib/utils/errors';
 
 interface PermissionCheckable {
-  role:         string;
+  role: string;
   permissions?: string[];
 }
 

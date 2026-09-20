@@ -10,15 +10,15 @@ import { postContributionJournal } from './accounting.service';
 import { IS_SANDBOX, markSpineAllocated } from './mpesa-spine.service';
 
 export interface UnroutedRow {
-  id:                 string;
-  receipt:            string;
-  phone:              string;
-  amount:             string;
-  bill_ref:           string | null;
-  reason:             string;
+  id: string;
+  receipt: string;
+  phone: string;
+  amount: string;
+  bill_ref: string | null;
+  reason: string;
   candidate_group_id: string | null;
-  resolved:           boolean;
-  created_at:         string;
+  resolved: boolean;
+  created_at: string;
 }
 
 /** Lists unresolved receipts awaiting manual allocation for the group. */
@@ -51,8 +51,12 @@ export async function resolveUnrouted(
 ): Promise<void> {
   return withTransaction(ctx, async (db) => {
     const { rows } = await db.query<{
-      id: string; receipt: string; phone: string; amount: string;
-      bill_ref: string | null; resolved: boolean;
+      id: string;
+      receipt: string;
+      phone: string;
+      amount: string;
+      bill_ref: string | null;
+      resolved: boolean;
     }>(
       `SELECT id, receipt, phone, amount, bill_ref, resolved
        FROM   mpesa_unrouted
@@ -108,7 +112,11 @@ export async function resolveUnrouted(
        ON CONFLICT (mpesa_receipt_number) DO NOTHING
        RETURNING id`,
       [
-        ctx.groupId, opts.memberId, membershipId, amount.toFixed(2), row.receipt,
+        ctx.groupId,
+        opts.memberId,
+        membershipId,
+        amount.toFixed(2),
+        row.receipt,
         `Manually routed from unrouted receipt (${row.bill_ref ?? 'no ref'})`,
         ctx.userId,
       ],
@@ -138,9 +146,13 @@ export async function resolveUnrouted(
     }
     if (contributionId) {
       await postContributionJournal(db, {
-        groupId: ctx.groupId, contributionId, amount,
-        entryDate: new Date().toISOString().slice(0, 10), reference: row.receipt,
-        createdBy: null, isTest: IS_SANDBOX,
+        groupId: ctx.groupId,
+        contributionId,
+        amount,
+        entryDate: new Date().toISOString().slice(0, 10),
+        reference: row.receipt,
+        createdBy: null,
+        isTest: IS_SANDBOX,
       });
 
       // Spine: link + flip unrouted → allocated, attributed to the treasurer.
@@ -167,7 +179,7 @@ export async function resolveUnrouted(
       );
 
       await markSpineAllocated(db, row.receipt, {
-        actor:  ctx.userId,
+        actor: ctx.userId,
         detail: { product: 'savings', contributionId, groupId: ctx.groupId, via: 'unrouted_resolution' },
       });
     }

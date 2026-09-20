@@ -4,19 +4,13 @@
  * Usage:
  *   import { enqueueJob, processJobBatch, enqueueTimeBasedJobs } from '@/lib/jobs';
  */
-export { processJobBatch } from "./processor";
-export { insertJob as enqueueJob, pruneOldJobs } from "./db";
-export type {
-  Job,
-  JobType,
-  JobStatus,
-  EnqueueOptions,
-  ProcessResult,
-} from "./types";
+export { processJobBatch } from './processor';
+export { insertJob as enqueueJob, pruneOldJobs } from './db';
+export type { Job, JobType, JobStatus, EnqueueOptions, ProcessResult } from './types';
 
-import { insertJob } from "./db";
-import type { JobType } from "./types";
-import { withAdminDb } from "@/lib/db";
+import { insertJob } from './db';
+import type { JobType } from './types';
+import { withAdminDb } from '@/lib/db';
 
 /**
  * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
@@ -38,9 +32,7 @@ import { withAdminDb } from "@/lib/db";
  */
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
 
-export async function enqueueTimeBasedJobs(): Promise<
-  Record<string, string | null>
-> {
+export async function enqueueTimeBasedJobs(): Promise<Record<string, string | null>> {
   // Every schedule below is expressed in AFRICA/NAIROBI, the time the people
   // receiving these messages actually live in (SMS-AUDIT-v3 H8 / INV-41).
   //
@@ -91,18 +83,10 @@ export async function enqueueTimeBasedJobs(): Promise<
   // feature is actually used, with zero risk of silently orphaning future
   // work the way removing the enqueue outright would.
   queued.email_campaign_process = (await hasDueEmailSchedule())
-    ? await safe(
-        "email_campaign_process",
-        {},
-        { priority: 5, dedup_key: "email_campaign_process" },
-      )
+    ? await safe('email_campaign_process', {}, { priority: 5, dedup_key: 'email_campaign_process' })
     : null;
 
-  queued.email_retry_failed = await safe(
-    "email_retry_failed",
-    {},
-    { priority: 5, dedup_key: "email_retry_failed" },
-  );
+  queued.email_retry_failed = await safe('email_retry_failed', {}, { priority: 5, dedup_key: 'email_retry_failed' });
 
   // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
@@ -110,11 +94,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // lib/queue + lib/jobs merge). Gated — see comment above
   // email_campaign_process.
   queued.email_campaign_drain = (await hasPendingCampaignRecipients())
-    ? await safe(
-        "email_campaign_drain",
-        {},
-        { priority: 5, dedup_key: "email_campaign_drain" },
-      )
+    ? await safe('email_campaign_drain', {}, { priority: 5, dedup_key: 'email_campaign_drain' })
     : null;
 
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
@@ -150,40 +130,40 @@ export async function enqueueTimeBasedJobs(): Promise<
   // empty_payload = pending, for every one) and confirmed they are equally
   // payload-free self-idempotent sweeps — converted below alongside them.
   queued.sms_retry_failed = await safe(
-    "sms_retry_failed",
+    'sms_retry_failed',
     {},
     {
       priority: 6, // SMS retries are time-sensitive (transactional receipts/OTPs)
-      dedup_key: "sms_retry_failed",
+      dedup_key: 'sms_retry_failed',
     },
   );
 
   queued.sms_process_schedules = await safe(
-    "sms_process_schedules",
+    'sms_process_schedules',
     {},
     {
       priority: 5,
-      dedup_key: "sms_process_schedules",
+      dedup_key: 'sms_process_schedules',
     },
   );
 
   queued.sms_poll_dlr = await safe(
-    "sms_poll_dlr",
+    'sms_poll_dlr',
     {},
     {
       priority: 4,
-      dedup_key: "sms_poll_dlr",
+      dedup_key: 'sms_poll_dlr',
     },
   );
 
   // Recovers SMS credit earmarks orphaned by a crash between the provider call
   // and the settle write. Low priority: correctness backstop, not time-critical.
   queued.sms_release_stale_reservations = await safe(
-    "sms_release_stale_reservations",
+    'sms_release_stale_reservations',
     {},
     {
       priority: 3,
-      dedup_key: "sms_release_stale_reservations",
+      dedup_key: 'sms_release_stale_reservations',
     },
   );
 
@@ -202,32 +182,28 @@ export async function enqueueTimeBasedJobs(): Promise<
   );
 
   queued.mpesa_reconcile = await safe(
-    "mpesa_reconcile",
+    'mpesa_reconcile',
     {},
     {
       priority: 10, // highest — payments are time-sensitive
-      dedup_key: "mpesa_reconcile",
+      dedup_key: 'mpesa_reconcile',
     },
   );
 
   // DLQ replay — re-runs inbound money callbacks whose effect didn't land.
   queued.mpesa_replay_callbacks = await safe(
-    "mpesa_replay_callbacks",
+    'mpesa_replay_callbacks',
     {},
-    { priority: 9, dedup_key: "mpesa_replay_callbacks" },
+    { priority: 9, dedup_key: 'mpesa_replay_callbacks' },
   );
 
   // Transactional outbox drain (payment architecture §12).
-  queued.outbox_dispatch = await safe(
-    "outbox_dispatch",
-    {},
-    { priority: 8, dedup_key: "outbox_dispatch" },
-  );
+  queued.outbox_dispatch = await safe('outbox_dispatch', {}, { priority: 8, dedup_key: 'outbox_dispatch' });
 
   // ── Hourly — payment-spine orphan monitor (§16) ────────────────
   if (fiveMinBucket === 0) {
     queued.payment_orphan_monitor = await safe(
-      "payment_orphan_monitor",
+      'payment_orphan_monitor',
       {},
       {
         priority: 7,
@@ -237,7 +213,7 @@ export async function enqueueTimeBasedJobs(): Promise<
 
     // B2C disbursement stuck-payout monitor (B2C audit C5/F13).
     queued.disbursement_orphan_monitor = await safe(
-      "disbursement_orphan_monitor",
+      'disbursement_orphan_monitor',
       {},
       {
         priority: 9, // outbound money stuck unresolved — high priority
@@ -249,7 +225,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // engine's query also filters expired rows, so hourly cadence only
     // affects reporting freshness, never allocation correctness.
     queued.payment_requests_expire = await safe(
-      "payment_requests_expire",
+      'payment_requests_expire',
       {},
       {
         priority: 5,
@@ -264,7 +240,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // outage is not itself time-critical work, but it must not be starved by
     // the very backlog an outage produces.
     queued.sms_provider_health = await safe(
-      "sms_provider_health",
+      'sms_provider_health',
       {},
       {
         priority: 7,
@@ -280,7 +256,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so hourly
     // carries no correctness risk (docs/audits/optimization-2026-09).
     queued.mpesa_paybill_sweep = await safe(
-      "mpesa_paybill_sweep",
+      'mpesa_paybill_sweep',
       {},
       {
         priority: 8, // detecting lost inbound money, same tier as outbox_dispatch
@@ -309,7 +285,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // processRecurringInvoices' own query exactly.
   if (hour === 6 && fiveMinBucket === 0 && (await hasDueInvoiceSchedule())) {
     queued.email_recurring_invoices = await safe(
-      "email_recurring_invoices",
+      'email_recurring_invoices',
       {},
       {
         priority: 4,
@@ -332,7 +308,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // (today's birthdays), not a fixed recipient list on a fixed cadence.
   if (hour === 7 && fiveMinBucket === 0) {
     queued.email_birthday = await safe(
-      "email_birthday",
+      'email_birthday',
       {},
       {
         priority: 3,
@@ -340,7 +316,7 @@ export async function enqueueTimeBasedJobs(): Promise<
       },
     );
     queued.sms_birthday_reminders = await safe(
-      "sms_birthday_reminders",
+      'sms_birthday_reminders',
       {},
       {
         priority: 6,
@@ -354,7 +330,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // sendOverdueInvoiceReminders' own WHERE clause exactly.
   if (hour === 9 && fiveMinBucket === 0 && (await hasOverdueInvoice())) {
     queued.email_overdue_invoices = await safe(
-      "email_overdue_invoices",
+      'email_overdue_invoices',
       {},
       {
         priority: 4,
@@ -366,7 +342,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Monday 08:00 EAT — weekly summaries ───────────────────────
   if (day === 1 && hour === 8 && fiveMinBucket === 0) {
     queued.email_weekly_summary = await safe(
-      "email_weekly_summary",
+      'email_weekly_summary',
       {},
       {
         priority: 2,
@@ -378,7 +354,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
   if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(
-      "cleanup_expired_tokens",
+      'cleanup_expired_tokens',
       {},
       {
         priority: 1,
@@ -390,7 +366,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // drift that is really just ordering. Read-only and report-only, so a low
     // priority is right — it must never displace a send or a reminder.
     queued.sms_credit_reconciliation = await safe(
-      "sms_credit_reconciliation",
+      'sms_credit_reconciliation',
       {},
       {
         priority: 2,
@@ -400,7 +376,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // Retention runs in the same quiet hour. Low priority and idempotent —
     // a row already redacted is excluded by the query itself.
     queued.sms_message_retention = await safe(
-      "sms_message_retention",
+      'sms_message_retention',
       {},
       {
         priority: 1,
@@ -413,7 +389,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // Catches B2C transactions that completed without an mpesa_charges row.
   if (hour === 3 && fiveMinBucket === 0) {
     queued.mpesa_reconcile_charges = await safe(
-      "mpesa_reconcile_charges",
+      'mpesa_reconcile_charges',
       {},
       {
         priority: 4,
@@ -427,7 +403,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // and records any drift for finance review (detection only, no rewrite).
   if (hour === 4 && fiveMinBucket === 0) {
     queued.accounting_balance_drift = await safe(
-      "accounting_balance_drift",
+      'accounting_balance_drift',
       {},
       {
         priority: 4,
@@ -439,7 +415,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 05:00 EAT — sub-account balance snapshot ─
   if (hour === 5 && fiveMinBucket === 0) {
     queued.mpesa_balance_snapshot = await safe(
-      "mpesa_balance_snapshot",
+      'mpesa_balance_snapshot',
       {},
       {
         priority: 3,
@@ -453,7 +429,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
   if (hour === 6 && fiveMinBucket === 0) {
     queued.gl_cash_reconciliation = await safe(
-      "gl_cash_reconciliation",
+      'gl_cash_reconciliation',
       {},
       {
         priority: 4,
@@ -465,7 +441,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // ── Daily 20:00 EAT — M-Pesa daily report email ───
   if (hour === 20 && fiveMinBucket === 0) {
     queued.mpesa_daily_report = await safe(
-      "mpesa_daily_report",
+      'mpesa_daily_report',
       {},
       {
         priority: 3,
@@ -479,7 +455,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // 09:00 EAT lands their notification just before they head to work.
   if (hour === 6 && fiveMinBucket === 0) {
     queued.notify_loan_due_alerts = await safe(
-      "notify_loan_due_alerts",
+      'notify_loan_due_alerts',
       {},
       {
         priority: 6,
@@ -507,7 +483,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   // (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2b).
   if (hour === 1 && fiveMinBucket === 0) {
     queued.sms_allowance_monthly_reset = await safe(
-      "sms_allowance_monthly_reset",
+      'sms_allowance_monthly_reset',
       {},
       {
         priority: 4,
@@ -519,7 +495,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // one above, since it grants against a different table pair
     // (organization_subscriptions/organization_billing_accounts) entirely.
     queued.organization_sms_allowance_grant = await safe(
-      "organization_sms_allowance_grant",
+      'organization_sms_allowance_grant',
       {},
       {
         priority: 4,
@@ -538,7 +514,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // (docs/audits/optimization-2026-09). Routing it through the queue with
     // a monthly key fixes that.
     queued.cleanup_old_jobs = await safe(
-      "cleanup_old_jobs",
+      'cleanup_old_jobs',
       {},
       { priority: 1, dedup_key: `cleanup_old_jobs:${monthStr}` },
     );
@@ -548,7 +524,7 @@ export async function enqueueTimeBasedJobs(): Promise<
     // month. Dedup keyed at month granularity so even repeated
     // 5-min ticks within the same hour won't re-enqueue.
     queued.notify_contribution_reminders = await safe(
-      "notify_contribution_reminders",
+      'notify_contribution_reminders',
       {},
       {
         priority: 5,
@@ -563,7 +539,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   if (date === 1 && hour === 10 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.email_member_statements = await safe(
-      "email_member_statements",
+      'email_member_statements',
       {},
       {
         priority: 2,
@@ -579,7 +555,7 @@ export async function enqueueTimeBasedJobs(): Promise<
   if (date === 1 && hour === 11 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
     queued.governance_compute_metrics = await safe(
-      "governance_compute_metrics",
+      'governance_compute_metrics',
       {},
       {
         priority: 4,
@@ -642,9 +618,7 @@ async function hasDueInvoiceSchedule(): Promise<boolean> {
 async function hasDueEmailSchedule(): Promise<boolean> {
   try {
     const { rows } = await withAdminDb((db) =>
-      db.query(
-        `SELECT 1 FROM email_schedules WHERE is_active = true AND next_run_at <= NOW() LIMIT 1`,
-      ),
+      db.query(`SELECT 1 FROM email_schedules WHERE is_active = true AND next_run_at <= NOW() LIMIT 1`),
     );
     return rows.length > 0;
   } catch {
@@ -676,14 +650,10 @@ function toDateStr(d: Date): string {
 
 function toWeekStr(d: Date): string {
   // ISO 8601 week number
-  const tmp = new Date(
-    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()),
-  );
+  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   const dayOfWeek = tmp.getUTCDay() || 7;
   tmp.setUTCDate(tmp.getUTCDate() + 4 - dayOfWeek);
   const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(
-    ((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7,
-  );
-  return `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
+  const weekNo = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
+  return `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }

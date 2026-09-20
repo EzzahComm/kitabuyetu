@@ -1,12 +1,15 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import { signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';
 import {
-  storeRefreshToken, incrementLoginAttempts, clearLoginAttempts,
-  isAccountLocked, lockAccount,
+  storeRefreshToken,
+  incrementLoginAttempts,
+  clearLoginAttempts,
+  isAccountLocked,
+  lockAccount,
 } from '@/lib/redis';
 import { LoginSchema } from '@/lib/validators/auth.schema';
 import { normalizePhone } from '@/lib/utils/phone';
@@ -18,7 +21,7 @@ import type { MemberRole, PlatformRole } from '@/types/enums';
 // locally in 3 separate route files with a '15' fallback that silently
 // disagreed with lib/env.ts's validated schema default of 30. Reading from
 // the central env object removes both the duplication and the mismatch.
-const MAX_ATTEMPTS    = env.MAX_LOGIN_ATTEMPTS;
+const MAX_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
 const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 
 // Constant-time decoy hash. bcrypt.compare against this when the member lookup
@@ -26,32 +29,32 @@ const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
 const DECOY_HASH = '$2a$10$abcdefghijklmnopqrstuuMUbfYNQK3vFq2KCRGzlz7QnxJ.O3.lG';
 
 interface MemberRow {
-  id:              string;
-  password_hash:   string;
-  first_name:      string;
-  last_name:       string;
-  phone:           string;
-  email:           string | null;
-  platform_role:   string;
-  is_active:       boolean;
+  id: string;
+  password_hash: string;
+  first_name: string;
+  last_name: string;
+  phone: string;
+  email: string | null;
+  platform_role: string;
+  is_active: boolean;
   session_version: number;
 }
 
 interface GroupMembershipRow {
-  membership_id: string;     // group_members.id — anchoring claim (§2.1)
-  group_id:      string;
-  member_id:     string;
-  member_code:   string;
+  membership_id: string; // group_members.id — anchoring claim (§2.1)
+  group_id: string;
+  member_id: string;
+  member_code: string;
   membership_no: string;
-  person_id:     string;
+  person_id: string;
   member_status: string;
-  group_role:    string;     // group_members.role
-  auth_version:  number;     // §2.5 membership auth epoch
-  group_code:    string;
-  group_name:    string;
-  group_status:  string;     // groups.status
-  officer_role:  string | null;
-  permissions:   string[];   // roles.permissions via gm.role_id (RBAC activation)
+  group_role: string; // group_members.role
+  auth_version: number; // §2.5 membership auth epoch
+  group_code: string;
+  group_name: string;
+  group_status: string; // groups.status
+  officer_role: string | null;
+  permissions: string[]; // roles.permissions via gm.role_id (RBAC activation)
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -61,10 +64,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // Resolve identifier into a (kind, value) pair. Phone is normalised to E.164
     // for lookup against members.phone; emails are lowercased.
-    const isEmail   = input.identifier.includes('@');
-    const lookupKey = isEmail
-      ? input.identifier.trim().toLowerCase()
-      : normalizePhone(input.identifier);
+    const isEmail = input.identifier.includes('@');
+    const lookupKey = isEmail ? input.identifier.trim().toLowerCase() : normalizePhone(input.identifier);
 
     // Lockout key is the lookup key — pivots automatically if the user switches
     // between phone and email between attempts.
@@ -89,7 +90,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       const member = members[0];
       const hashToVerify = member?.password_hash ?? DECOY_HASH;
-      const passwordOk   = await bcrypt.compare(input.password, hashToVerify);
+      const passwordOk = await bcrypt.compare(input.password, hashToVerify);
 
       // Three cases collapsed into one "invalid credentials" path so the
       // attacker can't tell which one fired: no member, deactivated member,
@@ -168,10 +169,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       const response: NeedsGroupSelection = {
         needsGroupSelection: true,
         groups: memberships.map((m) => ({
-          groupId:    m.group_id,
-          groupCode:  m.group_code,
-          groupName:  m.group_name,
-          groupRole:  m.group_role as MemberRole,
+          groupId: m.group_id,
+          groupCode: m.group_code,
+          groupName: m.group_name,
+          groupRole: m.group_role as MemberRole,
           officerRole: m.officer_role ?? undefined,
         })),
       };
@@ -186,30 +187,26 @@ export async function POST(req: NextRequest): Promise<Response> {
     ).catch(() => {});
 
     // Platform super_admin overrides the per-group role for authorisation.
-    const effectiveRole = member.platform_role === 'super_admin'
-      ? 'super_admin'
-      : chosen.group_role;
+    const effectiveRole = member.platform_role === 'super_admin' ? 'super_admin' : chosen.group_role;
 
     const accessToken = signAccessToken({
-      sub:            member.id,
-      groupId:        chosen.group_id,
-      role:           effectiveRole as PlatformRole | MemberRole,
-      personId:       chosen.person_id,
-      groupStatus:    chosen.group_status,
+      sub: member.id,
+      groupId: chosen.group_id,
+      role: effectiveRole as PlatformRole | MemberRole,
+      personId: chosen.person_id,
+      groupStatus: chosen.group_status,
       // Active Membership Context (§2.1) + drift epochs (§2.5)
-      membershipId:   chosen.membership_id,
-      membershipNo:   chosen.membership_no,
-      authVersion:    chosen.auth_version,
+      membershipId: chosen.membership_id,
+      membershipNo: chosen.membership_no,
+      authVersion: chosen.auth_version,
       sessionVersion: member.session_version,
-      permissions:    chosen.permissions,
+      permissions: chosen.permissions,
     });
 
     // Pin the chosen group to the refresh token so token refreshes revalidate
     // THIS membership instead of re-deriving one (audit C-1). The session
     // epoch travels too: a bump kills the session at its next refresh (§2.5).
-    const { token: refreshToken } = signRefreshToken(
-      member.id, 'tenant', chosen.group_id, member.session_version,
-    );
+    const { token: refreshToken } = signRefreshToken(member.id, 'tenant', chosen.group_id, member.session_version);
     const rtHash = hashToken(refreshToken);
     await storeRefreshToken(rtHash, member.id, refreshTtlSeconds());
 
@@ -224,8 +221,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         // the row id doubles as the lineage anchor.
         `INSERT INTO refresh_tokens (member_id, token_hash, expires_at, ip_address, lineage_id, membership_id)
          VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(), $5)`,
-        [member.id, rtHash, refreshTtlSeconds(),
-         req.headers.get('x-forwarded-for') ?? null, chosen.membership_id],
+        [member.id, rtHash, refreshTtlSeconds(), req.headers.get('x-forwarded-for') ?? null, chosen.membership_id],
       ),
     );
 
@@ -233,22 +229,22 @@ export async function POST(req: NextRequest): Promise<Response> {
       accessToken,
       refreshToken,
       member: {
-        id:           member.id,
-        firstName:    member.first_name,
-        lastName:     member.last_name,
-        phone:        member.phone,
-        email:        member.email,
+        id: member.id,
+        firstName: member.first_name,
+        lastName: member.last_name,
+        phone: member.phone,
+        email: member.email,
         platformRole: member.platform_role as PlatformRole,
-        groupRole:    chosen.group_role as MemberRole,
-        groupId:      chosen.group_id,
-        groupName:    chosen.group_name,
-        groupCode:    chosen.group_code,
-        memberCode:   chosen.member_code,
+        groupRole: chosen.group_role as MemberRole,
+        groupId: chosen.group_id,
+        groupName: chosen.group_name,
+        groupCode: chosen.group_code,
+        memberCode: chosen.member_code,
         membershipNo: chosen.membership_no,
-        personId:     chosen.person_id,
-        officerRole:  chosen.officer_role ?? undefined,
-        groupStatus:  chosen.group_status,
-        permissions:  chosen.permissions,
+        personId: chosen.person_id,
+        officerRole: chosen.officer_role ?? undefined,
+        groupStatus: chosen.group_status,
+        permissions: chosen.permissions,
       },
     };
 

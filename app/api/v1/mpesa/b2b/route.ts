@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * POST /api/v1/mpesa/b2b              â€” Initiate B2B transfer (chairperson+)
  * POST /api/v1/mpesa/b2b?type=result  â€” Safaricom result callback
@@ -17,13 +17,13 @@ import { toMpesaAmount } from '@/lib/utils/currency';
 import { logger } from '@/lib/logger';
 
 const B2BSchema = z.object({
-  amount:             z.number().positive(),
-  receiverShortcode:  z.string().min(3).max(20),
+  amount: z.number().positive(),
+  receiverShortcode: z.string().min(3).max(20),
   receiverIdentifier: z.enum(['1', '2', '4']).default('4'),
-  commandId:          z.enum(['BusinessBuyGoods', 'BusinessPayBill', 'B2CAccountTopUp']),
-  accountReference:   z.string().min(1).max(20),
-  remarks:            z.string().min(1).max(100),
-  requester:          z.string().optional(),
+  commandId: z.enum(['BusinessBuyGoods', 'BusinessPayBill', 'B2CAccountTopUp']),
+  accountReference: z.string().min(1).max(20),
+  remarks: z.string().min(1).max(100),
+  requester: z.string().optional(),
 });
 
 function callerIp(req: NextRequest): string {
@@ -34,7 +34,7 @@ const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
     // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
@@ -47,14 +47,19 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
-        db.query(
-          `INSERT INTO mpesa_callbacks (callback_type, caller_ip, body) VALUES ($1,$2,$3)`,
-          [`b2b_${type}`, ip, JSON.stringify(body)],
-        ),
+        db.query(`INSERT INTO mpesa_callbacks (callback_type, caller_ip, body) VALUES ($1,$2,$3)`, [
+          `b2b_${type}`,
+          ip,
+          JSON.stringify(body),
+        ]),
       ).catch(() => {});
     });
 
@@ -66,14 +71,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     // than a lookup-then-dispatch — and each is independently try/caught so
     // one failing can't starve the others.
     after(async () => {
-      try { await handleB2BResult(body, ip); }
-      catch (err) { logger.error('[b2b result]', err); }
+      try {
+        await handleB2BResult(body, ip);
+      } catch (err) {
+        logger.error('[b2b result]', err);
+      }
 
-      try { await handleSettlementB2BResult(body, ip); }
-      catch (err) { logger.error('[b2b result → settlement]', err); }
+      try {
+        await handleSettlementB2BResult(body, ip);
+      } catch (err) {
+        logger.error('[b2b result → settlement]', err);
+      }
 
-      try { await handleVendorPaymentResult(body, ip); }
-      catch (err) { logger.error('[b2b result → vendor payment]', err); }
+      try {
+        await handleVendorPaymentResult(body, ip);
+      } catch (err) {
+        logger.error('[b2b result → vendor payment]', err);
+      }
     });
     return ack();
   }
@@ -82,21 +96,26 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'payments.disburse', async (auth) => {
     try {
       const input = B2BSchema.parse(await req.json());
-      const res   = await initiateB2B({
-        amount:             input.amount,
-        receiverShortcode:  input.receiverShortcode,
+      const res = await initiateB2B({
+        amount: input.amount,
+        receiverShortcode: input.receiverShortcode,
         receiverIdentifier: input.receiverIdentifier as '1' | '2' | '4',
-        commandId:          input.commandId,
-        accountReference:   input.accountReference,
-        remarks:            input.remarks,
-        requester:          input.requester,
+        commandId: input.commandId,
+        accountReference: input.accountReference,
+        remarks: input.remarks,
+        requester: input.requester,
       });
 
       const amountStr = toMpesaAmount(input.amount).toFixed(2);
 
       // Persist in both master ledger and B2B-specific table
       const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       await withTransaction(ctx, async (db) => {
         const { rows: txRows } = await db.query<{ id: string }>(
           `INSERT INTO mpesa_transactions
@@ -114,20 +133,26 @@ export async function POST(req: NextRequest): Promise<Response> {
               command_id, remarks, status, initiated_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'initiated',$11)`,
           [
-            auth.groupId, txRows[0]?.id ?? null,
-            res.conversationId, res.originatorConversationId,
-            input.receiverShortcode, input.receiverIdentifier,
-            amountStr, input.accountReference,
-            input.commandId, input.remarks, auth.userId,
+            auth.groupId,
+            txRows[0]?.id ?? null,
+            res.conversationId,
+            res.originatorConversationId,
+            input.receiverShortcode,
+            input.receiverIdentifier,
+            amountStr,
+            input.accountReference,
+            input.commandId,
+            input.remarks,
+            auth.userId,
           ],
         );
       });
 
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseDescription:      res.responseDescription,
-        message:                  'B2B transfer initiated. Monitor callback for result.',
+        responseDescription: res.responseDescription,
+        message: 'B2B transfer initiated. Monitor callback for result.',
       });
     } catch (err) {
       return handleError(err);
@@ -138,7 +163,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT b.*, m.first_name||' '||m.last_name AS initiated_by_name

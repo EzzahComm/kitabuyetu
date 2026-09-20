@@ -36,18 +36,22 @@ const MESSAGE = 'Meeting on Saturday at 10am.';
 const GROUP_SIZE = 25;
 
 function send(groupId: string, officerId: string, body: unknown) {
-  return bulkPost(buildRequest('/api/v1/sms/bulk', {
-    method: 'POST',
-    headers: authHeaders({
-      userId: officerId, groupId, role: 'chairperson',
-      permissions: ['messaging.send', 'members.view'],
+  return bulkPost(
+    buildRequest('/api/v1/sms/bulk', {
+      method: 'POST',
+      headers: authHeaders({
+        userId: officerId,
+        groupId,
+        role: 'chairperson',
+        permissions: ['messaging.send', 'members.view'],
+      }),
+      body,
     }),
-    body,
-  }));
+  );
 }
 
 async function queuedCount(res: Response): Promise<number> {
-  const body = await res.json() as { data?: { queued?: number } };
+  const body = (await res.json()) as { data?: { queued?: number } };
   return body.data?.queued ?? -1;
 }
 
@@ -90,7 +94,7 @@ describe('POST /sms/bulk recipient resolution', () => {
       [groupId],
     );
 
-    const all    = await send(groupId, officerId, { recipientType: 'all_members', message: MESSAGE });
+    const all = await send(groupId, officerId, { recipientType: 'all_members', message: MESSAGE });
     const active = await send(groupId, officerId, { recipientType: 'active_members', message: MESSAGE });
 
     expect(await queuedCount(all)).toBe(GROUP_SIZE);
@@ -99,7 +103,8 @@ describe('POST /sms/bulk recipient resolution', () => {
 
   it('still sends exactly the numbers a human typed', async () => {
     const res = await send(groupId, officerId, {
-      phones: ['254712345678', '254798765432'], message: MESSAGE,
+      phones: ['254712345678', '254798765432'],
+      message: MESSAGE,
     });
 
     expect(res.status).toBe(200);
@@ -112,13 +117,15 @@ describe('POST /sms/bulk recipient resolution', () => {
     const res = await send(groupId, officerId, { recipientType: 'active_members', message: MESSAGE });
 
     expect(res.status).toBe(422);
-    const body = await res.json() as { code: string };
+    const body = (await res.json()) as { code: string };
     expect(body.code).toBe('VALIDATION_ERROR');
   });
 
   it('refuses a request that names both an audience and a phone list', async () => {
     const res = await send(groupId, officerId, {
-      recipientType: 'all_members', phones: ['254712345678'], message: MESSAGE,
+      recipientType: 'all_members',
+      phones: ['254712345678'],
+      message: MESSAGE,
     });
 
     expect(res.status).toBe(422);
@@ -132,7 +139,8 @@ describe('POST /sms/bulk recipient resolution', () => {
     await addGroupOfficer(other.groupId, other.officerId, 'member');
 
     const res = await send(other.groupId, other.officerId, {
-      recipientType: 'all_members', message: MESSAGE,
+      recipientType: 'all_members',
+      message: MESSAGE,
     });
 
     expect(await queuedCount(res)).toBe(2);

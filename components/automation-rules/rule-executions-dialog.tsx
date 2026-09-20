@@ -29,10 +29,14 @@ export function RuleExecutionsDialog({ channel, ruleId, ruleName }: Props) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm" variant="ghost">Activity</Button>
+        <Button size="sm" variant="ghost">
+          Activity
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader><DialogTitle>Recent activity — {ruleName}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Recent activity — {ruleName}</DialogTitle>
+        </DialogHeader>
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !executions || executions.length === 0 ? (
@@ -53,7 +57,9 @@ export function RuleExecutionsDialog({ channel, ruleId, ruleName }: Props) {
               {executions.map((e: AutomationRuleExecution) => (
                 <TableRow key={e.id}>
                   <TableCell className="whitespace-nowrap text-sm">{formatDateTime(e.created_at)}</TableCell>
-                  <TableCell><Badge variant={STATUS_VARIANT[e.status] ?? 'outline'}>{e.status}</Badge></TableCell>
+                  <TableCell>
+                    <Badge variant={STATUS_VARIANT[e.status] ?? 'outline'}>{e.status}</Badge>
+                  </TableCell>
                   <TableCell>{e.recipients}</TableCell>
                   <TableCell className="max-w-xs truncate text-xs text-muted-foreground">{e.reason ?? '—'}</TableCell>
                 </TableRow>

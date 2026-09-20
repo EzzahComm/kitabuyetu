@@ -25,7 +25,10 @@ export function WalletCard({ savings, shares, thisMonth, loanBalance, memberNo }
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-600 to-brand-blue-800 p-5 text-white shadow-lg">
       {/* soft decorative orb */}
-      <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-500/20 blur-2xl" aria-hidden />
+      <div
+        className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-500/20 blur-2xl"
+        aria-hidden
+      />
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-white/70">My savings</p>
@@ -42,7 +45,9 @@ export function WalletCard({ savings, shares, thisMonth, loanBalance, memberNo }
       <p className="money mt-1 text-4xl font-bold tracking-tight">{mask(savings)}</p>
       <div className="mt-1 flex items-center gap-1.5 text-xs text-white/70">
         <TrendingUp size={13} className="text-brand-300" />
-        <span><span className="font-semibold text-brand-100">{formatKES(thisMonth)}</span> saved this month</span>
+        <span>
+          <span className="font-semibold text-brand-100">{formatKES(thisMonth)}</span> saved this month
+        </span>
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">

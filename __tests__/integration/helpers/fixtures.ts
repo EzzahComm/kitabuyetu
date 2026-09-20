@@ -52,21 +52,23 @@ export async function createTestGroup(
   creatorRole: 'chairperson' | 'secretary' | 'treasurer' = 'treasurer',
   opts: { subscribed?: boolean; product?: SubscriptionProduct } = {},
 ): Promise<TestGroup> {
-  const phone   = uniquePhone();
+  const phone = uniquePhone();
   const product = opts.product ?? 'kitabu_yetu';
   const [row] = await rawQuery<{ result: { group_id: string; member_id: string } }>(
     `SELECT register_group($1::jsonb) AS result`,
-    [JSON.stringify({
-      groupName: `Integration Test Group ${phone}`,
-      groupType: 'chama',
-      firstName: 'Test',
-      lastName: 'Officer',
-      phone,
-      passwordHash: DUMMY_PASSWORD_HASH,
-      creatorRole,
-      primaryObjective: 'savings',
-      product,
-    })],
+    [
+      JSON.stringify({
+        groupName: `Integration Test Group ${phone}`,
+        groupType: 'chama',
+        firstName: 'Test',
+        lastName: 'Officer',
+        phone,
+        passwordHash: DUMMY_PASSWORD_HASH,
+        creatorRole,
+        primaryObjective: 'savings',
+        product,
+      }),
+    ],
   );
   const groupId = row.result.group_id;
 
@@ -116,10 +118,10 @@ export async function addGroupOfficer(
 
 /** Tops up the group's seeded 1001 Cash and M-Pesa account so disbursement/payment fixtures pass the balance check. Direct UPDATE is safe here: `accounts.balance` is a stable column unchanged since its original migration. */
 export async function fundGroupCashAccount(groupId: string, amount: number): Promise<void> {
-  await rawQuery(
-    `UPDATE accounts SET balance = $1 WHERE group_id = $2 AND account_code = '1001'`,
-    [amount.toFixed(2), groupId],
-  );
+  await rawQuery(`UPDATE accounts SET balance = $1 WHERE group_id = $2 AND account_code = '1001'`, [
+    amount.toFixed(2),
+    groupId,
+  ]);
 }
 
 export interface TestPaymentRequest {
@@ -128,11 +130,16 @@ export interface TestPaymentRequest {
 
 /** Opens a real payment_requests row via paymentRequestsService.create (status='open'). */
 export async function createTestPaymentRequest(
-  groupId: string, officerId: string, memberId: string, amount = 1000,
+  groupId: string,
+  officerId: string,
+  memberId: string,
+  amount = 1000,
 ): Promise<TestPaymentRequest> {
   const ctx: TenantContext = { userId: officerId, groupId, role: 'treasurer' };
   const row = await paymentRequestsService.create(ctx, {
-    memberId, product: 'savings', amount,
+    memberId,
+    product: 'savings',
+    amount,
   });
   return { id: (row as { id: string }).id };
 }
@@ -149,7 +156,9 @@ export interface TestDisbursement {
  * for the approve/reject tests.
  */
 export async function createTestDisbursement(
-  groupId: string, initiatorId: string, amount = 50_000,
+  groupId: string,
+  initiatorId: string,
+  amount = 50_000,
 ): Promise<TestDisbursement> {
   await fundGroupCashAccount(groupId, amount * 10);
   const ctx: TenantContext = { userId: initiatorId, groupId, role: 'treasurer' };
@@ -223,12 +232,18 @@ export interface TestOrgDisbursement {
  * pending_approval for the approve/reject tests.
  */
 export async function createTestOrgDisbursement(
-  organizationId: string, coordinatorId: string, groupId: string, amount = 100_000,
+  organizationId: string,
+  coordinatorId: string,
+  groupId: string,
+  amount = 100_000,
 ): Promise<TestOrgDisbursement> {
   await assignGroupToOrganization(organizationId, groupId, coordinatorId, 'read');
 
   const ctx: TenantContext = {
-    userId: coordinatorId, groupId, role: 'organization_coordinator', organizationId,
+    userId: coordinatorId,
+    groupId,
+    role: 'organization_coordinator',
+    organizationId,
   };
   // getWallet() lazily bootstraps the organization_wallets row (createOrganization
   // itself doesn't); deposit()'s own getWalletForUpdate() has no such fallback and
@@ -236,7 +251,9 @@ export async function createTestOrgDisbursement(
   await organizationFinanceService.getWallet(ctx);
   await organizationFinanceService.deposit(ctx, { amount: amount * 10, source: 'Integration test funding' });
   const disb = await organizationFinanceService.disburse(ctx, {
-    groupId, amount, disbursementType: 'grant',
+    groupId,
+    amount,
+    disbursementType: 'grant',
   });
   return { id: disb.id };
 }

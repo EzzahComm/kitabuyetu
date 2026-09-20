@@ -121,7 +121,14 @@ export function buildRiskDashboardPayload(input: {
       org: g.name,
       docType: g.group_type === 'sacco' ? 'National ID' : 'Passport',
       submitted: `${index + 1} hr ago`,
-      risk: g.onboarding_status !== 'active' ? 'medium' : (g.risk_score ?? 0) >= 60 ? 'high' : (g.risk_score ?? 0) >= 35 ? 'medium' : 'low',
+      risk:
+        g.onboarding_status !== 'active'
+          ? 'medium'
+          : (g.risk_score ?? 0) >= 60
+            ? 'high'
+            : (g.risk_score ?? 0) >= 35
+              ? 'medium'
+              : 'low',
     }));
 
   return {
@@ -131,9 +138,7 @@ export function buildRiskDashboardPayload(input: {
       pendingKyc,
       platformRisk: highRiskGroups > 0 ? 'Elevated' : 'Moderate',
     },
-    heatmap: input.heatmap?.length
-      ? input.heatmap
-      : [{ segment: 'All groups', scores: [0, 0, 0, 0, 0] }],
+    heatmap: input.heatmap?.length ? input.heatmap : [{ segment: 'All groups', scores: [0, 0, 0, 0, 0] }],
     alerts,
     kyc: kycQueue,
     alertTrend: input.dailyTrend.length ? input.dailyTrend : [{ day: 'Today', alerts: 0, resolved: 0 }],
@@ -179,13 +184,16 @@ export function buildMonitoringDashboardPayload(input: {
       // DB values are 'stk_push' / 'c2b' / 'b2c' (+ others filtered out at the
       // query). Normalize to the three feed badges; anything unexpected renders
       // as C2B rather than crashing the page on an unknown key.
-      type: ((t: string) =>
-        t.includes('stk') ? 'STK' : t.includes('b2c') ? 'B2C' : 'C2B'
-      )((tx.transaction_type ?? '').toLowerCase()) as 'C2B' | 'B2C' | 'STK',
+      type: ((t: string) => (t.includes('stk') ? 'STK' : t.includes('b2c') ? 'B2C' : 'C2B'))(
+        (tx.transaction_type ?? '').toLowerCase(),
+      ) as 'C2B' | 'B2C' | 'STK',
       org: 'Platform activity',
       phone: tx.phone_number ?? '',
       amount: Number(tx.amount ?? 0),
-      status: (tx.status === 'failed' ? 'failed' : tx.status === 'pending' ? 'pending' : 'success') as 'success' | 'pending' | 'failed',
+      status: (tx.status === 'failed' ? 'failed' : tx.status === 'pending' ? 'pending' : 'success') as
+        | 'success'
+        | 'pending'
+        | 'failed',
       ref: tx.mpesa_receipt_number ?? tx.reference ?? tx.id,
       at: Date.parse(tx.created_at ?? new Date().toISOString()),
     })),
@@ -200,9 +208,10 @@ export async function getPlatformStats() {
   // useAdminDashboard), so a 90s TTL had already expired before every
   // scheduled refetch fired — guaranteeing a cache miss on the one request
   // this cache exists to absorb (docs/audits/optimization-2026-09).
-  return cached(keys.cache('platform-stats', 'platform'), 150, () => withAdminDb(async (db: PoolClient) => {
-    const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
-      db.query(`
+  return cached(keys.cache('platform-stats', 'platform'), 150, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
+        db.query(`
         SELECT
           COUNT(*)                                              AS total,
           COUNT(*) FILTER (WHERE onboarding_status = 'active') AS active,
@@ -210,21 +219,21 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.groups
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*)                                  AS total,
           COUNT(*) FILTER (WHERE is_active = true)  AS active,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.organizations
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE is_active = true) AS active,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.members
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*) FILTER (WHERE status = 'active')     AS active_subscriptions,
           COUNT(*) FILTER (WHERE status = 'expired')    AS expired_subscriptions,
@@ -234,7 +243,7 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
         FROM public.subscriptions
       `),
-      db.query(`
+        db.query(`
         SELECT
           COALESCE(SUM(amount), 0) AS total_collected,
           COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN amount ELSE 0 END), 0) AS this_month,
@@ -242,7 +251,7 @@ export async function getPlatformStats() {
         FROM public.payments
         WHERE status = 'completed'
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE status = 'open')        AS open,
@@ -250,7 +259,7 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE sla_breach_at < NOW() AND status NOT IN ('resolved','closed')) AS sla_breached
         FROM public.support_tickets
       `),
-      db.query(`
+        db.query(`
         SELECT
           al.action, al.resource_type AS table_name, al.created_at,
           g.name AS group_name
@@ -259,26 +268,28 @@ export async function getPlatformStats() {
         ORDER BY al.created_at DESC
         LIMIT 10
       `),
-    ]);
+      ]);
 
-    return {
-      groups:        groups.rows[0],
-      organizations: organizations.rows[0],
-      members:       members.rows[0],
-      subscriptions: subscriptions.rows[0],
-      revenue:       revenue.rows[0],
-      tickets:       tickets.rows[0],
-      recentActivity: activity.rows,
-    };
-  }));
+      return {
+        groups: groups.rows[0],
+        organizations: organizations.rows[0],
+        members: members.rows[0],
+        subscriptions: subscriptions.rows[0],
+        revenue: revenue.rows[0],
+        tickets: tickets.rows[0],
+        recentActivity: activity.rows,
+      };
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Revenue trend (last 6 months)
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getRevenueTrend() {
-  return cached(keys.cache('revenue-trend', 'platform'), 120, () => withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query(`
+  return cached(keys.cache('revenue-trend', 'platform'), 120, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const { rows } = await db.query(`
       SELECT
         TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') AS month,
         DATE_TRUNC('month', created_at)                       AS month_date,
@@ -290,17 +301,19 @@ export async function getRevenueTrend() {
       GROUP BY DATE_TRUNC('month', created_at)
       ORDER BY month_date ASC
     `);
-    return rows;
-  }));
+      return rows;
+    }),
+  );
 }
 
 export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
   // TTL raised 60s->150s — same guaranteed-miss shape as getPlatformStats
   // above: the client's 120s poll interval outlived the 60s TTL every time
   // (docs/audits/optimization-2026-09).
-  return cached(keys.cache('risk-dashboard', 'platform'), 150, () => withAdminDb(async (db: PoolClient) => {
-    const [groups, transactions, trend, heatmap] = await Promise.all([
-      db.query(`
+  return cached(keys.cache('risk-dashboard', 'platform'), 150, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [groups, transactions, trend, heatmap] = await Promise.all([
+        db.query(`
         SELECT g.id, g.name, g.type AS group_type, g.risk_score, g.engagement_score, g.onboarding_status, g.created_at,
                m.first_name || ' ' || m.last_name AS admin_name
         FROM public.groups g
@@ -309,13 +322,13 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         ORDER BY g.created_at DESC
         LIMIT 12
       `),
-      db.query(`
+        db.query(`
         SELECT id, amount, status, created_at, transaction_type, failure_reason, description
         FROM public.mpesa_transactions
         ORDER BY created_at DESC
         LIMIT 12
       `),
-      db.query(`
+        db.query(`
         SELECT TO_CHAR(d.day, 'Dy') AS day,
                COUNT(t.id) FILTER (WHERE t.status IN ('failed','pending'))     AS alerts,
                COUNT(t.id) FILTER (WHERE t.status NOT IN ('failed','pending')) AS resolved
@@ -324,7 +337,7 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         GROUP BY d.day
         ORDER BY d.day
       `),
-      db.query(`
+        db.query(`
         WITH txn AS (
           SELECT g.type::text AS segment,
                  COUNT(*) AS total,
@@ -362,31 +375,35 @@ export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
         GROUP BY g.type
         ORDER BY g.type
       `),
-    ]);
+      ]);
 
-    const prettySegment = (s: string) =>
-      s === 'sacco' ? 'SACCOs'
-      : s === 'chama' ? 'Chamas'
-      : s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') + 's';
+      const prettySegment = (s: string) =>
+        s === 'sacco'
+          ? 'SACCOs'
+          : s === 'chama'
+            ? 'Chamas'
+            : s.charAt(0).toUpperCase() + s.slice(1).replace(/_/g, ' ') + 's';
 
-    return buildRiskDashboardPayload({
-      groups: groups.rows,
-      transactions: transactions.rows,
-      dailyTrend: trend.rows,
-      heatmap: heatmap.rows.map((r: Record<string, unknown>) => ({
-        segment: prettySegment(String(r.segment)),
-        scores: [r.fraud, r.capital, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
-      })),
-    });
-  }));
+      return buildRiskDashboardPayload({
+        groups: groups.rows,
+        transactions: transactions.rows,
+        dailyTrend: trend.rows,
+        heatmap: heatmap.rows.map((r: Record<string, unknown>) => ({
+          segment: prettySegment(String(r.segment)),
+          scores: [r.fraud, r.capital, r.credit, r.liquidity, r.compliance].map((n) => Number(n ?? 0)),
+        })),
+      });
+    }),
+  );
 }
 
 export async function getMonitoringDashboardData(): Promise<MonitoringDashboardPayload> {
-  return cached(keys.cache('monitoring-dashboard', 'platform'), 20, () => withAdminDb(async (db: PoolClient) => {
-    const [channels, smsHealth, hourly, smsUsage, transactions, stuckCallbacks] = await Promise.all([
-      // Per-channel M-Pesa health from real transactions (last 24h): success
-      // rate + average round-trip latency (completed_at − initiated_at).
-      db.query(`
+  return cached(keys.cache('monitoring-dashboard', 'platform'), 20, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [channels, smsHealth, hourly, smsUsage, transactions, stuckCallbacks] = await Promise.all([
+        // Per-channel M-Pesa health from real transactions (last 24h): success
+        // rate + average round-trip latency (completed_at − initiated_at).
+        db.query(`
         SELECT transaction_type,
                COUNT(*)                                                 AS total,
                COUNT(*) FILTER (WHERE status NOT IN ('failed','pending')) AS ok,
@@ -396,14 +413,14 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         WHERE created_at >= NOW() - INTERVAL '24 hours'
         GROUP BY transaction_type
       `),
-      db.query(`
+        db.query(`
         SELECT COUNT(*) AS total,
                COUNT(*) FILTER (WHERE status IN ('sent','delivered')) AS ok
         FROM public.sms_usage_logs
         WHERE created_at >= NOW() - INTERVAL '24 hours'
       `),
-      // Today's transaction volume by hour (real).
-      db.query(`
+        // Today's transaction volume by hour (real).
+        db.query(`
         SELECT TO_CHAR(DATE_TRUNC('hour', created_at), 'HH24:00') AS hour,
                COUNT(*) AS count, COALESCE(SUM(amount), 0) AS value
         FROM public.mpesa_transactions
@@ -411,7 +428,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         GROUP BY DATE_TRUNC('hour', created_at)
         ORDER BY DATE_TRUNC('hour', created_at)
       `),
-      db.query(`
+        db.query(`
         SELECT COALESCE(SUM(CASE WHEN status = 'sent' OR status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered,
                COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed,
                COALESCE(SUM(CASE WHEN status = 'queued' OR status = 'sent' THEN 1 ELSE 0 END), 0) AS pending,
@@ -420,112 +437,127 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         FROM public.sms_usage_logs
         WHERE created_at >= CURRENT_DATE
       `),
-      db.query(`
+        db.query(`
         SELECT id, transaction_type, phone_number, amount, status, mpesa_receipt_number, reference, created_at
         FROM public.mpesa_transactions
         WHERE transaction_type IN ('c2b', 'b2c', 'stk_push')
         ORDER BY created_at DESC
         LIMIT 12
       `),
-      // Callbacks the DLQ replay (mpesa_replay_callbacks, every 5 min) has had
-      // many chances at and is still failing — a real signal something is
-      // structurally broken (e.g. a schema/code mismatch), not just transient
-      // provider flakiness. This is the "surfaced for administrator action"
-      // half of the retry story; replay itself already exists and is
-      // idempotent (lib/services/mpesa-callbacks.service.ts).
-      db.query(`
+        // Callbacks the DLQ replay (mpesa_replay_callbacks, every 5 min) has had
+        // many chances at and is still failing — a real signal something is
+        // structurally broken (e.g. a schema/code mismatch), not just transient
+        // provider flakiness. This is the "surfaced for administrator action"
+        // half of the retry story; replay itself already exists and is
+        // idempotent (lib/services/mpesa-callbacks.service.ts).
+        db.query(`
         SELECT COUNT(*) AS stuck
         FROM public.mpesa_callbacks
         WHERE processed = false
           AND callback_type IN ('stk_push','c2b_confirmation')
           AND created_at < NOW() - INTERVAL '30 minutes'
       `),
-    ]);
+      ]);
 
-    // ── Build real service-health rows from the channel aggregates ──────
-    type SvcStatus = 'operational' | 'degraded' | 'down';
-    const statusFor = (successPct: number, total: number): SvcStatus =>
-      total === 0 ? 'operational' : successPct >= 98 ? 'operational' : successPct >= 90 ? 'degraded' : 'down';
+      // ── Build real service-health rows from the channel aggregates ──────
+      type SvcStatus = 'operational' | 'degraded' | 'down';
+      const statusFor = (successPct: number, total: number): SvcStatus =>
+        total === 0 ? 'operational' : successPct >= 98 ? 'operational' : successPct >= 90 ? 'degraded' : 'down';
 
-    const chanRows = channels.rows as Array<{ transaction_type: string | null; total: string; ok: string; latency_ms: number }>;
-    const chan = (k: string) => chanRows.find((r) => (r.transaction_type ?? '').toLowerCase().includes(k));
+      const chanRows = channels.rows as Array<{
+        transaction_type: string | null;
+        total: string;
+        ok: string;
+        latency_ms: number;
+      }>;
+      const chan = (k: string) => chanRows.find((r) => (r.transaction_type ?? '').toLowerCase().includes(k));
 
-    const mpesaChannels: Array<{ id: string; name: string; key: string }> = [
-      { id: 'c2b', name: 'Daraja C2B (Paybill/Till)', key: 'c2b' },
-      { id: 'b2c', name: 'Daraja B2C (Disbursements)', key: 'b2c' },
-      { id: 'stk', name: 'STK Push (Express)', key: 'stk' },
-    ];
+      const mpesaChannels: Array<{ id: string; name: string; key: string }> = [
+        { id: 'c2b', name: 'Daraja C2B (Paybill/Till)', key: 'c2b' },
+        { id: 'b2c', name: 'Daraja B2C (Disbursements)', key: 'b2c' },
+        { id: 'stk', name: 'STK Push (Express)', key: 'stk' },
+      ];
 
-    const services: MonitoringDashboardPayload['services'] = mpesaChannels.map((c) => {
-      const row = chan(c.key);
-      const total = Number(row?.total ?? 0);
-      const ok = Number(row?.ok ?? 0);
-      const success = total ? (ok / total) * 100 : 100;
-      return {
-        id: c.id, name: c.name, group: 'M-Pesa / Daraja' as const,
-        status: statusFor(success, total),
-        latency: Number(row?.latency_ms ?? 0),
-        success: Math.round(success * 10) / 10,
-        note: total ? `${total} txns in last 24h` : 'No traffic in last 24h',
-      };
-    });
+      const services: MonitoringDashboardPayload['services'] = mpesaChannels.map((c) => {
+        const row = chan(c.key);
+        const total = Number(row?.total ?? 0);
+        const ok = Number(row?.ok ?? 0);
+        const success = total ? (ok / total) * 100 : 100;
+        return {
+          id: c.id,
+          name: c.name,
+          group: 'M-Pesa / Daraja' as const,
+          status: statusFor(success, total),
+          latency: Number(row?.latency_ms ?? 0),
+          success: Math.round(success * 10) / 10,
+          note: total ? `${total} txns in last 24h` : 'No traffic in last 24h',
+        };
+      });
 
-    const smsRow = smsHealth.rows[0] ?? {};
-    const smsTotal = Number(smsRow.total ?? 0);
-    const smsSuccess = smsTotal ? (Number(smsRow.ok ?? 0) / smsTotal) * 100 : 100;
-    services.push({
-      id: 'sms', name: 'SMS Gateway', group: 'Messaging' as const,
-      status: statusFor(smsSuccess, smsTotal),
-      latency: 0,
-      success: Math.round(smsSuccess * 10) / 10,
-      note: smsTotal ? `${smsTotal} sent in last 24h` : 'No SMS in last 24h',
-    });
+      const smsRow = smsHealth.rows[0] ?? {};
+      const smsTotal = Number(smsRow.total ?? 0);
+      const smsSuccess = smsTotal ? (Number(smsRow.ok ?? 0) / smsTotal) * 100 : 100;
+      services.push({
+        id: 'sms',
+        name: 'SMS Gateway',
+        group: 'Messaging' as const,
+        status: statusFor(smsSuccess, smsTotal),
+        latency: 0,
+        success: Math.round(smsSuccess * 10) / 10,
+        note: smsTotal ? `${smsTotal} sent in last 24h` : 'No SMS in last 24h',
+      });
 
-    const stuck = Number(stuckCallbacks.rows[0]?.stuck ?? 0);
-    services.push({
-      id: 'mpesa-callback-dlq', name: 'Callback Processing (DLQ)', group: 'M-Pesa / Daraja' as const,
-      status: stuck === 0 ? 'operational' : stuck >= 5 ? 'down' : 'degraded',
-      latency: 0,
-      success: stuck === 0 ? 100 : 0,
-      note: stuck === 0
-        ? 'No callbacks stuck after retry'
-        : `${stuck} callback${stuck === 1 ? '' : 's'} unprocessed after 30+ min of retries — needs investigation`,
-    });
+      const stuck = Number(stuckCallbacks.rows[0]?.stuck ?? 0);
+      services.push({
+        id: 'mpesa-callback-dlq',
+        name: 'Callback Processing (DLQ)',
+        group: 'M-Pesa / Daraja' as const,
+        status: stuck === 0 ? 'operational' : stuck >= 5 ? 'down' : 'degraded',
+        latency: 0,
+        success: stuck === 0 ? 100 : 0,
+        note:
+          stuck === 0
+            ? 'No callbacks stuck after retry'
+            : `${stuck} callback${stuck === 1 ? '' : 's'} unprocessed after 30+ min of retries — needs investigation`,
+      });
 
-    const sms = smsUsage.rows[0] ?? {};
-    // Real balance from billing_accounts (the table SMS top-ups credit and
-    // sends debit). "Total" = what the platform started today with, so the
-    // usage bar reflects today's actual burn — no invented pool size.
-    const creditsRemaining = Math.max(0, Number(sms.credits_remaining ?? 0));
-    const sentToday        = Number(sms.sent_today ?? 0);
+      const sms = smsUsage.rows[0] ?? {};
+      // Real balance from billing_accounts (the table SMS top-ups credit and
+      // sends debit). "Total" = what the platform started today with, so the
+      // usage bar reflects today's actual burn — no invented pool size.
+      const creditsRemaining = Math.max(0, Number(sms.credits_remaining ?? 0));
+      const sentToday = Number(sms.sent_today ?? 0);
 
-    return buildMonitoringDashboardPayload({
-      services,
-      hourlyVolume: hourly.rows.map((r: Record<string, unknown>) => ({
-        hour: String(r.hour), count: Number(r.count ?? 0), value: Number(r.value ?? 0),
-      })),
-      smsUsage: {
-        sentToday,
-        delivered: Number(sms.delivered ?? 0),
-        failed: Number(sms.failed ?? 0),
-        pending: Number(sms.pending ?? 0),
-        creditsRemaining,
-        creditsTotal: creditsRemaining + sentToday,
-      },
-      transactions: transactions.rows,
-    });
-  }));
+      return buildMonitoringDashboardPayload({
+        services,
+        hourlyVolume: hourly.rows.map((r: Record<string, unknown>) => ({
+          hour: String(r.hour),
+          count: Number(r.count ?? 0),
+          value: Number(r.value ?? 0),
+        })),
+        smsUsage: {
+          sentToday,
+          delivered: Number(sms.delivered ?? 0),
+          failed: Number(sms.failed ?? 0),
+          pending: Number(sms.pending ?? 0),
+          creditsRemaining,
+          creditsTotal: creditsRemaining + sentToday,
+        },
+        transactions: transactions.rows,
+      });
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Organizations (all groups, cross-tenant)
 // ─────────────────────────────────────────────────────────────────────────────
 export interface GroupListParams {
-  page:    number;
-  limit:   number;
+  page: number;
+  limit: number;
   search?: string;
   status?: string;
-  plan?:   string;
+  plan?: string;
   /**
    * Which product's subscription the `plan`/`subscription_status` columns
    * describe, and which the `plan` filter applies to. Defaults to kitabu_yetu,
@@ -563,26 +595,30 @@ export async function listGroups(params: GroupListParams) {
     // filter placeholders start at $2, keeping the two queries' parameter
     // lists identical (they already had to match; the count query reuses
     // `values` verbatim).
-    const values: unknown[]    = [params.product ?? DEFAULT_PRODUCT];
-    let   idx = 2;
+    const values: unknown[] = [params.product ?? DEFAULT_PRODUCT];
+    let idx = 2;
 
     if (search) {
       conditions.push(`(g.name ILIKE $${idx} OR g.registration_number ILIKE $${idx})`);
-      values.push(`%${search}%`); idx++;
+      values.push(`%${search}%`);
+      idx++;
     }
     if (status) {
       conditions.push(`g.onboarding_status = $${idx}`);
-      values.push(status); idx++;
+      values.push(status);
+      idx++;
     }
     if (plan) {
       conditions.push(`s.plan_type = $${idx}`);
-      values.push(plan); idx++;
+      values.push(plan);
+      idx++;
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const [data, count] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT
           g.id, g.name, g.type AS group_type, g.onboarding_status,
           hs.score AS health_score, hs.category AS health_rag, g.created_at,
@@ -643,8 +679,11 @@ export async function listGroups(params: GroupListParams) {
         -- (docs/audits/optimization-2026-09).
         ORDER BY g.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...values, limit, offset]),
-      db.query(`
+      `,
+        [...values, limit, offset],
+      ),
+      db.query(
+        `
         SELECT COUNT(DISTINCT g.id) AS total
         FROM public.groups g
         LEFT JOIN LATERAL (
@@ -653,7 +692,9 @@ export async function listGroups(params: GroupListParams) {
           LIMIT 1
         ) s ON true
         ${where}
-      `, values),
+      `,
+        values,
+      ),
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
@@ -663,7 +704,8 @@ export async function listGroups(params: GroupListParams) {
 export async function getGroupById(groupId: string) {
   return withAdminDb(async (db: PoolClient) => {
     const [group, stats, recentActivity] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT g.*, g.type AS group_type, s.plan_type AS plan, s.status AS subscription_status,
                s.expires_at AS current_period_end, s.next_billing_date,
                m.first_name || ' ' || m.last_name AS admin_name,
@@ -678,8 +720,11 @@ export async function getGroupById(groupId: string) {
         LEFT JOIN public.members m ON m.id = gm.member_id
         WHERE g.id = $1
         LIMIT 1
-      `, [groupId]),
-      db.query(`
+      `,
+        [groupId],
+      ),
+      db.query(
+        `
         -- LATERAL per child table, not a flat multi-table LEFT JOIN: joining
         -- group_members/contributions/loans/payments/support_tickets in one
         -- flat join cross-products every combination of their rows for this
@@ -720,14 +765,19 @@ export async function getGroupById(groupId: string) {
           WHERE st.group_id = g.id AND st.status NOT IN ('resolved','closed')
         ) tk ON true
         WHERE g.id = $1
-      `, [groupId]),
-      db.query(`
+      `,
+        [groupId],
+      ),
+      db.query(
+        `
         SELECT action, resource_type AS table_name, created_at
         FROM public.audit_logs
         WHERE group_id = $1
         ORDER BY created_at DESC
         LIMIT 20
-      `, [groupId]),
+      `,
+        [groupId],
+      ),
     ]);
 
     if (!group.rows[0]) return null;
@@ -743,13 +793,14 @@ export async function updateGroupStatus(
 ) {
   return withAdminDb(async (db: PoolClient) => {
     const statusMap = {
-      approve:    'active',
-      suspend:    'suspended',
-      activate:   'active',
+      approve: 'active',
+      suspend: 'suspended',
+      activate: 'active',
       deactivate: 'deactivated',
     };
 
-    await db.query(`
+    await db.query(
+      `
       UPDATE public.groups SET
         onboarding_status = $1,
         suspended_at      = CASE WHEN $1 = 'suspended' THEN NOW() ELSE NULL END,
@@ -757,7 +808,9 @@ export async function updateGroupStatus(
         kyc_verified_at   = CASE WHEN $1 = 'active' AND onboarding_status != 'active' THEN NOW() ELSE kyc_verified_at END,
         kyc_verified_by   = CASE WHEN $1 = 'active' AND onboarding_status != 'active' THEN $2::uuid ELSE kyc_verified_by END
       WHERE id = $4
-    `, [statusMap[action], adminId, reason ?? null, groupId]);
+    `,
+      [statusMap[action], adminId, reason ?? null, groupId],
+    );
 
     return { success: true };
   });
@@ -783,29 +836,29 @@ export async function updateGroupStatus(
 
 /** Fields a super_admin may correct on a group. All optional — only what is sent is changed. */
 export interface UpdateGroupProfileInput {
-  name?:             string;
-  type?:             string;
-  countyId?:         string | null;
-  subCounty?:        string | null;
-  ward?:             string | null;
-  villageEstate?:    string | null;
+  name?: string;
+  type?: string;
+  countyId?: string | null;
+  subCounty?: string | null;
+  ward?: string | null;
+  villageEstate?: string | null;
   primaryObjective?: string | null;
   meetingFrequency?: string | null;
-  meetingDay?:       string | null;
-  meetingTime?:      string | null;
+  meetingDay?: string | null;
+  meetingTime?: string | null;
 }
 
 const GROUP_PROFILE_COLUMNS: Record<keyof UpdateGroupProfileInput, string> = {
-  name:             'name',
-  type:             '"type"',
-  countyId:         'county_id',
-  subCounty:        'sub_county',
-  ward:             'ward',
-  villageEstate:    'village_estate',
+  name: 'name',
+  type: '"type"',
+  countyId: 'county_id',
+  subCounty: 'sub_county',
+  ward: 'ward',
+  villageEstate: 'village_estate',
   primaryObjective: 'primary_objective',
   meetingFrequency: 'meeting_frequency',
-  meetingDay:       'meeting_day',
-  meetingTime:      'meeting_time',
+  meetingDay: 'meeting_day',
+  meetingTime: 'meeting_time',
 };
 
 /**
@@ -815,21 +868,16 @@ const GROUP_PROFILE_COLUMNS: Record<keyof UpdateGroupProfileInput, string> = {
  * has been bitten by repeatedly.
  */
 const GROUP_PROFILE_CASTS: Partial<Record<keyof UpdateGroupProfileInput, string>> = {
-  type:             '::group_type',
+  type: '::group_type',
   primaryObjective: '::primary_objective',
   meetingFrequency: '::meeting_frequency',
-  meetingDay:       '::meeting_day',
-  meetingTime:      '::time',
-  countyId:         '::uuid',
+  meetingDay: '::meeting_day',
+  meetingTime: '::time',
+  countyId: '::uuid',
 };
 
-export async function updateGroupProfile(
-  groupId: string,
-  input:   UpdateGroupProfileInput,
-  adminId: string,
-) {
-  const entries = (Object.keys(input) as (keyof UpdateGroupProfileInput)[])
-    .filter((k) => input[k] !== undefined);
+export async function updateGroupProfile(groupId: string, input: UpdateGroupProfileInput, adminId: string) {
+  const entries = (Object.keys(input) as (keyof UpdateGroupProfileInput)[]).filter((k) => input[k] !== undefined);
   if (entries.length === 0) throw new ValidationError('No fields to update');
 
   return withAdminDb(async (db: PoolClient) => {
@@ -866,9 +914,7 @@ export async function updateGroupProfile(
       // reachable user action — answer it with a readable 409 rather than
       // letting a raw constraint violation surface as a 500.
       if (err instanceof DatabaseError && err.code === '23505') {
-        throw new ConflictError(
-          'Another group in this county already uses that name. Pick a different name.',
-        );
+        throw new ConflictError('Another group in this county already uses that name. Pick a different name.');
       }
       throw err;
     }
@@ -886,36 +932,44 @@ export async function updateGroupProfile(
 /** Fields a super_admin may correct on a member. Phone is deliberately absent — see above. */
 export interface UpdateMemberProfileInput {
   firstName?: string;
-  lastName?:  string;
-  email?:     string | null;
+  lastName?: string;
+  email?: string | null;
 }
 
 export async function updateMemberProfile(
   memberId: string,
-  input:    UpdateMemberProfileInput,
-  adminId:  string,
+  input: UpdateMemberProfileInput,
+  adminId: string,
   groupId?: string,
 ) {
-  const wantsName  = input.firstName !== undefined || input.lastName !== undefined;
+  const wantsName = input.firstName !== undefined || input.lastName !== undefined;
   const wantsEmail = input.email !== undefined;
   if (!wantsName && !wantsEmail) throw new ValidationError('No fields to update');
 
   return withAdminDb(async (db: PoolClient) => {
     const { rows: beforeRows } = await db.query<{
-      first_name: string; last_name: string; email: string | null;
-    }>(
-      `SELECT first_name, last_name, email FROM members WHERE id = $1`,
-      [memberId],
-    );
+      first_name: string;
+      last_name: string;
+      email: string | null;
+    }>(`SELECT first_name, last_name, email FROM members WHERE id = $1`, [memberId]);
     if (!beforeRows[0]) throw new NotFoundError('Member', memberId);
     const before = beforeRows[0];
 
     const sets: string[] = [];
     const vals: unknown[] = [memberId];
     let idx = 2;
-    if (input.firstName !== undefined) { sets.push(`first_name = $${idx++}`); vals.push(input.firstName); }
-    if (input.lastName  !== undefined) { sets.push(`last_name  = $${idx++}`); vals.push(input.lastName); }
-    if (wantsEmail) { sets.push(`email = $${idx++}`); vals.push(input.email === '' ? null : input.email); }
+    if (input.firstName !== undefined) {
+      sets.push(`first_name = $${idx++}`);
+      vals.push(input.firstName);
+    }
+    if (input.lastName !== undefined) {
+      sets.push(`last_name  = $${idx++}`);
+      vals.push(input.lastName);
+    }
+    if (wantsEmail) {
+      sets.push(`email = $${idx++}`);
+      vals.push(input.email === '' ? null : input.email);
+    }
 
     let after;
     try {
@@ -954,7 +1008,9 @@ export async function updateMemberProfile(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, 'member.profile_update', 'member', $3, $4::jsonb, $5::jsonb)`,
       [
-        groupId ?? null, adminId, memberId,
+        groupId ?? null,
+        adminId,
+        memberId,
         JSON.stringify(before),
         JSON.stringify({ first_name: after.first_name, last_name: after.last_name, email: after.email }),
       ],
@@ -967,9 +1023,7 @@ export async function updateMemberProfile(
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform users (all members with platformRole filter)
 // ─────────────────────────────────────────────────────────────────────────────
-export async function listPlatformUsers(params: {
-  page: number; limit: number; search?: string; role?: string;
-}) {
+export async function listPlatformUsers(params: { page: number; limit: number; search?: string; role?: string }) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, search, role } = params;
     const offset = (page - 1) * limit;
@@ -978,18 +1032,23 @@ export async function listPlatformUsers(params: {
     let idx = 1;
 
     if (search) {
-      conds.push(`(m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx} OR m.email ILIKE $${idx} OR m.phone ILIKE $${idx})`);
-      vals.push(`%${search}%`); idx++;
+      conds.push(
+        `(m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx} OR m.email ILIKE $${idx} OR m.phone ILIKE $${idx})`,
+      );
+      vals.push(`%${search}%`);
+      idx++;
     }
     if (role) {
       conds.push(`(m.platform_role = $${idx} OR gm.role = $${idx})`);
-      vals.push(role); idx++;
+      vals.push(role);
+      idx++;
     }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const [data, count] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT
           m.id, m.first_name, m.last_name, m.email,
           m.phone AS phone_number,
@@ -1014,7 +1073,9 @@ export async function listPlatformUsers(params: {
         ${where}
         ORDER BY m.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       // COUNT(*), not COUNT(DISTINCT m.id): the data query above lists one
       // ROW PER ACTIVE MEMBERSHIP (a member in 2 active groups renders twice,
       // with that membership's own group_name/role/status/joined_at — the
@@ -1024,7 +1085,10 @@ export async function listPlatformUsers(params: {
       // totalPages and can push real membership rows past the last page
       // (docs/audits/optimization-2026-09) — both queries must count the
       // same thing the same way.
-      db.query(`SELECT COUNT(*) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`, vals),
+      db.query(
+        `SELECT COUNT(*) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`,
+        vals,
+      ),
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
@@ -1051,7 +1115,8 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
     const offset = (page - 1) * limit;
 
     const [data, count] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT m.id, m.first_name, m.last_name, m.email, m.phone,
                gm.member_code, gm.role AS group_role, gm.status, gm.joined_at
         FROM public.group_members gm
@@ -1059,8 +1124,12 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
         WHERE gm.group_id = $1 AND gm.status = 'active'
         ORDER BY m.first_name, m.last_name
         LIMIT $2 OFFSET $3
-      `, [groupId, limit, offset]),
-      db.query(`SELECT COUNT(*) AS total FROM public.group_members WHERE group_id = $1 AND status = 'active'`, [groupId]),
+      `,
+        [groupId, limit, offset],
+      ),
+      db.query(`SELECT COUNT(*) AS total FROM public.group_members WHERE group_id = $1 AND status = 'active'`, [
+        groupId,
+      ]),
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
@@ -1082,7 +1151,8 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
  */
 export async function getAdminMemberDetail(memberId: string, groupId?: string) {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows: profileRows } = await db.query(`
+    const { rows: profileRows } = await db.query(
+      `
       SELECT m.id, m.first_name, m.last_name, m.email, m.phone, m.national_id,
              m.platform_role, m.is_active, m.created_at, m.last_login_at,
              gm.group_id, gm.member_code, gm.role AS group_role, gm.status AS membership_status, gm.joined_at,
@@ -1101,29 +1171,35 @@ export async function getAdminMemberDetail(memberId: string, groupId?: string) {
       ) org ON true
       WHERE m.id = $1
       LIMIT 1
-    `, groupId ? [memberId, groupId] : [memberId]);
+    `,
+      groupId ? [memberId, groupId] : [memberId],
+    );
 
     const profile = profileRows[0];
     if (!profile) return null;
 
     const [snapshot, activity, creditScore] = await Promise.all([
-      profile.group_id
-        ? computeMemberFinancialSnapshot(db, profile.group_id, memberId)
-        : Promise.resolve([]),
-      db.query(`
+      profile.group_id ? computeMemberFinancialSnapshot(db, profile.group_id, memberId) : Promise.resolve([]),
+      db.query(
+        `
         SELECT id, 'contribution' AS type, amount, contribution_date::text AS date, status
         FROM public.contributions WHERE member_id = $1
         UNION ALL
         SELECT id, 'loan_repayment' AS type, amount_paid AS amount, COALESCE(payment_date, due_date)::text AS date, status
         FROM public.loan_repayments WHERE member_id = $1
         ORDER BY date DESC LIMIT 10
-      `, [memberId]),
+      `,
+        [memberId],
+      ),
       profile.group_id
-        ? db.query(`
+        ? db.query(
+            `
             SELECT overall_score, financial_score, social_score, reliability_tier, loan_eligibility_limit, computed_at
             FROM public.credit_scores WHERE member_id = $1 AND group_id = $2
             ORDER BY computed_at DESC LIMIT 1
-          `, [memberId, profile.group_id])
+          `,
+            [memberId, profile.group_id],
+          )
         : Promise.resolve({ rows: [] }),
     ]);
 
@@ -1136,15 +1212,9 @@ export async function getAdminMemberDetail(memberId: string, groupId?: string) {
   });
 }
 
-export async function updatePlatformUserRole(
-  memberId: string,
-  platformRole: string,
-) {
+export async function updatePlatformUserRole(memberId: string, platformRole: string) {
   return withAdminDb(async (db: PoolClient) => {
-    await db.query(
-      `UPDATE public.members SET platform_role = $1 WHERE id = $2`,
-      [platformRole, memberId],
-    );
+    await db.query(`UPDATE public.members SET platform_role = $1 WHERE id = $2`, [platformRole, memberId]);
     return { success: true };
   });
 }
@@ -1192,10 +1262,10 @@ export async function getBillingOverview() {
     ]);
 
     return {
-      summary:        summary.rows[0],
-      byPlan:         byPlan.rows,
+      summary: summary.rows[0],
+      byPlan: byPlan.rows,
       recentPayments: recentPayments.rows,
-      outstanding:    outstanding.rows,
+      outstanding: outstanding.rows,
     };
   });
 }
@@ -1204,7 +1274,11 @@ export async function getBillingOverview() {
 // Support tickets
 // ─────────────────────────────────────────────────────────────────────────────
 export async function listSupportTickets(params: {
-  page: number; limit: number; status?: string; priority?: string; search?: string;
+  page: number;
+  limit: number;
+  status?: string;
+  priority?: string;
+  search?: string;
 }) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, status, priority, search } = params;
@@ -1213,14 +1287,27 @@ export async function listSupportTickets(params: {
     const vals: unknown[] = [];
     let idx = 1;
 
-    if (status)   { conds.push(`t.status = $${idx}`);               vals.push(status);   idx++; }
-    if (priority) { conds.push(`t.priority = $${idx}`);             vals.push(priority); idx++; }
-    if (search)   { conds.push(`(t.subject ILIKE $${idx} OR t.ticket_number ILIKE $${idx})`); vals.push(`%${search}%`); idx++; }
+    if (status) {
+      conds.push(`t.status = $${idx}`);
+      vals.push(status);
+      idx++;
+    }
+    if (priority) {
+      conds.push(`t.priority = $${idx}`);
+      vals.push(priority);
+      idx++;
+    }
+    if (search) {
+      conds.push(`(t.subject ILIKE $${idx} OR t.ticket_number ILIKE $${idx})`);
+      vals.push(`%${search}%`);
+      idx++;
+    }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const [data, count, summary] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT t.*, g.name AS group_name,
                m.first_name || ' ' || m.last_name AS member_name,
                a.first_name || ' ' || a.last_name AS assigned_name,
@@ -1234,7 +1321,9 @@ export async function listSupportTickets(params: {
           CASE t.priority WHEN 'urgent' THEN 1 WHEN 'high' THEN 2 WHEN 'normal' THEN 3 ELSE 4 END,
           t.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       db.query(`SELECT COUNT(*) AS total FROM public.support_tickets t ${where}`, vals),
       // Queue-wide, not page-wide: the KPI tiles were computed in JS over
       // just the current 20-row page (items.filter(...)), which silently
@@ -1243,21 +1332,24 @@ export async function listSupportTickets(params: {
       // FILTER shape getPlatformStats already computes for the platform
       // dashboard, scoped here to this call's own WHERE so it agrees with
       // whatever status/priority/search the operator is currently viewing.
-      db.query(`
+      db.query(
+        `
         SELECT
           COUNT(*) FILTER (WHERE t.status = 'open')        AS open,
           COUNT(*) FILTER (WHERE t.status = 'in_progress') AS in_progress,
           COUNT(*) FILTER (WHERE t.sla_breach_at < NOW() AND t.status NOT IN ('resolved','closed')) AS sla_breached
         FROM public.support_tickets t ${where}
-      `, vals),
+      `,
+        vals,
+      ),
     ]);
 
     return {
       items: data.rows,
       total: parseInt(count.rows[0].total, 10),
       summary: {
-        open:        Number(summary.rows[0].open),
-        inProgress:  Number(summary.rows[0].in_progress),
+        open: Number(summary.rows[0].open),
+        inProgress: Number(summary.rows[0].in_progress),
         slaBreached: Number(summary.rows[0].sla_breached),
       },
       page,
@@ -1267,28 +1359,31 @@ export async function listSupportTickets(params: {
 }
 
 export async function createSupportTicket(data: {
-  groupId?: string; memberId?: string; category: string; priority: string;
-  subject: string; description: string;
+  groupId?: string;
+  memberId?: string;
+  category: string;
+  priority: string;
+  subject: string;
+  description: string;
 }) {
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query(`
+    const { rows } = await db.query(
+      `
       INSERT INTO public.support_tickets (group_id, member_id, category, priority, subject, description, sla_breach_at)
       VALUES ($1, $2, $3, $4, $5, $6,
         NOW() + INTERVAL '1 hour' * CASE $4 WHEN 'urgent' THEN 4 WHEN 'high' THEN 8 WHEN 'normal' THEN 24 ELSE 48 END)
       RETURNING *
-    `, [data.groupId ?? null, data.memberId ?? null, data.category, data.priority, data.subject, data.description]);
+    `,
+      [data.groupId ?? null, data.memberId ?? null, data.category, data.priority, data.subject, data.description],
+    );
     return rows[0];
   });
 }
 
-export async function updateTicketStatus(
-  ticketId: string,
-  status: string,
-  adminId: string,
-  resolution?: string,
-) {
+export async function updateTicketStatus(ticketId: string, status: string, adminId: string, resolution?: string) {
   return withAdminDb(async (db: PoolClient) => {
-    await db.query(`
+    await db.query(
+      `
       UPDATE public.support_tickets SET
         status = $1,
         resolved_at   = CASE WHEN $1 = 'resolved' THEN NOW() ELSE resolved_at END,
@@ -1296,13 +1391,18 @@ export async function updateTicketStatus(
         resolution    = COALESCE($3, resolution),
         first_response_at = COALESCE(first_response_at, NOW())
       WHERE id = $2
-    `, [status, ticketId, resolution ?? null]);
+    `,
+      [status, ticketId, resolution ?? null],
+    );
 
     if (resolution) {
-      await db.query(`
+      await db.query(
+        `
         INSERT INTO public.ticket_comments (ticket_id, author_id, is_internal, content)
         VALUES ($1, $2, false, $3)
-      `, [ticketId, adminId, resolution]);
+      `,
+        [ticketId, adminId, resolution],
+      );
     }
 
     return { success: true };
@@ -1313,9 +1413,14 @@ export async function updateTicketStatus(
 // Audit logs
 // ─────────────────────────────────────────────────────────────────────────────
 export async function listAuditLogs(params: {
-  page: number; limit: number; groupId?: string;
-  action?: string; table?: string; search?: string;
-  from?: string; to?: string;
+  page: number;
+  limit: number;
+  groupId?: string;
+  action?: string;
+  table?: string;
+  search?: string;
+  from?: string;
+  to?: string;
 }) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, groupId, action, table: tbl, search, from, to } = params;
@@ -1324,12 +1429,36 @@ export async function listAuditLogs(params: {
     const vals: unknown[] = [];
     let idx = 1;
 
-    if (groupId) { conds.push(`al.group_id = $${idx}`);                   vals.push(groupId); idx++; }
-    if (action)  { conds.push(`al.action = $${idx}`);                      vals.push(action);  idx++; }
-    if (tbl)     { conds.push(`al.resource_type = $${idx}`);               vals.push(tbl);     idx++; }
-    if (search)  { conds.push(`al.resource_type ILIKE $${idx}`);           vals.push(`%${search}%`); idx++; }
-    if (from)    { conds.push(`al.created_at >= $${idx}`);                 vals.push(from);    idx++; }
-    if (to)      { conds.push(`al.created_at <= $${idx}`);                 vals.push(to);      idx++; }
+    if (groupId) {
+      conds.push(`al.group_id = $${idx}`);
+      vals.push(groupId);
+      idx++;
+    }
+    if (action) {
+      conds.push(`al.action = $${idx}`);
+      vals.push(action);
+      idx++;
+    }
+    if (tbl) {
+      conds.push(`al.resource_type = $${idx}`);
+      vals.push(tbl);
+      idx++;
+    }
+    if (search) {
+      conds.push(`al.resource_type ILIKE $${idx}`);
+      vals.push(`%${search}%`);
+      idx++;
+    }
+    if (from) {
+      conds.push(`al.created_at >= $${idx}`);
+      vals.push(from);
+      idx++;
+    }
+    if (to) {
+      conds.push(`al.created_at <= $${idx}`);
+      vals.push(to);
+      idx++;
+    }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
@@ -1339,7 +1468,8 @@ export async function listAuditLogs(params: {
       // but made up 81% of every row's bytes — measured live at 811,464
       // bytes / 570 rows, 656,902 of it old_values+new_values
       // (docs/audits/optimization-2026-09).
-      db.query(`
+      db.query(
+        `
         SELECT al.id, al.action, al.resource_type AS table_name, al.resource_id AS record_id,
                al.ip_address, al.created_at,
                g.name AS group_name,
@@ -1350,7 +1480,9 @@ export async function listAuditLogs(params: {
         ${where}
         ORDER BY al.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       db.query(`SELECT COUNT(*) AS total FROM public.audit_logs al ${where}`, vals),
     ]);
 
@@ -1370,10 +1502,11 @@ export async function listFeatureFlags() {
 
 export async function toggleFeatureFlag(key: string, enabled: boolean, adminId: string) {
   return withAdminDb(async (db: PoolClient) => {
-    await db.query(
-      `UPDATE public.feature_flags SET enabled = $1, updated_by = $2::uuid WHERE key = $3`,
-      [enabled, adminId, key],
-    );
+    await db.query(`UPDATE public.feature_flags SET enabled = $1, updated_by = $2::uuid WHERE key = $3`, [
+      enabled,
+      adminId,
+      key,
+    ]);
     return { success: true };
   });
 }
@@ -1382,9 +1515,10 @@ export async function toggleFeatureFlag(key: string, enabled: boolean, adminId: 
 // Analytics aggregates
 // ─────────────────────────────────────────────────────────────────────────────
 export async function getPlatformAnalytics() {
-  return cached(keys.cache('platform-analytics', 'platform'), 120, () => withAdminDb(async (db: PoolClient) => {
-    const [growth, topGroups, loanHealth, welfareStats] = await Promise.all([
-      db.query(`
+  return cached(keys.cache('platform-analytics', 'platform'), 120, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [growth, topGroups, loanHealth, welfareStats] = await Promise.all([
+        db.query(`
         SELECT
           DATE_TRUNC('month', created_at) AS month,
           TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') AS label,
@@ -1395,7 +1529,7 @@ export async function getPlatformAnalytics() {
         GROUP BY DATE_TRUNC('month', created_at)
         ORDER BY month ASC
       `),
-      db.query(`
+        db.query(`
         -- Correlated subqueries, not a 3-way LEFT JOIN + GROUP BY: joining
         -- group_members/contributions/loans directly onto groups fans every
         -- contribution row out across every loan row (and vice versa)
@@ -1419,7 +1553,7 @@ export async function getPlatformAnalytics() {
         ORDER BY contributions DESC
         LIMIT 10
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*) FILTER (WHERE status = 'active')    AS active,
           COUNT(*) FILTER (WHERE status = 'defaulted') AS defaulted,
@@ -1428,7 +1562,7 @@ export async function getPlatformAnalytics() {
           COALESCE(AVG(interest_rate), 0) AS avg_interest_rate
         FROM public.loans
       `),
-      db.query(`
+        db.query(`
         SELECT
           COUNT(*) AS total_requests,
           COALESCE(SUM(amount_requested), 0) AS total_requested,
@@ -1436,15 +1570,16 @@ export async function getPlatformAnalytics() {
           COUNT(*) FILTER (WHERE status = 'pending') AS pending_requests
         FROM public.welfare_requests
       `),
-    ]);
+      ]);
 
-    return {
-      growth:       growth.rows,
-      topGroups:    topGroups.rows,
-      loanHealth:   loanHealth.rows[0],
-      welfareStats: welfareStats.rows[0],
-    };
-  }));
+      return {
+        growth: growth.rows,
+        topGroups: topGroups.rows,
+        loanHealth: loanHealth.rows[0],
+        welfareStats: welfareStats.rows[0],
+      };
+    }),
+  );
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1463,21 +1598,19 @@ export async function getPlatformAnalytics() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface UnroutedPaymentRow {
-  id:                  string;
-  receipt:             string;
-  phone:               string;
-  amount:              string;
-  bill_ref:            string | null;
-  reason:              string;
-  candidate_group_id:  string | null;
+  id: string;
+  receipt: string;
+  phone: string;
+  amount: string;
+  bill_ref: string | null;
+  reason: string;
+  candidate_group_id: string | null;
   candidate_group_name: string | null;
-  resolved:            boolean;
-  created_at:          string;
+  resolved: boolean;
+  created_at: string;
 }
 
-export async function listUnroutedPayments(params: {
-  page: number; limit: number; search?: string;
-}) {
+export async function listUnroutedPayments(params: { page: number; limit: number; search?: string }) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, search } = params;
     const offset = (page - 1) * limit;
@@ -1493,7 +1626,8 @@ export async function listUnroutedPayments(params: {
     const where = `WHERE ${conds.join(' AND ')}`;
 
     const [data, count] = await Promise.all([
-      db.query<UnroutedPaymentRow>(`
+      db.query<UnroutedPaymentRow>(
+        `
         SELECT u.id, u.receipt, u.phone, u.amount, u.bill_ref, u.reason,
                u.candidate_group_id, g.name AS candidate_group_name,
                u.resolved, u.created_at
@@ -1502,14 +1636,19 @@ export async function listUnroutedPayments(params: {
         ${where}
         ORDER  BY u.created_at ASC
         LIMIT  $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       // SUM alongside COUNT in the same scan: the UI's "Total value" tile
       // was reducing only the current 20-row page while the adjacent
       // "Unresolved" tile counted the whole queue — once the backlog exceeds
       // one page, "Total value" silently understates the true unreconciled
       // amount, the worst failure direction for a reconciliation queue
       // (docs/audits/optimization-2026-09).
-      db.query(`SELECT COUNT(*) AS total, COALESCE(SUM(u.amount), 0) AS total_value FROM public.mpesa_unrouted u ${where}`, vals),
+      db.query(
+        `SELECT COUNT(*) AS total, COALESCE(SUM(u.amount), 0) AS total_value FROM public.mpesa_unrouted u ${where}`,
+        vals,
+      ),
     ]);
 
     return {
@@ -1550,14 +1689,24 @@ export async function resolveUnroutedPayment(
   id: string,
   action: 'allocate' | 'dismiss' | 'activate_subscription',
   opts: {
-    groupId?: string; memberId?: string; notes?: string; adminId: string;
-    planType?: PlanType; product?: SubscriptionProduct; billingCycle?: BillingCycle;
+    groupId?: string;
+    memberId?: string;
+    notes?: string;
+    adminId: string;
+    planType?: PlanType;
+    product?: SubscriptionProduct;
+    billingCycle?: BillingCycle;
   },
 ): Promise<{ success: true }> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<{
-      id: string; receipt: string; phone: string; amount: string; bill_ref: string | null;
-      raw_payload: unknown; resolved: boolean;
+      id: string;
+      receipt: string;
+      phone: string;
+      amount: string;
+      bill_ref: string | null;
+      raw_payload: unknown;
+      resolved: boolean;
     }>(
       `SELECT id, receipt, phone, amount, bill_ref, raw_payload, resolved FROM public.mpesa_unrouted WHERE id = $1 FOR UPDATE`,
       [id],
@@ -1578,7 +1727,8 @@ export async function resolveUnroutedPayment(
 
     if (action === 'activate_subscription') {
       if (!opts.groupId) throw new ValidationError('groupId is required to activate a subscription');
-      if (!opts.planType || !opts.product) throw new ValidationError('planType and product are required to activate a subscription');
+      if (!opts.planType || !opts.product)
+        throw new ValidationError('planType and product are required to activate a subscription');
 
       // This receipt never went through recordC2BInbound — the router bailed
       // to mpesa_unrouted before that runs. Create the same two rows it would
@@ -1602,11 +1752,12 @@ export async function resolveUnroutedPayment(
          RETURNING id`,
         [opts.groupId, amount.toFixed(2), row.receipt, row.phone, rawPayload],
       );
-      const paymentId = payRows[0]?.id ?? await spinePaymentId(db, row.receipt);
+      const paymentId = payRows[0]?.id ?? (await spinePaymentId(db, row.receipt));
       if (!paymentId) throw new ConflictError('Could not create or find a payment row for this receipt');
 
       await logPaymentEvent(db, paymentId, 'received', {
-        billRef: row.bill_ref, via: 'admin_unrouted_subscription_activation',
+        billRef: row.bill_ref,
+        via: 'admin_unrouted_subscription_activation',
       });
 
       // Returns null only when this exact payment already activated a
@@ -1617,15 +1768,22 @@ export async function resolveUnroutedPayment(
       // amountPaid < fee check throws PaymentRequiredError rather than
       // under-activating — no separate guard needed here.
       await billingService.activateSubscriptionForPayment(db, {
-        groupId: opts.groupId, planType: opts.planType, product: opts.product,
-        paymentId, amountPaid: amount, billingCycle: opts.billingCycle,
+        groupId: opts.groupId,
+        planType: opts.planType,
+        product: opts.product,
+        paymentId,
+        amountPaid: amount,
+        billingCycle: opts.billingCycle,
       });
 
       await markSpineAllocated(db, row.receipt, {
-        actor:  null, // see the allocate branch below for why this is never opts.adminId
+        actor: null, // see the allocate branch below for why this is never opts.adminId
         detail: {
-          product: opts.product, planType: opts.planType, groupId: opts.groupId,
-          via: 'admin_unrouted_subscription_activation', staffAdminId: opts.adminId,
+          product: opts.product,
+          planType: opts.planType,
+          groupId: opts.groupId,
+          via: 'admin_unrouted_subscription_activation',
+          staffAdminId: opts.adminId,
         },
       });
 
@@ -1663,7 +1821,11 @@ export async function resolveUnroutedPayment(
        ON CONFLICT (mpesa_receipt_number) DO NOTHING
        RETURNING id`,
       [
-        opts.groupId, opts.memberId, membershipId, amount.toFixed(2), row.receipt,
+        opts.groupId,
+        opts.memberId,
+        membershipId,
+        amount.toFixed(2),
+        row.receipt,
         `Manually routed from unrouted receipt by platform staff (${row.bill_ref ?? 'no ref'})`,
       ],
     );
@@ -1671,9 +1833,13 @@ export async function resolveUnroutedPayment(
 
     if (contributionId) {
       await postContributionJournal(db, {
-        groupId: opts.groupId, contributionId, amount,
-        entryDate: new Date().toISOString().slice(0, 10), reference: row.receipt,
-        createdBy: null, isTest: IS_SANDBOX,
+        groupId: opts.groupId,
+        contributionId,
+        amount,
+        entryDate: new Date().toISOString().slice(0, 10),
+        reference: row.receipt,
+        createdBy: null,
+        isTest: IS_SANDBOX,
       });
 
       await db.query(
@@ -1689,8 +1855,14 @@ export async function resolveUnroutedPayment(
         // to an unrelated member. NULL means "system", same as every other
         // non-member-initiated action in this table. The real staff id is
         // still recorded, just in detail (no FK) rather than actor.
-        actor:  null,
-        detail: { product: 'savings', contributionId, groupId: opts.groupId, via: 'admin_unrouted_resolution', staffAdminId: opts.adminId },
+        actor: null,
+        detail: {
+          product: 'savings',
+          contributionId,
+          groupId: opts.groupId,
+          via: 'admin_unrouted_resolution',
+          staffAdminId: opts.adminId,
+        },
       });
     }
 

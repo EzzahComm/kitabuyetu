@@ -25,14 +25,14 @@ type Step = 'loading' | 'otp' | 'password' | 'success' | 'declined' | 'error';
  */
 function AcceptInviteBody() {
   const params = useParams<{ token: string }>();
-  const token  = params.token;
+  const token = params.token;
 
-  const [step, setStep]     = useState<Step>('loading');
-  const [error, setError]   = useState('');
+  const [step, setStep] = useState<Step>('loading');
+  const [error, setError] = useState('');
   const [invite, setInvite] = useState<OrgInvitationLookup | null>(null);
-  const [busy, setBusy]     = useState(false);
-  const [phone, setPhone]   = useState('');
-  const [otp, setOtp]       = useState('');
+  const [busy, setBusy] = useState(false);
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -227,7 +227,9 @@ function AcceptInviteBody() {
             <p className="text-sm text-muted-foreground text-center">
               Your account is ready. Log in to start working with {invite?.organizationName ?? 'your organization'}.
             </p>
-            <Button asChild className="w-full"><Link href="/enterprise/login">Go to login</Link></Button>
+            <Button asChild className="w-full">
+              <Link href="/enterprise/login">Go to login</Link>
+            </Button>
           </div>
         )}
 
@@ -236,10 +238,12 @@ function AcceptInviteBody() {
             <UserX className="h-10 w-10 text-muted-foreground" />
             <p className="font-medium">Invitation declined</p>
             <p className="text-sm text-muted-foreground text-center">
-              You won&apos;t be added as staff for {invite?.organizationName ?? 'this organization'}.
-              If this was a mistake, ask them to send you a new invitation.
+              You won&apos;t be added as staff for {invite?.organizationName ?? 'this organization'}. If this was a
+              mistake, ask them to send you a new invitation.
             </p>
-            <Button asChild variant="outline" className="w-full"><Link href="/enterprise/login">Back to login</Link></Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/enterprise/login">Back to login</Link>
+            </Button>
           </div>
         )}
 
@@ -248,7 +252,9 @@ function AcceptInviteBody() {
             <XCircle className="h-10 w-10 text-destructive" />
             <p className="font-medium">This invitation isn&apos;t valid</p>
             <p className="text-sm text-muted-foreground text-center">{error}</p>
-            <Button asChild variant="outline" className="w-full"><Link href="/enterprise/login">Back to login</Link></Button>
+            <Button asChild variant="outline" className="w-full">
+              <Link href="/enterprise/login">Back to login</Link>
+            </Button>
           </div>
         )}
       </CardContent>

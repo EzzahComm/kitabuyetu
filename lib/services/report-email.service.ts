@@ -87,7 +87,9 @@ export async function sendWeeklySummaries(): Promise<void> {
   );
 
   const weekLabel = new Date().toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 
   for (const group of groups) {

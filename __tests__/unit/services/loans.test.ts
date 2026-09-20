@@ -16,9 +16,9 @@ jest.mock('@/lib/db', () => ({
 }));
 
 jest.mock('@/lib/services/posting-templates.service', () => ({
-  postTemplatedJournal:        jest.fn().mockResolvedValue('je-writeoff-1'),
+  postTemplatedJournal: jest.fn().mockResolvedValue('je-writeoff-1'),
   postLoanDisbursementJournal: jest.fn(),
-  postLoanRepaymentJournal:    jest.fn(),
+  postLoanRepaymentJournal: jest.fn(),
 }));
 
 // apply() resolves the group's loan policy to stamp interest_method. Mocked
@@ -27,11 +27,14 @@ jest.mock('@/lib/services/posting-templates.service', () => ({
 // loan-policy.service's own tests, not these lifecycle guards.
 jest.mock('@/lib/services/loan-policy.service', () => ({
   getEffectiveLoanTerms: jest.fn().mockResolvedValue({
-    interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+    interestRate: 10,
+    interestMethod: 'flat',
+    maxTermMonths: 12,
+    loanMultiplier: 3,
   }),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -40,14 +43,14 @@ beforeEach(() => {
   (postTemplatedJournal as jest.Mock).mockClear();
 });
 
-const ctx      = { groupId: 'grp-1', userId: 'usr-1', role: 'member' };
+const ctx = { groupId: 'grp-1', userId: 'usr-1', role: 'member' };
 const adminCtx = { groupId: 'grp-1', userId: 'admin-1', role: 'chairperson' };
 
 const applyInput = {
-  principalAmount:  50000,
-  interestRate:     12,
-  loanTermMonths:   12,
-  purpose:          'Business expansion',
+  principalAmount: 50000,
+  interestRate: 12,
+  loanTermMonths: 12,
+  purpose: 'Business expansion',
 };
 
 describe('loansService.apply', () => {
@@ -63,7 +66,7 @@ describe('loansService.apply', () => {
   });
 
   it('throws ValidationError when member already has an active loan', async () => {
-    mockQuery.mockResolvedValueOnce(membershipRow);                  // guard
+    mockQuery.mockResolvedValueOnce(membershipRow); // guard
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'existing-loan' }] }); // active-loan check
 
     await expect(loansService.apply(ctx, applyInput)).rejects.toBeInstanceOf(ValidationError);
@@ -77,15 +80,16 @@ describe('loansService.apply', () => {
     // form renders a dropdown, but the API is reachable without it, so the
     // check has to live in the service.
     (getEffectiveLoanTerms as jest.Mock).mockResolvedValueOnce({
-      interestRate: 10, interestMethod: 'flat', maxTermMonths: 12,
-      loanMultiplier: 3, termOptions: [1, 3, 6, 12],
+      interestRate: 10,
+      interestMethod: 'flat',
+      maxTermMonths: 12,
+      loanMultiplier: 3,
+      termOptions: [1, 3, 6, 12],
     });
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
-    await expect(
-      loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 })).rejects.toBeInstanceOf(ValidationError);
 
     // Must stop before the INSERT
     expect(mockQuery).toHaveBeenCalledTimes(2);
@@ -95,24 +99,30 @@ describe('loansService.apply', () => {
     // Policies written before term options existed have no list, and must keep
     // behaving exactly as they did.
     (getEffectiveLoanTerms as jest.Mock).mockResolvedValueOnce({
-      interestRate: 10, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3,
+      interestRate: 10,
+      interestMethod: 'flat',
+      maxTermMonths: 12,
+      loanMultiplier: 3,
     });
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-9', status: 'pending' }] });
 
-    await expect(
-      loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 }),
-    ).resolves.toMatchObject({ status: 'pending' });
+    await expect(loansService.apply(ctx, { ...applyInput, loanTermMonths: 9 })).resolves.toMatchObject({
+      status: 'pending',
+    });
   });
 
   it('creates a pending loan application when no active loan exists', async () => {
     const newLoan = {
-      id: 'loan-1', group_id: 'grp-1', member_id: 'usr-1',
-      principal_amount: '50000.00', status: 'pending',
+      id: 'loan-1',
+      group_id: 'grp-1',
+      member_id: 'usr-1',
+      principal_amount: '50000.00',
+      status: 'pending',
     };
-    mockQuery.mockResolvedValueOnce(membershipRow);       // guard
-    mockQuery.mockResolvedValueOnce({ rows: [] });        // no active loan
+    mockQuery.mockResolvedValueOnce(membershipRow); // guard
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no active loan
     mockQuery.mockResolvedValueOnce({ rows: [newLoan] }); // INSERT
 
     const result = await loansService.apply(ctx, applyInput);
@@ -130,29 +140,23 @@ describe('loansService.approve', () => {
   it('throws NotFoundError when loan does not exist', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
-    await expect(loansService.approve(adminCtx, 'non-existent', {})).rejects.toBeInstanceOf(
-      NotFoundError,
-    );
+    await expect(loansService.approve(adminCtx, 'non-existent', {})).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('throws ValidationError when loan is already approved (idempotency guard)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'approved', group_id: 'grp-1' }] });
 
-    await expect(loansService.approve(adminCtx, 'loan-1', {})).rejects.toBeInstanceOf(
-      ValidationError,
-    );
+    await expect(loansService.approve(adminCtx, 'loan-1', {})).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('throws ValidationError when loan is already disbursed', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'disbursed', group_id: 'grp-1' }] });
 
-    await expect(loansService.approve(adminCtx, 'loan-1', {})).rejects.toBeInstanceOf(
-      ValidationError,
-    );
+    await expect(loansService.approve(adminCtx, 'loan-1', {})).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('approves a pending loan successfully', async () => {
-    const pendingLoan  = { id: 'loan-1', status: 'pending',  group_id: 'grp-1' };
+    const pendingLoan = { id: 'loan-1', status: 'pending', group_id: 'grp-1' };
     const approvedLoan = { id: 'loan-1', status: 'approved', group_id: 'grp-1' };
 
     mockQuery.mockResolvedValueOnce({ rows: [pendingLoan] });
@@ -165,31 +169,27 @@ describe('loansService.approve', () => {
 
 describe('loansService.disburse', () => {
   const disburseInput = {
-    disbursementDate:    '2025-06-01',
-    paymentMethod:       'mpesa' as const,
-    mpesaReceiptNumber:  'QAB123XYZ',
+    disbursementDate: '2025-06-01',
+    paymentMethod: 'mpesa' as const,
+    mpesaReceiptNumber: 'QAB123XYZ',
   };
 
   it('throws ValidationError when disbursing a pending (not yet approved) loan', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'pending', group_id: 'grp-1' }] });
 
-    await expect(loansService.disburse(adminCtx, 'loan-1', disburseInput)).rejects.toBeInstanceOf(
-      ValidationError,
-    );
+    await expect(loansService.disburse(adminCtx, 'loan-1', disburseInput)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('throws ValidationError when disbursing an already disbursed loan', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'disbursed', group_id: 'grp-1' }] });
 
-    await expect(loansService.disburse(adminCtx, 'loan-1', disburseInput)).rejects.toBeInstanceOf(
-      ValidationError,
-    );
+    await expect(loansService.disburse(adminCtx, 'loan-1', disburseInput)).rejects.toBeInstanceOf(ValidationError);
   });
 });
 
 describe('loansService.reject', () => {
   it('can reject a pending loan', async () => {
-    const pendingLoan  = { id: 'loan-1', status: 'pending',  group_id: 'grp-1' };
+    const pendingLoan = { id: 'loan-1', status: 'pending', group_id: 'grp-1' };
     const rejectedLoan = { id: 'loan-1', status: 'rejected', group_id: 'grp-1' };
 
     mockQuery.mockResolvedValueOnce({ rows: [pendingLoan] });
@@ -213,9 +213,9 @@ describe('loansService.reject', () => {
   it('throws ValidationError when trying to reject a disbursed loan', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'disbursed', group_id: 'grp-1' }] });
 
-    await expect(
-      loansService.reject(adminCtx, 'loan-1', { reason: 'Too late' }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(loansService.reject(adminCtx, 'loan-1', { reason: 'Too late' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 });
 
@@ -244,18 +244,26 @@ describe('loansService.markDefaulted', () => {
 describe('loansService.writeOff', () => {
   it('throws ValidationError when the loan is not defaulted', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'active', group_id: 'grp-1' }] });
-    await expect(
-      loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
   });
 
   it('blocks the officer who marked the loan defaulted from writing it off (maker-checker)', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '5000.00' }],
+      rows: [
+        {
+          id: 'loan-1',
+          status: 'defaulted',
+          group_id: 'grp-1',
+          defaulted_by: 'admin-1',
+          outstanding_balance: '5000.00',
+        },
+      ],
     });
-    await expect(
-      loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' }),
-    ).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(loansService.writeOff(adminCtx, 'loan-1', { reason: 'Uncollectible' })).rejects.toBeInstanceOf(
+      ForbiddenError,
+    );
     // Never reaches posting or the UPDATE
     expect(postTemplatedJournal).not.toHaveBeenCalled();
   });
@@ -264,7 +272,15 @@ describe('loansService.writeOff', () => {
     const writerCtx = { groupId: 'grp-1', userId: 'writer-1', role: 'chairperson' };
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '5000.00' }],
+        rows: [
+          {
+            id: 'loan-1',
+            status: 'defaulted',
+            group_id: 'grp-1',
+            defaulted_by: 'admin-1',
+            outstanding_balance: '5000.00',
+          },
+        ],
       })
       .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'written_off' }] })
       .mockResolvedValueOnce({ rows: [] }); // audit log
@@ -273,7 +289,11 @@ describe('loansService.writeOff', () => {
 
     expect(result.status).toBe('written_off');
     expect(postTemplatedJournal).toHaveBeenCalledWith(
-      mockClient, 'grp-1', 'writer-1', 'loan_writeoff', expect.stringContaining('loan-1'),
+      mockClient,
+      'grp-1',
+      'writer-1',
+      'loan_writeoff',
+      expect.stringContaining('loan-1'),
       { outstanding: 5000 },
       { reference: 'loan-1' },
     );
@@ -283,7 +303,15 @@ describe('loansService.writeOff', () => {
     const writerCtx = { groupId: 'grp-1', userId: 'writer-1', role: 'chairperson' };
     mockQuery
       .mockResolvedValueOnce({
-        rows: [{ id: 'loan-1', status: 'defaulted', group_id: 'grp-1', defaulted_by: 'admin-1', outstanding_balance: '0.00' }],
+        rows: [
+          {
+            id: 'loan-1',
+            status: 'defaulted',
+            group_id: 'grp-1',
+            defaulted_by: 'admin-1',
+            outstanding_balance: '0.00',
+          },
+        ],
       })
       .mockResolvedValueOnce({ rows: [{ id: 'loan-1', status: 'written_off' }] })
       .mockResolvedValueOnce({ rows: [] });

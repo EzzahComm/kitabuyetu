@@ -72,9 +72,9 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const processed = await processJobBatch();
 
     return NextResponse.json({
-      ok:        true,
+      ok: true,
       timestamp: new Date().toISOString(),
-      duration:  `${Date.now() - started}ms`,
+      duration: `${Date.now() - started}ms`,
       enqueued,
       processed,
     });
@@ -84,9 +84,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     // header comment ("Returns generic error messages to avoid information
     // leakage"). The full error is still logged server-side.
     logger.error('[cron] Unhandled error:', err);
-    return NextResponse.json(
-      { error: 'Internal error', timestamp: new Date().toISOString() },
-      { status: 500 },
-    );
+    return NextResponse.json({ error: 'Internal error', timestamp: new Date().toISOString() }, { status: 500 });
   }
 }

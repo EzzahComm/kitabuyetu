@@ -40,13 +40,9 @@ export class ResendAdapter implements IEmailAdapter {
     const recipient = toArr[0]?.trim().toLowerCase() ?? 'unknown';
     const template = payload.templateKey ?? 'generic';
     const reference =
-      payload.referenceType && payload.referenceId
-        ? `${payload.referenceType}:${payload.referenceId}`
-        : null;
+      payload.referenceType && payload.referenceId ? `${payload.referenceType}:${payload.referenceId}` : null;
 
-    const idempotencyKey = reference
-      ? `kitabuyetu/${template}/${reference}/${recipient}`.slice(0, 256)
-      : null;
+    const idempotencyKey = reference ? `kitabuyetu/${template}/${reference}/${recipient}`.slice(0, 256) : null;
 
     let logId: string | null = null;
 
@@ -67,12 +63,7 @@ export class ResendAdapter implements IEmailAdapter {
                 AND reference_type = $4
               ORDER BY sent_at DESC
               LIMIT 1`,
-            [
-              recipient,
-              payload.templateKey ?? null,
-              payload.referenceId,
-              payload.referenceType,
-            ],
+            [recipient, payload.templateKey ?? null, payload.referenceId, payload.referenceType],
           ),
         );
 
@@ -120,9 +111,7 @@ export class ResendAdapter implements IEmailAdapter {
     try {
       const attachments = payload.attachments?.map((a) => ({
         filename: a.filename,
-        content: Buffer.isBuffer(a.content)
-          ? a.content
-          : Buffer.from(a.content as string, 'base64'),
+        content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content as string, 'base64'),
       }));
 
       const { data, error } = await getResend().emails.send(
@@ -133,16 +122,8 @@ export class ResendAdapter implements IEmailAdapter {
           html: payload.html,
           text: payload.text,
           replyTo: payload.replyTo,
-          cc: payload.cc
-            ? Array.isArray(payload.cc)
-              ? payload.cc
-              : [payload.cc]
-            : undefined,
-          bcc: payload.bcc
-            ? Array.isArray(payload.bcc)
-              ? payload.bcc
-              : [payload.bcc]
-            : undefined,
+          cc: payload.cc ? (Array.isArray(payload.cc) ? payload.cc : [payload.cc]) : undefined,
+          bcc: payload.bcc ? (Array.isArray(payload.bcc) ? payload.bcc : [payload.bcc]) : undefined,
           attachments,
           tags: payload.tags
             ? Object.entries(payload.tags).map(([name, value]) => ({

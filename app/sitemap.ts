@@ -10,27 +10,27 @@ import { getPosts, getOpenJobs } from '@/lib/cms/sanity';
  * prefixes outright.
  */
 const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'weekly' }[] = [
-  { path: '/',                        priority: 1.0, changeFrequency: 'weekly'  },
-  { path: '/pricing',                 priority: 0.9, changeFrequency: 'monthly' },
-  { path: '/products',                priority: 0.8, changeFrequency: 'monthly' },
-  { path: '/bookkeeper',              priority: 0.8, changeFrequency: 'monthly' },
-  { path: '/chama-reminder',          priority: 0.8, changeFrequency: 'monthly' },
-  { path: '/enterprise-solutions',    priority: 0.6, changeFrequency: 'monthly' },
-  { path: '/ecosystem',               priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/', priority: 1.0, changeFrequency: 'weekly' },
+  { path: '/pricing', priority: 0.9, changeFrequency: 'monthly' },
+  { path: '/products', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/bookkeeper', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/chama-reminder', priority: 0.8, changeFrequency: 'monthly' },
+  { path: '/enterprise-solutions', priority: 0.6, changeFrequency: 'monthly' },
+  { path: '/ecosystem', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/ecosystem/organizations', priority: 0.5, changeFrequency: 'monthly' },
-  { path: '/ecosystem/donors',        priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/ecosystem/marketplace',   priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/ecosystem/programs',      priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/fundraise',               priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/about',                   priority: 0.5, changeFrequency: 'monthly' },
-  { path: '/about/team',              priority: 0.3, changeFrequency: 'monthly' },
-  { path: '/about/impact',            priority: 0.3, changeFrequency: 'monthly' },
-  { path: '/contact',                 priority: 0.5, changeFrequency: 'monthly' },
-  { path: '/support',                 priority: 0.4, changeFrequency: 'monthly' },
-  { path: '/docs',                    priority: 0.3, changeFrequency: 'monthly' },
-  { path: '/status',                  priority: 0.3, changeFrequency: 'weekly'  },
-  { path: '/resources',               priority: 0.7, changeFrequency: 'weekly'  },
-  { path: '/careers',                 priority: 0.5, changeFrequency: 'weekly'  },
+  { path: '/ecosystem/donors', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/ecosystem/marketplace', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/ecosystem/programs', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/fundraise', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/about', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/about/team', priority: 0.3, changeFrequency: 'monthly' },
+  { path: '/about/impact', priority: 0.3, changeFrequency: 'monthly' },
+  { path: '/contact', priority: 0.5, changeFrequency: 'monthly' },
+  { path: '/support', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/docs', priority: 0.3, changeFrequency: 'monthly' },
+  { path: '/status', priority: 0.3, changeFrequency: 'weekly' },
+  { path: '/resources', priority: 0.7, changeFrequency: 'weekly' },
+  { path: '/careers', priority: 0.5, changeFrequency: 'weekly' },
   // Legal pages hold placeholder content, not published policy — deliberately
   // excluded so search engines don't index a page that isn't a real policy
   // yet. Each also sets `robots: { index: false }` in its own metadata.
@@ -71,4 +71,3 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   return [...staticEntries, ...postEntries, ...jobEntries];
 }
-

@@ -33,8 +33,12 @@ async function makeBirthdayJob(): Promise<Job> {
     `INSERT INTO job_queue (type, payload, status) VALUES ('sms_birthday_reminders', '{}', 'processing') RETURNING id`,
   );
   return {
-    id: row.id, type: 'sms_birthday_reminders', payload: {}, status: 'processing',
-    attempts: 0, max_attempts: 5,
+    id: row.id,
+    type: 'sms_birthday_reminders',
+    payload: {},
+    status: 'processing',
+    attempts: 0,
+    max_attempts: 5,
   } as unknown as Job;
 }
 
@@ -80,15 +84,15 @@ async function optInBirthday(groupId: string): Promise<void> {
 }
 
 async function setBirthdayToday(memberId: string): Promise<void> {
-  await rawQuery(
-    `UPDATE members SET date_of_birth = (CURRENT_DATE - make_interval(years => 30))::date WHERE id = $1`,
-    [memberId],
-  );
+  await rawQuery(`UPDATE members SET date_of_birth = (CURRENT_DATE - make_interval(years => 30))::date WHERE id = $1`, [
+    memberId,
+  ]);
 }
 
 async function smsCreditsOf(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
@@ -214,12 +218,15 @@ describe('sms_birthday_reminders', () => {
     // person/group_member_counters bookkeeping a raw group_members INSERT
     // would otherwise violate a NOT NULL constraint on).
     const [member] = await rawQuery<{ first_name: string; last_name: string }>(
-      `SELECT first_name, last_name FROM members WHERE id = $1`, [officerId],
+      `SELECT first_name, last_name FROM members WHERE id = $1`,
+      [officerId],
     );
-    await rawQuery(
-      `SELECT link_member_to_group($1, $2, 'member', $3, $4)`,
-      [officerId, groupB, member.first_name, member.last_name],
-    );
+    await rawQuery(`SELECT link_member_to_group($1, $2, 'member', $3, $4)`, [
+      officerId,
+      groupB,
+      member.first_name,
+      member.last_name,
+    ]);
 
     const result = await handleJob(await makeBirthdayJob());
 

@@ -2,12 +2,12 @@ import { evaluateCondition } from '@/lib/sms/conditions';
 
 describe('evaluateCondition', () => {
   const payload = {
-    amount:   '1500.00',   // NUMERIC arrives from pg as a string
-    status:   'completed',
-    receipt:  'QK12ABC',
-    overdue:  true,
-    phone:    null,
-    penalty:  0,
+    amount: '1500.00', // NUMERIC arrives from pg as a string
+    status: 'completed',
+    receipt: 'QK12ABC',
+    overdue: true,
+    phone: null,
+    penalty: 0,
   };
 
   it('treats an empty condition as an unconditional match', () => {
@@ -54,26 +54,41 @@ describe('evaluateCondition', () => {
   });
 
   it('composes all / any / not', () => {
-    expect(evaluateCondition({
-      all: [
-        { field: 'status', op: 'eq', value: 'completed' },
-        { field: 'amount', op: 'gte', value: 1000 },
-      ],
-    }, payload)).toBe(true);
+    expect(
+      evaluateCondition(
+        {
+          all: [
+            { field: 'status', op: 'eq', value: 'completed' },
+            { field: 'amount', op: 'gte', value: 1000 },
+          ],
+        },
+        payload,
+      ),
+    ).toBe(true);
 
-    expect(evaluateCondition({
-      all: [
-        { field: 'status', op: 'eq', value: 'completed' },
-        { field: 'amount', op: 'gte', value: 5000 },
-      ],
-    }, payload)).toBe(false);
+    expect(
+      evaluateCondition(
+        {
+          all: [
+            { field: 'status', op: 'eq', value: 'completed' },
+            { field: 'amount', op: 'gte', value: 5000 },
+          ],
+        },
+        payload,
+      ),
+    ).toBe(false);
 
-    expect(evaluateCondition({
-      any: [
-        { field: 'status', op: 'eq', value: 'failed' },
-        { field: 'overdue', op: 'eq', value: true },
-      ],
-    }, payload)).toBe(true);
+    expect(
+      evaluateCondition(
+        {
+          any: [
+            { field: 'status', op: 'eq', value: 'failed' },
+            { field: 'overdue', op: 'eq', value: true },
+          ],
+        },
+        payload,
+      ),
+    ).toBe(true);
 
     expect(evaluateCondition({ not: { field: 'status', op: 'eq', value: 'failed' } }, payload)).toBe(true);
   });

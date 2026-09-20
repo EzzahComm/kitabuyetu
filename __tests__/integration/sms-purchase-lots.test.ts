@@ -29,9 +29,7 @@ async function lots(groupId: string) {
 }
 
 /** Add a purchase at an explicit rate and age, the way two top-ups apart in time look. */
-async function purchase(
-  groupId: string, credits: number, rate: number, daysAgo: number,
-): Promise<void> {
+async function purchase(groupId: string, credits: number, rate: number, daysAgo: number): Promise<void> {
   await rawQuery(
     `INSERT INTO sms_credits
        (group_id, billing_account_id, amount_paid, credits_added, remaining_credits,
@@ -40,10 +38,10 @@ async function purchase(
      FROM billing_accounts ba WHERE ba.group_id = $1`,
     [groupId, (credits * rate).toFixed(2), credits.toFixed(4), rate.toFixed(4), daysAgo],
   );
-  await rawQuery(
-    `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`,
-    [credits.toFixed(4), groupId],
-  );
+  await rawQuery(`UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2`, [
+    credits.toFixed(4),
+    groupId,
+  ]);
 }
 
 async function lotDrift(groupId: string): Promise<number> {
@@ -66,16 +64,13 @@ describe('SMS purchase lots', () => {
   });
 
   it('never reprices a completed purchase — the §4 scenario', async () => {
-    await purchase(groupId, 5000, 0.90, 2);
-    await purchase(groupId, 5000, 0.80, 1);
+    await purchase(groupId, 5000, 0.9, 2);
+    await purchase(groupId, 5000, 0.8, 1);
 
     // Consume 6,000: FIFO empties the older 0.90 batch and takes 1,000 from the
     // newer one.
     await rawQuery(`SELECT draw_sms_credit_lots($1::uuid, 6000)`, [groupId]);
-    await rawQuery(
-      `UPDATE billing_accounts SET sms_credits = sms_credits - 6000 WHERE group_id = $1`,
-      [groupId],
-    );
+    await rawQuery(`UPDATE billing_accounts SET sms_credits = sms_credits - 6000 WHERE group_id = $1`, [groupId]);
 
     const rows = await lots(groupId);
     expect(Number(rows[0].remaining_credits)).toBe(0);
@@ -83,8 +78,8 @@ describe('SMS purchase lots', () => {
 
     // THE GUARANTEE: what each batch cost is untouched. Reaching a cheaper tier
     // later must not retroactively re-value what was already bought.
-    expect(Number(rows[0].rate_applied)).toBeCloseTo(0.90, 4);
-    expect(Number(rows[1].rate_applied)).toBeCloseTo(0.80, 4);
+    expect(Number(rows[0].rate_applied)).toBeCloseTo(0.9, 4);
+    expect(Number(rows[1].rate_applied)).toBeCloseTo(0.8, 4);
 
     expect(await lotDrift(groupId)).toBe(0);
   });
@@ -93,28 +88,28 @@ describe('SMS purchase lots', () => {
     // Ordering is by purchase time, never by price. LIFO or cheapest-first
     // would let a late purchase mask an older one — which matters the moment
     // an expiry policy exists, since the oldest credits are the ones that lapse.
-    await purchase(groupId, 100, 0.90, 5);
-    await purchase(groupId, 100, 0.50, 1); // newer AND cheaper
+    await purchase(groupId, 100, 0.9, 5);
+    await purchase(groupId, 100, 0.5, 1); // newer AND cheaper
 
     await rawQuery(`SELECT draw_sms_credit_lots($1::uuid, 100)`, [groupId]);
 
     const rows = await lots(groupId);
-    expect(Number(rows[0].remaining_credits)).toBe(0);   // the older one went
+    expect(Number(rows[0].remaining_credits)).toBe(0); // the older one went
     expect(Number(rows[1].remaining_credits)).toBe(100); // the cheap one intact
   });
 
   it('cannot draw more than exists, so it can never fail a send', async () => {
     // draw_sms_credit_lots runs AFTER the provider accepted the message. If it
     // could throw, a delivered SMS would strand its reservation.
-    await purchase(groupId, 50, 0.90, 1);
+    await purchase(groupId, 50, 0.9, 1);
 
-    const [row] = await rawQuery<{ draw_sms_credit_lots: string }>(
-      `SELECT draw_sms_credit_lots($1::uuid, 99999)`, [groupId],
-    );
+    const [row] = await rawQuery<{ draw_sms_credit_lots: string }>(`SELECT draw_sms_credit_lots($1::uuid, 99999)`, [
+      groupId,
+    ]);
     expect(Number(row.draw_sms_credit_lots)).toBe(50); // drew what existed
 
     const rows = await lots(groupId);
-    expect(Number(rows[0].remaining_credits)).toBe(0);  // never negative
+    expect(Number(rows[0].remaining_credits)).toBe(0); // never negative
   });
 
   it('records a lot when a real top-up happens', async () => {
@@ -139,9 +134,7 @@ describe('SMS purchase lots', () => {
        RETURNING id`,
       [groupId],
     );
-    await rawQuery(
-      `UPDATE billing_accounts SET reserved_sms_credits = 3 WHERE group_id = $1`, [groupId],
-    );
+    await rawQuery(`UPDATE billing_accounts SET reserved_sms_credits = 3 WHERE group_id = $1`, [groupId]);
     await rawQuery(`SELECT settle_sms_credit_reservation($1::uuid[], 'consume')`, [[log.id]]);
 
     expect(Number((await lots(groupId))[0].remaining_credits)).toBe(before - 3);
@@ -169,9 +162,7 @@ describe('SMS purchase lots', () => {
   it('surfaces credits that no purchase accounts for, rather than hiding them', async () => {
     // A manual grant straight onto billing_accounts has no lot behind it. That
     // is information, not corruption — lot_drift is where an operator sees it.
-    await rawQuery(
-      `UPDATE billing_accounts SET sms_credits = 40 WHERE group_id = $1`, [groupId],
-    );
+    await rawQuery(`UPDATE billing_accounts SET sms_credits = 40 WHERE group_id = $1`, [groupId]);
     expect(await lotDrift(groupId)).toBe(40);
   });
 

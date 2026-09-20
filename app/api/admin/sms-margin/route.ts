@@ -27,10 +27,7 @@ export function GET(req: NextRequest) {
     // independent ones: DB_POOL_MAX=3, and four concurrent withAdminDb calls
     // here reliably self-queued a 4th request behind the cap, confirmed live
     // (docs/audits/optimization-2026-09).
-    const report = await smsMarginService.getFullMarginReport(
-      p.get('from') ?? undefined,
-      p.get('to') ?? undefined,
-    );
+    const report = await smsMarginService.getFullMarginReport(p.get('from') ?? undefined, p.get('to') ?? undefined);
     return ok(report);
   });
 }

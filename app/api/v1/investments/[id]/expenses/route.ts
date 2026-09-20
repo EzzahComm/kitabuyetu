@@ -12,9 +12,9 @@ type Params = { params: Promise<{ id: string }> };
 export async function POST(req: NextRequest, { params }: Params): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'investments.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = RecordExpenseSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return created(await investmentsService.recordExpense(ctx, id, input));
   });
 }

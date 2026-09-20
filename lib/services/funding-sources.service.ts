@@ -23,18 +23,18 @@ export type FundingSourceType =
   | 'other';
 
 export interface GroupFundingSource {
-  id:             string;
-  groupId:        string;
-  sourceType:     FundingSourceType;
-  allocationId:   string | null;
+  id: string;
+  groupId: string;
+  sourceType: FundingSourceType;
+  allocationId: string | null;
   organizationId: string | null;
   /** Organization's display name, present only for allocation-backed sources. */
   organizationName: string | null;
-  label:          string;
-  isRepayable:    boolean;
-  status:         'active' | 'closed';
-  openedAt:       Date;
-  closedAt:       Date | null;
+  label: string;
+  isRepayable: boolean;
+  status: 'active' | 'closed';
+  openedAt: Date;
+  closedAt: Date | null;
 }
 
 interface FundingSourceRow {
@@ -53,17 +53,17 @@ interface FundingSourceRow {
 
 function mapRow(r: FundingSourceRow): GroupFundingSource {
   return {
-    id:               r.id,
-    groupId:          r.group_id,
-    sourceType:       r.source_type,
-    allocationId:     r.allocation_id,
-    organizationId:   r.organization_id,
+    id: r.id,
+    groupId: r.group_id,
+    sourceType: r.source_type,
+    allocationId: r.allocation_id,
+    organizationId: r.organization_id,
     organizationName: r.organization_name,
-    label:            r.label,
-    isRepayable:      r.is_repayable,
-    status:           r.status,
-    openedAt:         r.opened_at,
-    closedAt:         r.closed_at,
+    label: r.label,
+    isRepayable: r.is_repayable,
+    status: r.status,
+    openedAt: r.opened_at,
+    closedAt: r.closed_at,
   };
 }
 
@@ -125,7 +125,7 @@ export async function getInternalSavingsSource(ctx: TenantContext): Promise<Grou
 
 export interface FundingSplit {
   fundingSourceId: string;
-  amount:          number;
+  amount: number;
 }
 
 /**
@@ -191,11 +191,15 @@ export async function resolveFundingPlan(
 
 /** Reads back how a loan was funded — the attribution the capital layer rests on. */
 export async function getLoanFundingSplits(
-  ctx: TenantContext, loanId: string,
+  ctx: TenantContext,
+  loanId: string,
 ): Promise<(FundingSplit & { label: string; sourceType: FundingSourceType })[]> {
   return withDb(ctx, async (client) => {
     const { rows } = await client.query<{
-      funding_source_id: string; amount: string; label: string; source_type: FundingSourceType;
+      funding_source_id: string;
+      amount: string;
+      label: string;
+      source_type: FundingSourceType;
     }>(
       `SELECT f.funding_source_id, f.amount, s.label, s.source_type
        FROM loan_funding_splits f
@@ -206,9 +210,9 @@ export async function getLoanFundingSplits(
     );
     return rows.map((r) => ({
       fundingSourceId: r.funding_source_id,
-      amount:          parseFloat(r.amount),
-      label:           r.label,
-      sourceType:      r.source_type,
+      amount: parseFloat(r.amount),
+      label: r.label,
+      sourceType: r.source_type,
     }));
   });
 }

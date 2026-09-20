@@ -7,11 +7,11 @@ import { useHasPermission } from '@/lib/auth/use-permission';
 import type { OpportunityStage, OpportunityWithContact } from '@/lib/services/crm.service';
 
 const STAGES: { value: OpportunityStage; label: string }[] = [
-  { value: 'draft',     label: 'Draft' },
+  { value: 'draft', label: 'Draft' },
   { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal',  label: 'Proposal' },
-  { value: 'won',       label: 'Won' },
-  { value: 'lost',      label: 'Lost' },
+  { value: 'proposal', label: 'Proposal' },
+  { value: 'won', label: 'Won' },
+  { value: 'lost', label: 'Lost' },
 ];
 
 function stageTotal(opportunities: OpportunityWithContact[]): number {
@@ -46,7 +46,8 @@ export function PipelineBoard() {
           <div className="flex items-baseline justify-between px-1">
             <h3 className="text-sm font-semibold">{column.label}</h3>
             <span className="text-xs text-muted-foreground">
-              {column.items.length}{stageTotal(column.items) > 0 && ` · KES ${stageTotal(column.items).toLocaleString()}`}
+              {column.items.length}
+              {stageTotal(column.items) > 0 && ` · KES ${stageTotal(column.items).toLocaleString()}`}
             </span>
           </div>
           <div className="space-y-2">

@@ -36,9 +36,13 @@ describe('staff alert sink', () => {
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = $1`, [KEY]);
   });
 
-  const alert = (details: unknown) => raiseStaffAlert({
-    key: KEY, subject: 'Something disagrees', body: 'Details below.', details,
-  });
+  const alert = (details: unknown) =>
+    raiseStaffAlert({
+      key: KEY,
+      subject: 'Something disagrees',
+      body: 'Details below.',
+      details,
+    });
 
   it('emails on the first occurrence', async () => {
     await expect(alert({ drifted: 1 })).resolves.toBe(true);
@@ -86,7 +90,8 @@ describe('staff alert sink', () => {
     await clearStaffAlert(KEY);
 
     const [row] = await rawQuery<{ last_checked_at: Date | null; fingerprint: string | null }>(
-      `SELECT last_checked_at, fingerprint FROM staff_alert_state WHERE alert_key = $1`, [KEY],
+      `SELECT last_checked_at, fingerprint FROM staff_alert_state WHERE alert_key = $1`,
+      [KEY],
     );
     // "Healthy" and "nothing ever ran" must be distinguishable.
     expect(row.last_checked_at).toBeInstanceOf(Date);

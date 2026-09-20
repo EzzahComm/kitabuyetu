@@ -20,9 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { SectionHeader } from '@/components/shared/dashboard-sections';
@@ -38,13 +36,13 @@ export default function OrganizationBillingPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: enterpriseKeys.smsCredits(),
-    queryFn:  () => organizationApi.smsCredits(),
+    queryFn: () => organizationApi.smsCredits(),
     staleTime: 30_000,
   });
 
   const { data: plan, isLoading: planLoading } = useQuery({
     queryKey: enterpriseKeys.plan(),
-    queryFn:  () => organizationApi.plan(),
+    queryFn: () => organizationApi.plan(),
     staleTime: 30_000,
   });
 
@@ -102,7 +100,10 @@ export default function OrganizationBillingPage() {
       </div>
 
       <div className="space-y-3">
-        <SectionHeader title="Recent top-ups" subtitle="Manual entries, reconciled against bank/M-Pesa settlement separately." />
+        <SectionHeader
+          title="Recent top-ups"
+          subtitle="Manual entries, reconciled against bank/M-Pesa settlement separately."
+        />
         <Card>
           <CardContent className="overflow-x-auto p-0">
             <table className="w-full text-sm">
@@ -117,18 +118,28 @@ export default function OrganizationBillingPage() {
               </thead>
               <tbody>
                 {isLoading ? (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">Loading…</td></tr>
-                ) : !data?.recent.length ? (
-                  <tr><td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">No top-ups yet.</td></tr>
-                ) : data.recent.map((r) => (
-                  <tr key={r.id} className="border-b last:border-0">
-                    <td className="px-4 py-3 text-muted-foreground">{formatDate(r.created_at)}</td>
-                    <td className="px-4 py-3">{Number(r.amount_paid).toLocaleString()}</td>
-                    <td className="px-4 py-3">{Number(r.credits_added).toLocaleString()}</td>
-                    <td className="px-4 py-3">{Number(r.rate_applied).toFixed(4)}</td>
-                    <td className="px-4 py-3 text-muted-foreground">{r.notes ?? '—'}</td>
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                      Loading…
+                    </td>
                   </tr>
-                ))}
+                ) : !data?.recent.length ? (
+                  <tr>
+                    <td colSpan={5} className="px-4 py-6 text-center text-muted-foreground">
+                      No top-ups yet.
+                    </td>
+                  </tr>
+                ) : (
+                  data.recent.map((r) => (
+                    <tr key={r.id} className="border-b last:border-0">
+                      <td className="px-4 py-3 text-muted-foreground">{formatDate(r.created_at)}</td>
+                      <td className="px-4 py-3">{Number(r.amount_paid).toLocaleString()}</td>
+                      <td className="px-4 py-3">{Number(r.credits_added).toLocaleString()}</td>
+                      <td className="px-4 py-3">{Number(r.rate_applied).toFixed(4)}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{r.notes ?? '—'}</td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </CardContent>
@@ -143,21 +154,23 @@ export default function OrganizationBillingPage() {
 function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [amount, setAmount]       = useState('');
+  const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
 
   const topUp = useMutation({
-    mutationFn: () => organizationApi.topUpSmsCredits({
-      amountKes: parseFloat(amount),
-      reference: reference || undefined,
-    }),
+    mutationFn: () =>
+      organizationApi.topUpSmsCredits({
+        amountKes: parseFloat(amount),
+        reference: reference || undefined,
+      }),
     onSuccess: (result) => {
       qc.invalidateQueries({ queryKey: enterpriseKeys.smsCredits() });
       toast({
         title: 'SMS credits added',
         description: `${result.creditsAdded.toLocaleString()} credits — new balance ${result.newBalance.toLocaleString()}.`,
       });
-      setAmount(''); setReference('');
+      setAmount('');
+      setReference('');
       onClose();
     },
     onError: (e: Error) => toast({ variant: 'destructive', title: 'Top-up failed', description: e.message }),
@@ -165,26 +178,49 @@ function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () =
 
   const valid = parseFloat(amount) > 0;
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) onClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Top up SMS credits</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Top up SMS credits</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="space-y-1">
             <Label>Amount (KES)</Label>
-            <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="5000" />
+            <Input
+              type="number"
+              min={1}
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="5000"
+            />
           </div>
           <div className="space-y-1">
-            <Label>Reference <span className="text-muted-foreground text-xs">(optional)</span></Label>
-            <Input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="e.g. bank transfer ref" />
+            <Label>
+              Reference <span className="text-muted-foreground text-xs">(optional)</span>
+            </Label>
+            <Input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              placeholder="e.g. bank transfer ref"
+            />
           </div>
           <p className="text-xs text-muted-foreground">
-            Recorded as a manual top-up — no M-Pesa payment is collected here. Bank/M-Pesa settlement is
-            reconciled separately.
+            Recorded as a manual top-up — no M-Pesa payment is collected here. Bank/M-Pesa settlement is reconciled
+            separately.
           </p>
         </div>
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={() => topUp.mutate()} disabled={!valid || topUp.isPending}>Top up</Button>
+          <Button variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button onClick={() => topUp.mutate()} disabled={!valid || topUp.isPending}>
+            Top up
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * POST /api/v1/mpesa/reversal          â€” Initiate reversal (treasurer+)
  * POST /api/v1/mpesa/reversal?type=result  â€” Safaricom callback (no JWT)
@@ -17,10 +17,10 @@ import { logger } from '@/lib/logger';
 
 const ReversalSchema = z.object({
   originalReceiptNumber: z.string().min(5).max(50),
-  amount:                z.number().positive(),
-  receiverParty:         z.string().min(3).max(20),
-  remarks:               z.string().min(1).max(100),
-  occasion:              z.string().max(100).optional(),
+  amount: z.number().positive(),
+  receiverParty: z.string().min(3).max(20),
+  remarks: z.string().min(1).max(100),
+  occasion: z.string().max(100).optional(),
 });
 
 function callerIp(req: NextRequest): string {
@@ -31,7 +31,7 @@ const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
     // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
@@ -44,7 +44,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -57,8 +61,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     after(async () => {
-      try { await handleReversalResult(body, ip); }
-      catch (err) { logger.error('[reversal result]', err); }
+      try {
+        await handleReversalResult(body, ip);
+      } catch (err) {
+        logger.error('[reversal result]', err);
+      }
     });
     return ack();
   }
@@ -74,16 +81,21 @@ export async function POST(req: NextRequest): Promise<Response> {
       const input = ReversalSchema.parse(await req.json());
 
       const res = await requestReversal({
-        transactionId:          input.originalReceiptNumber,
-        amount:                 input.amount,
-        receiverParty:          input.receiverParty,
+        transactionId: input.originalReceiptNumber,
+        amount: input.amount,
+        receiverParty: input.receiverParty,
         receiverIdentifierType: '11',
-        remarks:                input.remarks,
-        occasion:               input.occasion,
+        remarks: input.remarks,
+        occasion: input.occasion,
       });
 
       // Persist reversal record
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const { rows } = await withTransaction(ctx, (db) =>
         db.query<{ id: string }>(
           `INSERT INTO mpesa_reversals
@@ -93,20 +105,25 @@ export async function POST(req: NextRequest): Promise<Response> {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'initiated',$9)
            RETURNING id`,
           [
-            auth.groupId, input.originalReceiptNumber,
-            res.conversationId, res.originatorConversationId,
-            input.amount.toFixed(2), input.receiverParty,
-            input.remarks, input.occasion ?? null, auth.userId,
+            auth.groupId,
+            input.originalReceiptNumber,
+            res.conversationId,
+            res.originatorConversationId,
+            input.amount.toFixed(2),
+            input.receiverParty,
+            input.remarks,
+            input.occasion ?? null,
+            auth.userId,
           ],
         ),
       );
 
       return ok({
-        reversalId:               rows[0].id,
-        conversationId:           res.conversationId,
+        reversalId: rows[0].id,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseDescription:      res.responseDescription,
-        message:                  'Reversal request submitted. Result will arrive via callback.',
+        responseDescription: res.responseDescription,
+        message: 'Reversal request submitted. Result will arrive via callback.',
       });
     } catch (err) {
       return handleError(err);
@@ -118,7 +135,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       const rows = await withDb(ctx, async (db) => {
         const { rows } = await db.query(
           `SELECT r.*, m.first_name || ' ' || m.last_name AS requested_by_name

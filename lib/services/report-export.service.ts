@@ -30,18 +30,26 @@ import { renderToBuffer } from '@react-pdf/renderer';
 import { withDb, pool, type TenantContext } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';
 import { organizationService } from './organization.service';
-import { organizationFinanceService, type ProgramBudgetLine, type DonorSpendLine } from './organization-finance.service';
+import {
+  organizationFinanceService,
+  type ProgramBudgetLine,
+  type DonorSpendLine,
+} from './organization-finance.service';
 import { assertReportsAccess } from './organization-plan.service';
 import { sendTemplatedEmail } from './email.service';
 import {
-  uploadReportArtifact, createReportSignedUrl,
-  REPORT_SIGNED_URL_TTL_SECONDS, REPORT_EMAIL_SIGNED_URL_TTL_SECONDS,
+  uploadReportArtifact,
+  createReportSignedUrl,
+  REPORT_SIGNED_URL_TTL_SECONDS,
+  REPORT_EMAIL_SIGNED_URL_TTL_SECONDS,
 } from '@/lib/supabase/storage';
 import { ProgramBudgetReportPdf, DonorSpendReportPdf } from '@/components/pdf/organization-report';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import type {
-  CreateReportExportInput, CreateReportScheduleInput, UpdateReportScheduleInput,
+  CreateReportExportInput,
+  CreateReportScheduleInput,
+  UpdateReportScheduleInput,
 } from '@/lib/validators/organization.schema';
 
 const orgId = (ctx: TenantContext): string => {
@@ -49,43 +57,43 @@ const orgId = (ctx: TenantContext): string => {
   return ctx.organizationId;
 };
 
-export type ReportType   = 'program_budget' | 'donor_spend';
+export type ReportType = 'program_budget' | 'donor_spend';
 export type ReportFormat = 'pdf' | 'xlsx' | 'csv';
 export type ExportStatus = 'pending' | 'processing' | 'completed' | 'failed';
 export type ReportCadence = 'daily' | 'weekly' | 'monthly';
 
 const REPORT_NAMES: Record<ReportType, string> = {
   program_budget: 'Program Budget & Utilization Report',
-  donor_spend:    'Donor / Grant Spend Report',
+  donor_spend: 'Donor / Grant Spend Report',
 };
 
 const CONTENT_TYPES: Record<ReportFormat, string> = {
-  pdf:  'application/pdf',
+  pdf: 'application/pdf',
   xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  csv:  'text/csv',
+  csv: 'text/csv',
 };
 
 export interface ExportRow {
-  id:           string;
-  reportType:   ReportType;
-  format:       ReportFormat;
-  status:       ExportStatus;
-  createdAt:    string;
-  completedAt:  string | null;
-  error:        string | null;
+  id: string;
+  reportType: ReportType;
+  format: ReportFormat;
+  status: ExportStatus;
+  createdAt: string;
+  completedAt: string | null;
+  error: string | null;
 }
 
 export interface ScheduleRow {
-  id:                string;
-  reportType:        ReportType;
-  format:            ReportFormat;
-  cadence:           ReportCadence;
-  recipientEmails:   string[];
+  id: string;
+  reportType: ReportType;
+  format: ReportFormat;
+  cadence: ReportCadence;
+  recipientEmails: string[];
   notifyCoordinator: boolean;
-  isActive:          boolean;
-  nextRunAt:         string;
-  lastRunAt:         string | null;
-  createdAt:         string;
+  isActive: boolean;
+  nextRunAt: string;
+  lastRunAt: string | null;
+  createdAt: string;
 }
 
 const SCHEDULE_COLUMNS = `
@@ -123,22 +131,29 @@ export const reportExportService = {
         `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, new_values)
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [
-          organizationId, ctx.userId, 'organization.report.export.request', 'organization_report_export', id,
+          organizationId,
+          ctx.userId,
+          'organization.report.export.request',
+          'organization_report_export',
+          id,
           JSON.stringify({ reportType: input.reportType, format: input.format }),
         ],
       );
       return id;
     });
 
-    const jobId = await enqueueJob('organization_report_export', { exportId }, {
-      priority:  2,
-      dedup_key: `report_export:${exportId}`,
-    });
+    const jobId = await enqueueJob(
+      'organization_report_export',
+      { exportId },
+      {
+        priority: 2,
+        dedup_key: `report_export:${exportId}`,
+      },
+    );
     if (jobId) {
-      await pool.query(
-        `UPDATE organization_report_exports SET job_id = $2 WHERE id = $1`,
-        [exportId, jobId],
-      ).catch((err) => logger.warn('[report-export] failed to record job_id', { exportId, err: String(err) }));
+      await pool
+        .query(`UPDATE organization_report_exports SET job_id = $2 WHERE id = $1`, [exportId, jobId])
+        .catch((err) => logger.warn('[report-export] failed to record job_id', { exportId, err: String(err) }));
     }
 
     return { id: exportId, status: 'pending' };
@@ -149,17 +164,19 @@ export const reportExportService = {
    * generated fresh on every call (never persisted), so it can never outlive
    * REPORT_SIGNED_URL_TTL_SECONDS from the moment this is read.
    */
-  async getExportStatus(
-    ctx: TenantContext,
-    exportId: string,
-  ): Promise<ExportRow & { downloadUrl: string | null }> {
+  async getExportStatus(ctx: TenantContext, exportId: string): Promise<ExportRow & { downloadUrl: string | null }> {
     await organizationService.assertOrganizationCoordinator(ctx);
 
     const row = await withDb(ctx, async (db) => {
       const { rows } = await db.query<{
-        id: string; report_type: ReportType; format: ReportFormat; status: ExportStatus;
-        object_path: string | null; error: string | null;
-        created_at: string; completed_at: string | null;
+        id: string;
+        report_type: ReportType;
+        format: ReportFormat;
+        status: ExportStatus;
+        object_path: string | null;
+        error: string | null;
+        created_at: string;
+        completed_at: string | null;
       }>(
         `SELECT id, report_type, format, status, object_path, error,
                 created_at::text, completed_at::text
@@ -183,8 +200,14 @@ export const reportExportService = {
     }
 
     return {
-      id: row.id, reportType: row.report_type, format: row.format, status: row.status,
-      createdAt: row.created_at, completedAt: row.completed_at, error: row.error, downloadUrl,
+      id: row.id,
+      reportType: row.report_type,
+      format: row.format,
+      status: row.status,
+      createdAt: row.created_at,
+      completedAt: row.completed_at,
+      error: row.error,
+      downloadUrl,
     };
   },
 
@@ -213,8 +236,13 @@ export const reportExportService = {
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING ${SCHEDULE_COLUMNS}`,
         [
-          organizationId, ctx.userId, input.reportType, input.format, input.cadence,
-          input.recipientEmails ?? [], input.notifyCoordinator ?? false,
+          organizationId,
+          ctx.userId,
+          input.reportType,
+          input.format,
+          input.cadence,
+          input.recipientEmails ?? [],
+          input.notifyCoordinator ?? false,
         ],
       );
       const created = rows[0]!;
@@ -222,17 +250,20 @@ export const reportExportService = {
       await db.query(
         `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, new_values)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [organizationId, ctx.userId, 'organization.report.schedule.create', 'report_schedule', created.id, JSON.stringify(created)],
+        [
+          organizationId,
+          ctx.userId,
+          'organization.report.schedule.create',
+          'report_schedule',
+          created.id,
+          JSON.stringify(created),
+        ],
       );
       return created;
     });
   },
 
-  async updateSchedule(
-    ctx: TenantContext,
-    scheduleId: string,
-    input: UpdateReportScheduleInput,
-  ): Promise<ScheduleRow> {
+  async updateSchedule(ctx: TenantContext, scheduleId: string, input: UpdateReportScheduleInput): Promise<ScheduleRow> {
     await organizationService.assertOrganizationCoordinator(ctx);
     const organizationId = orgId(ctx);
 
@@ -244,10 +275,10 @@ export const reportExportService = {
       const prev = current[0];
       if (!prev) throw new NotFoundError('Report schedule', scheduleId);
 
-      const cadence           = input.cadence ?? prev.cadence;
-      const recipientEmails   = input.recipientEmails ?? prev.recipientEmails;
+      const cadence = input.cadence ?? prev.cadence;
+      const recipientEmails = input.recipientEmails ?? prev.recipientEmails;
       const notifyCoordinator = input.notifyCoordinator ?? prev.notifyCoordinator;
-      const isActive          = input.isActive ?? prev.isActive;
+      const isActive = input.isActive ?? prev.isActive;
 
       if (!notifyCoordinator && recipientEmails.length === 0) {
         throw new ValidationError('Set at least one recipient email or enable notifyCoordinator');
@@ -266,8 +297,13 @@ export const reportExportService = {
         `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
-          organizationId, ctx.userId, 'organization.report.schedule.update', 'report_schedule', scheduleId,
-          JSON.stringify(prev), JSON.stringify(updated),
+          organizationId,
+          ctx.userId,
+          'organization.report.schedule.update',
+          'report_schedule',
+          scheduleId,
+          JSON.stringify(prev),
+          JSON.stringify(updated),
         ],
       );
       return updated;
@@ -286,12 +322,22 @@ export const reportExportService = {
       const prev = current[0];
       if (!prev) throw new NotFoundError('Report schedule', scheduleId);
 
-      await db.query(`DELETE FROM report_schedules WHERE id = $1 AND organization_id = $2`, [scheduleId, organizationId]);
+      await db.query(`DELETE FROM report_schedules WHERE id = $1 AND organization_id = $2`, [
+        scheduleId,
+        organizationId,
+      ]);
 
       await db.query(
         `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        [organizationId, ctx.userId, 'organization.report.schedule.delete', 'report_schedule', scheduleId, JSON.stringify(prev)],
+        [
+          organizationId,
+          ctx.userId,
+          'organization.report.schedule.delete',
+          'report_schedule',
+          scheduleId,
+          JSON.stringify(prev),
+        ],
       );
     });
   },
@@ -300,10 +346,7 @@ export const reportExportService = {
 // ── Job-processing internals — called from lib/jobs/handlers.ts ──────────
 
 async function getOrganizationName(organizationId: string): Promise<string> {
-  const { rows } = await pool.query<{ name: string }>(
-    `SELECT name FROM organizations WHERE id = $1`,
-    [organizationId],
-  );
+  const { rows } = await pool.query<{ name: string }>(`SELECT name FROM organizations WHERE id = $1`, [organizationId]);
   return rows[0]?.name ?? 'Organization';
 }
 
@@ -313,16 +356,33 @@ function toBuffer(data: ArrayBuffer | Buffer): Buffer {
 
 function renderProgramBudgetSheet(sheet: ExcelJS.Worksheet, lines: ProgramBudgetLine[]): void {
   sheet.addRow([
-    'Program', 'Type', 'Status', 'Budget', 'Disbursed', 'Reserved', 'Remaining',
-    'Utilization %', 'Expected %', 'Variance %', 'Starts On', 'Ends On',
+    'Program',
+    'Type',
+    'Status',
+    'Budget',
+    'Disbursed',
+    'Reserved',
+    'Remaining',
+    'Utilization %',
+    'Expected %',
+    'Variance %',
+    'Starts On',
+    'Ends On',
   ]);
   for (const l of lines) {
     sheet.addRow([
-      l.name, l.programType, l.status, l.budget, l.disbursed, l.reserved, l.remaining,
+      l.name,
+      l.programType,
+      l.status,
+      l.budget,
+      l.disbursed,
+      l.reserved,
+      l.remaining,
       Number(l.utilizationPct.toFixed(2)),
       l.expectedUtilizationPct === null ? '' : Number(l.expectedUtilizationPct.toFixed(2)),
       l.variancePct === null ? '' : Number(l.variancePct.toFixed(2)),
-      l.startsOn ?? '', l.endsOn ?? '',
+      l.startsOn ?? '',
+      l.endsOn ?? '',
     ]);
   }
 }
@@ -426,11 +486,11 @@ async function emailScheduledReport(
       templateKey: 'organization_report_ready',
       to,
       vars: {
-        reportName:      REPORT_NAMES[reportType],
+        reportName: REPORT_NAMES[reportType],
         organizationName,
         downloadUrl,
-        format:          format.toUpperCase(),
-        generatedAt:     new Date().toLocaleString('en-KE'),
+        format: format.toUpperCase(),
+        generatedAt: new Date().toLocaleString('en-KE'),
       },
       referenceType: 'organization_report_export',
     }).catch((err) => logger.warn('[report-export] scheduled report email failed', { to, err: String(err) }));
@@ -450,7 +510,10 @@ async function emailScheduledReport(
  */
 export async function processReportExport(exportId: string, opts: { isFinalAttempt: boolean }): Promise<string> {
   const { rows } = await pool.query<{
-    id: string; organization_id: string; report_type: ReportType; format: ReportFormat;
+    id: string;
+    organization_id: string;
+    report_type: ReportType;
+    format: ReportFormat;
     schedule_id: string | null;
   }>(
     `UPDATE organization_report_exports
@@ -475,18 +538,21 @@ export async function processReportExport(exportId: string, opts: { isFinalAttem
     );
 
     if (row.schedule_id) {
-      await emailScheduledReport(row.organization_id, row.schedule_id, objectPath, row.report_type, row.format)
-        .catch((err) => logger.error('[report-export] scheduled-report email failed', { exportId, err: String(err) }));
+      await emailScheduledReport(row.organization_id, row.schedule_id, objectPath, row.report_type, row.format).catch(
+        (err) => logger.error('[report-export] scheduled-report email failed', { exportId, err: String(err) }),
+      );
     }
 
     return `Report export ${exportId} completed (${row.report_type}/${row.format})`;
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     if (opts.isFinalAttempt) {
-      await pool.query(
-        `UPDATE organization_report_exports SET status = 'failed', error = $2 WHERE id = $1`,
-        [exportId, message.slice(0, 2000)],
-      ).catch(() => {});
+      await pool
+        .query(`UPDATE organization_report_exports SET status = 'failed', error = $2 WHERE id = $1`, [
+          exportId,
+          message.slice(0, 2000),
+        ])
+        .catch(() => {});
     }
     throw err;
   }
@@ -501,8 +567,11 @@ export async function processReportExport(exportId: string, opts: { isFinalAttem
  */
 export async function processDueReportSchedules(): Promise<{ processed: number }> {
   const { rows } = await pool.query<{
-    id: string; organization_id: string; created_by: string | null;
-    report_type: ReportType; format: ReportFormat;
+    id: string;
+    organization_id: string;
+    created_by: string | null;
+    report_type: ReportType;
+    format: ReportFormat;
   }>(
     `UPDATE report_schedules
      SET next_run_at = CASE cadence
@@ -531,12 +600,18 @@ export async function processDueReportSchedules(): Promise<{ processed: number }
     );
     const exportId = created[0]!.id;
 
-    const jobId = await enqueueJob('organization_report_export', { exportId }, {
-      priority:  2,
-      dedup_key: `report_export:${exportId}`,
-    });
+    const jobId = await enqueueJob(
+      'organization_report_export',
+      { exportId },
+      {
+        priority: 2,
+        dedup_key: `report_export:${exportId}`,
+      },
+    );
     if (jobId) {
-      await pool.query(`UPDATE organization_report_exports SET job_id = $2 WHERE id = $1`, [exportId, jobId]).catch(() => {});
+      await pool
+        .query(`UPDATE organization_report_exports SET job_id = $2 WHERE id = $1`, [exportId, jobId])
+        .catch(() => {});
     }
   }
 

@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 export const CreateSettlementSchema = z.object({
   bankAccountId: z.string().uuid(),
-  amount:        z.number().positive(),
-  notes:         z.string().max(1000).optional(),
+  amount: z.number().positive(),
+  notes: z.string().max(1000).optional(),
 });
 export type CreateSettlementPayload = z.input<typeof CreateSettlementSchema>;
 

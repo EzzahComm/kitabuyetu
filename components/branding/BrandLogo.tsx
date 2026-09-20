@@ -45,21 +45,13 @@ export function BrandLogo({
 
   if (href) {
     return (
-      <Link
-        href={href}
-        className={cn('inline-flex items-center', className)}
-        aria-label={alt}
-      >
+      <Link href={href} className={cn('inline-flex items-center', className)} aria-label={alt}>
         {img}
       </Link>
     );
   }
 
-  return (
-    <span className={cn('inline-flex items-center', className)}>
-      {img}
-    </span>
-  );
+  return <span className={cn('inline-flex items-center', className)}>{img}</span>;
 }
 
 export default BrandLogo;

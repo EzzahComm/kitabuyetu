@@ -27,10 +27,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 
       return ok({
         items: items.map((r) => ({
-          organizationId:   r.id,
+          organizationId: r.id,
           organizationName: r.name,
           organizationType: r.type,
-          orgRole:          r.org_role,
+          orgRole: r.org_role,
         })),
       });
     } catch (err) {

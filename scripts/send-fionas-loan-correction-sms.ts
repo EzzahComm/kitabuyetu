@@ -19,15 +19,24 @@ import { withAdminDb } from '@/lib/db';
 import { smsService } from '@/lib/services/sms.service';
 import type { TenantContext } from '@/lib/db';
 
-const SEND    = process.argv.includes('--send');
+const SEND = process.argv.includes('--send');
 const PAYBILL = process.env.MPESA_SHORTCODE ?? '';
 
 interface Row {
-  loan_id: string; member_id: string; first_name: string; phone: string;
-  membership_no: string; group_id: string; group_name: string;
-  principal_amount: string; total_repayable: string;
-  interest_rate: string; interest_method: string;
-  first_inst: string; first_due: string; n: string;
+  loan_id: string;
+  member_id: string;
+  first_name: string;
+  phone: string;
+  membership_no: string;
+  group_id: string;
+  group_name: string;
+  principal_amount: string;
+  total_repayable: string;
+  interest_rate: string;
+  interest_method: string;
+  first_inst: string;
+  first_due: string;
+  n: string;
 }
 
 async function main() {
@@ -61,11 +70,11 @@ async function main() {
   for (const r of rows) {
     const method = r.interest_method === 'reducing_balance' ? 'reducing balance' : 'flat';
     const message =
-      `Dear ${r.first_name}, correction to our earlier message: your KES ${whole(r.principal_amount)} loan `
-      + `from ${r.group_name} is at ${Number(r.interest_rate)}% per month ${method}. `
-      + `Repay ${r.n} monthly instalments of KES ${money(r.first_inst)} `
-      + `(total KES ${money(r.total_repayable)}) from ${r.first_due}. `
-      + `M-Pesa Paybill ${PAYBILL}, Account ${r.membership_no}L. Sorry for the confusion.`;
+      `Dear ${r.first_name}, correction to our earlier message: your KES ${whole(r.principal_amount)} loan ` +
+      `from ${r.group_name} is at ${Number(r.interest_rate)}% per month ${method}. ` +
+      `Repay ${r.n} monthly instalments of KES ${money(r.first_inst)} ` +
+      `(total KES ${money(r.total_repayable)}) from ${r.first_due}. ` +
+      `M-Pesa Paybill ${PAYBILL}, Account ${r.membership_no}L. Sorry for the confusion.`;
 
     if (!SEND) {
       console.log(`\n[DRY RUN] ${r.first_name} ${r.phone} (${message.length} chars)\n${message}`);
@@ -74,12 +83,22 @@ async function main() {
 
     const ctx = { groupId: r.group_id, userId: r.member_id, role: 'chairperson' } as TenantContext;
     const logs = await smsService.send(ctx, r.phone, message, 'loan', r.loan_id);
-    console.log(`QUEUED ${r.first_name} ${r.phone} -> ${logs.map((l) => l.status).join(',') || 'suppressed (opted out)'}`);
+    console.log(
+      `QUEUED ${r.first_name} ${r.phone} -> ${logs.map((l) => l.status).join(',') || 'suppressed (opted out)'}`,
+    );
   }
 
-  console.log(SEND ? '\nQueued. Local dispatch 401s on placeholder provider creds; production\'s'
-                   + ' sms_retry_failed sweep delivers them within ~5 minutes.'
-                   : '\nDry run only — pass --send to dispatch.');
+  console.log(
+    SEND
+      ? "\nQueued. Local dispatch 401s on placeholder provider creds; production's" +
+          ' sms_retry_failed sweep delivers them within ~5 minutes.'
+      : '\nDry run only — pass --send to dispatch.',
+  );
 }
 
-main().then(() => process.exit(0)).catch((err) => { console.error(err); process.exit(1); });
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

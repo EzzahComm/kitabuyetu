@@ -23,10 +23,10 @@ const columns: PaginatedTableColumn<GroupMemberRow>[] = [
     header: 'Name',
     render: (m) => (
       <div>
-        <p className="font-medium text-foreground">{m.first_name} {m.last_name}</p>
-        {m.membership_no ? (
-          <p className="text-xs text-muted-foreground">{m.membership_no}</p>
-        ) : null}
+        <p className="font-medium text-foreground">
+          {m.first_name} {m.last_name}
+        </p>
+        {m.membership_no ? <p className="text-xs text-muted-foreground">{m.membership_no}</p> : null}
       </div>
     ),
   },
@@ -44,9 +44,8 @@ const columns: PaginatedTableColumn<GroupMemberRow>[] = [
     // The one non-obvious column on this page: birthday automation is a
     // headline feature, and it silently skips anyone with no date of birth.
     // Showing the gap is what lets someone close it.
-    render: (m) => m.date_of_birth
-      ? formatDate(m.date_of_birth)
-      : <span className="text-muted-foreground">Not set</span>,
+    render: (m) =>
+      m.date_of_birth ? formatDate(m.date_of_birth) : <span className="text-muted-foreground">Not set</span>,
   },
   {
     key: 'status',
@@ -56,7 +55,7 @@ const columns: PaginatedTableColumn<GroupMemberRow>[] = [
 ];
 
 export default function ReminderMembersPage() {
-  const [page, setPage]     = useState(1);
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState('');
 
   const { data, isLoading, isError, error } = useMembers({
@@ -72,7 +71,10 @@ export default function ReminderMembersPage() {
       <Input
         placeholder="Search by name or phone…"
         value={search}
-        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+        onChange={(e) => {
+          setSearch(e.target.value);
+          setPage(1);
+        }}
         className="max-w-sm"
       />
 

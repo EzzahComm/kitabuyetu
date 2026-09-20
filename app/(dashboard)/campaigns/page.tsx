@@ -21,9 +21,9 @@ import { formatKES, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
 
 const createSchema = z.object({
-  title:           z.string().min(3).max(120),
-  story:           z.string().min(20).max(10_000),
-  targetAmount:    z.coerce.number().positive(),
+  title: z.string().min(3).max(120),
+  story: z.string().min(20).max(10_000),
+  targetAmount: z.coerce.number().positive(),
   beneficiaryName: z.string().optional(),
 });
 
@@ -43,7 +43,10 @@ export default function CampaignsPage() {
   const onSubmit = async (values: CreateCampaignForm) => {
     try {
       const campaign = await createCampaign.mutateAsync(values);
-      toast({ title: 'Campaign created as a draft', description: 'Submit it for review when you’re ready to go live.' });
+      toast({
+        title: 'Campaign created as a draft',
+        description: 'Submit it for review when you’re ready to go live.',
+      });
       setOpen(false);
       form.reset();
       router.push(`/campaigns/${campaign.id}`);
@@ -73,7 +76,8 @@ export default function CampaignsPage() {
           <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
             <p className="text-base font-semibold">No campaigns yet</p>
             <p className="max-w-md text-sm text-muted-foreground">
-              Create your group&apos;s first Changi$ha campaign to start raising funds for a cause. It goes live once approved.
+              Create your group&apos;s first Changi$ha campaign to start raising funds for a cause. It goes live once
+              approved.
             </p>
             {canManage && (
               <Button onClick={() => setOpen(true)}>
@@ -94,9 +98,7 @@ export default function CampaignsPage() {
                   </div>
                   <div>
                     <p className="text-lg font-bold tabular-nums">{formatKES(c.amount_raised)}</p>
-                    <p className="text-xs text-muted-foreground">
-                      raised of {formatKES(c.target_amount)} target
-                    </p>
+                    <p className="text-xs text-muted-foreground">raised of {formatKES(c.target_amount)} target</p>
                   </div>
                 </CardContent>
               </Card>
@@ -120,7 +122,12 @@ export default function CampaignsPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="story">Story</Label>
-              <Textarea id="story" rows={5} {...form.register('story')} placeholder="What is this campaign for, and why does it matter?" />
+              <Textarea
+                id="story"
+                rows={5}
+                {...form.register('story')}
+                placeholder="What is this campaign for, and why does it matter?"
+              />
               {form.formState.errors.story && (
                 <p className="text-xs text-destructive">{form.formState.errors.story.message}</p>
               )}
@@ -134,7 +141,11 @@ export default function CampaignsPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="beneficiaryName">Beneficiary (optional)</Label>
-              <Input id="beneficiaryName" {...form.register('beneficiaryName')} placeholder="Who benefits from this campaign?" />
+              <Input
+                id="beneficiaryName"
+                {...form.register('beneficiaryName')}
+                placeholder="Who benefits from this campaign?"
+              />
             </div>
             <DialogFooter>
               <Button type="submit" disabled={createCampaign.isPending}>

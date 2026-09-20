@@ -1,9 +1,7 @@
 import { z } from 'zod';
 import { HR_EMPLOYMENT_TYPES } from './hr.schema';
 
-export const JOB_APPLICATION_STAGES = [
-  'applied', 'screening', 'interview', 'offer', 'hired', 'rejected',
-] as const;
+export const JOB_APPLICATION_STAGES = ['applied', 'screening', 'interview', 'offer', 'hired', 'rejected'] as const;
 
 export const SubmitApplicationSchema = z.object({
   jobSlug: z.string().trim().min(1, 'jobSlug is required'),

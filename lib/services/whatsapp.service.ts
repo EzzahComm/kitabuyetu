@@ -4,42 +4,43 @@ import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { normalizePhone, isValidKenyanPhone } from '@/lib/utils/phone';
 import { sendText, isWhatsAppConfigured } from '@/lib/integrations/whatsapp-client';
 import type {
-  SendWhatsAppMessageInput, WhatsAppQueryInput, WhatsAppMessageStatus,
+  SendWhatsAppMessageInput,
+  WhatsAppQueryInput,
+  WhatsAppMessageStatus,
 } from '@/lib/validators/whatsapp.schema';
 
 // ── Public types ────────────────────────────────────────────────────────
 
 export interface WhatsAppMessage {
-  id:              string;
-  group_id:        string;
-  member_id:       string | null;
-  direction:       'outbound' | 'inbound';
-  to_phone:        string;
-  from_phone:      string | null;
-  message_type:    string;
-  body:            string | null;
-  template_name:   string | null;
-  template_vars:   unknown;
-  status:          WhatsAppMessageStatus;
-  wa_message_id:   string | null;
-  error_code:      string | null;
-  error_message:   string | null;
-  sent_by:         string | null;
-  sent_at:         string | null;
-  delivered_at:    string | null;
-  read_at:         string | null;
-  failed_at:       string | null;
-  created_at:      string;
+  id: string;
+  group_id: string;
+  member_id: string | null;
+  direction: 'outbound' | 'inbound';
+  to_phone: string;
+  from_phone: string | null;
+  message_type: string;
+  body: string | null;
+  template_name: string | null;
+  template_vars: unknown;
+  status: WhatsAppMessageStatus;
+  wa_message_id: string | null;
+  error_code: string | null;
+  error_message: string | null;
+  sent_by: string | null;
+  sent_at: string | null;
+  delivered_at: string | null;
+  read_at: string | null;
+  failed_at: string | null;
+  created_at: string;
 
   // Joined fields for list/detail views.
   member_first_name?: string | null;
-  member_last_name?:  string | null;
+  member_last_name?: string | null;
 }
 
 // ── Service ────────────────────────────────────────────────────────────
 
 export const whatsappService = {
-
   /** Whether the Cloud API is configured. UI uses this to render a banner. */
   isConfigured(): boolean {
     return isWhatsAppConfigured();
@@ -54,7 +55,7 @@ export const whatsappService = {
   async send(ctx: TenantContext, input: SendWhatsAppMessageInput): Promise<WhatsAppMessage> {
     return withTransaction(ctx, async (client) => {
       let memberId: string | null = input.memberId ?? null;
-      let toPhone:  string;
+      let toPhone: string;
 
       if (memberId) {
         const member = await fetchGroupMemberWithPhone(client, ctx.groupId, memberId);
@@ -78,9 +79,7 @@ export const whatsappService = {
       const result = await sendText({ to: toPhone, body: input.body });
 
       const status: WhatsAppMessageStatus =
-        result.status === 'sent'    ? 'sent'
-      : result.status === 'failed'  ? 'failed'
-      : 'dry_run';
+        result.status === 'sent' ? 'sent' : result.status === 'failed' ? 'failed' : 'dry_run';
 
       const { rows } = await client.query<WhatsAppMessage>(
         `INSERT INTO whatsapp_messages (
@@ -98,10 +97,13 @@ export const whatsappService = {
          )
          RETURNING *`,
         [
-          ctx.groupId, memberId, toPhone,
-          input.body, status,
+          ctx.groupId,
+          memberId,
+          toPhone,
+          input.body,
+          status,
           result.status === 'sent' ? result.waMessageId : null,
-          result.status === 'failed' ? result.errorCode    : null,
+          result.status === 'failed' ? result.errorCode : null,
           result.status === 'failed' ? result.errorMessage : null,
           ctx.userId,
         ],
@@ -124,10 +126,19 @@ export const whatsappService = {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
       const conds: string[] = ['w.group_id = $1'];
-      const vals:  unknown[] = [ctx.groupId];
-      if (params.status)    { conds.push(`w.status    = $${vals.length + 1}::whatsapp_message_status`);    vals.push(params.status); }
-      if (params.direction) { conds.push(`w.direction = $${vals.length + 1}::whatsapp_message_direction`); vals.push(params.direction); }
-      if (params.memberId)  { conds.push(`w.member_id = $${vals.length + 1}`); vals.push(params.memberId); }
+      const vals: unknown[] = [ctx.groupId];
+      if (params.status) {
+        conds.push(`w.status    = $${vals.length + 1}::whatsapp_message_status`);
+        vals.push(params.status);
+      }
+      if (params.direction) {
+        conds.push(`w.direction = $${vals.length + 1}::whatsapp_message_direction`);
+        vals.push(params.direction);
+      }
+      if (params.memberId) {
+        conds.push(`w.member_id = $${vals.length + 1}`);
+        vals.push(params.memberId);
+      }
 
       const where = conds.join(' AND ');
 
@@ -148,8 +159,10 @@ export const whatsappService = {
 
       const total = parseInt(cnt[0].count, 10);
       return {
-        items, total,
-        page: params.page, pageSize: params.limit,
+        items,
+        total,
+        page: params.page,
+        pageSize: params.limit,
         totalPages: Math.max(1, Math.ceil(total / params.limit)),
       };
     });
@@ -175,7 +188,7 @@ export const whatsappService = {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 async function fetchGroupMemberWithPhone(
-  client:  PoolClient,
+  client: PoolClient,
   groupId: string,
   memberId: string,
 ): Promise<{ id: string; phone: string }> {
@@ -186,16 +199,12 @@ async function fetchGroupMemberWithPhone(
       WHERE m.id = $2`,
     [groupId, memberId],
   );
-  if (!rows[0])         throw new NotFoundError('Group member', memberId);
-  if (!rows[0].phone)   throw new ValidationError('Member has no phone number on file');
+  if (!rows[0]) throw new NotFoundError('Group member', memberId);
+  if (!rows[0].phone) throw new ValidationError('Member has no phone number on file');
   return rows[0];
 }
 
-async function fetchMemberByPhoneIfInGroup(
-  client:  PoolClient,
-  groupId: string,
-  phone:   string,
-): Promise<string | null> {
+async function fetchMemberByPhoneIfInGroup(client: PoolClient, groupId: string, phone: string): Promise<string | null> {
   const { rows } = await client.query<{ id: string }>(
     `SELECT m.id
        FROM members m
@@ -209,7 +218,7 @@ async function fetchMemberByPhoneIfInGroup(
 
 async function writeAuditLog(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   resourceId: string,
   payload: Record<string, unknown>,

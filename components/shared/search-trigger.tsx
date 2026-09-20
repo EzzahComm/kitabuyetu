@@ -11,24 +11,24 @@ import { cn } from '@/lib/utils';
  */
 const V = {
   admin: {
-    btn:  'group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-muted border border-border rounded-lg hover:bg-accent transition-colors',
+    btn: 'group relative flex w-full items-center h-8 pl-8 pr-2 text-sm bg-muted border border-border rounded-lg hover:bg-accent transition-colors',
     icon: 'absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground',
     text: 'text-muted-foreground truncate',
-    kbd:  'ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-background px-1 text-[10px] font-mono text-muted-foreground',
+    kbd: 'ml-auto hidden sm:inline-flex h-4 select-none items-center gap-0.5 rounded border border-border bg-background px-1 text-[10px] font-mono text-muted-foreground',
   },
   dashboard: {
-    btn:  'group relative flex h-9 w-full items-center rounded-lg border bg-muted/40 pl-8 pr-2 text-sm hover:bg-muted transition-colors',
+    btn: 'group relative flex h-9 w-full items-center rounded-lg border bg-muted/40 pl-8 pr-2 text-sm hover:bg-muted transition-colors',
     icon: 'absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground',
     text: 'truncate text-muted-foreground',
-    kbd:  'ml-auto hidden h-4 select-none items-center gap-0.5 rounded border bg-background px-1 font-mono text-[10px] text-muted-foreground sm:inline-flex',
+    kbd: 'ml-auto hidden h-4 select-none items-center gap-0.5 rounded border bg-background px-1 font-mono text-[10px] text-muted-foreground sm:inline-flex',
   },
 } as const;
 
 interface SearchTriggerProps {
-  onOpen:      () => void;
+  onOpen: () => void;
   placeholder: string;
-  variant:     keyof typeof V;
-  className?:  string;
+  variant: keyof typeof V;
+  className?: string;
 }
 
 export function SearchTrigger({ onOpen, placeholder, variant, className }: SearchTriggerProps) {

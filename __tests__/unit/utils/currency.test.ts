@@ -1,10 +1,4 @@
-import {
-  toDecimal,
-  addDecimal,
-  subtractDecimal,
-  multiplyDecimal,
-  toMpesaAmount,
-} from '@/lib/utils/currency';
+import { toDecimal, addDecimal, subtractDecimal, multiplyDecimal, toMpesaAmount } from '@/lib/utils/currency';
 
 describe('toDecimal', () => {
   it('rounds to 2 decimal places', () => {

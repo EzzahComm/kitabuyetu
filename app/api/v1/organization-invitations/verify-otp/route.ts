@@ -6,7 +6,10 @@ import { ok, handleError } from '@/lib/utils/response';
 
 const Schema = z.object({
   token: z.string().min(32).max(128),
-  otp:   z.string().length(6).regex(/^\d{6}$/, 'OTP must be 6 digits'),
+  otp: z
+    .string()
+    .length(6)
+    .regex(/^\d{6}$/, 'OTP must be 6 digits'),
 });
 
 /** POST /api/v1/organization-invitations/verify-otp — public. */

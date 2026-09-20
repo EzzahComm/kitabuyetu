@@ -63,13 +63,17 @@ describe('sendBulkCampaign dispatch exception handling (H5)', () => {
     const phones = ['254700000020', '254700000021'];
 
     const [{ sms_credits: before }] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
 
     mockSendBulkSmsChunked.mockRejectedValueOnce(new Error('ETIMEDOUT'));
 
     const result = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test',
+      groupId,
+      phones,
+      message: 'reminder',
+      sentBy: 'test',
     });
 
     // Nothing sent, but the call did not throw out of sendBulkCampaign.
@@ -89,7 +93,8 @@ describe('sendBulkCampaign dispatch exception handling (H5)', () => {
     // Never accepted by the provider, so the reservation must be released,
     // not consumed — no charge for a send that never happened.
     const [{ sms_credits: after }] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
     expect(after).toBe(before);
 
@@ -121,12 +126,17 @@ describe('sendBulkCampaign dispatch exception handling (H5)', () => {
     mockSendBulkSmsChunked.mockRejectedValueOnce(new Error('ECONNRESET'));
 
     const result = await smsService.sendBulkCampaign({
-      groupId, phones, message: 'reminder', sentBy: 'test', campaignId,
+      groupId,
+      phones,
+      message: 'reminder',
+      sentBy: 'test',
+      campaignId,
     });
     expect(result.failed).toBe(3);
 
     const [campaign] = await rawQuery<{ status: string; sent_count: number; failed_count: number }>(
-      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
     expect(campaign.status).toBe('completed');
     expect(campaign.sent_count).toBe(0);

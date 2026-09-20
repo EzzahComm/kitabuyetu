@@ -13,68 +13,75 @@
  * ──────────────────────────────────────────────────────────────────────────── */
 
 export const ROUTES = {
-  home:          '/',
-  signIn:        '/login',
-  startGroup:    '/register',
-  pricing:       '/pricing',
-  contact:       '/contact',
-  support:       '/support',
-  docs:          '/docs',
-  status:        '/status',
-  resources:     '/resources',
+  home: '/',
+  signIn: '/login',
+  startGroup: '/register',
+  pricing: '/pricing',
+  contact: '/contact',
+  support: '/support',
+  docs: '/docs',
+  status: '/status',
+  resources: '/resources',
 
   // About
-  about:         '/about',
-  aboutTeam:     '/about/team',
-  aboutImpact:   '/about/impact',
+  about: '/about',
+  aboutTeam: '/about/team',
+  aboutImpact: '/about/impact',
 
   // Products
-  products:      '/products',
-  bookkeeper:    '/bookkeeper',
+  products: '/products',
+  bookkeeper: '/bookkeeper',
   chamaReminder: '/chama-reminder',
-  fundraise:     '/fundraise',
+  fundraise: '/fundraise',
   // Deliberately NOT `/enterprise` — that path is the authenticated
   // organization portal (`app/(enterprise)/enterprise`), a real logged-in
   // dashboard, not a marketing page. Reusing it for a public pitch would put
   // a sign-in gate where a prospect expects a description of the product.
-  enterprise:    '/enterprise-solutions',
+  enterprise: '/enterprise-solutions',
 
   // Ecosystem
-  ecosystem:               '/ecosystem',
-  ecosystemDonors:         '/ecosystem/donors',
-  ecosystemOrganizations:  '/ecosystem/organizations',
-  ecosystemMarketplace:    '/ecosystem/marketplace',
-  ecosystemPrograms:       '/ecosystem/programs',
+  ecosystem: '/ecosystem',
+  ecosystemDonors: '/ecosystem/donors',
+  ecosystemOrganizations: '/ecosystem/organizations',
+  ecosystemMarketplace: '/ecosystem/marketplace',
+  ecosystemPrograms: '/ecosystem/programs',
 
   // Legal — stub pages only. See the note on LEGAL_LINKS below for why.
-  legalTerms:            '/legal/terms',
-  legalPrivacy:          '/legal/privacy',
-  legalDataProtection:   '/legal/data-protection',
+  legalTerms: '/legal/terms',
+  legalPrivacy: '/legal/privacy',
+  legalDataProtection: '/legal/data-protection',
 
   // Careers
-  careers:       '/careers',
+  careers: '/careers',
 
-  memberApp:     '/me',
-  orgPortal:     '/enterprise',
-  backoffice:    '/admin-login',
+  memberApp: '/me',
+  orgPortal: '/enterprise',
+  backoffice: '/admin-login',
 } as const;
 
 /** In-page anchors on the home page, referenced from the header and footer —
  *  so the ids are declared once instead of as loose strings in three files. */
 export const SECTION_IDS = {
-  solution:   'what-it-does',
-  showcase:   'product',
+  solution: 'what-it-does',
+  showcase: 'product',
   howItWorks: 'how-it-works',
-  ecosystem:  'ecosystem',
-  payments:   'payments',
-  pricing:    'pricing',
+  ecosystem: 'ecosystem',
+  payments: 'payments',
+  pricing: 'pricing',
 } as const;
 
-export interface NavLink { label: string; href: string; description?: string }
+export interface NavLink {
+  label: string;
+  href: string;
+  description?: string;
+}
 
 /** A top-nav item that opens a dropdown of related pages, rather than
  *  navigating directly. */
-export interface NavGroup { label: string; items: NavLink[] }
+export interface NavGroup {
+  label: string;
+  items: NavLink[];
+}
 
 export type NavEntry = NavLink | NavGroup;
 
@@ -83,28 +90,56 @@ export function isNavGroup(entry: NavEntry): entry is NavGroup {
 }
 
 export const ABOUT_ITEMS: NavLink[] = [
-  { label: 'Our Story', href: ROUTES.about, description: 'Why Kitabu Yetu exists, and the problem it set out to solve.' },
-  { label: 'Our Team',  href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
-  { label: 'Impact',    href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
+  {
+    label: 'Our Story',
+    href: ROUTES.about,
+    description: 'Why Kitabu Yetu exists, and the problem it set out to solve.',
+  },
+  { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
+  { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
 ];
 
 export const PRODUCT_ITEMS: NavLink[] = [
-  { label: 'Bookkeeper',     href: ROUTES.bookkeeper, description: 'Contributions, loans, welfare, shares and a real ledger.' },
-  { label: 'Chama Reminder', href: ROUTES.chamaReminder, description: 'SMS reminders and announcements, no ledger required.' },
-  { label: 'Fundraise / Changi$ha', href: ROUTES.fundraise, description: 'Public campaigns and M-Pesa collections for a cause.' },
-  { label: 'Enterprise',     href: ROUTES.enterprise, description: 'Multi-group and multi-organization management.' },
+  {
+    label: 'Bookkeeper',
+    href: ROUTES.bookkeeper,
+    description: 'Contributions, loans, welfare, shares and a real ledger.',
+  },
+  {
+    label: 'Chama Reminder',
+    href: ROUTES.chamaReminder,
+    description: 'SMS reminders and announcements, no ledger required.',
+  },
+  {
+    label: 'Fundraise / Changi$ha',
+    href: ROUTES.fundraise,
+    description: 'Public campaigns and M-Pesa collections for a cause.',
+  },
+  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Multi-group and multi-organization management.' },
 ];
 
 export const ECOSYSTEM_ITEMS: NavLink[] = [
-  { label: 'Donors',                  href: ROUTES.ecosystemDonors, description: 'Discover, support and monitor groups and projects.' },
-  { label: 'Multigroup Organizations', href: ROUTES.ecosystemOrganizations, description: 'One login, every group and branch you run.' },
-  { label: 'Marketplace',             href: ROUTES.ecosystemMarketplace, description: 'Products, services and financial partners for groups.' },
-  { label: 'Programs',                href: ROUTES.ecosystemPrograms, description: 'Grants, opportunities and interventions for qualifying groups.' },
+  { label: 'Donors', href: ROUTES.ecosystemDonors, description: 'Discover, support and monitor groups and projects.' },
+  {
+    label: 'Multigroup Organizations',
+    href: ROUTES.ecosystemOrganizations,
+    description: 'One login, every group and branch you run.',
+  },
+  {
+    label: 'Marketplace',
+    href: ROUTES.ecosystemMarketplace,
+    description: 'Products, services and financial partners for groups.',
+  },
+  {
+    label: 'Programs',
+    href: ROUTES.ecosystemPrograms,
+    description: 'Grants, opportunities and interventions for qualifying groups.',
+  },
 ];
 
 export const PRICING_ITEMS: NavLink[] = [
-  { label: 'Kitabu Yetu',      href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
-  { label: 'Chama Reminder',   href: ROUTES.pricing, description: 'SMS reminders and group announcements.' },
+  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
+  { label: 'Chama Reminder', href: ROUTES.pricing, description: 'SMS reminders and group announcements.' },
 ];
 
 /**
@@ -114,22 +149,23 @@ export const PRICING_ITEMS: NavLink[] = [
  * parallel lists that can drift apart.
  */
 export const NAV_ITEMS: NavEntry[] = [
-  { label: 'Home',          href: ROUTES.home },
-  { label: 'About',         items: ABOUT_ITEMS },
-  { label: 'Products',      items: PRODUCT_ITEMS },
-  { label: 'Ecosystem',     items: ECOSYSTEM_ITEMS },
-  { label: 'How it works',  href: `/#${SECTION_IDS.howItWorks}` },
-  { label: 'Pricing',       items: PRICING_ITEMS },
-  { label: 'Contact',       href: ROUTES.contact },
+  { label: 'Home', href: ROUTES.home },
+  { label: 'About', items: ABOUT_ITEMS },
+  { label: 'Products', items: PRODUCT_ITEMS },
+  { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
+  { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
+  { label: 'Pricing', items: PRICING_ITEMS },
+  { label: 'Contact', href: ROUTES.contact },
 ];
 
 /** Flattened for anywhere that still just needs "every real nav destination"
  *  (e.g. a sitemap or a flat search index), without the dropdown grouping. */
-export const NAV_LINKS: NavLink[] = NAV_ITEMS.flatMap((entry) =>
-  isNavGroup(entry) ? entry.items : [entry],
-);
+export const NAV_LINKS: NavLink[] = NAV_ITEMS.flatMap((entry) => (isNavGroup(entry) ? entry.items : [entry]));
 
-export interface FooterColumn { heading: string; links: NavLink[] }
+export interface FooterColumn {
+  heading: string;
+  links: NavLink[];
+}
 
 /**
  * Privacy and Terms (app/legal/privacy, app/legal/terms) hold real policy
@@ -152,36 +188,36 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: 'Resources',
     links: [
-      { label: 'Blog',        href: ROUTES.resources },
-      { label: 'Guides',      href: `${ROUTES.resources}?category=guide` },
+      { label: 'Blog', href: ROUTES.resources },
+      { label: 'Guides', href: `${ROUTES.resources}?category=guide` },
       { label: 'Case studies', href: `${ROUTES.resources}?category=case-study` },
     ],
   },
   {
     heading: 'Company',
     links: [
-      { label: 'Our Story',    href: ROUTES.about },
-      { label: 'Team',         href: ROUTES.aboutTeam },
-      { label: 'Impact',       href: ROUTES.aboutImpact },
-      { label: 'Careers',      href: ROUTES.careers },
+      { label: 'Our Story', href: ROUTES.about },
+      { label: 'Team', href: ROUTES.aboutTeam },
+      { label: 'Impact', href: ROUTES.aboutImpact },
+      { label: 'Careers', href: ROUTES.careers },
       { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
-      { label: 'Pricing',      href: ROUTES.pricing },
-      { label: 'Contact',      href: ROUTES.contact },
+      { label: 'Pricing', href: ROUTES.pricing },
+      { label: 'Contact', href: ROUTES.contact },
     ],
   },
   {
     heading: 'Legal',
     links: [
       { label: 'Terms & Conditions', href: ROUTES.legalTerms },
-      { label: 'Privacy Policy',     href: ROUTES.legalPrivacy },
-      { label: 'Data Protection',    href: ROUTES.legalDataProtection },
+      { label: 'Privacy Policy', href: ROUTES.legalPrivacy },
+      { label: 'Data Protection', href: ROUTES.legalDataProtection },
     ],
   },
 ];
 
 /** Contact details, matching what the shipped footer already publishes. */
 export const CONTACT = {
-  email:  'info@kitabuyetu.co.ke',
+  email: 'info@kitabuyetu.co.ke',
   phones: ['+254 717 548 646', '+254 738 692 698'],
-  city:   'Nairobi, Kenya',
+  city: 'Nairobi, Kenya',
 } as const;

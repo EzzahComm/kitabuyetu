@@ -25,7 +25,7 @@ import type { NeedsGroupSelection } from '@/types/api.types';
 // and prompts for selection only when the member is in multiple groups.
 const schema = z.object({
   identifier: z.string().min(1, 'Phone number or email is required'),
-  password:   z.string().min(1, 'Password is required'),
+  password: z.string().min(1, 'Password is required'),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -44,11 +44,17 @@ export default function LoginPage() {
   // When the member is in multiple groups, the API responds with this list
   // and we render a chooser instead of redirecting.
   const [pendingGroups, setPendingGroups] = useState<NeedsGroupSelection['groups'] | null>(null);
-  const [submitting,    setSubmitting]    = useState(false);
-  const [showPassword,  setShowPassword]  = useState(false);
-  const [rememberMe,    setRememberMe]    = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
-  const { register, handleSubmit, getValues, setValue, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    getValues,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -56,8 +62,7 @@ export default function LoginPage() {
     // Already signed in and landed on /login. Resolve entitlements so a
     // reminder-only group is not bounced into a Kitabu Yetu shell it cannot use.
     if (user) {
-      void resolvePostLoginPath(isTenantUser(user) ? user.groupRole : undefined)
-        .then((path) => router.replace(path));
+      void resolvePostLoginPath(isTenantUser(user) ? user.groupRole : undefined).then((path) => router.replace(path));
     }
   }, [user, router]);
 
@@ -85,14 +90,14 @@ export default function LoginPage() {
         return;
       }
       if (rememberMe) localStorage.setItem(REMEMBERED_IDENTIFIER_KEY, values.identifier);
-      else            localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
+      else localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
       login(result);
       router.push(await resolvePostLoginPath(result.member.groupRole));
     } catch (err) {
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({
-        variant:     'destructive',
-        title:       'Sign in failed',
+        variant: 'destructive',
+        title: 'Sign in failed',
         description: `${getErrorMessage(err)}${code}`,
       });
     } finally {
@@ -214,8 +219,8 @@ export default function LoginPage() {
           Organization staff?{' '}
           <Link href="/enterprise/login" className="text-brand-600 hover:underline font-medium">
             Sign in here
-          </Link>
-          {' '}· Kitabu Yetu team?{' '}
+          </Link>{' '}
+          · Kitabu Yetu team?{' '}
           <Link href="/admin-login" className="text-brand-600 hover:underline font-medium">
             Sign in here
           </Link>

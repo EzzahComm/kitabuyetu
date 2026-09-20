@@ -3,8 +3,15 @@
 import { useCallback, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
-  ArrowLeft, Download, FileText, Loader2, RotateCcw,
-  Upload, AlertTriangle, CheckCircle2, XCircle,
+  ArrowLeft,
+  Download,
+  FileText,
+  Loader2,
+  RotateCcw,
+  Upload,
+  AlertTriangle,
+  CheckCircle2,
+  XCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -30,34 +37,38 @@ import { useHasPermission } from '@/lib/auth/use-permission';
  * import_jobs row and the page only needs the current job's id.
  */
 
-interface ImportRowError { row: number; message: string; raw?: Record<string, string> }
+interface ImportRowError {
+  row: number;
+  message: string;
+  raw?: Record<string, string>;
+}
 interface PreparedRow {
-  row_num:           number;
-  phone:             string;
-  first_name:        string;
-  middle_name:       string | null;
-  last_name:         string;
-  email:             string | null;
-  county_id:         string | null;
-  occupation:        string | null;
-  role:              string;
-  joined_at:         string | null;
-  warnings:          string[];
+  row_num: number;
+  phone: string;
+  first_name: string;
+  middle_name: string | null;
+  last_name: string;
+  email: string | null;
+  county_id: string | null;
+  occupation: string | null;
+  role: string;
+  joined_at: string | null;
+  warnings: string[];
 }
 interface ImportJob {
-  id:                 string;
-  status:             'previewed' | 'committed' | 'cancelled' | 'rolled_back' | 'failed';
-  filename:           string | null;
-  total_rows:         number;
-  valid_rows:         number;
-  error_rows:         number;
-  errors:             ImportRowError[];
-  preview_rows?:      PreparedRow[];
+  id: string;
+  status: 'previewed' | 'committed' | 'cancelled' | 'rolled_back' | 'failed';
+  filename: string | null;
+  total_rows: number;
+  valid_rows: number;
+  error_rows: number;
+  errors: ImportRowError[];
+  preview_rows?: PreparedRow[];
   created_member_ids: string[];
-  imported?:          number;
-  skipped?:           number;
-  deleted?:           number;
-  blocked?:           { memberId: string; reason: string }[];
+  imported?: number;
+  skipped?: number;
+  deleted?: number;
+  blocked?: { memberId: string; reason: string }[];
 }
 
 type Phase = 'idle' | 'uploading' | 'preview' | 'committing' | 'result';
@@ -65,38 +76,45 @@ type Phase = 'idle' | 'uploading' | 'preview' | 'committing' | 'result';
 const PREVIEW_VISIBLE_ROWS = 25;
 
 export default function MembersImportPage() {
-  const [phase, setPhase]   = useState<Phase>('idle');
-  const [job,   setJob]     = useState<ImportJob | null>(null);
+  const [phase, setPhase] = useState<Phase>('idle');
+  const [job, setJob] = useState<ImportJob | null>(null);
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — see data-import/page.tsx; this is
   // the sibling native-confirm() rollback guard.
   const [rollbackOpen, setRollbackOpen] = useState(false);
-  const { toast }           = useToast();
+  const { toast } = useToast();
 
-  const canPreview  = useHasPermission('import.preview');
-  const canCancel   = useHasPermission('import.cancel');
-  const canCommit   = useHasPermission('import.commit');
+  const canPreview = useHasPermission('import.preview');
+  const canCancel = useHasPermission('import.cancel');
+  const canCommit = useHasPermission('import.commit');
   const canRollback = useHasPermission('import.rollback');
 
   // ── Upload & preview ───────────────────────────────────────────────────
 
-  const uploadFile = useCallback(async (file: File) => {
-    if (!file.name.toLowerCase().endsWith('.csv')) {
-      toast({ variant: 'destructive', title: 'CSV only', description: 'Excel (.xlsx) support is coming in a follow-up phase. Save as CSV and try again.' });
-      return;
-    }
-    setPhase('uploading');
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const result = await api.upload<ImportJob>('/import/preview?type=members', formData);
-      setJob(result);
-      setPhase('preview');
-    } catch (err) {
-      setPhase('idle');
-      const msg = err instanceof ApiError ? err.message : 'Upload failed';
-      toast({ variant: 'destructive', title: 'Upload failed', description: msg });
-    }
-  }, [toast]);
+  const uploadFile = useCallback(
+    async (file: File) => {
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        toast({
+          variant: 'destructive',
+          title: 'CSV only',
+          description: 'Excel (.xlsx) support is coming in a follow-up phase. Save as CSV and try again.',
+        });
+        return;
+      }
+      setPhase('uploading');
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const result = await api.upload<ImportJob>('/import/preview?type=members', formData);
+        setJob(result);
+        setPhase('preview');
+      } catch (err) {
+        setPhase('idle');
+        const msg = err instanceof ApiError ? err.message : 'Upload failed';
+        toast({ variant: 'destructive', title: 'Upload failed', description: msg });
+      }
+    },
+    [toast],
+  );
 
   // ── Commit / discard ───────────────────────────────────────────────────
 
@@ -153,10 +171,12 @@ export default function MembersImportPage() {
       {phase === 'idle' && <IdleView onUpload={uploadFile} canPreview={canPreview} />}
 
       {phase === 'uploading' && (
-        <Card><CardContent className="flex items-center justify-center gap-3 py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="text-muted-foreground">Parsing and validating your file…</span>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="flex items-center justify-center gap-3 py-12">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="text-muted-foreground">Parsing and validating your file…</span>
+          </CardContent>
+        </Card>
       )}
 
       {phase === 'preview' && job && (
@@ -164,14 +184,24 @@ export default function MembersImportPage() {
       )}
 
       {phase === 'committing' && (
-        <Card><CardContent className="flex items-center justify-center gap-3 py-12">
-          <Loader2 className="h-6 w-6 animate-spin" />
-          <span className="text-muted-foreground">Adding members to your group…</span>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="flex items-center justify-center gap-3 py-12">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <span className="text-muted-foreground">Adding members to your group…</span>
+          </CardContent>
+        </Card>
       )}
 
       {phase === 'result' && job && (
-        <ResultView job={job} onRollback={() => setRollbackOpen(true)} onStartOver={() => { setJob(null); setPhase('idle'); }} canRollback={canRollback} />
+        <ResultView
+          job={job}
+          onRollback={() => setRollbackOpen(true)}
+          onStartOver={() => {
+            setJob(null);
+            setPhase('idle');
+          }}
+          canRollback={canRollback}
+        />
       )}
 
       <ConfirmDialog
@@ -190,12 +220,14 @@ export default function MembersImportPage() {
 // ── Idle: drag-drop + template download ─────────────────────────────────
 
 function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; canPreview: boolean }) {
-  const [drag, setDrag]         = useState(false);
+  const [drag, setDrag] = useState(false);
   const [downloading, setDownloading] = useState(false);
-  const inputEl                 = useRef<HTMLInputElement>(null);
-  const { toast }               = useToast();
+  const inputEl = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
-  const handleFile = (f: File | undefined) => { if (f && canPreview) onUpload(f); };
+  const handleFile = (f: File | undefined) => {
+    if (f && canPreview) onUpload(f);
+  };
 
   const downloadTemplate = async () => {
     setDownloading(true);
@@ -217,12 +249,21 @@ function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; ca
   return (
     <div className="grid gap-4 md:grid-cols-3">
       <Card className="md:col-span-2">
-        <CardHeader><CardTitle>Upload CSV</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Upload CSV</CardTitle>
+        </CardHeader>
         <CardContent>
           <div
-            onDragOver={(e) => { e.preventDefault(); if (canPreview) setDrag(true); }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              if (canPreview) setDrag(true);
+            }}
             onDragLeave={() => setDrag(false)}
-            onDrop={(e) => { e.preventDefault(); setDrag(false); handleFile(e.dataTransfer.files?.[0]); }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDrag(false);
+              handleFile(e.dataTransfer.files?.[0]);
+            }}
             onClick={() => canPreview && inputEl.current?.click()}
             role="button"
             tabIndex={canPreview ? 0 : -1}
@@ -245,30 +286,40 @@ function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; ca
               className="hidden"
               aria-label="Upload CSV file"
               disabled={!canPreview}
-              onChange={(e) => { handleFile(e.target.files?.[0]); e.target.value = ''; }}
+              onChange={(e) => {
+                handleFile(e.target.files?.[0]);
+                e.target.value = '';
+              }}
             />
           </div>
         </CardContent>
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="flex items-center gap-2"><FileText className="h-5 w-5" /> Template</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <FileText className="h-5 w-5" /> Template
+          </CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3 text-sm">
           <p className="text-muted-foreground">
-            Use the canonical column names. Headers are case-insensitive and accept common aliases
-            (e.g. <code className="rounded bg-muted px-1">First Name</code>,
+            Use the canonical column names. Headers are case-insensitive and accept common aliases (e.g.{' '}
+            <code className="rounded bg-muted px-1">First Name</code>,
             <code className="ml-1 rounded bg-muted px-1">firstName</code>).
           </p>
-          <p className="text-muted-foreground"><strong>Required:</strong> phone, first_name, last_name</p>
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={downloadTemplate}
-            disabled={downloading}
-          >
-            {downloading
-              ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading…</>
-              : <><Download className="mr-2 h-4 w-4" /> Download template</>}
+          <p className="text-muted-foreground">
+            <strong>Required:</strong> phone, first_name, last_name
+          </p>
+          <Button variant="outline" className="w-full" onClick={downloadTemplate} disabled={downloading}>
+            {downloading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Downloading…
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-4 w-4" /> Download template
+              </>
+            )}
           </Button>
         </CardContent>
       </Card>
@@ -278,13 +329,23 @@ function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; ca
 
 // ── Preview: errors + sample rows + commit/discard CTAs ─────────────────
 
-function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
-  job: ImportJob; onCommit: () => void; onDiscard: () => void; canCommit: boolean; canCancel: boolean;
+function PreviewView({
+  job,
+  onCommit,
+  onDiscard,
+  canCommit,
+  canCancel,
+}: {
+  job: ImportJob;
+  onCommit: () => void;
+  onDiscard: () => void;
+  canCommit: boolean;
+  canCancel: boolean;
 }) {
   const rows = job.preview_rows ?? [];
   const visible = rows.slice(0, PREVIEW_VISIBLE_ROWS);
   const hiddenCount = Math.max(rows.length - PREVIEW_VISIBLE_ROWS, 0);
-  const hasErrors   = job.error_rows > 0;
+  const hasErrors = job.error_rows > 0;
 
   return (
     <div className="space-y-4">
@@ -298,19 +359,28 @@ function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
       </div>
 
       {job.filename && (
-        <p className="text-sm text-muted-foreground">File: <span className="font-mono">{job.filename}</span></p>
+        <p className="text-sm text-muted-foreground">
+          File: <span className="font-mono">{job.filename}</span>
+        </p>
       )}
 
       {job.errors.length > 0 && (
         <Card>
-          <CardHeader><CardTitle className="flex items-center gap-2 text-amber-600">
-            <AlertTriangle className="h-5 w-5" /> Issues ({job.errors.length})
-          </CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-amber-600">
+              <AlertTriangle className="h-5 w-5" /> Issues ({job.errors.length})
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <ul className="max-h-64 space-y-1 overflow-y-auto text-sm">
               {job.errors.slice(0, 100).map((e, i) => (
                 <li key={i} className="font-mono">
-                  {e.row > 0 ? <span className="text-muted-foreground">row {e.row}:</span> : <span className="text-amber-600">file:</span>} {e.message}
+                  {e.row > 0 ? (
+                    <span className="text-muted-foreground">row {e.row}:</span>
+                  ) : (
+                    <span className="text-amber-600">file:</span>
+                  )}{' '}
+                  {e.message}
                 </li>
               ))}
               {job.errors.length > 100 && (
@@ -323,7 +393,11 @@ function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
 
       {visible.length > 0 && (
         <Card>
-          <CardHeader><CardTitle>Preview ({visible.length} of {rows.length})</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>
+              Preview ({visible.length} of {rows.length})
+            </CardTitle>
+          </CardHeader>
           <CardContent>
             <PaginatedTable
               data={singlePage(visible.map((r) => ({ ...r, id: String(r.row_num) })))}
@@ -331,30 +405,47 @@ function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
               onPageChange={() => {}}
               emptyMessage="No rows to preview"
               columns={[
-                { key: 'row_num', header: 'Row', render: (r) => <span className="font-mono text-xs">{r.row_num}</span> },
+                {
+                  key: 'row_num',
+                  header: 'Row',
+                  render: (r) => <span className="font-mono text-xs">{r.row_num}</span>,
+                },
                 { key: 'phone', header: 'Phone', render: (r) => <span className="font-mono">{r.phone}</span> },
-                { key: 'name', header: 'Name', render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' ') },
+                {
+                  key: 'name',
+                  header: 'Name',
+                  render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' '),
+                },
                 { key: 'role', header: 'Role', render: (r) => <Badge variant="secondary">{r.role}</Badge> },
                 { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
                 { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '—' },
                 {
-                  key: 'warnings', header: 'Warnings', render: (r) => (
-                    r.warnings.length > 0
-                      ? <span className="text-amber-600">{r.warnings.join('; ')}</span>
-                      : <span className="text-muted-foreground">—</span>
-                  ),
+                  key: 'warnings',
+                  header: 'Warnings',
+                  render: (r) =>
+                    r.warnings.length > 0 ? (
+                      <span className="text-amber-600">{r.warnings.join('; ')}</span>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    ),
                 },
               ]}
             />
             {hiddenCount > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground">…and {hiddenCount} more row(s). They’ll all be imported on confirm.</p>
+              <p className="mt-3 text-xs text-muted-foreground">
+                …and {hiddenCount} more row(s). They’ll all be imported on confirm.
+              </p>
             )}
           </CardContent>
         </Card>
       )}
 
       <div className="flex justify-end gap-3">
-        {canCancel && <Button variant="outline" onClick={onDiscard}>Discard</Button>}
+        {canCancel && (
+          <Button variant="outline" onClick={onDiscard}>
+            Discard
+          </Button>
+        )}
         {canCommit && (
           <Button onClick={onCommit} disabled={job.valid_rows === 0}>
             Confirm import ({job.valid_rows} member{job.valid_rows === 1 ? '' : 's'})
@@ -367,37 +458,57 @@ function PreviewView({ job, onCommit, onDiscard, canCommit, canCancel }: {
 
 // ── Result: outcome + rollback CTA ──────────────────────────────────────
 
-function ResultView({ job, onRollback, onStartOver, canRollback }: {
-  job: ImportJob; onRollback: () => void; onStartOver: () => void; canRollback: boolean;
+function ResultView({
+  job,
+  onRollback,
+  onStartOver,
+  canRollback,
+}: {
+  job: ImportJob;
+  onRollback: () => void;
+  onStartOver: () => void;
+  canRollback: boolean;
 }) {
-  const isCommitted  = job.status === 'committed';
+  const isCommitted = job.status === 'committed';
   const isRolledBack = job.status === 'rolled_back';
 
   return (
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          {isRolledBack
-            ? <><XCircle className="h-5 w-5 text-muted-foreground" /> Import rolled back</>
-            : isCommitted
-              ? <><CheckCircle2 className="h-5 w-5 text-green-600" /> Import complete</>
-              : <><AlertTriangle className="h-5 w-5 text-amber-600" /> Import {job.status}</>}
+          {isRolledBack ? (
+            <>
+              <XCircle className="h-5 w-5 text-muted-foreground" /> Import rolled back
+            </>
+          ) : isCommitted ? (
+            <>
+              <CheckCircle2 className="h-5 w-5 text-green-600" /> Import complete
+            </>
+          ) : (
+            <>
+              <AlertTriangle className="h-5 w-5 text-amber-600" /> Import {job.status}
+            </>
+          )}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-3">
           <StatCard title="Imported" value={job.imported ?? job.created_member_ids.length} />
-          <StatCard title="Skipped"  value={job.skipped  ?? 0} />
+          <StatCard title="Skipped" value={job.skipped ?? 0} />
           {/* Not converted: amber only when error_rows > 0 — same real-signal
               exception as the preview view above. */}
-          <SummaryCard label="Errors"   value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
+          <SummaryCard label="Errors" value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
         </div>
 
-        {isRolledBack && (job.deleted !== undefined) && (
+        {isRolledBack && job.deleted !== undefined && (
           <p className="text-sm">
             Removed <strong>{job.deleted}</strong> member(s).
             {(job.blocked?.length ?? 0) > 0 && (
-              <> <strong>{job.blocked!.length}</strong> kept because they have dependent records (membership removed from this group).</>
+              <>
+                {' '}
+                <strong>{job.blocked!.length}</strong> kept because they have dependent records (membership removed from
+                this group).
+              </>
             )}
           </p>
         )}
@@ -408,7 +519,8 @@ function ResultView({ job, onRollback, onStartOver, canRollback }: {
             <ul className="mt-2 max-h-64 space-y-1 overflow-y-auto text-sm">
               {job.errors.map((e, i) => (
                 <li key={i} className="font-mono">
-                  {e.row > 0 ? `row ${e.row}: ` : 'file: '}{e.message}
+                  {e.row > 0 ? `row ${e.row}: ` : 'file: '}
+                  {e.message}
                 </li>
               ))}
             </ul>
@@ -416,8 +528,12 @@ function ResultView({ job, onRollback, onStartOver, canRollback }: {
         )}
 
         <div className="flex justify-end gap-3">
-          <Button asChild variant="outline"><Link href="/members">Back to members</Link></Button>
-          <Button variant="outline" onClick={onStartOver}>Import another file</Button>
+          <Button asChild variant="outline">
+            <Link href="/members">Back to members</Link>
+          </Button>
+          <Button variant="outline" onClick={onStartOver}>
+            Import another file
+          </Button>
           {isCommitted && (job.created_member_ids?.length ?? 0) > 0 && canRollback && (
             <Button variant="destructive" onClick={onRollback}>
               <RotateCcw className="mr-2 h-4 w-4" /> Roll back

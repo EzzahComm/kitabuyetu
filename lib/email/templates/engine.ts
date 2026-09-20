@@ -7,10 +7,10 @@ export interface TemplateVars {
 }
 
 export interface BrandingContext {
-  senderName?:   string;
-  logoUrl?:      string;
+  senderName?: string;
+  logoUrl?: string;
   primaryColor?: string;
-  footerText?:   string;
+  footerText?: string;
 }
 
 // Simple {{variable}} substitution
@@ -35,44 +35,40 @@ export async function loadDbTemplate(
   groupId: string | null,
   locale = 'en',
 ): Promise<{ subject: string; body: string } | null> {
-  return cached(
-    keys.cache('email-template', `${templateKey}:${groupId ?? ''}:${locale}`),
-    300,
-    async () => {
-      const { rows } = await withAdminDb((db) =>
-        db.query(
-          `SELECT subject, body FROM email_templates
+  return cached(keys.cache('email-template', `${templateKey}:${groupId ?? ''}:${locale}`), 300, async () => {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT subject, body FROM email_templates
            WHERE template_key=$1
              AND (group_id=$2 OR group_id IS NULL)
              AND locale=$3
              AND is_active=true
            ORDER BY group_id NULLS LAST
            LIMIT 1`,
-          [templateKey, groupId, locale],
-        ),
-      );
-      if (rows.length) return { subject: rows[0].subject, body: rows[0].body };
+        [templateKey, groupId, locale],
+      ),
+    );
+    if (rows.length) return { subject: rows[0].subject, body: rows[0].body };
 
-      // Fallback to 'en' if locale not found
-      if (locale !== 'en') {
-        const { rows: fallback } = await withAdminDb((db) =>
-          db.query(
-            `SELECT subject, body FROM email_templates
+    // Fallback to 'en' if locale not found
+    if (locale !== 'en') {
+      const { rows: fallback } = await withAdminDb((db) =>
+        db.query(
+          `SELECT subject, body FROM email_templates
              WHERE template_key=$1
                AND (group_id=$2 OR group_id IS NULL)
                AND locale='en'
                AND is_active=true
              ORDER BY group_id NULLS LAST
              LIMIT 1`,
-            [templateKey, groupId],
-          ),
-        );
-        if (fallback.length) return { subject: fallback[0].subject, body: fallback[0].body };
-      }
+          [templateKey, groupId],
+        ),
+      );
+      if (fallback.length) return { subject: fallback[0].subject, body: fallback[0].body };
+    }
 
-      return null;
-    },
-  );
+    return null;
+  });
 }
 
 // Load group branding from DB. Cached 5 minutes — group_email_branding has
@@ -105,9 +101,9 @@ export async function loadBranding(groupId: string | null): Promise<BrandingCont
 // Wrap body content in a branded HTML shell. Designed for email clients —
 // inline styles, table-based layout, no JS, no external CSS.
 export function wrapWithBranding(content: string, branding: BrandingContext): string {
-  const primary    = branding.primaryColor ?? BRAND.colors.green;
-  const logoUrl    = branding.logoUrl      ?? getBrandLogoUrl();
-  const footerText = branding.footerText   ?? brandFooterLine();
+  const primary = branding.primaryColor ?? BRAND.colors.green;
+  const logoUrl = branding.logoUrl ?? getBrandLogoUrl();
+  const footerText = branding.footerText ?? brandFooterLine();
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -177,7 +173,9 @@ export async function renderTemplate(
     const html = wrapWithBranding(interpolate(fallbackHtml, vars), branding);
     const subject = fallbackSubject
       ? interpolate(fallbackSubject, vars)
-      : (vars.subject ? String(vars.subject) : 'Kitabu Yetu');
+      : vars.subject
+        ? String(vars.subject)
+        : 'Kitabu Yetu';
     return { subject, html };
   }
 

@@ -4,8 +4,17 @@ import * as React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard, Network, Users2, Banknote, FileBarChart,
-  KeyRound, Palette, ScrollText, Menu, Building2, Receipt,
+  LayoutDashboard,
+  Network,
+  Users2,
+  Banknote,
+  FileBarChart,
+  KeyRound,
+  Palette,
+  ScrollText,
+  Menu,
+  Building2,
+  Receipt,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -92,13 +101,10 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
     }
   }, [user, audience, isLoading, router]);
 
-  const ready = !isLoading
-    && !!user
-    && audience === 'backoffice'
-    && ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
+  const ready =
+    !isLoading && !!user && audience === 'backoffice' && ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
 
-  const isActive = (href: string) =>
-    href === '/enterprise' ? pathname === href : pathname.startsWith(href);
+  const isActive = (href: string) => (href === '/enterprise' ? pathname === href : pathname.startsWith(href));
 
   if (!ready) {
     return (
@@ -129,11 +135,19 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
         sections={NAV}
         isActive={isActive}
         widthExpanded="w-[260px]"
-        preNav={<div className="border-b p-3"><WorkspaceSwitcher /></div>}
+        preNav={
+          <div className="border-b p-3">
+            <WorkspaceSwitcher />
+          </div>
+        }
         logo={() => (
           <Link href="/enterprise" className="flex items-center gap-2">
-            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">K</span>
-            <span className="text-sm font-semibold text-foreground">Kitabu <span className="text-brand-600">Enterprise</span></span>
+            <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand-500 text-sm font-bold text-white">
+              K
+            </span>
+            <span className="text-sm font-semibold text-foreground">
+              Kitabu <span className="text-brand-600">Enterprise</span>
+            </span>
           </Link>
         )}
       />
@@ -141,7 +155,12 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <header className="flex h-14 shrink-0 items-center gap-3 border-b bg-background px-4">
-          <button type="button" onClick={() => setOpen(true)} className="rounded-md p-1.5 text-muted-foreground hover:bg-muted lg:hidden" aria-label="Open menu">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted lg:hidden"
+            aria-label="Open menu"
+          >
             <Menu size={18} />
           </button>
           {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md M4 — the notification bell that
@@ -153,7 +172,9 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
               signed-in user's own initials. */}
           <div className="ml-auto flex items-center gap-3">
             <div className="hidden text-right leading-tight sm:block">
-              <p className="text-xs font-medium text-foreground">{user.firstName} {user.lastName}</p>
+              <p className="text-xs font-medium text-foreground">
+                {user.firstName} {user.lastName}
+              </p>
               <p className="text-[11px] text-muted-foreground">{user.email}</p>
             </div>
             <span

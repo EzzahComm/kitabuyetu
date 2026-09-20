@@ -25,7 +25,9 @@ export function getSupabaseAdminClient(): SupabaseClient | null {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) {
-    logger.warn('[supabase/admin-client] NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — Storage-backed features are unavailable');
+    logger.warn(
+      '[supabase/admin-client] NEXT_PUBLIC_SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY not set — Storage-backed features are unavailable',
+    );
     client = null;
     return client;
   }

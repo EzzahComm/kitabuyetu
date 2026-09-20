@@ -9,7 +9,10 @@
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import {
-  evaluateEligibility, evaluateEligibilityDetailed, getGroupEligibilityData, updateOpportunity,
+  evaluateEligibility,
+  evaluateEligibilityDetailed,
+  getGroupEligibilityData,
+  updateOpportunity,
   type Opportunity,
 } from '@/lib/services/ecosystem.service';
 import { NotFoundError } from '@/lib/utils/errors';
@@ -18,7 +21,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -33,24 +36,55 @@ function opportunityWithRules(rules: unknown[]): Opportunity {
 describe('evaluateEligibility — rule types', () => {
   it('range: before_or_equal passes when the group is old enough', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Founded early', type: 'range', field: 'created_at', operator: 'before_or_equal', value: '2026-06-01', error_message: 'Too new' },
+      {
+        id: 'r1',
+        name: 'Founded early',
+        type: 'range',
+        field: 'created_at',
+        operator: 'before_or_equal',
+        value: '2026-06-01',
+        error_message: 'Too new',
+      },
     ]);
-    const result = await evaluateEligibility(opp, { type: 'chama', created_at: new Date('2026-01-01'), cash_balance: 0 });
+    const result = await evaluateEligibility(opp, {
+      type: 'chama',
+      created_at: new Date('2026-01-01'),
+      cash_balance: 0,
+    });
     expect(result.matches).toBe(true);
   });
 
   it('range: fails a group founded after the cutoff', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Founded early', type: 'range', field: 'created_at', operator: 'before_or_equal', value: '2026-01-01', error_message: 'Too new' },
+      {
+        id: 'r1',
+        name: 'Founded early',
+        type: 'range',
+        field: 'created_at',
+        operator: 'before_or_equal',
+        value: '2026-01-01',
+        error_message: 'Too new',
+      },
     ]);
-    const result = await evaluateEligibility(opp, { type: 'chama', created_at: new Date('2026-06-01'), cash_balance: 0 });
+    const result = await evaluateEligibility(opp, {
+      type: 'chama',
+      created_at: new Date('2026-06-01'),
+      cash_balance: 0,
+    });
     expect(result.matches).toBe(false);
     expect(result.failed_rules).toEqual(['r1']);
   });
 
   it('enum_whitelist: passes when the group type is in the allowed list', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Chama or SACCO', type: 'enum_whitelist', field: 'type', values: ['chama', 'sacco'], error_message: 'Wrong type' },
+      {
+        id: 'r1',
+        name: 'Chama or SACCO',
+        type: 'enum_whitelist',
+        field: 'type',
+        values: ['chama', 'sacco'],
+        error_message: 'Wrong type',
+      },
     ]);
     const result = await evaluateEligibility(opp, { type: 'sacco', created_at: new Date(), cash_balance: 0 });
     expect(result.matches).toBe(true);
@@ -58,16 +92,37 @@ describe('evaluateEligibility — rule types', () => {
 
   it('geo: fails when the county is not in the allowed list', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Nairobi only', type: 'geo', field: 'county', values: ['Nairobi'], error_message: 'Wrong county' },
+      {
+        id: 'r1',
+        name: 'Nairobi only',
+        type: 'geo',
+        field: 'county',
+        values: ['Nairobi'],
+        error_message: 'Wrong county',
+      },
     ]);
-    const result = await evaluateEligibility(opp, { type: 'chama', created_at: new Date(), cash_balance: 0, county: 'Kiambu' });
+    const result = await evaluateEligibility(opp, {
+      type: 'chama',
+      created_at: new Date(),
+      cash_balance: 0,
+      county: 'Kiambu',
+    });
     expect(result.matches).toBe(false);
   });
 
   it('financial: supports all four operators', async () => {
-    const makeOpp = (operator: string, value: number) => opportunityWithRules([
-      { id: 'r1', name: 'Balance', type: 'financial', field: 'cash_balance', operator, value, error_message: 'Balance' },
-    ]);
+    const makeOpp = (operator: string, value: number) =>
+      opportunityWithRules([
+        {
+          id: 'r1',
+          name: 'Balance',
+          type: 'financial',
+          field: 'cash_balance',
+          operator,
+          value,
+          error_message: 'Balance',
+        },
+      ]);
     const groupData = { type: 'chama', created_at: new Date(), cash_balance: 500 };
 
     expect((await evaluateEligibility(makeOpp('>=', 500), groupData)).matches).toBe(true);
@@ -78,7 +133,13 @@ describe('evaluateEligibility — rule types', () => {
 
   it('external_check always passes (stubbed pending Phase 8.2 3rd-party integration)', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Credit check', type: 'external_check', function: 'checkCreditBureau', error_message: 'Failed check' },
+      {
+        id: 'r1',
+        name: 'Credit check',
+        type: 'external_check',
+        function: 'checkCreditBureau',
+        error_message: 'Failed check',
+      },
     ]);
     const result = await evaluateEligibility(opp, { type: 'chama', created_at: new Date(), cash_balance: 0 });
     expect(result.matches).toBe(true);
@@ -103,10 +164,29 @@ describe('evaluateEligibility — rule types', () => {
 describe('evaluateEligibilityDetailed', () => {
   it('maps failed rule ids back to the full rule objects for display', async () => {
     const opp = opportunityWithRules([
-      { id: 'r1', name: 'Balance too low', type: 'financial', field: 'cash_balance', operator: '>=', value: 10000, error_message: 'Need KES 10,000' },
-      { id: 'r2', name: 'Any type', type: 'enum_whitelist', field: 'type', values: ['chama', 'sacco'], error_message: 'Wrong type' },
+      {
+        id: 'r1',
+        name: 'Balance too low',
+        type: 'financial',
+        field: 'cash_balance',
+        operator: '>=',
+        value: 10000,
+        error_message: 'Need KES 10,000',
+      },
+      {
+        id: 'r2',
+        name: 'Any type',
+        type: 'enum_whitelist',
+        field: 'type',
+        values: ['chama', 'sacco'],
+        error_message: 'Wrong type',
+      },
     ]);
-    const { matches, failedRules } = await evaluateEligibilityDetailed(opp, { type: 'chama', created_at: new Date(), cash_balance: 0 });
+    const { matches, failedRules } = await evaluateEligibilityDetailed(opp, {
+      type: 'chama',
+      created_at: new Date(),
+      cash_balance: 0,
+    });
 
     expect(matches).toBe(false);
     expect(failedRules).toHaveLength(1);
@@ -122,12 +202,19 @@ describe('getGroupEligibilityData', () => {
   });
 
   it('computes cash_balance as contributions + shares - loans', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ type: 'chama', created_at: new Date('2026-01-01'), county: 'Nairobi' }] });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ type: 'chama', created_at: new Date('2026-01-01'), county: 'Nairobi' }],
+    });
     mockQuery.mockResolvedValueOnce({ rows: [{ contributions: '10000', shares: '5000', loans: '3000' }] });
 
     const result = await getGroupEligibilityData(mockClient as unknown as PoolClient, 'grp-1');
 
-    expect(result).toEqual({ type: 'chama', created_at: new Date('2026-01-01'), cash_balance: 12000, county: 'Nairobi' });
+    expect(result).toEqual({
+      type: 'chama',
+      created_at: new Date('2026-01-01'),
+      cash_balance: 12000,
+      county: 'Nairobi',
+    });
   });
 });
 
@@ -140,8 +227,9 @@ describe('updateOpportunity', () => {
 
   it('throws NotFoundError for an unknown opportunity', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(updateOpportunity({ userId: 'admin-1' }, 'ghost', { title: 'New title' }))
-      .rejects.toBeInstanceOf(NotFoundError);
+    await expect(updateOpportunity({ userId: 'admin-1' }, 'ghost', { title: 'New title' })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('casts eligibility_rules to jsonb and logs an audit entry', async () => {

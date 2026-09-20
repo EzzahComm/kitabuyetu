@@ -24,7 +24,13 @@ function humanize(s: string): string {
  * states are instantly scannable and consistent across every portal.
  */
 export function StatusPill({
-  status, tone: toneOverride, dot = true, label, size = 'md', className, ...props
+  status,
+  tone: toneOverride,
+  dot = true,
+  label,
+  size = 'md',
+  className,
+  ...props
 }: StatusPillProps) {
   const t = toneOverride ?? statusTone(status);
   const c = toneMap[t];
@@ -38,9 +44,7 @@ export function StatusPill({
       style={{ color: c.fg, backgroundColor: c.bg, borderColor: c.border }}
       {...props}
     >
-      {dot && (
-        <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.solid }} aria-hidden />
-      )}
+      {dot && <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: c.solid }} aria-hidden />}
       {label ?? humanize(status)}
     </span>
   );

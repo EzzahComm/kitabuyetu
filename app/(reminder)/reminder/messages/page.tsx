@@ -12,7 +12,7 @@ import { FailuresTab, ReminderHistoryTab } from '@/components/sms/ops-tabs';
  * message rather than a separate activity.
  */
 const SUB_TABS = [
-  { key: 'compose',   label: 'Compose',   icon: Send },
+  { key: 'compose', label: 'Compose', icon: Send },
   { key: 'scheduled', label: 'Scheduled', icon: Clock },
   // A Chama Reminder group sends, so it owes its members the same right to
   // object as any other group — and with no inbound STOP handling, an officer
@@ -20,9 +20,9 @@ const SUB_TABS = [
   // (SMS-REAUDIT-2026-09-02 F1).
   // Chama Reminder IS the automations product, so its history and its failed
   // sends matter here at least as much as on the full portal.
-  { key: 'failures',  label: 'Failed',      icon: AlertTriangle },
-  { key: 'history',   label: 'Automations', icon: History },
-  { key: 'optouts',   label: 'Opt-outs',    icon: BellOff },
+  { key: 'failures', label: 'Failed', icon: AlertTriangle },
+  { key: 'history', label: 'Automations', icon: History },
+  { key: 'optouts', label: 'Opt-outs', icon: BellOff },
 ] as const;
 
 type SubTab = (typeof SUB_TABS)[number]['key'];
@@ -52,11 +52,11 @@ export default function ReminderMessagesPage() {
         ))}
       </div>
 
-      {tab === 'compose'   && <ComposeTab />}
+      {tab === 'compose' && <ComposeTab />}
       {tab === 'scheduled' && <SchedulesTab />}
-      {tab === 'failures'  && <FailuresTab />}
-      {tab === 'history'   && <ReminderHistoryTab />}
-      {tab === 'optouts'   && <OptOutsTab />}
+      {tab === 'failures' && <FailuresTab />}
+      {tab === 'history' && <ReminderHistoryTab />}
+      {tab === 'optouts' && <OptOutsTab />}
     </div>
   );
 }

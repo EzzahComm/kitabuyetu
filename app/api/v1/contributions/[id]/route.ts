@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const { id } = await params;
   return withPermission(req, 'contributions.record', async (auth) => {
     const input = UpdateContributionSchema.parse(await req.json());
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await contributionsService.update(ctx, id, input));
   });
 }

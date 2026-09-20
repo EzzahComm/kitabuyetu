@@ -22,16 +22,18 @@ const phoneSchema = z.object({
 type PhoneFormValues = z.infer<typeof phoneSchema>;
 
 const resetSchema = z.object({
-  otp:      z.string().length(6, 'Enter the 6-digit code'),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-               .regex(/[A-Z]/, 'Must contain an uppercase letter')
-               .regex(/[0-9]/, 'Must contain a number'),
+  otp: z.string().length(6, 'Enter the 6-digit code'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Must contain an uppercase letter')
+    .regex(/[0-9]/, 'Must contain a number'),
 });
 type ResetFormValues = z.infer<typeof resetSchema>;
 
 export default function ForgotPasswordPage() {
   const { toast } = useToast();
-  const [step, setStep]   = useState<Step>('phone');
+  const [step, setStep] = useState<Step>('phone');
   const [phone, setPhone] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
@@ -147,7 +149,10 @@ export default function ForgotPasswordPage() {
               </button>
               <button
                 type="button"
-                onClick={() => { setStep('phone'); resetForm.reset(); }}
+                onClick={() => {
+                  setStep('phone');
+                  resetForm.reset();
+                }}
                 className="text-muted-foreground hover:underline"
               >
                 Use a different number

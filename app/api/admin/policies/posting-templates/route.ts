@@ -21,7 +21,9 @@ export async function GET(req: NextRequest): Promise<Response> {
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const input = SetPostingTemplateSchema.parse(await req.json());
-    await withAdminDb((client) => postingTemplatesService.setPlatformDefault(auth.userId, client, input.event, input.lines));
+    await withAdminDb((client) =>
+      postingTemplatesService.setPlatformDefault(auth.userId, client, input.event, input.lines),
+    );
     return ok(await withAdminDb((client) => postingTemplatesService.getPlatformTemplates(client)));
   });
 }

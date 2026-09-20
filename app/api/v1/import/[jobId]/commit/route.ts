@@ -4,7 +4,9 @@ import { withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
 import { errorResponse, ok } from '@/lib/utils/response';
 
-interface RouteParams { params: Promise<{ jobId: string }> }
+interface RouteParams {
+  params: Promise<{ jobId: string }>;
+}
 
 /**
  * POST /api/v1/import/[jobId]/commit
@@ -21,9 +23,9 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<R
     // if not found; handleError on the outer chain converts that to JSON.
     const job = await importService.getJob(ctx, jobId);
 
-    if (job.kind === 'members')       return ok(await importService.commitMembers(ctx, jobId));
+    if (job.kind === 'members') return ok(await importService.commitMembers(ctx, jobId));
     if (job.kind === 'contributions') return ok(await importService.commitContributions(ctx, jobId));
-    if (job.kind === 'loans')         return ok(await importService.commitLoans(ctx, jobId));
+    if (job.kind === 'loans') return ok(await importService.commitLoans(ctx, jobId));
 
     return errorResponse(`Unsupported import kind: ${job.kind}`, 'VALIDATION_ERROR', 422);
   });

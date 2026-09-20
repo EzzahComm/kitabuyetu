@@ -31,15 +31,16 @@ async function restoreSeededPricing(): Promise<void> {
 
 async function tierIdsNamed(names: string[]): Promise<string[]> {
   const rows = await rawQuery<{ id: string }>(
-    `SELECT id FROM sms_pricing_tiers WHERE name = ANY($1::text[]) ORDER BY display_order`, [names],
+    `SELECT id FROM sms_pricing_tiers WHERE name = ANY($1::text[]) ORDER BY display_order`,
+    [names],
   );
   return rows.map((r) => r.id);
 }
 
 async function auditCount(action: string): Promise<number> {
-  const [row] = await rawQuery<{ count: string }>(
-    `SELECT count(*)::text AS count FROM audit_logs WHERE action = $1`, [action],
-  );
+  const [row] = await rawQuery<{ count: string }>(`SELECT count(*)::text AS count FROM audit_logs WHERE action = $1`, [
+    action,
+  ]);
   return Number(row.count);
 }
 
@@ -63,11 +64,15 @@ describe('super-admin SMS pricing controls (§12)', () => {
       expect(await getUnitPrice(20_000)).toBe(0.9); // flat band today
 
       const volumeIds = await tierIdsNamed([
-        'Volume 1–5k', 'Volume 5k–10k', 'Volume 10k–50k', 'Volume 50k–100k', 'Volume 100k+',
+        'Volume 1–5k',
+        'Volume 5k–10k',
+        'Volume 10k–50k',
+        'Volume 50k–100k',
+        'Volume 100k+',
       ]);
       await smsPricingAdminService.setActiveTiers(actorId, volumeIds);
 
-      expect(await getUnitPrice(20_000)).toBe(0.7);  // now volume-priced
+      expect(await getUnitPrice(20_000)).toBe(0.7); // now volume-priced
       expect(await getUnitPrice(200_000)).toBe(0.5);
     });
 
@@ -76,21 +81,23 @@ describe('super-admin SMS pricing controls (§12)', () => {
       // not. Deferring to COMMIT means an invalid request changes nothing.
       const overlapping = await tierIdsNamed(['Standard', 'Volume 1–5k']); // both cover 0-5000
 
-      await expect(
-        smsPricingAdminService.setActiveTiers(actorId, overlapping),
-      ).rejects.toThrow(/exclusion|overlap/i);
+      await expect(smsPricingAdminService.setActiveTiers(actorId, overlapping)).rejects.toThrow(/exclusion|overlap/i);
 
       // Still exactly the seeded flat band, still pricing.
       expect(await getUnitPrice(20_000)).toBe(0.9);
-      const active = await rawQuery<{ name: string }>(
-        `SELECT name FROM sms_pricing_tiers WHERE is_active`,
-      );
+      const active = await rawQuery<{ name: string }>(`SELECT name FROM sms_pricing_tiers WHERE is_active`);
       expect(active).toHaveLength(1);
       expect(active[0].name).toBe('Standard');
     });
 
     it('can switch back', async () => {
-      const volumeIds   = await tierIdsNamed(['Volume 1–5k', 'Volume 5k–10k', 'Volume 10k–50k', 'Volume 50k–100k', 'Volume 100k+']);
+      const volumeIds = await tierIdsNamed([
+        'Volume 1–5k',
+        'Volume 5k–10k',
+        'Volume 10k–50k',
+        'Volume 50k–100k',
+        'Volume 100k+',
+      ]);
       await smsPricingAdminService.setActiveTiers(actorId, volumeIds);
       const [standard] = await tierIdsNamed(['Standard']);
       await smsPricingAdminService.setActiveTiers(actorId, [standard]);
@@ -102,7 +109,10 @@ describe('super-admin SMS pricing controls (§12)', () => {
   describe('creating and editing', () => {
     it('creates a tier INACTIVE, so a typo cannot become a pricing incident', async () => {
       const tier = await smsPricingAdminService.createTier(actorId, {
-        name: 'Trial band', minCredits: 0, maxCredits: 10, unitPrice: 0.01,
+        name: 'Trial band',
+        minCredits: 0,
+        maxCredits: 10,
+        unitPrice: 0.01,
       });
       expect(tier.is_active).toBe(false);
       // The live price is unchanged by a creation.
@@ -112,14 +122,20 @@ describe('super-admin SMS pricing controls (§12)', () => {
     it('rejects an inverted band', async () => {
       await expect(
         smsPricingAdminService.createTier(actorId, {
-          name: 'Backwards', minCredits: 100, maxCredits: 10, unitPrice: 0.5,
+          name: 'Backwards',
+          minCredits: 100,
+          maxCredits: 10,
+          unitPrice: 0.5,
         }),
       ).rejects.toThrow(/maxCredits/i);
     });
 
     it('can set a tier back to open-ended, which COALESCE alone cannot express', async () => {
       const tier = await smsPricingAdminService.createTier(actorId, {
-        name: 'Capped', minCredits: 0, maxCredits: 500, unitPrice: 0.5,
+        name: 'Capped',
+        minCredits: 0,
+        maxCredits: 500,
+        unitPrice: 0.5,
       });
       const updated = await smsPricingAdminService.updateTier(actorId, tier.id, { maxCredits: null });
       // null is a real value here ("and above"), not an absent one — which is
@@ -134,9 +150,7 @@ describe('super-admin SMS pricing controls (§12)', () => {
       await smsPricingAdminService.updatePackage(actorId, rows[0].id, { isActive: true, isRecommended: true });
       await smsPricingAdminService.updatePackage(actorId, rows[1].id, { isActive: true, isRecommended: true });
 
-      const recommended = await rawQuery(
-        `SELECT id FROM sms_packages WHERE is_recommended AND is_active`,
-      );
+      const recommended = await rawQuery(`SELECT id FROM sms_packages WHERE is_recommended AND is_active`);
       expect(recommended).toHaveLength(1);
     });
   });
@@ -152,8 +166,8 @@ describe('super-admin SMS pricing controls (§12)', () => {
          WHERE provider = 'textsms' ORDER BY effective_from`,
       );
       expect(rows).toHaveLength(2);
-      expect(rows[0].effective_to).not.toBeNull();   // old one closed
-      expect(Number(rows[1].unit_cost)).toBe(0.42);  // new one open
+      expect(rows[0].effective_to).not.toBeNull(); // old one closed
+      expect(Number(rows[1].unit_cost)).toBe(0.42); // new one open
       expect(rows[1].effective_to).toBeNull();
     });
 
@@ -169,7 +183,10 @@ describe('super-admin SMS pricing controls (§12)', () => {
       const before = await auditCount('sms_pricing.tier_created');
 
       const tier = await smsPricingAdminService.createTier(actorId, {
-        name: 'Audited', minCredits: 0, maxCredits: 1, unitPrice: 0.11,
+        name: 'Audited',
+        minCredits: 0,
+        maxCredits: 1,
+        unitPrice: 0.11,
       });
       await smsPricingAdminService.updateTier(actorId, tier.id, { unitPrice: 0.22 });
       await smsPricingAdminService.setProviderCost(actorId, 0.4);
@@ -178,7 +195,12 @@ describe('super-admin SMS pricing controls (§12)', () => {
       expect(await auditCount('sms_pricing.tier_updated')).toBeGreaterThan(0);
       expect(await auditCount('sms_pricing.provider_cost_changed')).toBeGreaterThan(0);
 
-      const [row] = await rawQuery<{ actor_id: string; old_values: unknown; new_values: unknown; group_id: string | null }>(
+      const [row] = await rawQuery<{
+        actor_id: string;
+        old_values: unknown;
+        new_values: unknown;
+        group_id: string | null;
+      }>(
         `SELECT actor_id, old_values, new_values, group_id FROM audit_logs
          WHERE action = 'sms_pricing.tier_updated' ORDER BY created_at DESC LIMIT 1`,
       );

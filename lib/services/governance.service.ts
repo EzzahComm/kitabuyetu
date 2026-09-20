@@ -37,20 +37,29 @@ import { NotFoundError } from '@/lib/utils/errors';
 type Rag = 'green' | 'amber' | 'red' | 'na';
 
 interface ComputedMetric {
-  code:        string;
-  value:       number | null;
-  numerator?:  number;
+  code: string;
+  value: number | null;
+  numerator?: number;
   denominator?: number;
 }
 
 export interface ThresholdRow {
   metric_code: string;
-  green_min: string | null; green_max: string | null;
-  amber_min: string | null; amber_max: string | null;
+  green_min: string | null;
+  green_max: string | null;
+  amber_min: string | null;
+  amber_max: string | null;
 }
 
 const HEALTH_SCORE_METRICS = [
-  'liquidity_ratio', 'par30', 'npl', 'recovery_rate', 'oss', 'roa', 'savings_growth', 'membership_growth',
+  'liquidity_ratio',
+  'par30',
+  'npl',
+  'recovery_rate',
+  'oss',
+  'roa',
+  'savings_growth',
+  'membership_growth',
 ] as const;
 
 // ─── Threshold resolution ───────────────────────────────────────────────
@@ -84,7 +93,12 @@ const RAG_SCORE: Record<Rag, number | null> = { green: 100, amber: 55, red: 15, 
 // getBalanceSheet/getProfitAndLoss SQL exactly, but callable cross-tenant
 // via a plain PoolClient rather than a single group's TenantContext) ─────
 
-async function getAccountBalanceAsOf(client: PoolClient, groupId: string, accountCode: string, asOf: string): Promise<number> {
+async function getAccountBalanceAsOf(
+  client: PoolClient,
+  groupId: string,
+  accountCode: string,
+  asOf: string,
+): Promise<number> {
   const { rows } = await client.query<{ balance: string }>(
     `SELECT
        CASE WHEN a.type = 'asset'
@@ -116,7 +130,12 @@ async function getTotalAssetBalanceAsOf(client: PoolClient, groupId: string, asO
   return rows.reduce((sum, r) => sum + parseFloat(r.total), 0);
 }
 
-async function getPnlTotals(client: PoolClient, groupId: string, from: string, to: string): Promise<{ income: number; expenses: number }> {
+async function getPnlTotals(
+  client: PoolClient,
+  groupId: string,
+  from: string,
+  to: string,
+): Promise<{ income: number; expenses: number }> {
   const { rows } = await client.query<{ type: string; total: string }>(
     `SELECT a.type,
        CASE WHEN a.type = 'expense'
@@ -133,7 +152,7 @@ async function getPnlTotals(client: PoolClient, groupId: string, from: string, t
     [groupId, from, to],
   );
   return {
-    income:   parseFloat(rows.find((r) => r.type === 'income')?.total ?? '0'),
+    income: parseFloat(rows.find((r) => r.type === 'income')?.total ?? '0'),
     expenses: parseFloat(rows.find((r) => r.type === 'expense')?.total ?? '0'),
   };
 }
@@ -174,11 +193,18 @@ async function getGrossLoansNow(client: PoolClient, groupId: string): Promise<nu
   return parseFloat(rows[0].total);
 }
 
-interface LoanBuckets { current: number; par30: number; npl: number; concentrationTop10: number; }
+interface LoanBuckets {
+  current: number;
+  par30: number;
+  npl: number;
+  concentrationTop10: number;
+}
 
 async function getLoanBuckets(client: PoolClient, groupId: string): Promise<LoanBuckets> {
   const { rows } = await client.query<{
-    current_bucket: string; par30_bucket: string; npl_bucket: string;
+    current_bucket: string;
+    par30_bucket: string;
+    npl_bucket: string;
   }>(
     `SELECT
        COALESCE(SUM(outstanding_balance) FILTER (
@@ -209,13 +235,17 @@ async function getLoanBuckets(client: PoolClient, groupId: string): Promise<Loan
 
   return {
     current: parseFloat(rows[0].current_bucket),
-    par30:   parseFloat(rows[0].par30_bucket),
-    npl:     parseFloat(rows[0].npl_bucket),
+    par30: parseFloat(rows[0].par30_bucket),
+    npl: parseFloat(rows[0].npl_bucket),
     concentrationTop10: parseFloat(top10[0].total),
   };
 }
 
-async function getRecoveryRate(client: PoolClient, groupId: string, asOf: string): Promise<{ paid: number; due: number }> {
+async function getRecoveryRate(
+  client: PoolClient,
+  groupId: string,
+  asOf: string,
+): Promise<{ paid: number; due: number }> {
   const { rows } = await client.query<{ paid: string; due: string }>(
     `SELECT COALESCE(SUM(amount_paid), 0)::text AS paid, COALESCE(SUM(total_due), 0)::text AS due
      FROM loan_repayments
@@ -232,7 +262,12 @@ async function getRiskWeights(client: PoolClient): Promise<Map<string, { riskWei
     `SELECT DISTINCT ON (asset_class) asset_class, risk_weight, provision_rate
      FROM governance_risk_weights ORDER BY asset_class, effective_from DESC`,
   );
-  return new Map(rows.map((r) => [r.asset_class, { riskWeight: parseFloat(r.risk_weight), provisionRate: parseFloat(r.provision_rate) }]));
+  return new Map(
+    rows.map((r) => [
+      r.asset_class,
+      { riskWeight: parseFloat(r.risk_weight), provisionRate: parseFloat(r.provision_rate) },
+    ]),
+  );
 }
 
 // ─── Per-group computation ───────────────────────────────────────────────
@@ -253,13 +288,29 @@ export async function computeGroupGovernanceSnapshot(
   priorAsOf.setMonth(priorAsOf.getMonth() - 1);
   const priorAsOfStr = priorAsOf.toISOString().slice(0, 10);
 
-  const from12m = new Date(asOf); from12m.setFullYear(from12m.getFullYear() - 1);
+  const from12m = new Date(asOf);
+  from12m.setFullYear(from12m.getFullYear() - 1);
 
   const [
-    savings, priorSavings, activeMembers, priorActiveMembers, grossLoans, buckets, recovery,
-    cash, bank, fixedAssets, loanLoss, protectionFund,
-    memberSavingsAccount, equity1, equity2, pnl12m, totalAssets,
-    loanGrowthNow, loanGrowthPrior,
+    savings,
+    priorSavings,
+    activeMembers,
+    priorActiveMembers,
+    grossLoans,
+    buckets,
+    recovery,
+    cash,
+    bank,
+    fixedAssets,
+    loanLoss,
+    protectionFund,
+    memberSavingsAccount,
+    equity1,
+    equity2,
+    pnl12m,
+    totalAssets,
+    loanGrowthNow,
+    loanGrowthPrior,
   ] = await Promise.all([
     getTotalSavings(client, groupId, asOf),
     getTotalSavings(client, groupId, priorAsOfStr),
@@ -300,24 +351,34 @@ export async function computeGroupGovernanceSnapshot(
   // sign convention (liabilities negated internally) — use it directly,
   // do not re-negate it.
   const metrics: ComputedMetric[] = [
-    { code: 'liquidity_ratio',    value: pct(cash + bank, memberSavingsAccount) },
-    { code: 'ldr',                value: pct(grossLoans, memberSavingsAccount) },
-    { code: 'par30',              value: pct(buckets.par30, grossLoans), numerator: buckets.par30, denominator: grossLoans },
-    { code: 'npl',                value: pct(buckets.npl, grossLoans + buckets.npl), numerator: buckets.npl, denominator: grossLoans + buckets.npl },
-    { code: 'recovery_rate',      value: pct(recovery.paid, recovery.due), numerator: recovery.paid, denominator: recovery.due },
-    { code: 'concentration',      value: pct(buckets.concentrationTop10, grossLoans) },
-    { code: 'oss',                value: pct(pnl12m.income, pnl12m.expenses) },
-    { code: 'cost_to_income',     value: pct(pnl12m.expenses, pnl12m.income) },
-    { code: 'roa',                value: pct(pnl12m.income - pnl12m.expenses, totalAssets) },
-    { code: 'roe',                value: pct(pnl12m.income - pnl12m.expenses, institutionalCapital) },
-    { code: 'savings_growth',     value: growth(savings, priorSavings) },
-    { code: 'membership_growth',  value: growth(activeMembers, priorActiveMembers) },
-    { code: 'loan_growth',        value: growth(loanGrowthNow, loanGrowthPrior) },
-    { code: 'total_savings',      value: savings },
-    { code: 'gross_loans',        value: grossLoans },
-    { code: 'active_members',     value: activeMembers },
-    { code: 'total_assets',       value: totalAssets },
-    { code: 'car',                value: pct(institutionalCapital, rwa) },
+    { code: 'liquidity_ratio', value: pct(cash + bank, memberSavingsAccount) },
+    { code: 'ldr', value: pct(grossLoans, memberSavingsAccount) },
+    { code: 'par30', value: pct(buckets.par30, grossLoans), numerator: buckets.par30, denominator: grossLoans },
+    {
+      code: 'npl',
+      value: pct(buckets.npl, grossLoans + buckets.npl),
+      numerator: buckets.npl,
+      denominator: grossLoans + buckets.npl,
+    },
+    {
+      code: 'recovery_rate',
+      value: pct(recovery.paid, recovery.due),
+      numerator: recovery.paid,
+      denominator: recovery.due,
+    },
+    { code: 'concentration', value: pct(buckets.concentrationTop10, grossLoans) },
+    { code: 'oss', value: pct(pnl12m.income, pnl12m.expenses) },
+    { code: 'cost_to_income', value: pct(pnl12m.expenses, pnl12m.income) },
+    { code: 'roa', value: pct(pnl12m.income - pnl12m.expenses, totalAssets) },
+    { code: 'roe', value: pct(pnl12m.income - pnl12m.expenses, institutionalCapital) },
+    { code: 'savings_growth', value: growth(savings, priorSavings) },
+    { code: 'membership_growth', value: growth(activeMembers, priorActiveMembers) },
+    { code: 'loan_growth', value: growth(loanGrowthNow, loanGrowthPrior) },
+    { code: 'total_savings', value: savings },
+    { code: 'gross_loans', value: grossLoans },
+    { code: 'active_members', value: activeMembers },
+    { code: 'total_assets', value: totalAssets },
+    { code: 'car', value: pct(institutionalCapital, rwa) },
     { code: 'provision_coverage', value: pct(loanLoss, buckets.npl) },
     { code: 'savings_protection', value: pct(protectionFund, memberSavingsAccount) },
   ];
@@ -339,8 +400,8 @@ export async function computeGroupGovernanceSnapshot(
     const t = thresholds.get(m.code);
     const rag = resolveRag(m.value, t);
     const prior = priorByCode.get(m.code) ?? null;
-    const trend = m.value === null || prior === null ? null
-      : m.value > prior ? 'up' : m.value < prior ? 'down' : 'flat';
+    const trend =
+      m.value === null || prior === null ? null : m.value > prior ? 'up' : m.value < prior ? 'down' : 'flat';
 
     await client.query(
       `INSERT INTO governance_snapshots (group_id, as_of, period_type, metric_code, value, numerator, denominator, rag, prior_value, trend)
@@ -375,7 +436,15 @@ export async function computeGroupGovernanceSnapshot(
         `INSERT INTO governance_alerts (group_id, metric_code, as_of, period_type, severity, value, message, dedup_key)
          VALUES ($1, $2, $3, 'monthly', $4, $5, $6, $7)
          ON CONFLICT (dedup_key) DO NOTHING`,
-        [groupId, m.code, asOf, severity, m.value, `${m.code} is ${severity} (${m.value?.toFixed(1) ?? 'n/a'})`, dedupKey],
+        [
+          groupId,
+          m.code,
+          asOf,
+          severity,
+          m.value,
+          `${m.code} is ${severity} (${m.value?.toFixed(1) ?? 'n/a'})`,
+          dedupKey,
+        ],
       );
       alertsRaised += rowCount ?? 0;
 
@@ -428,7 +497,11 @@ export async function computeGroupGovernanceSnapshot(
       ],
     );
 
-    const components = JSON.stringify(Object.fromEntries(metrics.filter((m) => HEALTH_SCORE_METRICS.includes(m.code as never)).map((m) => [m.code, m.value])));
+    const components = JSON.stringify(
+      Object.fromEntries(
+        metrics.filter((m) => HEALTH_SCORE_METRICS.includes(m.code as never)).map((m) => [m.code, m.value]),
+      ),
+    );
     await client.query(
       `INSERT INTO governance_health_scores (group_id, as_of, period_type, score, category, components)
        VALUES ($1, $2, 'monthly', $3, $4, $5)
@@ -451,11 +524,17 @@ export async function computeGroupGovernanceSnapshot(
  * shape (a plain JS loop over groups, each iteration's DB work in its own
  * withAdminDb call), not a single big transaction with a loop inside it.
  */
-export async function computeGovernanceForAllGroups(asOf: string): Promise<{ groups: number; succeeded: number; failed: number; alertsRaised: number }> {
-  const { rows: groups } = await withAdminDb((client) => client.query<{ id: string }>(`SELECT id FROM groups WHERE is_active = true`));
+export async function computeGovernanceForAllGroups(
+  asOf: string,
+): Promise<{ groups: number; succeeded: number; failed: number; alertsRaised: number }> {
+  const { rows: groups } = await withAdminDb((client) =>
+    client.query<{ id: string }>(`SELECT id FROM groups WHERE is_active = true`),
+  );
   const riskWeights = await withAdminDb((client) => getRiskWeights(client));
 
-  let succeeded = 0, failed = 0, alertsRaised = 0;
+  let succeeded = 0,
+    failed = 0,
+    alertsRaised = 0;
   for (const group of groups) {
     try {
       const result = await withAdminDb((client) => computeGroupGovernanceSnapshot(client, group.id, asOf, riskWeights));
@@ -474,7 +553,11 @@ export async function computeGovernanceForAllGroups(asOf: string): Promise<{ gro
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function listGovernanceAlerts(params: {
-  page: number; limit: number; status?: string; severity?: string; groupId?: string;
+  page: number;
+  limit: number;
+  status?: string;
+  severity?: string;
+  groupId?: string;
 }) {
   return withAdminDb(async (db: PoolClient) => {
     const { page, limit, status, severity, groupId } = params;
@@ -483,14 +566,27 @@ export async function listGovernanceAlerts(params: {
     const vals: unknown[] = [];
     let idx = 1;
 
-    if (status)   { conds.push(`a.status = $${idx}`);      vals.push(status);   idx++; }
-    if (severity) { conds.push(`a.severity = $${idx}`);    vals.push(severity); idx++; }
-    if (groupId)  { conds.push(`a.group_id = $${idx}`);    vals.push(groupId);  idx++; }
+    if (status) {
+      conds.push(`a.status = $${idx}`);
+      vals.push(status);
+      idx++;
+    }
+    if (severity) {
+      conds.push(`a.severity = $${idx}`);
+      vals.push(severity);
+      idx++;
+    }
+    if (groupId) {
+      conds.push(`a.group_id = $${idx}`);
+      vals.push(groupId);
+      idx++;
+    }
 
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
 
     const [data, count] = await Promise.all([
-      db.query(`
+      db.query(
+        `
         SELECT a.*, g.name AS group_name, gm.name AS metric_name,
                ack.first_name || ' ' || ack.last_name AS acknowledged_by_name
         FROM public.governance_alerts a
@@ -500,7 +596,9 @@ export async function listGovernanceAlerts(params: {
         ${where}
         ORDER BY CASE a.severity WHEN 'red' THEN 1 ELSE 2 END, a.created_at DESC
         LIMIT $${idx} OFFSET $${idx + 1}
-      `, [...vals, limit, offset]),
+      `,
+        [...vals, limit, offset],
+      ),
       db.query(`SELECT COUNT(*) AS total FROM public.governance_alerts a ${where}`, vals),
     ]);
 
@@ -511,7 +609,13 @@ export async function listGovernanceAlerts(params: {
 export async function acknowledgeAlert(alertId: string, adminId: string) {
   return withAdminDb(async (db: PoolClient) => {
     // Read prior state
-    const { rows: prior } = await db.query<{ group_id: string; status: string; severity: string; metric_code: string; as_of: string }>(
+    const { rows: prior } = await db.query<{
+      group_id: string;
+      status: string;
+      severity: string;
+      metric_code: string;
+      as_of: string;
+    }>(
       `SELECT group_id, status, severity, metric_code, as_of FROM public.governance_alerts WHERE id = $1 AND status = 'open'`,
       [alertId],
     );
@@ -549,7 +653,13 @@ export async function acknowledgeAlert(alertId: string, adminId: string) {
 export async function resolveAlert(alertId: string, adminId: string) {
   return withAdminDb(async (db: PoolClient) => {
     // Read prior state
-    const { rows: prior } = await db.query<{ group_id: string; status: string; severity: string; metric_code: string; as_of: string }>(
+    const { rows: prior } = await db.query<{
+      group_id: string;
+      status: string;
+      severity: string;
+      metric_code: string;
+      as_of: string;
+    }>(
       `SELECT group_id, status, severity, metric_code, as_of FROM public.governance_alerts WHERE id = $1 AND status != 'resolved'`,
       [alertId],
     );

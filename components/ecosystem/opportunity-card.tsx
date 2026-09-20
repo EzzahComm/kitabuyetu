@@ -18,11 +18,12 @@ export function OpportunityCard({ opportunity, matches, failedRules = [] }: Oppo
     service: 'bg-gray-100 text-gray-800',
   };
 
-  const amountDisplay = opportunity.amount_min && opportunity.amount_max
-    ? `${opportunity.currency} ${opportunity.amount_min.toLocaleString()}-${opportunity.amount_max.toLocaleString()}`
-    : opportunity.amount_min
-      ? `From ${opportunity.currency} ${opportunity.amount_min.toLocaleString()}`
-      : 'Variable amount';
+  const amountDisplay =
+    opportunity.amount_min && opportunity.amount_max
+      ? `${opportunity.currency} ${opportunity.amount_min.toLocaleString()}-${opportunity.amount_max.toLocaleString()}`
+      : opportunity.amount_min
+        ? `From ${opportunity.currency} ${opportunity.amount_min.toLocaleString()}`
+        : 'Variable amount';
 
   return (
     <Link href={`/ecosystem/marketplace/${opportunity.id}`}>
@@ -32,7 +33,9 @@ export function OpportunityCard({ opportunity, matches, failedRules = [] }: Oppo
             <h3 className="text-lg font-semibold text-gray-900">{opportunity.title}</h3>
             <p className="text-sm text-gray-600 mt-1">{opportunity.category}</p>
           </div>
-          <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${typeColors[opportunity.opportunity_type]}`}>
+          <span
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium ${typeColors[opportunity.opportunity_type]}`}
+          >
             {opportunity.opportunity_type}
           </span>
         </div>
@@ -41,15 +44,11 @@ export function OpportunityCard({ opportunity, matches, failedRules = [] }: Oppo
 
         <div className="mb-4">
           <p className="text-sm font-semibold text-gray-900">{amountDisplay}</p>
-          {opportunity.terms_summary && (
-            <p className="text-xs text-gray-500 mt-1">{opportunity.terms_summary}</p>
-          )}
+          {opportunity.terms_summary && <p className="text-xs text-gray-500 mt-1">{opportunity.terms_summary}</p>}
         </div>
 
         <div className="flex items-center justify-between">
-          <span className="text-xs text-gray-500">
-            {new Date(opportunity.created_at).toLocaleDateString()}
-          </span>
+          <span className="text-xs text-gray-500">{new Date(opportunity.created_at).toLocaleDateString()}</span>
           {matches !== undefined && (
             <span className={`text-xs font-semibold ${matches ? 'text-green-600' : 'text-orange-600'}`}>
               {matches ? '✓ You match' : '✗ Check requirements'}

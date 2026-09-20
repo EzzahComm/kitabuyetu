@@ -76,14 +76,15 @@ export interface EmailPreference {
 
 export function useEmailLogs(params?: { status?: string; category?: string; days?: number; page?: number }) {
   const qs = new URLSearchParams();
-  if (params?.status)   qs.set('status',   params.status);
+  if (params?.status) qs.set('status', params.status);
   if (params?.category) qs.set('category', params.category);
-  if (params?.days)     qs.set('days',     String(params.days));
-  if (params?.page)     qs.set('page',     String(params.page));
+  if (params?.days) qs.set('days', String(params.days));
+  if (params?.page) qs.set('page', String(params.page));
 
   return useQuery({
     queryKey: ['email-logs', params],
-    queryFn: () => api.get<{ data: EmailLog[]; meta: { total: number; page: number; limit: number } }>(`/email/logs?${qs}`),
+    queryFn: () =>
+      api.get<{ data: EmailLog[]; meta: { total: number; page: number; limit: number } }>(`/email/logs?${qs}`),
   });
 }
 
@@ -136,8 +137,15 @@ export function useEmailCampaigns() {
 export function useCreateCampaign() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: { name: string; subject: string; templateKey?: string; htmlBody?: string; recipientFilter?: unknown; scheduledAt?: string; launch?: boolean }) =>
-      api.post<{ id: string }>('/email/campaigns', body),
+    mutationFn: (body: {
+      name: string;
+      subject: string;
+      templateKey?: string;
+      htmlBody?: string;
+      recipientFilter?: unknown;
+      scheduledAt?: string;
+      launch?: boolean;
+    }) => api.post<{ id: string }>('/email/campaigns', body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['email-campaigns'] }),
   });
 }

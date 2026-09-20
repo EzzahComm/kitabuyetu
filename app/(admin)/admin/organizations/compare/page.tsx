@@ -6,28 +6,32 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from '@/components/ui/table';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { useOrganizationComparison } from '@/hooks/use-admin';
 import { formatKES } from '@/lib/utils';
 
 interface OrgComparisonRow {
-  id:               string;
-  name:             string;
-  type:             string;
-  county:           string | null;
-  is_active:        boolean;
-  group_count:      string;
-  member_reach:     string;
-  wallet_balance:   string;
-  total_disbursed:  string;
+  id: string;
+  name: string;
+  type: string;
+  county: string | null;
+  is_active: boolean;
+  group_count: string;
+  member_reach: string;
+  wallet_balance: string;
+  total_disbursed: string;
   avg_health_score: string | null;
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
-  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Other',
+  bank: 'Bank',
+  sacco: 'SACCO',
+  foundation: 'Foundation',
+  ngo: 'NGO',
+  government: 'Government',
+  cooperative: 'Cooperative',
+  faith_based: 'Faith-based',
+  other: 'Other',
 };
 
 // Same derived-band thresholds the governance engine uses to score a metric
@@ -46,9 +50,9 @@ export default function OrganizationsComparePage() {
 
   const totals = rows.reduce(
     (acc, r) => ({
-      groups:    acc.groups + Number(r.group_count),
-      members:   acc.members + Number(r.member_reach),
-      wallet:    acc.wallet + Number(r.wallet_balance),
+      groups: acc.groups + Number(r.group_count),
+      members: acc.members + Number(r.member_reach),
+      wallet: acc.wallet + Number(r.wallet_balance),
     }),
     { groups: 0, members: 0, wallet: 0 },
   );
@@ -58,15 +62,12 @@ export default function OrganizationsComparePage() {
       <PageHeader
         title="Compare organizations"
         description="Side-by-side reach, wallet, and governance health across every active organization"
-        breadcrumbs={[
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: 'Compare' },
-        ]}
+        breadcrumbs={[{ label: 'Organizations', href: '/admin/organizations' }, { label: 'Compare' }]}
       />
 
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard title="Organizations" value={rows.length} icon={Landmark} />
-        <StatCard title="Combined groups"  value={totals.groups} icon={Layers} />
+        <StatCard title="Combined groups" value={totals.groups} icon={Layers} />
         <StatCard title="Combined member reach" value={totals.members.toLocaleString()} icon={Users} />
       </div>
 
@@ -74,7 +75,9 @@ export default function OrganizationsComparePage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="p-6 space-y-3">
-              {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
           ) : rows.length === 0 ? (
             <div className="p-12 text-center">
@@ -98,7 +101,7 @@ export default function OrganizationsComparePage() {
               <TableBody>
                 {rows.map((org) => {
                   const score = org.avg_health_score !== null ? Number(org.avg_health_score) : null;
-                  const band  = score !== null ? healthBand(score) : null;
+                  const band = score !== null ? healthBand(score) : null;
                   return (
                     <TableRow
                       key={org.id}
@@ -118,11 +121,15 @@ export default function OrganizationsComparePage() {
                       </TableCell>
                       <TableCell className="text-muted-foreground">{org.county ?? '—'}</TableCell>
                       <TableCell className="text-right font-medium">{org.group_count}</TableCell>
-                      <TableCell className="text-right font-medium">{Number(org.member_reach).toLocaleString()}</TableCell>
+                      <TableCell className="text-right font-medium">
+                        {Number(org.member_reach).toLocaleString()}
+                      </TableCell>
                       <TableCell className="text-right">
                         <span className="text-green-600 font-medium">{formatKES(org.wallet_balance)}</span>
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">{formatKES(org.total_disbursed)}</TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {formatKES(org.total_disbursed)}
+                      </TableCell>
                       <TableCell className="text-right">
                         {band ? (
                           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${band.className}`}>

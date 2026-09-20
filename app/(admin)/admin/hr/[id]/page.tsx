@@ -10,12 +10,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { useEmployee, useEmployees, useUpdateEmployee, useTerminateEmployee } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
@@ -23,11 +19,17 @@ import { getErrorMessage, formatDate } from '@/lib/utils';
 import { HR_EMPLOYMENT_TYPES } from '@/lib/validators/hr.schema';
 
 const EMPLOYMENT_TYPE_LABEL: Record<string, string> = {
-  full_time: 'Full-time', part_time: 'Part-time', contract: 'Contract', intern: 'Intern',
+  full_time: 'Full-time',
+  part_time: 'Part-time',
+  contract: 'Contract',
+  intern: 'Intern',
 };
 
 const STATUS_VARIANT: Record<string, 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  active: 'default', on_leave: 'secondary', suspended: 'destructive', terminated: 'outline',
+  active: 'default',
+  on_leave: 'secondary',
+  suspended: 'destructive',
+  terminated: 'outline',
 };
 
 export default function HrEmployeeDetailPage() {
@@ -40,7 +42,11 @@ export default function HrEmployeeDetailPage() {
   const terminateEmployee = useTerminateEmployee(params.id);
 
   const [form, setForm] = useState({
-    department: '', jobTitle: '', employmentType: 'full_time', managerId: '', notes: '',
+    department: '',
+    jobTitle: '',
+    employmentType: 'full_time',
+    managerId: '',
+    notes: '',
   });
   // Seeds the form the moment `employee` first arrives (or changes to a
   // different id) — done during render, not a useEffect, per React's
@@ -69,7 +75,7 @@ export default function HrEmployeeDetailPage() {
       await updateEmployee.mutateAsync({
         department: form.department || null,
         jobTitle: form.jobTitle || null,
-        employmentType: form.employmentType as typeof HR_EMPLOYMENT_TYPES[number],
+        employmentType: form.employmentType as (typeof HR_EMPLOYMENT_TYPES)[number],
         managerId: form.managerId || null,
         notes: form.notes || null,
       });
@@ -95,7 +101,10 @@ export default function HrEmployeeDetailPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/admin/hr" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/admin/hr"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> All employees
       </Link>
 
@@ -109,7 +118,11 @@ export default function HrEmployeeDetailPage() {
                 <Button variant="destructive">Terminate</Button>
               </DialogTrigger>
               <DialogContent>
-                <DialogHeader><DialogTitle>Terminate {employee.first_name} {employee.last_name}</DialogTitle></DialogHeader>
+                <DialogHeader>
+                  <DialogTitle>
+                    Terminate {employee.first_name} {employee.last_name}
+                  </DialogTitle>
+                </DialogHeader>
                 <div className="space-y-3">
                   <div className="space-y-1.5">
                     <Label htmlFor="termDate">Termination date *</Label>
@@ -117,7 +130,12 @@ export default function HrEmployeeDetailPage() {
                   </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="termReason">Reason</Label>
-                    <Textarea id="termReason" rows={3} value={termReason} onChange={(e) => setTermReason(e.target.value)} />
+                    <Textarea
+                      id="termReason"
+                      rows={3}
+                      value={termReason}
+                      onChange={(e) => setTermReason(e.target.value)}
+                    />
                   </div>
                   {(allActive ?? []).some((e) => e.manager_id === employee.id) && (
                     <p className="text-xs text-muted-foreground">
@@ -126,7 +144,11 @@ export default function HrEmployeeDetailPage() {
                   )}
                 </div>
                 <DialogFooter>
-                  <Button variant="destructive" onClick={onTerminate} disabled={!termDate || terminateEmployee.isPending}>
+                  <Button
+                    variant="destructive"
+                    onClick={onTerminate}
+                    disabled={!termDate || terminateEmployee.isPending}
+                  >
                     {terminateEmployee.isPending ? 'Terminating…' : 'Confirm termination'}
                   </Button>
                 </DialogFooter>
@@ -141,7 +163,9 @@ export default function HrEmployeeDetailPage() {
           <Card>
             <CardContent className="space-y-4 p-5">
               <div className="flex items-center gap-2">
-                <Badge variant={STATUS_VARIANT[employee.employment_status]}>{employee.employment_status.replace('_', ' ')}</Badge>
+                <Badge variant={STATUS_VARIANT[employee.employment_status]}>
+                  {employee.employment_status.replace('_', ' ')}
+                </Badge>
                 {isTerminated && employee.termination_date && (
                   <span className="text-xs text-muted-foreground">since {formatDate(employee.termination_date)}</span>
                 )}
@@ -150,45 +174,83 @@ export default function HrEmployeeDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="department">Department</Label>
-                  <Input id="department" disabled={isTerminated} value={form.department} onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))} />
+                  <Input
+                    id="department"
+                    disabled={isTerminated}
+                    value={form.department}
+                    onChange={(e) => setForm((f) => ({ ...f, department: e.target.value }))}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="jobTitle">Job title</Label>
-                  <Input id="jobTitle" disabled={isTerminated} value={form.jobTitle} onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))} />
+                  <Input
+                    id="jobTitle"
+                    disabled={isTerminated}
+                    value={form.jobTitle}
+                    onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))}
+                  />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label htmlFor="employmentType">Employment type</Label>
-                  <Select value={form.employmentType} disabled={isTerminated} onValueChange={(v) => setForm((f) => ({ ...f, employmentType: v }))}>
-                    <SelectTrigger id="employmentType"><SelectValue /></SelectTrigger>
+                  <Select
+                    value={form.employmentType}
+                    disabled={isTerminated}
+                    onValueChange={(v) => setForm((f) => ({ ...f, employmentType: v }))}
+                  >
+                    <SelectTrigger id="employmentType">
+                      <SelectValue />
+                    </SelectTrigger>
                     <SelectContent>
-                      {HR_EMPLOYMENT_TYPES.map((t) => <SelectItem key={t} value={t}>{EMPLOYMENT_TYPE_LABEL[t]}</SelectItem>)}
+                      {HR_EMPLOYMENT_TYPES.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {EMPLOYMENT_TYPE_LABEL[t]}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Hire date</Label>
-                  <p className="flex h-9 items-center text-sm text-muted-foreground">{formatDate(employee.hire_date)}</p>
+                  <p className="flex h-9 items-center text-sm text-muted-foreground">
+                    {formatDate(employee.hire_date)}
+                  </p>
                 </div>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="managerId">Manager</Label>
-                <Select value={form.managerId} disabled={isTerminated} onValueChange={(v) => setForm((f) => ({ ...f, managerId: v }))}>
-                  <SelectTrigger id="managerId"><SelectValue placeholder="No manager" /></SelectTrigger>
+                <Select
+                  value={form.managerId}
+                  disabled={isTerminated}
+                  onValueChange={(v) => setForm((f) => ({ ...f, managerId: v }))}
+                >
+                  <SelectTrigger id="managerId">
+                    <SelectValue placeholder="No manager" />
+                  </SelectTrigger>
                   <SelectContent>
-                    {(allActive ?? []).filter((m) => m.id !== employee.id).map((m) => (
-                      <SelectItem key={m.id} value={m.id}>{m.first_name} {m.last_name}</SelectItem>
-                    ))}
+                    {(allActive ?? [])
+                      .filter((m) => m.id !== employee.id)
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.first_name} {m.last_name}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </div>
 
               <div className="space-y-1.5">
                 <Label htmlFor="notes">Notes</Label>
-                <Textarea id="notes" rows={4} disabled={isTerminated} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
+                <Textarea
+                  id="notes"
+                  rows={4}
+                  disabled={isTerminated}
+                  value={form.notes}
+                  onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                />
               </div>
 
               {!isTerminated && (

@@ -8,16 +8,18 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import {
-  useAudiences, useCreateAudience, useCampaigns, useCreateCampaign,
-  useSubmitCampaign, useApproveCampaign, useRejectCampaign, useCancelCampaign,
+  useAudiences,
+  useCreateAudience,
+  useCampaigns,
+  useCreateCampaign,
+  useSubmitCampaign,
+  useApproveCampaign,
+  useRejectCampaign,
+  useCancelCampaign,
 } from '@/hooks/use-marketing-campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
@@ -66,7 +68,11 @@ export default function MarketingCampaignsPage() {
 
   const [campaignOpen, setCampaignOpen] = useState(false);
   const [campaignForm, setCampaignForm] = useState({
-    title: '', message: '', audience_id: '', channel: 'sms' as Channel, subject: '',
+    title: '',
+    message: '',
+    audience_id: '',
+    channel: 'sms' as Channel,
+    subject: '',
   });
 
   const [rejectingId, setRejectingId] = useState<string | null>(null);
@@ -147,93 +153,146 @@ export default function MarketingCampaignsPage() {
               <Button variant="outline">Analytics</Button>
             </Link>
             {canManage && (
-            <div className="flex gap-2">
-              <Dialog open={audienceOpen} onOpenChange={setAudienceOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline">New audience</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>New audience</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="aud_name">Name *</Label>
-                      <Input id="aud_name" value={audienceForm.name} onChange={(e) => setAudienceForm((f) => ({ ...f, name: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="aud_source">Who&rsquo;s in it *</Label>
-                      <Select value={audienceForm.source} onValueChange={(v) => setAudienceForm((f) => ({ ...f, source: v as AudienceSource }))}>
-                        <SelectTrigger id="aud_source"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {SOURCES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button onClick={onCreateAudience} disabled={!audienceForm.name.trim() || createAudience.isPending}>
-                      {createAudience.isPending ? 'Creating…' : 'Create audience'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
-                <DialogTrigger asChild>
-                  <Button disabled={!audiences || audiences.length === 0}>New campaign</Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader><DialogTitle>New campaign</DialogTitle></DialogHeader>
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="c_title">Title *</Label>
-                      <Input id="c_title" value={campaignForm.title} onChange={(e) => setCampaignForm((f) => ({ ...f, title: e.target.value }))} />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="c_channel">Channel *</Label>
-                      <Select value={campaignForm.channel} onValueChange={(v) => setCampaignForm((f) => ({ ...f, channel: v as Channel }))}>
-                        <SelectTrigger id="c_channel"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {CHANNELS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label htmlFor="c_audience">Audience *</Label>
-                      <Select value={campaignForm.audience_id} onValueChange={(v) => setCampaignForm((f) => ({ ...f, audience_id: v }))}>
-                        <SelectTrigger id="c_audience"><SelectValue placeholder="Select an audience" /></SelectTrigger>
-                        <SelectContent>
-                          {(audiences || []).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    {campaignForm.channel === 'email' && (
+              <div className="flex gap-2">
+                <Dialog open={audienceOpen} onOpenChange={setAudienceOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline">New audience</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New audience</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
                       <div className="space-y-1.5">
-                        <Label htmlFor="c_subject">Subject *</Label>
-                        <Input id="c_subject" value={campaignForm.subject} onChange={(e) => setCampaignForm((f) => ({ ...f, subject: e.target.value }))} placeholder="Email subject line" />
+                        <Label htmlFor="aud_name">Name *</Label>
+                        <Input
+                          id="aud_name"
+                          value={audienceForm.name}
+                          onChange={(e) => setAudienceForm((f) => ({ ...f, name: e.target.value }))}
+                        />
                       </div>
-                    )}
-                    <div className="space-y-1.5">
-                      <Label htmlFor="c_message">Message *</Label>
-                      <Textarea id="c_message" rows={4} value={campaignForm.message} onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))} placeholder="What should this message say?" />
+                      <div className="space-y-1.5">
+                        <Label htmlFor="aud_source">Who&rsquo;s in it *</Label>
+                        <Select
+                          value={audienceForm.source}
+                          onValueChange={(v) => setAudienceForm((f) => ({ ...f, source: v as AudienceSource }))}
+                        >
+                          <SelectTrigger id="aud_source">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {SOURCES.map((s) => (
+                              <SelectItem key={s.value} value={s.value}>
+                                {s.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
                     </div>
-                  </div>
-                  <DialogFooter>
-                    <Button
-                      onClick={onCreateCampaign}
-                      disabled={
-                        !campaignForm.title.trim() ||
-                        !campaignForm.message.trim() ||
-                        !campaignForm.audience_id ||
-                        (campaignForm.channel === 'email' && !campaignForm.subject.trim()) ||
-                        createCampaign.isPending
-                      }
-                    >
-                      {createCampaign.isPending ? 'Creating…' : 'Create draft'}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={onCreateAudience}
+                        disabled={!audienceForm.name.trim() || createAudience.isPending}
+                      >
+                        {createAudience.isPending ? 'Creating…' : 'Create audience'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+
+                <Dialog open={campaignOpen} onOpenChange={setCampaignOpen}>
+                  <DialogTrigger asChild>
+                    <Button disabled={!audiences || audiences.length === 0}>New campaign</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>New campaign</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="c_title">Title *</Label>
+                        <Input
+                          id="c_title"
+                          value={campaignForm.title}
+                          onChange={(e) => setCampaignForm((f) => ({ ...f, title: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="c_channel">Channel *</Label>
+                        <Select
+                          value={campaignForm.channel}
+                          onValueChange={(v) => setCampaignForm((f) => ({ ...f, channel: v as Channel }))}
+                        >
+                          <SelectTrigger id="c_channel">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CHANNELS.map((c) => (
+                              <SelectItem key={c.value} value={c.value}>
+                                {c.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="c_audience">Audience *</Label>
+                        <Select
+                          value={campaignForm.audience_id}
+                          onValueChange={(v) => setCampaignForm((f) => ({ ...f, audience_id: v }))}
+                        >
+                          <SelectTrigger id="c_audience">
+                            <SelectValue placeholder="Select an audience" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(audiences || []).map((a) => (
+                              <SelectItem key={a.id} value={a.id}>
+                                {a.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {campaignForm.channel === 'email' && (
+                        <div className="space-y-1.5">
+                          <Label htmlFor="c_subject">Subject *</Label>
+                          <Input
+                            id="c_subject"
+                            value={campaignForm.subject}
+                            onChange={(e) => setCampaignForm((f) => ({ ...f, subject: e.target.value }))}
+                            placeholder="Email subject line"
+                          />
+                        </div>
+                      )}
+                      <div className="space-y-1.5">
+                        <Label htmlFor="c_message">Message *</Label>
+                        <Textarea
+                          id="c_message"
+                          rows={4}
+                          value={campaignForm.message}
+                          onChange={(e) => setCampaignForm((f) => ({ ...f, message: e.target.value }))}
+                          placeholder="What should this message say?"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={onCreateCampaign}
+                        disabled={
+                          !campaignForm.title.trim() ||
+                          !campaignForm.message.trim() ||
+                          !campaignForm.audience_id ||
+                          (campaignForm.channel === 'email' && !campaignForm.subject.trim()) ||
+                          createCampaign.isPending
+                        }
+                      >
+                        {createCampaign.isPending ? 'Creating…' : 'Create draft'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </div>
         }
@@ -244,7 +303,8 @@ export default function MarketingCampaignsPage() {
       ) : !campaigns || campaigns.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-sm text-muted-foreground">
-            No campaigns yet. Create an audience, then a campaign, to reach your members or opted-in contacts by SMS or email.
+            No campaigns yet. Create an audience, then a campaign, to reach your members or opted-in contacts by SMS or
+            email.
           </CardContent>
         </Card>
       ) : (
@@ -258,9 +318,7 @@ export default function MarketingCampaignsPage() {
                     <Badge variant="outline">{c.channel === 'email' ? 'Email' : 'SMS'}</Badge>
                     <Badge variant={STATUS_VARIANT[c.status]}>{c.status.replace('_', ' ')}</Badge>
                   </div>
-                  {c.channel === 'email' && c.subject && (
-                    <p className="mt-1 text-sm font-medium">{c.subject}</p>
-                  )}
+                  {c.channel === 'email' && c.subject && <p className="mt-1 text-sm font-medium">{c.subject}</p>}
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.message}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     {c.status === 'completed' || c.status === 'sending'
@@ -274,7 +332,12 @@ export default function MarketingCampaignsPage() {
                 <div className="flex shrink-0 items-center gap-2">
                   {c.status === 'draft' && canManage && (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => onCancel(c.id)} disabled={cancelCampaign.isPending}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onCancel(c.id)}
+                        disabled={cancelCampaign.isPending}
+                      >
                         Cancel
                       </Button>
                       <Button size="sm" onClick={() => onSubmit(c.id)} disabled={submitCampaign.isPending}>
@@ -284,7 +347,14 @@ export default function MarketingCampaignsPage() {
                   )}
                   {c.status === 'pending_review' && isChairperson && (
                     <>
-                      <Button size="sm" variant="outline" onClick={() => { setRejectingId(c.id); setRejectReason(''); }}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setRejectingId(c.id);
+                          setRejectReason('');
+                        }}
+                      >
                         Reject
                       </Button>
                       <Button size="sm" onClick={() => onApprove(c.id)} disabled={approveCampaign.isPending}>
@@ -301,13 +371,25 @@ export default function MarketingCampaignsPage() {
 
       <Dialog open={!!rejectingId} onOpenChange={(v) => !v && setRejectingId(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Reject campaign</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Reject campaign</DialogTitle>
+          </DialogHeader>
           <div className="space-y-1.5">
             <Label htmlFor="reason">Reason *</Label>
-            <Textarea id="reason" rows={3} value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Why is this campaign being rejected?" />
+            <Textarea
+              id="reason"
+              rows={3}
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Why is this campaign being rejected?"
+            />
           </div>
           <DialogFooter>
-            <Button onClick={onReject} disabled={!rejectReason.trim() || rejectCampaign.isPending} variant="destructive">
+            <Button
+              onClick={onReject}
+              disabled={!rejectReason.trim() || rejectCampaign.isPending}
+              variant="destructive"
+            >
               {rejectCampaign.isPending ? 'Rejecting…' : 'Reject campaign'}
             </Button>
           </DialogFooter>

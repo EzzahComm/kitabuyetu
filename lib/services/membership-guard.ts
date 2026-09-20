@@ -23,12 +23,12 @@ import type { AuthContext } from '@/types/api.types';
 
 export interface MembershipRef {
   membershipId: string;
-  memberCode:   string;
+  memberCode: string;
 }
 
 export async function assertActiveMembership(
-  client:   PoolClient,
-  groupId:  string,
+  client: PoolClient,
+  groupId: string,
   memberId: string,
   opts?: { allowStatuses?: string[] },
 ): Promise<MembershipRef> {
@@ -40,9 +40,7 @@ export async function assertActiveMembership(
     [groupId, memberId, statuses],
   );
   if (!rows[0]) {
-    throw new ValidationError(
-      `Member ${memberId} has no ${statuses.join('/')} membership in this group`,
-    );
+    throw new ValidationError(`Member ${memberId} has no ${statuses.join('/')} membership in this group`);
   }
   return { membershipId: rows[0].id, memberCode: rows[0].member_code };
 }
@@ -74,7 +72,9 @@ export async function assertAuthFresh(auth: AuthContext): Promise<string[] | und
 
   const row = await withAdminDb(async (client) => {
     const { rows } = await client.query<{
-      session_version: number; auth_version: number | null; permissions: string[] | null;
+      session_version: number;
+      auth_version: number | null;
+      permissions: string[] | null;
     }>(
       `SELECT m.session_version, gm.auth_version, r.permissions
        FROM   members m

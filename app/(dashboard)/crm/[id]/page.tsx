@@ -9,16 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
-import {
-  useContact, useSetOptIn, useCreateOpportunity, useLogActivity,
-} from '@/hooks/use-crm';
+import { useContact, useSetOptIn, useCreateOpportunity, useLogActivity } from '@/hooks/use-crm';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -55,7 +49,8 @@ export default function CrmContactDetailPage() {
   const onCreateOpportunity = async () => {
     try {
       await createOpportunity.mutateAsync({
-        title: oppForm.title, stage: oppForm.stage,
+        title: oppForm.title,
+        stage: oppForm.stage,
         amount: oppForm.amount ? Number(oppForm.amount) : undefined,
         notes: oppForm.notes || undefined,
       });
@@ -98,37 +93,67 @@ export default function CrmContactDetailPage() {
                 {canManage && (
                   <Dialog open={oppOpen} onOpenChange={setOppOpen}>
                     <DialogTrigger asChild>
-                      <Button size="sm" variant="outline">Add opportunity</Button>
+                      <Button size="sm" variant="outline">
+                        Add opportunity
+                      </Button>
                     </DialogTrigger>
                     <DialogContent>
-                      <DialogHeader><DialogTitle>Add opportunity</DialogTitle></DialogHeader>
+                      <DialogHeader>
+                        <DialogTitle>Add opportunity</DialogTitle>
+                      </DialogHeader>
                       <div className="space-y-3">
                         <div className="space-y-1.5">
                           <Label htmlFor="title">Title *</Label>
-                          <Input id="title" value={oppForm.title} onChange={(e) => setOppForm((f) => ({ ...f, title: e.target.value }))} />
+                          <Input
+                            id="title"
+                            value={oppForm.title}
+                            onChange={(e) => setOppForm((f) => ({ ...f, title: e.target.value }))}
+                          />
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="space-y-1.5">
                             <Label htmlFor="stage">Stage</Label>
-                            <Select value={oppForm.stage} onValueChange={(v) => setOppForm((f) => ({ ...f, stage: v as OpportunityStage }))}>
-                              <SelectTrigger id="stage"><SelectValue /></SelectTrigger>
+                            <Select
+                              value={oppForm.stage}
+                              onValueChange={(v) => setOppForm((f) => ({ ...f, stage: v as OpportunityStage }))}
+                            >
+                              <SelectTrigger id="stage">
+                                <SelectValue />
+                              </SelectTrigger>
                               <SelectContent>
-                                {STAGES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                                {STAGES.map((s) => (
+                                  <SelectItem key={s} value={s}>
+                                    {s}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
                           <div className="space-y-1.5">
                             <Label htmlFor="amount">Amount (KES)</Label>
-                            <Input id="amount" type="number" value={oppForm.amount} onChange={(e) => setOppForm((f) => ({ ...f, amount: e.target.value }))} />
+                            <Input
+                              id="amount"
+                              type="number"
+                              value={oppForm.amount}
+                              onChange={(e) => setOppForm((f) => ({ ...f, amount: e.target.value }))}
+                            />
                           </div>
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="opp_notes">Notes</Label>
-                          <Textarea id="opp_notes" rows={3} value={oppForm.notes} onChange={(e) => setOppForm((f) => ({ ...f, notes: e.target.value }))} />
+                          <Textarea
+                            id="opp_notes"
+                            rows={3}
+                            value={oppForm.notes}
+                            onChange={(e) => setOppForm((f) => ({ ...f, notes: e.target.value }))}
+                          />
                         </div>
                       </div>
                       <DialogFooter>
-                        <Button onClick={onCreateOpportunity} disabled={!oppForm.title.trim() || createOpportunity.isPending}>
+                        <Button
+                          onClick={onCreateOpportunity}
+                          disabled={!oppForm.title.trim() || createOpportunity.isPending}
+                        >
                           {createOpportunity.isPending ? 'Creating…' : 'Create opportunity'}
                         </Button>
                       </DialogFooter>
@@ -144,7 +169,9 @@ export default function CrmContactDetailPage() {
                     <div key={o.id} className="flex items-center justify-between rounded-md border p-3">
                       <div>
                         <p className="text-sm font-medium">{o.title}</p>
-                        {o.amount && <p className="text-xs text-muted-foreground">KES {Number(o.amount).toLocaleString()}</p>}
+                        {o.amount && (
+                          <p className="text-xs text-muted-foreground">KES {Number(o.amount).toLocaleString()}</p>
+                        )}
                       </div>
                       <Badge variant="secondary">{o.stage}</Badge>
                     </div>
@@ -161,9 +188,15 @@ export default function CrmContactDetailPage() {
                 <div className="space-y-2 rounded-md border p-3">
                   <div className="flex gap-2">
                     <Select value={noteType} onValueChange={(v) => setNoteType(v as ActivityType)}>
-                      <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+                      <SelectTrigger className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {ACTIVITY_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                        {ACTIVITY_TYPES.map((t) => (
+                          <SelectItem key={t} value={t}>
+                            {t}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     <Input

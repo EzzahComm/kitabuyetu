@@ -25,7 +25,7 @@ export default function AuditTrailPage() {
 
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationAuditLogRow>>({
     queryKey: enterpriseKeys.auditLogs(page, search),
-    queryFn:  () => organizationApi.auditLogs({ page, limit: 30, search: search || undefined }),
+    queryFn: () => organizationApi.auditLogs({ page, limit: 30, search: search || undefined }),
   });
 
   return (
@@ -40,7 +40,10 @@ export default function AuditTrailPage() {
         <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by resource type…"
           className="pl-8"
         />
@@ -53,27 +56,36 @@ export default function AuditTrailPage() {
         error={error}
         onPageChange={setPage}
         emptyMessage="No audit activity yet"
-        emptyDescription={search ? 'Try a different search term.' : 'Actions taken across your branches will appear here.'}
+        emptyDescription={
+          search ? 'Try a different search term.' : 'Actions taken across your branches will appear here.'
+        }
         emptyIcon={ScrollText}
         columns={[
           {
-            key: 'action', header: 'Action',
+            key: 'action',
+            header: 'Action',
             render: (r) => <span className="font-mono text-xs font-medium text-foreground">{r.action}</span>,
           },
           {
-            key: 'resource', header: 'Resource',
-            render: (r) => <span className="capitalize text-muted-foreground">{r.resourceType.replace(/_/g, ' ')}</span>,
+            key: 'resource',
+            header: 'Resource',
+            render: (r) => (
+              <span className="capitalize text-muted-foreground">{r.resourceType.replace(/_/g, ' ')}</span>
+            ),
           },
           {
-            key: 'branch', header: 'Branch',
+            key: 'branch',
+            header: 'Branch',
             render: (r) => <span className="text-muted-foreground">{r.groupName ?? '—'}</span>,
           },
           {
-            key: 'actor', header: 'Actor',
+            key: 'actor',
+            header: 'Actor',
             render: (r) => <span className="text-muted-foreground">{r.actorName?.trim() || '—'}</span>,
           },
           {
-            key: 'date', header: 'Date',
+            key: 'date',
+            header: 'Date',
             render: (r) => <span className="text-muted-foreground">{formatDate(r.createdAt)}</span>,
           },
         ]}

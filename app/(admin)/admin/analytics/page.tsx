@@ -11,19 +11,21 @@ import { formatKES } from '@/lib/utils';
 // OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts (~90KB gzipped) is
 // code-split out of the initial bundle; it's only needed once data loads.
 const GrowthChart = dynamic(() => import('./_charts').then((m) => m.GrowthChart), {
-  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
+  ssr: false,
+  loading: () => <Skeleton className="h-52 w-full" />,
 });
 const TopGroupsChart = dynamic(() => import('./_charts').then((m) => m.TopGroupsChart), {
-  ssr: false, loading: () => <Skeleton className="h-52 w-full" />,
+  ssr: false,
+  loading: () => <Skeleton className="h-52 w-full" />,
 });
 
 export default function AnalyticsPage() {
   const { data, isLoading } = useAdminAnalytics();
 
-  const growth     = data?.growth     ?? [];
-  const topGroups  = data?.topGroups  ?? [];
+  const growth = data?.growth ?? [];
+  const topGroups = data?.topGroups ?? [];
   const loanHealth = data?.loanHealth ?? {};
-  const welfare    = data?.welfareStats ?? {};
+  const welfare = data?.welfareStats ?? {};
 
   return (
     <div className="space-y-6">
@@ -80,19 +82,28 @@ export default function AnalyticsPage() {
                 <div className="pt-2 border-t border-border space-y-1.5">
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Total Outstanding</span>
-                    <span className="font-semibold text-foreground">{formatKES(loanHealth.total_outstanding ?? 0)}</span>
+                    <span className="font-semibold text-foreground">
+                      {formatKES(loanHealth.total_outstanding ?? 0)}
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Avg Interest Rate</span>
-                    <span className="font-semibold text-foreground">{parseFloat(loanHealth.avg_interest_rate ?? '0').toFixed(1)}%</span>
+                    <span className="font-semibold text-foreground">
+                      {parseFloat(loanHealth.avg_interest_rate ?? '0').toFixed(1)}%
+                    </span>
                   </div>
                   <div className="flex justify-between text-xs">
                     <span className="text-muted-foreground">Default Rate</span>
-                    <span className={`font-semibold ${parseInt(loanHealth.defaulted ?? '0') > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    <span
+                      className={`font-semibold ${parseInt(loanHealth.defaulted ?? '0') > 0 ? 'text-red-600' : 'text-green-600'}`}
+                    >
                       {(parseInt(loanHealth.active ?? '1') > 0
-                        ? (parseInt(loanHealth.defaulted ?? '0') / (parseInt(loanHealth.active ?? '1') + parseInt(loanHealth.defaulted ?? '0'))) * 100
+                        ? (parseInt(loanHealth.defaulted ?? '0') /
+                            (parseInt(loanHealth.active ?? '1') + parseInt(loanHealth.defaulted ?? '0'))) *
+                          100
                         : 0
-                      ).toFixed(1)}%
+                      ).toFixed(1)}
+                      %
                     </span>
                   </div>
                 </div>

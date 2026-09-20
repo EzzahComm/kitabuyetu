@@ -10,7 +10,10 @@
 import { POST } from '@/app/api/admin/organization/disbursements/[id]/route';
 import { backofficeHeaders, buildRequest } from './helpers/request';
 import {
-  createTestGroup, createTestOrganization, createOrgCoordinator, createTestOrgDisbursement,
+  createTestGroup,
+  createTestOrganization,
+  createOrgCoordinator,
+  createTestOrgDisbursement,
 } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 
@@ -38,7 +41,9 @@ describe('organization disbursements tenant isolation', () => {
       buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
         headers: backofficeHeaders({
-          userId: coordinatorAId, platformRole: 'organization_coordinator', organizationId: orgAId,
+          userId: coordinatorAId,
+          platformRole: 'organization_coordinator',
+          organizationId: orgAId,
         }),
         body: { action: 'approve' },
       }),
@@ -55,7 +60,9 @@ describe('organization disbursements tenant isolation', () => {
       buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
         headers: backofficeHeaders({
-          userId: coordinatorAId, platformRole: 'organization_coordinator', organizationId: orgAId,
+          userId: coordinatorAId,
+          platformRole: 'organization_coordinator',
+          organizationId: orgAId,
         }),
         body: { action: 'reject', reason: 'not my organization' },
       }),
@@ -72,7 +79,9 @@ describe('organization disbursements tenant isolation', () => {
       buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
         headers: backofficeHeaders({
-          userId: secondCoordinatorBId, platformRole: 'organization_coordinator', organizationId: orgBId,
+          userId: secondCoordinatorBId,
+          platformRole: 'organization_coordinator',
+          organizationId: orgBId,
         }),
         body: { action: 'approve' },
       }),
@@ -89,7 +98,9 @@ describe('organization disbursements tenant isolation', () => {
       buildRequest(`/api/admin/organization/disbursements/${id}`, {
         method: 'POST',
         headers: backofficeHeaders({
-          userId: coordinatorBId, platformRole: 'organization_coordinator', organizationId: orgBId,
+          userId: coordinatorBId,
+          platformRole: 'organization_coordinator',
+          organizationId: orgBId,
         }),
         body: { action: 'approve' },
       }),

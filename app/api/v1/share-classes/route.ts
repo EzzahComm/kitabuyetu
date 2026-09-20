@@ -8,9 +8,9 @@ import { created, ok } from '@/lib/utils/response';
 /** GET /api/v1/share-classes — list share classes for the current group. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx        = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const activeOnly = req.nextUrl.searchParams.get('active') === 'true';
-    const items      = await sharesService.listClasses(ctx, { activeOnly });
+    const items = await sharesService.listClasses(ctx, { activeOnly });
     return ok({ items });
   });
 }
@@ -18,10 +18,10 @@ export async function GET(req: NextRequest): Promise<Response> {
 /** POST /api/v1/share-classes — create a new share class (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'shares.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = CreateShareClassSchema.parse(body);
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const cls   = await sharesService.createClass(ctx, input);
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const cls = await sharesService.createClass(ctx, input);
     return created(cls);
   });
 }

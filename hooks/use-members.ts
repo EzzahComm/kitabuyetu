@@ -3,23 +3,23 @@ import { membersApi } from '@/lib/api/endpoints';
 import type { CreateMemberPayload, UpdateMemberPayload } from '@/lib/validators/member.schema';
 
 export const memberKeys = {
-  all:    ['members'] as const,
-  list:   (params?: Record<string, unknown>) => [...memberKeys.all, 'list', params] as const,
+  all: ['members'] as const,
+  list: (params?: Record<string, unknown>) => [...memberKeys.all, 'list', params] as const,
   detail: (id: string) => [...memberKeys.all, id] as const,
 };
 
 export function useMembers(params?: Record<string, unknown>) {
   return useQuery({
     queryKey: memberKeys.list(params),
-    queryFn:  () => membersApi.list(params),
+    queryFn: () => membersApi.list(params),
   });
 }
 
 export function useMember(id: string) {
   return useQuery({
     queryKey: memberKeys.detail(id),
-    queryFn:  () => membersApi.getById(id),
-    enabled:  !!id,
+    queryFn: () => membersApi.getById(id),
+    enabled: !!id,
   });
 }
 
@@ -27,7 +27,7 @@ export function useCreateMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateMemberPayload) => membersApi.create(body),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: memberKeys.all }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: memberKeys.all }),
   });
 }
 
@@ -35,7 +35,7 @@ export function useUpdateMember(id: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: UpdateMemberPayload) => membersApi.update(id, body),
-    onSuccess:  () => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: memberKeys.list() });
       qc.invalidateQueries({ queryKey: memberKeys.detail(id) });
     },
@@ -46,6 +46,6 @@ export function useDeactivateMember() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => membersApi.deactivate(id),
-    onSuccess:  () => qc.invalidateQueries({ queryKey: memberKeys.all }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: memberKeys.all }),
   });
 }

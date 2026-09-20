@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 /**
  * POST /api/v1/mpesa/transaction-status          â€” Query transaction status
  * POST /api/v1/mpesa/transaction-status?type=result  â€” Safaricom callback
@@ -14,10 +14,10 @@ import { withAdminDb, withTransaction, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 const QuerySchema = z.object({
-  transactionId:  z.string().min(5).max(50),
-  partyA:         z.string().optional(),
+  transactionId: z.string().min(5).max(50),
+  partyA: z.string().optional(),
   identifierType: z.enum(['1', '2', '3', '4']).default('4'),
-  remarks:        z.string().max(100).default('Transaction status check'),
+  remarks: z.string().max(100).default('Transaction status check'),
 });
 
 function callerIp(req: NextRequest): string {
@@ -28,7 +28,7 @@ const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
 export async function POST(req: NextRequest): Promise<Response> {
   const type = req.nextUrl.searchParams.get('type');
-  const ip   = callerIp(req);
+  const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
     // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
@@ -41,7 +41,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
 
     after(() => {
       withAdminDb((db) =>
@@ -71,15 +75,20 @@ export async function POST(req: NextRequest): Promise<Response> {
       const shortcode = process.env.MPESA_SHORTCODE ?? '';
 
       const res = await queryTransactionStatus({
-        transactionId:  input.transactionId,
-        partyA:         input.partyA ?? shortcode,
+        transactionId: input.transactionId,
+        partyA: input.partyA ?? shortcode,
         identifierType: input.identifierType as '1' | '2' | '3' | '4',
-        remarks:        input.remarks,
+        remarks: input.remarks,
       });
 
       // Record in master ledger
       const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+      const ctx: TenantContext = {
+        userId: auth.userId,
+        groupId: auth.groupId,
+        role: auth.role,
+        organizationId: auth.organizationId,
+      };
       await withTransaction(ctx, (db) =>
         db.query(
           `INSERT INTO mpesa_transactions
@@ -92,11 +101,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
 
       return ok({
-        conversationId:           res.conversationId,
+        conversationId: res.conversationId,
         originatorConversationId: res.originatorConversationId,
-        responseCode:             res.responseCode,
-        responseDescription:      res.responseDescription,
-        message:                  'Status query submitted. Result will arrive via callback.',
+        responseCode: res.responseCode,
+        responseDescription: res.responseDescription,
+        message: 'Status query submitted. Result will arrive via callback.',
       });
     } catch (err) {
       return handleError(err);

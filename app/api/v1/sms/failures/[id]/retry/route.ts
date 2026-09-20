@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';
@@ -21,10 +21,7 @@ import { ok, badRequest, notFound } from '@/lib/utils/response';
  * the reserve/settle discipline hold here too — a retry to a number that has
  * since opted out resolves as suppressed and costs nothing.
  */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
     const { id } = await params;
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

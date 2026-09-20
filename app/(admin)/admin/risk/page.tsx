@@ -2,8 +2,16 @@
 
 import * as React from 'react';
 import {
-  ShieldCheck, UserCheck, AlertTriangle, Banknote, Activity,
-  ArrowRight, Check, X, Eye, Info,
+  ShieldCheck,
+  UserCheck,
+  AlertTriangle,
+  Banknote,
+  Activity,
+  ArrowRight,
+  Check,
+  X,
+  Eye,
+  Info,
 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,10 +27,18 @@ import { tone, type Tone } from '@/lib/ui/tokens';
 import { formatKES } from '@/lib/utils';
 import { type Severity } from './_data';
 import type { RiskDashboardPayload } from '@/lib/services/admin.service';
-import { adminFetch, useGovernanceAlerts, useAcknowledgeGovernanceAlert, useResolveGovernanceAlert } from '@/hooks/use-admin';
+import {
+  adminFetch,
+  useGovernanceAlerts,
+  useAcknowledgeGovernanceAlert,
+  useResolveGovernanceAlert,
+} from '@/hooks/use-admin';
 
 const severityTone: Record<Severity, Tone> = {
-  critical: 'negative', high: 'negative', medium: 'warning', low: 'neutral',
+  critical: 'negative',
+  high: 'negative',
+  medium: 'warning',
+  low: 'neutral',
 };
 
 const RISK_DIMENSIONS = ['Fraud', 'Capital', 'Credit', 'Liquidity', 'Compliance'] as const;
@@ -88,10 +104,34 @@ export default function RiskDashboardPage() {
 
       {/* KPIs */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard title="Open fraud alerts" value={isLoading ? '—' : openAlerts} description={isLoading ? 'Loading…' : `${alerts.length} in feed`} icon={AlertTriangle} accent="red" />
-        <StatCard title="Flagged volume" value={isLoading ? '—' : formatKES(flaggedVolume)} description={isLoading ? 'Loading…' : 'Under review'} icon={Banknote} accent="orange" />
-        <StatCard title="KYC pending" value={isLoading ? '—' : pendingKyc} description={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`} icon={UserCheck} accent="blue" />
-        <StatCard title="Platform risk" value={isLoading ? '—' : data?.summary.platformRisk ?? 'Moderate'} description={isLoading ? 'Loading…' : 'Composite signal'} icon={ShieldCheck} accent="green" />
+        <StatCard
+          title="Open fraud alerts"
+          value={isLoading ? '—' : openAlerts}
+          description={isLoading ? 'Loading…' : `${alerts.length} in feed`}
+          icon={AlertTriangle}
+          accent="red"
+        />
+        <StatCard
+          title="Flagged volume"
+          value={isLoading ? '—' : formatKES(flaggedVolume)}
+          description={isLoading ? 'Loading…' : 'Under review'}
+          icon={Banknote}
+          accent="orange"
+        />
+        <StatCard
+          title="KYC pending"
+          value={isLoading ? '—' : pendingKyc}
+          description={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`}
+          icon={UserCheck}
+          accent="blue"
+        />
+        <StatCard
+          title="Platform risk"
+          value={isLoading ? '—' : (data?.summary.platformRisk ?? 'Moderate')}
+          description={isLoading ? 'Loading…' : 'Composite signal'}
+          icon={ShieldCheck}
+          accent="green"
+        />
       </div>
 
       {/* Heatmap + trend */}
@@ -108,14 +148,18 @@ export default function RiskDashboardPage() {
                 <tr>
                   <th className="px-2 py-1 text-left text-xs font-medium text-muted-foreground">Segment</th>
                   {RISK_DIMENSIONS.map((d) => (
-                    <th key={d} className="px-2 py-1 text-center text-xs font-medium text-muted-foreground">{d}</th>
+                    <th key={d} className="px-2 py-1 text-center text-xs font-medium text-muted-foreground">
+                      {d}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {(data?.heatmap ?? []).map((row) => (
                   <tr key={row.segment}>
-                    <td className="whitespace-nowrap px-2 py-1 text-xs font-medium text-muted-foreground">{row.segment}</td>
+                    <td className="whitespace-nowrap px-2 py-1 text-xs font-medium text-muted-foreground">
+                      {row.segment}
+                    </td>
                     {row.scores.map((score, i) => (
                       <td key={i} className="p-0">
                         <div
@@ -132,8 +176,10 @@ export default function RiskDashboardPage() {
             </table>
             <div className="mt-3 flex items-center gap-4 text-[11px] text-muted-foreground">
               {[
-                { label: 'Low', c: '#DCFCE7' }, { label: 'Moderate', c: '#FEF9C3' },
-                { label: 'Elevated', c: '#FEF3C7' }, { label: 'High', c: '#FEE2E2' },
+                { label: 'Low', c: '#DCFCE7' },
+                { label: 'Moderate', c: '#FEF9C3' },
+                { label: 'Elevated', c: '#FEF3C7' },
+                { label: 'High', c: '#FEE2E2' },
               ].map((l) => (
                 <span key={l.label} className="flex items-center gap-1.5">
                   <span className={`h-3 w-3 rounded ${legendToneClass(l.label)}`} /> {l.label}
@@ -168,11 +214,15 @@ export default function RiskDashboardPage() {
             </CardTitle>
             <span className="text-xs text-muted-foreground">{govAlerts?.total ?? 0} total</span>
           </div>
-          <p className="text-xs text-muted-foreground">Raised automatically when a group&apos;s financial metrics land in amber or red</p>
+          <p className="text-xs text-muted-foreground">
+            Raised automatically when a group&apos;s financial metrics land in amber or red
+          </p>
         </CardHeader>
         <CardContent className="space-y-2">
           {govLoading ? (
-            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading governance alerts…</div>
+            <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+              Loading governance alerts…
+            </div>
           ) : !govAlerts?.items.length ? (
             <EmptyState
               size="sm"
@@ -185,24 +235,43 @@ export default function RiskDashboardPage() {
               <div key={a.id as string} className="flex items-start justify-between gap-3 rounded-lg border p-3">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <StatusPill status={a.severity as string} tone={a.severity === 'red' ? 'negative' : 'warning'} label={a.severity as string} size="sm" />
-                    <StatusPill status={a.status as string} tone={alertStatusTone[a.status as string] ?? 'neutral'} label={a.status as string} size="sm" />
+                    <StatusPill
+                      status={a.severity as string}
+                      tone={a.severity === 'red' ? 'negative' : 'warning'}
+                      label={a.severity as string}
+                      size="sm"
+                    />
+                    <StatusPill
+                      status={a.status as string}
+                      tone={alertStatusTone[a.status as string] ?? 'neutral'}
+                      label={a.status as string}
+                      size="sm"
+                    />
                     <span className="truncate text-sm font-semibold text-foreground">{a.group_name as string}</span>
                   </div>
-                  <p className="mt-1 truncate text-xs text-muted-foreground">{a.metric_name as string} · {a.message as string}</p>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {a.metric_name as string} · {a.message as string}
+                  </p>
                 </div>
                 {a.status !== 'resolved' && (
                   <div className="flex shrink-0 gap-2">
                     {a.status === 'open' && (
                       <Button
-                        size="sm" variant="outline" className="h-7 text-xs"
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-xs"
                         loading={acknowledgeAlert.isPending && acknowledgeAlert.variables === a.id}
                         onClick={() => acknowledgeAlert.mutate(a.id as string)}
                       >
                         Acknowledge
                       </Button>
                     )}
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" onClick={() => setResolvingId(a.id as string)}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground"
+                      onClick={() => setResolvingId(a.id as string)}
+                    >
                       Resolve
                     </Button>
                   </div>
@@ -219,7 +288,9 @@ export default function RiskDashboardPage() {
         title="Resolve governance alert"
         description="This marks the alert as resolved. It will be raised again automatically if the same metric is still in amber/red at the next computation run."
         confirmLabel="Resolve"
-        onConfirm={async () => { if (resolvingId) await resolveAlert.mutateAsync(resolvingId); }}
+        onConfirm={async () => {
+          if (resolvingId) await resolveAlert.mutateAsync(resolvingId);
+        }}
       />
 
       {/* Live fraud feed + KYC queue */}
@@ -242,9 +313,13 @@ export default function RiskDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {isLoading ? (
-              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading live fraud signals…</div>
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                Loading live fraud signals…
+              </div>
             ) : error ? (
-              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Unable to load risk data right now.</div>
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                Unable to load risk data right now.
+              </div>
             ) : alerts.length === 0 ? (
               <EmptyState
                 size="sm"
@@ -261,18 +336,32 @@ export default function RiskDashboardPage() {
                         <StatusPill status={a.severity} tone={severityTone[a.severity]} label={a.severity} size="sm" />
                         <span className="truncate text-sm font-semibold text-foreground">{a.type}</span>
                       </div>
-                      <p className="mt-1 truncate text-xs text-muted-foreground">{a.org} · {a.detail}</p>
-                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">{a.id} · {ago(a.ago)}</p>
+                      <p className="mt-1 truncate text-xs text-muted-foreground">
+                        {a.org} · {a.detail}
+                      </p>
+                      <p className="mt-1 font-mono text-[11px] text-muted-foreground">
+                        {a.id} · {ago(a.ago)}
+                      </p>
                     </div>
                     <MoneyDisplay amount={a.amount} size="sm" color="red" className="shrink-0" />
                   </div>
                   <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="outline" className="h-7 text-xs" disabled
-                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-7 text-xs"
+                      disabled
+                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
+                    >
                       <Eye size={12} className="mr-1" /> Escalate
                     </Button>
-                    <Button size="sm" variant="ghost" className="h-7 text-xs text-muted-foreground" disabled
-                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 text-xs text-muted-foreground"
+                      disabled
+                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
+                    >
                       Dismiss
                     </Button>
                   </div>
@@ -294,9 +383,13 @@ export default function RiskDashboardPage() {
           </CardHeader>
           <CardContent className="space-y-2">
             {isLoading ? (
-              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Loading verification queue…</div>
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                Loading verification queue…
+              </div>
             ) : error ? (
-              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">Unable to load verification queue right now.</div>
+              <div className="rounded-lg border border-dashed p-3 text-sm text-muted-foreground">
+                Unable to load verification queue right now.
+              </div>
             ) : kyc.length === 0 ? (
               <EmptyState
                 size="sm"
@@ -308,24 +401,44 @@ export default function RiskDashboardPage() {
               kyc.map((k) => (
                 <div key={k.id} className="flex items-center gap-3 rounded-lg border p-3">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                    {k.name.split(' ').map((n) => n[0]).join('')}
+                    {k.name
+                      .split(' ')
+                      .map((n) => n[0])
+                      .join('')}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2">
                       <span className="truncate text-sm font-semibold text-foreground">{k.name}</span>
-                      <StatusPill status={k.risk} tone={k.risk === 'high' ? 'negative' : k.risk === 'medium' ? 'warning' : 'positive'} label={`${k.risk} risk`} size="sm" />
+                      <StatusPill
+                        status={k.risk}
+                        tone={k.risk === 'high' ? 'negative' : k.risk === 'medium' ? 'warning' : 'positive'}
+                        label={`${k.risk} risk`}
+                        size="sm"
+                      />
                     </div>
-                    <p className="truncate text-xs text-muted-foreground">{k.docType} · {k.org} · {k.submitted}</p>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {k.docType} · {k.org} · {k.submitted}
+                    </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
-                    <Button size="icon" variant="outline" className="h-9 w-9 text-green-600 hover:bg-green-50" disabled
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 text-green-600 hover:bg-green-50"
+                      disabled
                       title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
-                      aria-label={`Approve ${k.name} (not yet available)`}>
+                      aria-label={`Approve ${k.name} (not yet available)`}
+                    >
                       <Check size={14} />
                     </Button>
-                    <Button size="icon" variant="outline" className="h-9 w-9 text-red-600 hover:bg-red-50" disabled
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 text-red-600 hover:bg-red-50"
+                      disabled
                       title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
-                      aria-label={`Reject ${k.name} (not yet available)`}>
+                      aria-label={`Reject ${k.name} (not yet available)`}
+                    >
                       <X size={14} />
                     </Button>
                   </div>
@@ -338,7 +451,11 @@ export default function RiskDashboardPage() {
 
       <div className="flex items-start gap-2 rounded-lg border border-dashed bg-muted/40 p-3 text-xs text-muted-foreground">
         <Info size={14} className="mt-0.5 shrink-0" />
-        <span>The risk feed renders real data from the platform dashboard endpoint, but the Escalate/Dismiss/Approve/Reject actions above are not yet wired to a backend mutation — they&apos;re disabled until the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) provides real alert rows to act on.</span>
+        <span>
+          The risk feed renders real data from the platform dashboard endpoint, but the Escalate/Dismiss/Approve/Reject
+          actions above are not yet wired to a backend mutation — they&apos;re disabled until the
+          governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) provides real alert rows to act on.
+        </span>
       </div>
     </div>
   );

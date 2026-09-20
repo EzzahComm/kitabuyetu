@@ -49,10 +49,16 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
 function acceptedResponses(phones: string[]): BulkSmsResult {
   return {
     responses: phones.map((mobile, i) => ({
-      responseCode: 200, responseDescription: 'Success', mobile,
-      messageId: `msg-${i + 1}`, networkId: '1', success: true, clientSmsId: i + 1,
+      responseCode: 200,
+      responseDescription: 'Success',
+      mobile,
+      messageId: `msg-${i + 1}`,
+      networkId: '1',
+      success: true,
+      clientSmsId: i + 1,
     })),
-    sent: phones.length, failed: 0,
+    sent: phones.length,
+    failed: 0,
   };
 }
 
@@ -80,13 +86,19 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
     // Chunk 0 of 2 — carries the TRUE total, not its own 2-recipient slice.
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunkA));
     const first = await smsService.sendBulkCampaign({
-      groupId, phones: chunkA, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: `${jobId}:chunk:0`, totalRecipientCount,
+      groupId,
+      phones: chunkA,
+      message: 'reminder',
+      sentBy: 'test',
+      campaignId,
+      dispatchBatchId: `${jobId}:chunk:0`,
+      totalRecipientCount,
     });
     expect(first.sent).toBe(2);
 
     const [afterChunkA] = await rawQuery<{ status: string; recipient_count: number; sent_count: number }>(
-      `SELECT status, recipient_count, sent_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+      `SELECT status, recipient_count, sent_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
     // The critical assertion: chunk A alone must NOT complete the campaign —
     // the pre-chunking code (unconditional status='completed' per call)
@@ -98,13 +110,19 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
     // Chunk 1 of 2 — its own dispatchBatchId, same campaign, same true total.
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunkB));
     const second = await smsService.sendBulkCampaign({
-      groupId, phones: chunkB, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: `${jobId}:chunk:1`, totalRecipientCount,
+      groupId,
+      phones: chunkB,
+      message: 'reminder',
+      sentBy: 'test',
+      campaignId,
+      dispatchBatchId: `${jobId}:chunk:1`,
+      totalRecipientCount,
     });
     expect(second.sent).toBe(1);
 
     const [afterChunkB] = await rawQuery<{ status: string; sent_count: number; failed_count: number }>(
-      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+      `SELECT status, sent_count, failed_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
     expect(afterChunkB.status).toBe('completed');
     expect(afterChunkB.sent_count).toBe(3);
@@ -128,28 +146,40 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
 
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunkPhones));
     const first = await smsService.sendBulkCampaign({
-      groupId, phones: chunkPhones, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: chunkKey, totalRecipientCount,
+      groupId,
+      phones: chunkPhones,
+      message: 'reminder',
+      sentBy: 'test',
+      campaignId,
+      dispatchBatchId: chunkKey,
+      totalRecipientCount,
     });
     expect(first.sent).toBe(2);
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
 
     const [afterCredits] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
 
     // QStash retries THIS chunk (e.g. the route timed out after dispatch but
     // before responding 2xx) — same chunk key, same phones.
     const retry = await smsService.sendBulkCampaign({
-      groupId, phones: chunkPhones, message: 'reminder', sentBy: 'test',
-      campaignId, dispatchBatchId: chunkKey, totalRecipientCount,
+      groupId,
+      phones: chunkPhones,
+      message: 'reminder',
+      sentBy: 'test',
+      campaignId,
+      dispatchBatchId: chunkKey,
+      totalRecipientCount,
     });
     expect(retry.sent).toBe(0);
     expect(retry.failed).toBe(0);
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1); // not called again
 
     const [afterRetryCredits] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`, [groupId],
+      `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
+      [groupId],
     );
     expect(afterRetryCredits.sms_credits).toBe(afterCredits.sms_credits);
 
@@ -157,7 +187,8 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
     // total recipients have a terminal outcome (the retry deduped away, it
     // didn't count as a THIRD chunk's worth of progress).
     const [campaign] = await rawQuery<{ status: string; sent_count: number }>(
-      `SELECT status, sent_count FROM sms_campaigns WHERE id=$1`, [campaignId],
+      `SELECT status, sent_count FROM sms_campaigns WHERE id=$1`,
+      [campaignId],
     );
     expect(campaign.status).toBe('sending');
     expect(campaign.sent_count).toBe(2);

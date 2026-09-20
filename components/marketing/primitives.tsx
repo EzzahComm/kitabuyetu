@@ -15,11 +15,7 @@ import { Reveal } from './reveal';
 
 /** The one measure for public pages. Wider than the app's, with more air. */
 export function Container({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <div className={cn('mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10', className)}>
-      {children}
-    </div>
-  );
+  return <div className={cn('mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10', className)}>{children}</div>;
 }
 
 /**
@@ -36,27 +32,25 @@ export function Container({ children, className }: { children: ReactNode; classN
 export type SectionTone = 'paper' | 'paper-deep' | 'white' | 'ink';
 
 const TONE_CLASS: Record<SectionTone, string> = {
-  paper:        'bg-paper text-brand-blue-900',
+  paper: 'bg-paper text-brand-blue-900',
   'paper-deep': 'bg-paper-deep text-brand-blue-900',
-  white:        'bg-white text-brand-blue-900',
-  ink:          'bg-brand-blue-900 text-white',
+  white: 'bg-white text-brand-blue-900',
+  ink: 'bg-brand-blue-900 text-white',
 };
 
 interface SectionProps {
-  children:   ReactNode;
+  children: ReactNode;
   /** Anchor target — also what the header's in-page links point at. */
-  id?:        string;
-  tone?:      SectionTone;
+  id?: string;
+  tone?: SectionTone;
   /** Removes the standard vertical padding when a section paints its own. */
-  flush?:     boolean;
+  flush?: boolean;
   className?: string;
   /** Accessible name for the section landmark. */
   labelledBy?: string;
 }
 
-export function Section({
-  children, id, tone = 'paper', flush = false, className, labelledBy,
-}: SectionProps) {
+export function Section({ children, id, tone = 'paper', flush = false, className, labelledBy }: SectionProps) {
   return (
     <section
       id={id}
@@ -96,17 +90,17 @@ interface SectionHeadingProps {
   /** Small mono kicker above the headline. */
   eyebrow?: string;
   /** Plain text before the emphasised phrase. */
-  title:    ReactNode;
+  title: ReactNode;
   /** Rendered in italic brand colour, then the trailing text. */
   emphasis?: string;
   trailing?: string;
-  lede?:    ReactNode;
-  id?:      string;
-  tone?:    'dark' | 'light';
-  align?:   'left' | 'center';
+  lede?: ReactNode;
+  id?: string;
+  tone?: 'dark' | 'light';
+  align?: 'left' | 'center';
   className?: string;
   /** Render as h1 (hero pages) rather than the default h2. */
-  as?:      'h1' | 'h2';
+  as?: 'h1' | 'h2';
 }
 
 /**
@@ -115,19 +109,21 @@ interface SectionHeadingProps {
  * site's signature — used once per section and never twice in one headline.
  */
 export function SectionHeading({
-  eyebrow, title, emphasis, trailing, lede, id, tone = 'light',
-  align = 'left', className, as = 'h2',
+  eyebrow,
+  title,
+  emphasis,
+  trailing,
+  lede,
+  id,
+  tone = 'light',
+  align = 'left',
+  className,
+  as = 'h2',
 }: SectionHeadingProps) {
   const Heading = as;
   const dark = tone === 'dark';
   return (
-    <div
-      className={cn(
-        'max-w-3xl',
-        align === 'center' && 'mx-auto text-center',
-        className,
-      )}
-    >
+    <div className={cn('max-w-3xl', align === 'center' && 'mx-auto text-center', className)}>
       {eyebrow && (
         <p
           className={cn(
@@ -152,14 +148,7 @@ export function SectionHeading({
         {emphasis && (
           <>
             {' '}
-            <em
-              className={cn(
-                'italic font-normal',
-                dark ? 'text-brand-400' : 'text-brand-700',
-              )}
-            >
-              {emphasis}
-            </em>
+            <em className={cn('italic font-normal', dark ? 'text-brand-400' : 'text-brand-700')}>{emphasis}</em>
           </>
         )}
         {trailing}

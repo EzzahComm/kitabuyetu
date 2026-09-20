@@ -40,11 +40,11 @@ describe('Loans/Treasury/M-Pesa/Accounting permission gates (final batch)', () =
   beforeAll(async () => {
     await resetDatabase();
     const { groupId: gId, officerId: founderId } = await createTestGroup('chairperson');
-    groupId       = gId;
-    memberId      = founderId;
+    groupId = gId;
+    memberId = founderId;
     plainMemberId = await addGroupOfficer(gId, founderId, 'member');
-    memberPerms      = await permissionsFor('member');
-    treasurerPerms   = await permissionsFor('treasurer');
+    memberPerms = await permissionsFor('member');
+    treasurerPerms = await permissionsFor('treasurer');
     chairpersonPerms = await permissionsFor('chairperson');
   });
 
@@ -53,99 +53,135 @@ describe('Loans/Treasury/M-Pesa/Accounting permission gates (final batch)', () =
   });
 
   it('accounting.manage: member denied POST /accounting/accounts, treasurer allowed; GET is unguarded (withAuth)', async () => {
-    const denied = await accountsPost(buildRequest('/api/v1/accounting/accounts', {
-      method: 'POST', body: { code: '9999', name: 'Test Account', accountType: 'asset' },
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await accountsPost(
+      buildRequest('/api/v1/accounting/accounts', {
+        method: 'POST',
+        body: { code: '9999', name: 'Test Account', accountType: 'asset' },
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const readAllowed = await accountsGet(buildRequest('/api/v1/accounting/accounts', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const readAllowed = await accountsGet(
+      buildRequest('/api/v1/accounting/accounts', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(readAllowed.status).toBe(200);
   });
 
   it('reports.view: member is denied, treasurer is allowed', async () => {
-    const denied = await reportsGet(buildRequest('/api/v1/accounting/reports', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await reportsGet(
+      buildRequest('/api/v1/accounting/reports', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await reportsGet(buildRequest('/api/v1/accounting/reports', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await reportsGet(
+      buildRequest('/api/v1/accounting/reports', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 
   it('loans.policy.manage (new, migration 113): treasurer is denied, chairperson is allowed', async () => {
-    const denied = await loansPolicyPut(buildRequest('/api/v1/loans/policy', {
-      method: 'PUT', body: { interestRate: 12, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const denied = await loansPolicyPut(
+      buildRequest('/api/v1/loans/policy', {
+        method: 'PUT',
+        body: { interestRate: 12, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await loansPolicyPut(buildRequest('/api/v1/loans/policy', {
-      method: 'PUT', body: { interestRate: 12, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowed = await loansPolicyPut(
+      buildRequest('/api/v1/loans/policy', {
+        method: 'PUT',
+        body: { interestRate: 12, interestMethod: 'flat', maxTermMonths: 12, loanMultiplier: 3 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 
   it('credit_scores.policy.manage (new) and admin.recompute (existing, reused for bulk recompute): both chairperson-only', async () => {
-    const deniedPolicy = await creditPolicyPut(buildRequest('/api/v1/credit-scores/policy', {
-      method: 'PUT', body: { thresholds: [{ tier: 'gold', minScore: 80, loanMultiplier: 4 }] },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const deniedPolicy = await creditPolicyPut(
+      buildRequest('/api/v1/credit-scores/policy', {
+        method: 'PUT',
+        body: { thresholds: [{ tier: 'gold', minScore: 80, loanMultiplier: 4 }] },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(deniedPolicy.status).toBe(403);
 
-    const deniedRecompute = await creditRecomputeAllPost(buildRequest('/api/v1/credit-scores/recompute', {
-      method: 'POST',
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const deniedRecompute = await creditRecomputeAllPost(
+      buildRequest('/api/v1/credit-scores/recompute', {
+        method: 'POST',
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(deniedRecompute.status).toBe(403);
 
-    const allowedRecompute = await creditRecomputeAllPost(buildRequest('/api/v1/credit-scores/recompute', {
-      method: 'POST',
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowedRecompute = await creditRecomputeAllPost(
+      buildRequest('/api/v1/credit-scores/recompute', {
+        method: 'POST',
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowedRecompute.status).toBe(200);
   });
 
   it('mpesa.view: member denied listing transactions, treasurer allowed', async () => {
-    const denied = await mpesaTxGet(buildRequest('/api/v1/mpesa/transactions', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await mpesaTxGet(
+      buildRequest('/api/v1/mpesa/transactions', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await mpesaTxGet(buildRequest('/api/v1/mpesa/transactions', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await mpesaTxGet(
+      buildRequest('/api/v1/mpesa/transactions', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 
   it('mpesa.bill_manager.manage (new): treasurer denied, chairperson allowed', async () => {
-    const denied = await billManagerGet(buildRequest('/api/v1/mpesa/bill-manager', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const denied = await billManagerGet(
+      buildRequest('/api/v1/mpesa/bill-manager', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await billManagerGet(buildRequest('/api/v1/mpesa/bill-manager', {
-      headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-    }));
+    const allowed = await billManagerGet(
+      buildRequest('/api/v1/mpesa/bill-manager', {
+        headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+      }),
+    );
     expect(allowed.status).toBe(200);
   });
 
   it('payments.request: member is denied, treasurer is allowed', async () => {
-    const denied = await paymentRequestsPost(buildRequest('/api/v1/payment-requests', {
-      method: 'POST', body: { memberId: plainMemberId, product: 'savings', amount: 1000 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await paymentRequestsPost(
+      buildRequest('/api/v1/payment-requests', {
+        method: 'POST',
+        body: { memberId: plainMemberId, product: 'savings', amount: 1000 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await paymentRequestsPost(buildRequest('/api/v1/payment-requests', {
-      method: 'POST', body: { memberId: plainMemberId, product: 'savings', amount: 1000 },
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await paymentRequestsPost(
+      buildRequest('/api/v1/payment-requests', {
+        method: 'POST',
+        body: { memberId: plainMemberId, product: 'savings', amount: 1000 },
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).toBe(201);
   });
 
@@ -161,8 +197,12 @@ describe('Loans/Treasury/M-Pesa/Accounting permission gates (final batch)', () =
         method: 'POST',
         body: { status: 'suspended', reason: 'testing stale-claim rejection' },
         headers: authHeaders({
-          userId: plainMemberId, groupId, role: 'treasurer',
-          permissions: ['members.manage'], authVersion: 1, sessionVersion: 1,
+          userId: plainMemberId,
+          groupId,
+          role: 'treasurer',
+          permissions: ['members.manage'],
+          authVersion: 1,
+          sessionVersion: 1,
         }),
       }),
       { params: Promise.resolve({ id: plainMemberId }) },

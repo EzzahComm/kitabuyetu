@@ -1,6 +1,4 @@
-import {
-  Document, Page, Text, View, StyleSheet,
-} from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet } from '@react-pdf/renderer';
 import type { ProgramBudgetLine, DonorSpendLine } from '@/lib/services/organization-finance.service';
 
 /**
@@ -17,7 +15,9 @@ import type { ProgramBudgetLine, DonorSpendLine } from '@/lib/services/organizat
 
 function fmt(n: number) {
   return new Intl.NumberFormat('en-KE', {
-    style: 'currency', currency: 'KES', maximumFractionDigits: 2,
+    style: 'currency',
+    currency: 'KES',
+    maximumFractionDigits: 2,
   }).format(n);
 }
 
@@ -31,31 +31,36 @@ function fmtDate(iso: string | null) {
 }
 
 const styles = StyleSheet.create({
-  page:       { padding: 36, fontSize: 9, fontFamily: 'Helvetica', color: '#1f2937' },
-  header:     { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  orgName:    { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#085041' },
-  subtitle:   { fontSize: 10, color: '#6b7280', marginTop: 2 },
-  badge:      { fontSize: 8, color: '#1D9E75', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 1 },
-  table:      { marginTop: 8 },
-  tHeadRow:   { flexDirection: 'row', backgroundColor: '#E1F5EE', paddingVertical: 5, paddingHorizontal: 4 },
-  tRow:       { flexDirection: 'row', paddingVertical: 4, paddingHorizontal: 4, borderBottomWidth: 0.5, borderBottomColor: '#e5e7eb', borderBottomStyle: 'solid' },
-  tHeadCell:  { fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#085041' },
-  tCell:      { fontSize: 8 },
-  colName:    { flexGrow: 2, flexBasis: 0 },
-  colNum:     { flexGrow: 1, flexBasis: 0, textAlign: 'right' },
-  colSmall:   { flexGrow: 0.7, flexBasis: 0, textAlign: 'right' },
+  page: { padding: 36, fontSize: 9, fontFamily: 'Helvetica', color: '#1f2937' },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  orgName: { fontSize: 16, fontFamily: 'Helvetica-Bold', color: '#085041' },
+  subtitle: { fontSize: 10, color: '#6b7280', marginTop: 2 },
+  badge: { fontSize: 8, color: '#1D9E75', fontFamily: 'Helvetica-Bold', textTransform: 'uppercase', letterSpacing: 1 },
+  table: { marginTop: 8 },
+  tHeadRow: { flexDirection: 'row', backgroundColor: '#E1F5EE', paddingVertical: 5, paddingHorizontal: 4 },
+  tRow: {
+    flexDirection: 'row',
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#e5e7eb',
+    borderBottomStyle: 'solid',
+  },
+  tHeadCell: { fontFamily: 'Helvetica-Bold', fontSize: 8, color: '#085041' },
+  tCell: { fontSize: 8 },
+  colName: { flexGrow: 2, flexBasis: 0 },
+  colNum: { flexGrow: 1, flexBasis: 0, textAlign: 'right' },
+  colSmall: { flexGrow: 0.7, flexBasis: 0, textAlign: 'right' },
   sectionHdr: { fontSize: 11, fontFamily: 'Helvetica-Bold', color: '#085041', marginTop: 14, marginBottom: 4 },
-  footer:     { position: 'absolute', bottom: 24, left: 36, right: 36, fontSize: 8, color: '#9ca3af', textAlign: 'center' },
+  footer: { position: 'absolute', bottom: 24, left: 36, right: 36, fontSize: 8, color: '#9ca3af', textAlign: 'center' },
 });
 
 export interface OrganizationReportPdfProps {
   organizationName: string;
-  generatedAt:      string; // ISO
+  generatedAt: string; // ISO
 }
 
-export function ProgramBudgetReportPdf(
-  props: OrganizationReportPdfProps & { lines: ProgramBudgetLine[] },
-) {
+export function ProgramBudgetReportPdf(props: OrganizationReportPdfProps & { lines: ProgramBudgetLine[] }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -102,9 +107,7 @@ export function ProgramBudgetReportPdf(
   );
 }
 
-export function DonorSpendReportPdf(
-  props: OrganizationReportPdfProps & { lines: DonorSpendLine[] },
-) {
+export function DonorSpendReportPdf(props: OrganizationReportPdfProps & { lines: DonorSpendLine[] }) {
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -136,8 +139,12 @@ export function DonorSpendReportPdf(
               ))}
               <View style={[styles.tRow, { backgroundColor: '#f9fafb' }]}>
                 <Text style={[styles.tCell, styles.colName, { fontFamily: 'Helvetica-Bold' }]}>Total</Text>
-                <Text style={[styles.tCell, styles.colNum, { fontFamily: 'Helvetica-Bold' }]}>{fmt(d.totalBudget)}</Text>
-                <Text style={[styles.tCell, styles.colNum, { fontFamily: 'Helvetica-Bold' }]}>{fmt(d.totalDisbursed)}</Text>
+                <Text style={[styles.tCell, styles.colNum, { fontFamily: 'Helvetica-Bold' }]}>
+                  {fmt(d.totalBudget)}
+                </Text>
+                <Text style={[styles.tCell, styles.colNum, { fontFamily: 'Helvetica-Bold' }]}>
+                  {fmt(d.totalDisbursed)}
+                </Text>
               </View>
             </View>
 

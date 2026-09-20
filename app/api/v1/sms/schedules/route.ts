@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -26,11 +26,13 @@ export async function GET(req: NextRequest): Promise<Response> {
 // POST /api/v1/sms/schedules
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
-    const body  = await req.json();
+    const body = await req.json();
     const input = ScheduleCreateSchema.parse(body);
     const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows: [schedule] } = await withTransaction(ctx, (db) =>
+    const {
+      rows: [schedule],
+    } = await withTransaction(ctx, (db) =>
       db.query(
         `INSERT INTO sms_schedules
            (group_id, name, description, schedule_type, template_id, message,
@@ -62,9 +64,9 @@ export async function POST(req: NextRequest): Promise<Response> {
 // PATCH /api/v1/sms/schedules?id=xxx
 export async function PATCH(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {
-    const id   = new URL(req.url).searchParams.get('id');
+    const id = new URL(req.url).searchParams.get('id');
     if (!id) return notFound();
-    const body  = await req.json();
+    const body = await req.json();
     const input = ScheduleUpdateSchema.parse(body);
     const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
@@ -114,10 +116,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     const { rows } = await withTransaction(ctx, (db) =>
-      db.query(
-        `DELETE FROM sms_schedules WHERE id=$1 AND group_id=$2 RETURNING id`,
-        [id, auth.groupId],
-      ),
+      db.query(`DELETE FROM sms_schedules WHERE id=$1 AND group_id=$2 RETURNING id`, [id, auth.groupId]),
     );
     if (!rows.length) return notFound();
     return ok({ deleted: true });

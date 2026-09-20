@@ -20,17 +20,32 @@ export interface ContributionReceiptProps {
 }
 
 const methodLabel: Record<string, string> = {
-  mpesa: 'M-Pesa', cash: 'Cash', bank_transfer: 'Bank transfer', cheque: 'Cheque',
+  mpesa: 'M-Pesa',
+  cash: 'Cash',
+  bank_transfer: 'Bank transfer',
+  cheque: 'Cheque',
 };
 
 export default function ContributionReceipt({
-  memberName, amount, date, groupName, periodLabel, mpesaRef, accountRef,
-  paymentMethod, totalContributions, status = 'completed', allocations,
+  memberName,
+  amount,
+  date,
+  groupName,
+  periodLabel,
+  mpesaRef,
+  accountRef,
+  paymentMethod,
+  totalContributions,
+  status = 'completed',
+  allocations,
 }: ContributionReceiptProps) {
   const total = allocations?.reduce((s, a) => s + a.amount, 0) || amount;
   return (
     <EmailLayout preview={`Receipt: ${KES(amount)} contribution${groupName ? ` to ${groupName}` : ''}`}>
-      <Heading as="h1" style={{ fontSize: 20, fontWeight: 700, color: BRAND.colors.text, margin: '4px 0 2px', textAlign: 'center' }}>
+      <Heading
+        as="h1"
+        style={{ fontSize: 20, fontWeight: 700, color: BRAND.colors.text, margin: '4px 0 2px', textAlign: 'center' }}
+      >
         Contribution received
       </Heading>
       <Text style={{ textAlign: 'center', margin: 0, fontSize: 14, color: BRAND.colors.textMuted }}>
@@ -39,7 +54,10 @@ export default function ContributionReceipt({
 
       <Amount value={amount} label="Amount received" />
       <div style={{ textAlign: 'center', marginBottom: 8 }}>
-        <StatusChip label={status === 'completed' ? 'Completed' : 'Pending'} tone={status === 'completed' ? 'positive' : 'pending'} />
+        <StatusChip
+          label={status === 'completed' ? 'Completed' : 'Pending'}
+          tone={status === 'completed' ? 'positive' : 'pending'}
+        />
       </div>
 
       <Divider />

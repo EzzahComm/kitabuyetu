@@ -81,8 +81,13 @@ export async function sendMemberStatements(
   let sent = 0;
   let skipped = 0;
   for (const m of members) {
-    const snapshot = snapshotByMember.get(m.id) ??
-      { memberId: m.id, savings: 0, loanBalance: 0, shares: 0, contributedThisPeriod: 0 };
+    const snapshot = snapshotByMember.get(m.id) ?? {
+      memberId: m.id,
+      savings: 0,
+      loanBalance: 0,
+      shares: 0,
+      contributedThisPeriod: 0,
+    };
     const result = await sendReactEmail({
       to: m.email,
       subject: `Your ${period} statement — ${m.group_name}`,
@@ -102,9 +107,12 @@ export async function sendMemberStatements(
       templateKey: 'account_statement',
       category: 'monthly_statement',
       referenceType: 'member',
-    }).then(() => true).catch(() => false);
+    })
+      .then(() => true)
+      .catch(() => false);
 
-    if (result) sent++; else skipped++;
+    if (result) sent++;
+    else skipped++;
   }
   return { sent, skipped };
 }

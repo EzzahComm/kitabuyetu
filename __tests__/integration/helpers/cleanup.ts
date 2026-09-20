@@ -2,10 +2,7 @@ import { readFileSync } from 'fs';
 import path from 'path';
 import { execScript } from './db';
 
-const CLEAR_TENANT_DATA_SQL = readFileSync(
-  path.join(process.cwd(), 'scripts', 'clear-tenant-data.sql'),
-  'utf-8',
-);
+const CLEAR_TENANT_DATA_SQL = readFileSync(path.join(process.cwd(), 'scripts', 'clear-tenant-data.sql'), 'utf-8');
 
 /**
  * Wipes all tenant + organization test data between integration test files.

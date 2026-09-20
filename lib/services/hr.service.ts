@@ -12,9 +12,7 @@
 import { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/utils/errors';
-import type {
-  CreateEmployeeInput, UpdateEmployeeInput, TerminateEmployeeInput,
-} from '@/lib/validators/hr.schema';
+import type { CreateEmployeeInput, UpdateEmployeeInput, TerminateEmployeeInput } from '@/lib/validators/hr.schema';
 
 export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 export type EmploymentStatus = 'active' | 'on_leave' | 'suspended' | 'terminated';
@@ -56,7 +54,13 @@ async function logHrAudit(
   await db.query(
     `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
      VALUES ($1, $2, 'hr_employee', $3, $4, $5)`,
-    [actorId, action, employeeId, oldValues ? JSON.stringify(oldValues) : null, newValues ? JSON.stringify(newValues) : null],
+    [
+      actorId,
+      action,
+      employeeId,
+      oldValues ? JSON.stringify(oldValues) : null,
+      newValues ? JSON.stringify(newValues) : null,
+    ],
   );
 }
 
@@ -86,9 +90,19 @@ async function createEmployeeWith(db: PoolClient, actorId: string, data: CreateE
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      RETURNING *`,
     [
-      data.memberId ?? null, employeeNumber, data.firstName, data.lastName, data.email,
-      data.phone ?? null, data.department ?? null, data.jobTitle ?? null,
-      data.employmentType, data.hireDate, data.managerId ?? null, data.notes ?? null, actorId,
+      data.memberId ?? null,
+      employeeNumber,
+      data.firstName,
+      data.lastName,
+      data.email,
+      data.phone ?? null,
+      data.department ?? null,
+      data.jobTitle ?? null,
+      data.employmentType,
+      data.hireDate,
+      data.managerId ?? null,
+      data.notes ?? null,
+      actorId,
     ],
   );
   const employee = rows[0];
@@ -142,9 +156,16 @@ export async function getEmployeeById(id: string): Promise<Employee | null> {
 }
 
 const UPDATE_COLUMNS: Record<keyof UpdateEmployeeInput, string> = {
-  firstName: 'first_name', lastName: 'last_name', email: 'email', phone: 'phone',
-  department: 'department', jobTitle: 'job_title', employmentType: 'employment_type',
-  managerId: 'manager_id', memberId: 'member_id', notes: 'notes',
+  firstName: 'first_name',
+  lastName: 'last_name',
+  email: 'email',
+  phone: 'phone',
+  department: 'department',
+  jobTitle: 'job_title',
+  employmentType: 'employment_type',
+  managerId: 'manager_id',
+  memberId: 'member_id',
+  notes: 'notes',
 };
 
 export async function updateEmployee(actorId: string, id: string, updates: UpdateEmployeeInput): Promise<Employee> {
@@ -162,10 +183,10 @@ export async function updateEmployee(actorId: string, id: string, updates: Updat
     const values = keys.map((k) => updates[k]);
     sets.push('updated_at = NOW()');
 
-    const { rows } = await db.query<Employee>(
-      `UPDATE hr_employees SET ${sets.join(', ')} WHERE id = $1 RETURNING *`,
-      [id, ...values],
-    );
+    const { rows } = await db.query<Employee>(`UPDATE hr_employees SET ${sets.join(', ')} WHERE id = $1 RETURNING *`, [
+      id,
+      ...values,
+    ]);
     const employee = rows[0];
     await logHrAudit(db, actorId, 'hr_employee.update', id, before, employee);
     return employee;

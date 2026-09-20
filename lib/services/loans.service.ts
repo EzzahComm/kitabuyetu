@@ -1,7 +1,11 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postTemplatedJournal, postLoanDisbursementJournal, postLoanRepaymentJournal } from './posting-templates.service';
+import {
+  postTemplatedJournal,
+  postLoanDisbursementJournal,
+  postLoanRepaymentJournal,
+} from './posting-templates.service';
 import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
@@ -9,12 +13,17 @@ import { SMS_EVENTS } from '@/lib/sms/events';
 import { logger } from '@/lib/logger';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
-  ApplyLoanInput, ApproveLoanInput, RejectLoanInput,
-  DisburseLoanInput, MarkDefaultedInput, WriteOffLoanInput, RecordRepaymentInput, LoanQueryInput,
+  ApplyLoanInput,
+  ApproveLoanInput,
+  RejectLoanInput,
+  DisburseLoanInput,
+  MarkDefaultedInput,
+  WriteOffLoanInput,
+  RecordRepaymentInput,
+  LoanQueryInput,
 } from '@/lib/validators/loan.schema';
 
 export const loansService = {
-
   async list(ctx: TenantContext, params: LoanQueryInput): Promise<PaginatedResult<Loan & { member_name: string }>> {
     return withDb(ctx, async (client) => {
       const { page, limit, memberId, status, from, to, sortDir } = params;
@@ -23,16 +32,26 @@ export const loansService = {
       const values: unknown[] = [ctx.groupId];
       let idx = 2;
 
-      if (memberId) { conditions.push(`l.member_id = $${idx++}`);          values.push(memberId); }
-      if (status)   { conditions.push(`l.status = $${idx++}`);             values.push(status); }
-      if (from)     { conditions.push(`l.created_at::date >= $${idx++}`);  values.push(from); }
-      if (to)       { conditions.push(`l.created_at::date <= $${idx++}`);  values.push(to); }
+      if (memberId) {
+        conditions.push(`l.member_id = $${idx++}`);
+        values.push(memberId);
+      }
+      if (status) {
+        conditions.push(`l.status = $${idx++}`);
+        values.push(status);
+      }
+      if (from) {
+        conditions.push(`l.created_at::date >= $${idx++}`);
+        values.push(from);
+      }
+      if (to) {
+        conditions.push(`l.created_at::date <= $${idx++}`);
+        values.push(to);
+      }
 
       const where = conditions.join(' AND ');
       const [{ rows: countRows }, { rows }] = await Promise.all([
-        client.query<{ count: string }>(
-          `SELECT COUNT(*) AS count FROM loans l WHERE ${where}`, values,
-        ),
+        client.query<{ count: string }>(`SELECT COUNT(*) AS count FROM loans l WHERE ${where}`, values),
         client.query<Loan & { member_name: string }>(
           `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name
            FROM loans l JOIN members m ON m.id = l.member_id
@@ -55,10 +74,7 @@ export const loansService = {
    * schedule per loan, so this is a straightforward cross-loan query, not a
    * new amortization computation).
    */
-  async listUpcomingRepayments(
-    ctx: TenantContext,
-    limit = 5,
-  ): Promise<(LoanRepayment & { member_name: string })[]> {
+  async listUpcomingRepayments(ctx: TenantContext, limit = 5): Promise<(LoanRepayment & { member_name: string })[]> {
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<LoanRepayment & { member_name: string }>(
         `SELECT lr.*, m.first_name || ' ' || m.last_name AS member_name
@@ -73,7 +89,10 @@ export const loansService = {
     });
   },
 
-  async getById(ctx: TenantContext, id: string): Promise<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }> {
+  async getById(
+    ctx: TenantContext,
+    id: string,
+  ): Promise<Loan & { member_name: string; member_phone: string; schedule: LoanRepayment[] }> {
     return withDb(ctx, async (client) => {
       const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(
         `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name, m.phone AS member_phone
@@ -115,9 +134,7 @@ export const loansService = {
       );
       if (active[0]) {
         throw new ValidationError(
-          borrowerId === ctx.userId
-            ? 'You already have an active loan'
-            : 'This member already has an active loan',
+          borrowerId === ctx.userId ? 'You already have an active loan' : 'This member already has an active loan',
         );
       }
 
@@ -133,7 +150,7 @@ export const loansService = {
       // 2026-08-16. Reading the policy here is what stops that recurring.
       const policyTerms = await getEffectiveLoanTerms(client, {
         organizationId: ctx.organizationId ?? null,
-        groupId:        ctx.groupId,
+        groupId: ctx.groupId,
       });
 
       // Term options ARE enforced, unlike the rate, which stays advisory per
@@ -160,7 +177,9 @@ export const loansService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
          RETURNING *`,
         [
-          ctx.groupId, borrowerId, membershipId,
+          ctx.groupId,
+          borrowerId,
+          membershipId,
           data.principalAmount.toFixed(2),
           data.interestRate.toFixed(2),
           data.loanTermMonths,
@@ -188,9 +207,10 @@ export const loansService = {
 
   async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
-      const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [id, ctx.groupId],
-      );
+      const { rows: existing } = await client.query<Loan>(`SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [
+        id,
+        ctx.groupId,
+      ]);
       if (!existing[0]) throw new NotFoundError('Loan', id);
       if (existing[0].status !== 'pending') {
         throw new ValidationError(`Cannot approve a loan with status '${existing[0].status}'`);
@@ -219,7 +239,9 @@ export const loansService = {
           termMonths: String(updated.loan_term_months),
         },
         actorId: ctx.userId,
-      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
+      }).catch((err) =>
+        logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
+      );
 
       return updated;
     });
@@ -227,9 +249,10 @@ export const loansService = {
 
   async reject(ctx: TenantContext, id: string, data: RejectLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
-      const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [id, ctx.groupId],
-      );
+      const { rows: existing } = await client.query<Loan>(`SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [
+        id,
+        ctx.groupId,
+      ]);
       if (!existing[0]) throw new NotFoundError('Loan', id);
       if (!['pending', 'approved'].includes(existing[0].status)) {
         throw new ValidationError(`Cannot reject a loan with status '${existing[0].status}'`);
@@ -244,7 +267,14 @@ export const loansService = {
       );
 
       const updated = rows[0];
-      await writeAuditLog(client, ctx, 'loan.reject', id, { status: prev.status }, { status: updated.status, reason: data.reason });
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan.reject',
+        id,
+        { status: prev.status },
+        { status: updated.status, reason: data.reason },
+      );
 
       // Emit event for trigger engine (best-effort, never throws)
       const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
@@ -258,7 +288,9 @@ export const loansService = {
           reason: data.reason,
         },
         actorId: ctx.userId,
-      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
+      }).catch((err) =>
+        logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
+      );
 
       return updated;
     });
@@ -266,9 +298,10 @@ export const loansService = {
 
   async disburse(ctx: TenantContext, id: string, data: DisburseLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
-      const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [id, ctx.groupId],
-      );
+      const { rows: existing } = await client.query<Loan>(`SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [
+        id,
+        ctx.groupId,
+      ]);
       if (!existing[0]) throw new NotFoundError('Loan', id);
       if (existing[0].status !== 'approved') {
         throw new ValidationError(`Only approved loans can be disbursed`);
@@ -286,13 +319,7 @@ export const loansService = {
              disbursed_by         = $4,
              disbursed_at         = NOW()
          WHERE id = $5 RETURNING *`,
-        [
-          data.disbursementDate,
-          data.paymentMethod,
-          data.mpesaReceiptNumber ?? null,
-          ctx.userId,
-          id,
-        ],
+        [data.disbursementDate, data.paymentMethod, data.mpesaReceiptNumber ?? null, ctx.userId, id],
       );
 
       const updated = rows[0];
@@ -320,8 +347,12 @@ export const loansService = {
 
       // Post disbursement journal
       await postLoanDisbursementJournal(client, {
-        groupId: ctx.groupId, loanId: updated.id, principal,
-        entryDate: updated.disbursement_date!, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
+        groupId: ctx.groupId,
+        loanId: updated.id,
+        principal,
+        entryDate: updated.disbursement_date!,
+        reference: updated.mpesa_receipt_number,
+        createdBy: ctx.userId,
       });
 
       // Auto-apply any configured one-time charges (processing fee, insurance
@@ -332,7 +363,14 @@ export const loansService = {
       await applyDisbursementCharges(client, ctx, updated);
 
       // Record audit log
-      await writeAuditLog(client, ctx, 'loan.disburse', id, { status: prev.status }, { status: updated.status, principal_amount: updated.principal_amount });
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan.disburse',
+        id,
+        { status: prev.status },
+        { status: updated.status, principal_amount: updated.principal_amount },
+      );
 
       // Emit event for trigger engine (best-effort, never throws)
       const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
@@ -347,7 +385,9 @@ export const loansService = {
           disbursementDate: updated.disbursement_date!.toISOString().split('T')[0],
         },
         actorId: ctx.userId,
-      }).catch((err) => logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }));
+      }).catch((err) =>
+        logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
+      );
 
       return updated;
     });
@@ -367,10 +407,9 @@ export const loansService = {
       }
 
       if (data.mpesaReceiptNumber) {
-        const dup = await client.query(
-          'SELECT id FROM loan_repayments WHERE mpesa_receipt_number = $1',
-          [data.mpesaReceiptNumber],
-        );
+        const dup = await client.query('SELECT id FROM loan_repayments WHERE mpesa_receipt_number = $1', [
+          data.mpesaReceiptNumber,
+        ]);
         if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
       }
 
@@ -386,10 +425,13 @@ export const loansService = {
          WHERE loan_id = $6 AND installment_number = $7
          RETURNING *`,
         [
-          data.amountPaid.toFixed(2), data.paymentDate,
-          data.paymentMethod, data.mpesaReceiptNumber ?? null,
+          data.amountPaid.toFixed(2),
+          data.paymentDate,
+          data.paymentMethod,
+          data.mpesaReceiptNumber ?? null,
           data.penaltyAmount.toFixed(2),
-          loanId, data.installmentNumber,
+          loanId,
+          data.installmentNumber,
         ],
       );
 
@@ -414,9 +456,14 @@ export const loansService = {
 
       // Post repayment journal
       await postLoanRepaymentJournal(client, {
-        groupId: ctx.groupId, repaymentId: updatedInstallment.id, loanId: loanId,
-        principalPortion: parseFloat(updatedInstallment.principal_component), interestPortion: parseFloat(updatedInstallment.interest_component),
-        entryDate: updatedInstallment.payment_date!, reference: updatedInstallment.mpesa_receipt_number, createdBy: ctx.userId,
+        groupId: ctx.groupId,
+        repaymentId: updatedInstallment.id,
+        loanId: loanId,
+        principalPortion: parseFloat(updatedInstallment.principal_component),
+        interestPortion: parseFloat(updatedInstallment.interest_component),
+        entryDate: updatedInstallment.payment_date!,
+        reference: updatedInstallment.mpesa_receipt_number,
+        createdBy: ctx.userId,
       });
 
       // Auto-apply any configured late-payment charge when this instalment was
@@ -427,16 +474,21 @@ export const loansService = {
       // guard above), and applyOverdueCharges itself checks for a prior
       // application before inserting.
       await applyOverdueCharges(
-        client, ctx,
+        client,
+        ctx,
         { id: loanId, principal_amount: loanRows[0].principal_amount },
         oldInstallment,
         data.paymentDate,
       );
 
       // Record audit log for repayment
-      await writeAuditLog(client, ctx, 'loan.repayment_recorded', loanId,
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan.repayment_recorded',
+        loanId,
         { installment: data.installmentNumber, status: oldInstallment.status },
-        { installment: data.installmentNumber, amount_paid: data.amountPaid, status: updatedInstallment.status }
+        { installment: data.installmentNumber, amount_paid: data.amountPaid, status: updatedInstallment.status },
       );
 
       return updatedInstallment;
@@ -447,11 +499,14 @@ export const loansService = {
   async markDefaulted(ctx: TenantContext, id: string, data: MarkDefaultedInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`, [id, ctx.groupId],
+        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`,
+        [id, ctx.groupId],
       );
       if (!existing[0]) throw new NotFoundError('Loan', id);
       if (existing[0].status !== 'active') {
-        throw new ValidationError(`Only active loans can be marked defaulted (current status: '${existing[0].status}')`);
+        throw new ValidationError(
+          `Only active loans can be marked defaulted (current status: '${existing[0].status}')`,
+        );
       }
 
       const prev = existing[0];
@@ -463,7 +518,14 @@ export const loansService = {
       );
 
       const updated = rows[0];
-      await writeAuditLog(client, ctx, 'loan.defaulted', id, { status: prev.status }, { status: updated.status, reason: data.reason });
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan.defaulted',
+        id,
+        { status: prev.status },
+        { status: updated.status, reason: data.reason },
+      );
       return updated;
     });
   },
@@ -478,14 +540,17 @@ export const loansService = {
   async writeOff(ctx: TenantContext, id: string, data: WriteOffLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Loan>(
-        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`, [id, ctx.groupId],
+        `SELECT * FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`,
+        [id, ctx.groupId],
       );
       if (!existing[0]) throw new NotFoundError('Loan', id);
       if (existing[0].status !== 'defaulted') {
         throw new ValidationError(`Only defaulted loans can be written off (current status: '${existing[0].status}')`);
       }
       if (existing[0].defaulted_by === ctx.userId) {
-        throw new ForbiddenError('Maker-checker: the officer who marked this loan defaulted cannot authorize its write-off');
+        throw new ForbiddenError(
+          'Maker-checker: the officer who marked this loan defaulted cannot authorize its write-off',
+        );
       }
 
       const prev = existing[0];
@@ -493,7 +558,11 @@ export const loansService = {
       let journalEntryId: string | null = null;
       if (outstanding > 0) {
         journalEntryId = await postTemplatedJournal(
-          client, ctx.groupId, ctx.userId, 'loan_writeoff', `Loan write-off — ${id}`,
+          client,
+          ctx.groupId,
+          ctx.userId,
+          'loan_writeoff',
+          `Loan write-off — ${id}`,
           { outstanding },
           { reference: id },
         );
@@ -508,9 +577,13 @@ export const loansService = {
       );
 
       const updated = rows[0];
-      await writeAuditLog(client, ctx, 'loan.written_off', id,
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan.written_off',
+        id,
         { status: prev.status, outstanding_balance: prev.outstanding_balance },
-        { status: updated.status, outstanding_balance: updated.outstanding_balance, reason: data.reason }
+        { status: updated.status, outstanding_balance: updated.outstanding_balance, reason: data.reason },
       );
       return updated;
     });
@@ -519,7 +592,7 @@ export const loansService = {
 
 async function writeAuditLog(
   client: import('pg').PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   resourceId: string,
   oldValues?: Record<string, unknown>,
@@ -538,4 +611,3 @@ async function writeAuditLog(
     ],
   );
 }
-

@@ -1,11 +1,7 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest, NextResponse, after } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import {
-  handleB2CResult,
-  handleBalanceResult,
-  type B2CResultBody,
-} from '@/lib/services/mpesa.service';
+import { handleB2CResult, handleBalanceResult, type B2CResultBody } from '@/lib/services/mpesa.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
 import { handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
 import { isValidCallbackToken } from '@/lib/services/daraja.service';
@@ -17,11 +13,7 @@ import { logger } from '@/lib/logger';
 import { B2CSchema } from '@/lib/validators/mpesa.schema';
 
 function getCallerIp(req: NextRequest): string {
-  return (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '0.0.0.0'
-  );
+  return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? '0.0.0.0';
 }
 
 function ack(): NextResponse {
@@ -30,7 +22,7 @@ function ack(): NextResponse {
 
 /** Callbacks from Safaricom (no JWT) and disbursement initiation (treasurer+) */
 export async function POST(req: NextRequest): Promise<Response> {
-  const type     = req.nextUrl.searchParams.get('type');
+  const type = req.nextUrl.searchParams.get('type');
   const callerIp = getCallerIp(req);
 
   if (type === 'result' || type === 'timeout') {
@@ -66,21 +58,32 @@ export async function POST(req: NextRequest): Promise<Response> {
     // isn't a vendor payment, so it can run unconditionally alongside the
     // disbursement handler.
     after(async () => {
-      try { await handleB2CResult(body, callerIp); } catch (err) {
+      try {
+        await handleB2CResult(body, callerIp);
+      } catch (err) {
         logger.error('[b2c result]', err);
       }
 
-      try { await handleVendorPaymentResult(body as unknown as Record<string, unknown>, callerIp); }
-      catch (err) { logger.error('[b2c result → vendor payment]', err); }
+      try {
+        await handleVendorPaymentResult(body as unknown as Record<string, unknown>, callerIp);
+      } catch (err) {
+        logger.error('[b2c result → vendor payment]', err);
+      }
     });
     return ack();
   }
 
   if (type === 'balance_result' || type === 'balance_timeout') {
     let body: Record<string, unknown>;
-    try { body = await req.json(); } catch { return ack(); }
+    try {
+      body = await req.json();
+    } catch {
+      return ack();
+    }
     after(async () => {
-      try { await handleBalanceResult(body, callerIp); } catch (err) {
+      try {
+        await handleBalanceResult(body, callerIp);
+      } catch (err) {
         logger.error('[balance result]', err);
       }
     });
@@ -104,23 +107,23 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
       }
 
-      const input  = B2CSchema.parse(await req.json());
-      const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const input = B2CSchema.parse(await req.json());
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       const result = await disbursementsService.initiateDisbursement(ctx, {
-        phone:          input.phone,
-        amount:         input.amount,
-        occasion:       input.occasion,
-        commandId:      input.commandId,
-        loanId:         input.loanId,
+        phone: input.phone,
+        amount: input.amount,
+        occasion: input.occasion,
+        commandId: input.commandId,
+        loanId: input.loanId,
         idempotencyKey,
       });
 
       return ok({
-        id:               result.id,
-        status:           result.status,
-        needsApproval:    result.needsApproval,
-        message:          result.needsApproval
-          ? 'Disbursement submitted — awaiting a second officer\'s approval.'
+        id: result.id,
+        status: result.status,
+        needsApproval: result.needsApproval,
+        message: result.needsApproval
+          ? "Disbursement submitted — awaiting a second officer's approval."
           : 'Disbursement initiated. Monitor the result callback.',
       });
     } catch (err) {

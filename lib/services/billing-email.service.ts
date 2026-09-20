@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 import type { EmailResult } from '@/lib/email/provider';
 import { env } from '@/lib/env';
 
-const SHORTCODE   = process.env.MPESA_SHORTCODE ?? '';
+const SHORTCODE = process.env.MPESA_SHORTCODE ?? '';
 /**
  * The staff address, when one is configured.
  *
@@ -26,36 +26,36 @@ const ADMIN_EMAIL: string | undefined = process.env.EMAIL_ADMIN;
 // ---------------------------------------------------------------------------
 
 interface InvoiceRow {
-  id:                  string;
-  group_id:            string;
-  billing_account_id:  string;
-  invoice_number:      string;
-  invoice_date:        string;
-  due_date:            string;
-  status:              string;
-  total_amount:        string;
-  paid_amount:         string;
-  notes:               string | null;
+  id: string;
+  group_id: string;
+  billing_account_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  due_date: string;
+  status: string;
+  total_amount: string;
+  paid_amount: string;
+  notes: string | null;
   // computed / joined columns
-  recipient_email:     string | null;
-  recipient_name:      string;
-  group_name:          string;
+  recipient_email: string | null;
+  recipient_name: string;
+  group_name: string;
 }
 
 interface ReceiptRow {
-  id:                        string;
-  receipt_number:            string;
-  group_id:                  string;
-  invoice_id:                string;
-  amount_paid:               string;
-  payment_date:              string;
-  payment_method:            string;
+  id: string;
+  receipt_number: string;
+  group_id: string;
+  invoice_id: string;
+  amount_paid: string;
+  payment_date: string;
+  payment_method: string;
   // joined
-  invoice_number:            string;
-  invoice_amount_due:        string;
+  invoice_number: string;
+  invoice_amount_due: string;
   invoice_amount_paid_total: string;
-  recipient_email:           string | null;
-  recipient_name:            string;
+  recipient_email: string | null;
+  recipient_name: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,10 +81,7 @@ const INVOICE_RECIPIENT_CTE = `
 
 // ─── Invoice Dispatch ─────────────────────────────────────────────────────────
 
-export async function sendInvoiceEmail(
-  invoiceId: string,
-  pdfBuffer?: Buffer,
-): Promise<EmailResult> {
+export async function sendInvoiceEmail(invoiceId: string, pdfBuffer?: Buffer): Promise<EmailResult> {
   const { rows } = await withAdminDb((db) =>
     db.query(
       `${INVOICE_RECIPIENT_CTE}
@@ -121,16 +118,16 @@ export async function sendInvoiceEmail(
     vars: {
       invoiceNumber: inv.invoice_number,
       recipientName: inv.recipient_name,
-      groupName:     inv.group_name,
-      invoiceDate:   formatDate(inv.invoice_date),
-      dueDate:       formatDate(inv.due_date),
-      amountDue:     formatMoney(amountDue),
-      shortcode:     SHORTCODE,
-      notes:         inv.notes ?? '',
+      groupName: inv.group_name,
+      invoiceDate: formatDate(inv.invoice_date),
+      dueDate: formatDate(inv.due_date),
+      amountDue: formatMoney(amountDue),
+      shortcode: SHORTCODE,
+      notes: inv.notes ?? '',
     },
-    groupId:       inv.group_id,
+    groupId: inv.group_id,
     attachments,
-    referenceId:   invoiceId,
+    referenceId: invoiceId,
     referenceType: 'invoice',
   });
 
@@ -184,7 +181,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
   );
 
   for (const inv of rows) {
-    const days:  number = inv.days_overdue ?? 0;
+    const days: number = inv.days_overdue ?? 0;
     const level: number = inv.overdue_notice_level ?? 0;
 
     // Level 1: 3–7 days overdue | Level 2: 8–14 days | Level 3: 15+ days
@@ -194,29 +191,31 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
 
     const amountDue = parseFloat(inv.total_amount) - parseFloat(inv.paid_amount);
     const templateKey = `invoice_overdue_${targetLevel}` as
-      'invoice_overdue_1' | 'invoice_overdue_2' | 'invoice_overdue_3';
+      | 'invoice_overdue_1'
+      | 'invoice_overdue_2'
+      | 'invoice_overdue_3';
 
     const vars = {
       invoiceNumber: inv.invoice_number,
       recipientName: inv.recipient_name,
-      groupName:     inv.group_name,
-      dueDate:       formatDate(inv.due_date),
-      amountDue:     formatMoney(amountDue),
-      daysOverdue:   String(days),
-      shortcode:     SHORTCODE,
+      groupName: inv.group_name,
+      dueDate: formatDate(inv.due_date),
+      amountDue: formatMoney(amountDue),
+      daysOverdue: String(days),
+      shortcode: SHORTCODE,
       // Never blank: this renders inside "Contact <strong>{{adminEmail}}</strong>"
       // in a customer-facing overdue notice. EMAIL_FROM is required and real,
       // so an unconfigured EMAIL_ADMIN degrades to an address we own instead
       // of to an empty sentence.
-      adminEmail:    ADMIN_EMAIL ?? env.EMAIL_FROM,
+      adminEmail: ADMIN_EMAIL ?? env.EMAIL_FROM,
     };
 
     await sendTemplatedEmail({
       templateKey,
-      to:            inv.recipient_email,
+      to: inv.recipient_email,
       vars,
-      groupId:       inv.group_id,
-      referenceId:   inv.id,
+      groupId: inv.group_id,
+      referenceId: inv.id,
       referenceType: 'invoice',
     }).catch(() => {});
 
@@ -224,16 +223,17 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
     // Previously this always "succeeded" into a domain we do not own.
     if (targetLevel >= 2 && !ADMIN_EMAIL) {
       logger.warn('[billing-email] EMAIL_ADMIN unset — overdue notice not copied to staff', {
-        invoiceId: inv.id, level: targetLevel,
+        invoiceId: inv.id,
+        level: targetLevel,
       });
     }
     if (targetLevel >= 2 && ADMIN_EMAIL) {
       await sendTemplatedEmail({
         templateKey,
-        to:   ADMIN_EMAIL,
+        to: ADMIN_EMAIL,
         vars: { ...vars, recipientName: `[ADMIN CC] ${inv.recipient_name} <${inv.recipient_email}>` },
-        groupId:       inv.group_id,
-        referenceId:   inv.id,
+        groupId: inv.group_id,
+        referenceId: inv.id,
         referenceType: 'invoice',
       }).catch(() => {});
     }
@@ -269,10 +269,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
 
 // ─── Payment Receipt ───────────────────────────────────────────────────────────
 
-export async function sendReceiptEmail(
-  receiptId: string,
-  pdfBuffer?: Buffer,
-): Promise<EmailResult> {
+export async function sendReceiptEmail(receiptId: string, pdfBuffer?: Buffer): Promise<EmailResult> {
   const { rows } = await withAdminDb((db) =>
     db.query(
       // payer_user_id references members.id directly (no group_members join needed)
@@ -301,9 +298,9 @@ export async function sendReceiptEmail(
     return { success: false, provider: 'none', error: 'No recipient email found for this receipt' };
   }
 
-  const invoiceDue   = parseFloat(r.invoice_amount_due);
-  const invoicePaid  = parseFloat(r.invoice_amount_paid_total);
-  const balance      = Math.max(0, invoiceDue - invoicePaid);
+  const invoiceDue = parseFloat(r.invoice_amount_due);
+  const invoicePaid = parseFloat(r.invoice_amount_paid_total);
+  const balance = Math.max(0, invoiceDue - invoicePaid);
 
   const attachments = pdfBuffer
     ? [{ filename: `Receipt-${r.receipt_number}.pdf`, content: pdfBuffer, contentType: 'application/pdf' }]
@@ -311,19 +308,19 @@ export async function sendReceiptEmail(
 
   return sendTemplatedEmail({
     templateKey: 'payment_receipt',
-    to:          r.recipient_email,
+    to: r.recipient_email,
     vars: {
-      receiptNumber:    r.receipt_number,
-      recipientName:    r.recipient_name,
-      invoiceNumber:    r.invoice_number,
-      amountPaid:       formatMoney(parseFloat(r.amount_paid)),
-      paymentDate:      formatDate(r.payment_date),
-      paymentMethod:    r.payment_method ?? 'M-Pesa',
+      receiptNumber: r.receipt_number,
+      recipientName: r.recipient_name,
+      invoiceNumber: r.invoice_number,
+      amountPaid: formatMoney(parseFloat(r.amount_paid)),
+      paymentDate: formatDate(r.payment_date),
+      paymentMethod: r.payment_method ?? 'M-Pesa',
       balanceRemaining: balance > 0 ? formatMoney(balance) : '',
     },
-    groupId:       r.group_id,
+    groupId: r.group_id,
     attachments,
-    referenceId:   receiptId,
+    referenceId: receiptId,
     referenceType: 'receipt',
   });
 }
@@ -347,10 +344,7 @@ export async function processRecurringInvoices(): Promise<void> {
     try {
       // Resolve billing_account_id for this group (required by invoices FK)
       const { rows: baRows } = await withAdminDb((db) =>
-        db.query(
-          `SELECT id FROM billing_accounts WHERE group_id = $1 LIMIT 1`,
-          [sched.group_id],
-        ),
+        db.query(`SELECT id FROM billing_accounts WHERE group_id = $1 LIMIT 1`, [sched.group_id]),
       );
       if (!baRows[0]) {
         logger.error('[billing] No billing account for group', { groupId: sched.group_id });
@@ -358,7 +352,9 @@ export async function processRecurringInvoices(): Promise<void> {
       }
       const billingAccountId = baRows[0].id;
 
-      const { rows: [inv] } = await withAdminDb(async (db) => {
+      const {
+        rows: [inv],
+      } = await withAdminDb(async (db) => {
         const result = await db.query(
           `INSERT INTO invoices
              (group_id, billing_account_id, invoice_number,
@@ -402,17 +398,17 @@ export async function processRecurringInvoices(): Promise<void> {
       // Queue the invoice email if a recipient email is known
       if (sched.recipient_email) {
         await queueEmail({
-          templateKey:   'invoice',
-          to:             sched.recipient_email,
+          templateKey: 'invoice',
+          to: sched.recipient_email,
           vars: {
             invoiceNumber: inv.id,
             recipientName: sched.recipient_name ?? '',
-            amountDue:     formatMoney(sched.amount),
-            shortcode:     SHORTCODE,
-            notes:         sched.description ?? '',
+            amountDue: formatMoney(sched.amount),
+            shortcode: SHORTCODE,
+            notes: sched.description ?? '',
           },
-          groupId:       sched.group_id,
-          referenceId:   inv.id,
+          groupId: sched.group_id,
+          referenceId: inv.id,
           referenceType: 'invoice',
         });
       }
@@ -439,7 +435,12 @@ export async function processRecurringInvoices(): Promise<void> {
             'invoice_schedule',
             sched.id,
             JSON.stringify({ next_run_at: oldNextRunAt, last_run_at: null }),
-            JSON.stringify({ next_run_at: new Date(new Date(oldNextRunAt).getTime() + sched.frequency_days * 24 * 60 * 60 * 1000).toISOString(), last_run_at: new Date().toISOString() }),
+            JSON.stringify({
+              next_run_at: new Date(
+                new Date(oldNextRunAt).getTime() + sched.frequency_days * 24 * 60 * 60 * 1000,
+              ).toISOString(),
+              last_run_at: new Date().toISOString(),
+            }),
           ],
         );
       });
@@ -454,7 +455,9 @@ export async function processRecurringInvoices(): Promise<void> {
 function formatDate(d: string | Date | null | undefined): string {
   if (!d) return '';
   return new Date(d).toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'short', year: 'numeric',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
   });
 }
 

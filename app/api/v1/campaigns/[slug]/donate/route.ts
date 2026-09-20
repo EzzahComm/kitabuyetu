@@ -15,10 +15,7 @@ import { ok, badRequest, notFound, handleError } from '@/lib/utils/response';
  * same `checkRateLimit` (fail-open on Redis loss) already used by
  * app/api/v1/daraja/[token]/c2b-validate for the same reason.
  */
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ slug: string }> },
-): Promise<Response> {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }): Promise<Response> {
   try {
     const { slug } = await params;
     const parsed = DonateSchema.safeParse(await req.json());
@@ -41,16 +38,16 @@ export async function POST(
     if (!campaign) return notFound('Campaign not found or not currently accepting donations');
 
     const result = await initiateSTKPush({
-      phone:            input.phone,
-      amount:           input.amount,
+      phone: input.phone,
+      amount: input.amount,
       accountReference: campaign.slug,
-      description:      campaign.title,
-      groupId:          campaign.group_id,
-      purpose:          'campaign_donation',
-      campaignId:       campaign.id,
-      donorName:        input.donorName,
-      donorMessage:     input.message,
-      isAnonymous:      input.isAnonymous,
+      description: campaign.title,
+      groupId: campaign.group_id,
+      purpose: 'campaign_donation',
+      campaignId: campaign.id,
+      donorName: input.donorName,
+      donorMessage: input.message,
+      isAnonymous: input.isAnonymous,
     });
 
     return ok({

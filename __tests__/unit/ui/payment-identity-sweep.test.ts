@@ -18,17 +18,17 @@ const ROOT = path.resolve(__dirname, '../../..');
 
 // Member-facing payment surfaces. Extend this list as new surfaces are built
 // (membership cards, statements, QR screens…).
-const SWEPT_DIRS = [
-  'components/pdf',
-  'emails',
-];
+const SWEPT_DIRS = ['components/pdf', 'emails'];
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
   { pattern: /member_?code/i, why: 'member_code is internal/regulatory — show the Membership Number instead' },
   // Snake_case only: camelCase `mpesaRef` legitimately names the M-Pesa
   // RECEIPT number in email props; the dropped column was `mpesa_ref`.
   { pattern: /mpesa_ref\b/, why: 'mpesa_ref was dropped in migration 056 — the Membership Number replaced it' },
-  { pattern: /KYT-(CONTR|LOAN|WELF|SHARE|SUB)/, why: 'legacy KYT refs must not be printed on new surfaces — show the Membership Number' },
+  {
+    pattern: /KYT-(CONTR|LOAN|WELF|SHARE|SUB)/,
+    why: 'legacy KYT refs must not be printed on new surfaces — show the Membership Number',
+  },
 ];
 
 function collectFiles(dir: string): string[] {
@@ -57,25 +57,19 @@ describe('member-facing payment surfaces use only the Membership Number', () => 
       for (const { pattern, why } of FORBIDDEN) {
         const match = src.match(pattern);
         if (match) {
-          throw new Error(
-            `Found forbidden identifier '${match[0]}' in ${_rel}: ${why}`,
-          );
+          throw new Error(`Found forbidden identifier '${match[0]}' in ${_rel}: ${why}`);
         }
       }
     },
   );
 
   it('the contribution receipt shows the Membership Number', () => {
-    const receipt = fs.readFileSync(
-      path.join(ROOT, 'components/pdf/contribution-receipt.tsx'), 'utf8',
-    );
+    const receipt = fs.readFileSync(path.join(ROOT, 'components/pdf/contribution-receipt.tsx'), 'utf8');
     expect(receipt).toMatch(/membershipNo/);
   });
 
   it('the share certificate shows the Membership Number', () => {
-    const cert = fs.readFileSync(
-      path.join(ROOT, 'components/pdf/share-certificate.tsx'), 'utf8',
-    );
+    const cert = fs.readFileSync(path.join(ROOT, 'components/pdf/share-certificate.tsx'), 'utf8');
     expect(cert).toMatch(/membershipNo/);
   });
 });

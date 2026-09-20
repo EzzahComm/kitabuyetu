@@ -2,9 +2,15 @@
 
 import { useRouter } from 'next/navigation';
 import {
-  Building2, Users, CreditCard, TrendingUp,
-  Headphones, AlertTriangle, CheckCircle2,
-  ArrowRight, Layers,
+  Building2,
+  Users,
+  CreditCard,
+  TrendingUp,
+  Headphones,
+  AlertTriangle,
+  CheckCircle2,
+  ArrowRight,
+  Layers,
 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -48,14 +54,14 @@ function StatusRow({ label, value, color }: { label: string; value: string | num
 export default function AdminDashboardPage() {
   const router = useRouter();
   const { data: stats, isLoading } = useAdminDashboard();
-  const { data: trend }            = useAdminRevenueTrend();
+  const { data: trend } = useAdminRevenueTrend();
 
-  const g = stats?.groups        ?? {};
+  const g = stats?.groups ?? {};
   const o = stats?.organizations ?? {};
-  const m = stats?.members       ?? {};
+  const m = stats?.members ?? {};
   const s = stats?.subscriptions ?? {};
-  const r = stats?.revenue       ?? {};
-  const t = stats?.tickets       ?? {};
+  const r = stats?.revenue ?? {};
+  const t = stats?.tickets ?? {};
 
   const mrr = parseFloat(s.mrr ?? '0');
 
@@ -90,7 +96,7 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Groups"
-          value={isLoading ? '—' : (parseInt(g.total ?? '0')).toLocaleString()}
+          value={isLoading ? '—' : parseInt(g.total ?? '0').toLocaleString()}
           description={`${g.active ?? 0} active · ${g.new_this_month ?? 0} new this month`}
           icon={Building2}
           accent="blue"
@@ -191,9 +197,9 @@ export default function AdminDashboardPage() {
             <CardTitle className="text-sm font-semibold text-foreground">Subscription Status</CardTitle>
           </CardHeader>
           <CardContent className="space-y-1">
-            <StatusRow label="Active"    value={s.active_subscriptions ?? 0} color="bg-green-500" />
+            <StatusRow label="Active" value={s.active_subscriptions ?? 0} color="bg-green-500" />
             <StatusRow label="Suspended" value={s.suspended_subscriptions ?? 0} color="bg-amber-400" />
-            <StatusRow label="Expired"   value={s.expired_subscriptions ?? 0} color="bg-gray-400" />
+            <StatusRow label="Expired" value={s.expired_subscriptions ?? 0} color="bg-gray-400" />
             <div className="pt-3 border-t border-border mt-2">
               <div className="flex justify-between text-xs">
                 <span className="text-muted-foreground">Monthly Recurring Revenue</span>
@@ -248,12 +254,9 @@ export default function AdminDashboardPage() {
                   <div key={i} className="flex items-start gap-2.5 text-xs">
                     <ActivityDot action={a.action} />
                     <div className="flex-1 min-w-0">
-                      <span className="font-medium text-foreground capitalize">{a.action.toLowerCase()}</span>
-                      {' '}
+                      <span className="font-medium text-foreground capitalize">{a.action.toLowerCase()}</span>{' '}
                       <span className="text-muted-foreground">{a.table_name}</span>
-                      {a.group_name && (
-                        <span className="text-muted-foreground"> · {a.group_name}</span>
-                      )}
+                      {a.group_name && <span className="text-muted-foreground"> · {a.group_name}</span>}
                     </div>
                     <span className="text-muted-foreground shrink-0">{formatDate(a.created_at)}</span>
                   </div>
@@ -283,9 +286,9 @@ export default function AdminDashboardPage() {
               {/* Ticket stats */}
               <div className="grid grid-cols-3 gap-3">
                 {[
-                  { label: 'Open',        value: t.open        ?? 0, color: 'text-blue-600',  bg: 'bg-blue-50' },
+                  { label: 'Open', value: t.open ?? 0, color: 'text-blue-600', bg: 'bg-blue-50' },
                   { label: 'In Progress', value: t.in_progress ?? 0, color: 'text-amber-600', bg: 'bg-amber-50' },
-                  { label: 'SLA Breach',  value: t.sla_breached ?? 0, color: 'text-red-600', bg: 'bg-red-50' },
+                  { label: 'SLA Breach', value: t.sla_breached ?? 0, color: 'text-red-600', bg: 'bg-red-50' },
                 ].map(({ label, value, color, bg }) => (
                   <div key={label} className={`${bg} rounded-lg p-3 text-center`}>
                     <p className={`text-lg font-bold ${color}`}>{value}</p>
@@ -295,10 +298,12 @@ export default function AdminDashboardPage() {
               </div>
 
               {/* Alerts */}
-              {(parseInt(t.sla_breached ?? '0') > 0) && (
+              {parseInt(t.sla_breached ?? '0') > 0 && (
                 <Alert variant="destructive">
                   <AlertTriangle size={14} />
-                  <AlertTitle>{t.sla_breached} ticket{parseInt(t.sla_breached) !== 1 ? 's' : ''} breached SLA</AlertTitle>
+                  <AlertTitle>
+                    {t.sla_breached} ticket{parseInt(t.sla_breached) !== 1 ? 's' : ''} breached SLA
+                  </AlertTitle>
                   <AlertDescription>Immediate attention required</AlertDescription>
                 </Alert>
               )}
@@ -310,9 +315,7 @@ export default function AdminDashboardPage() {
               )}
 
               <Link href="/admin/support">
-                <Button className="w-full text-xs h-8">
-                  Manage Support Queue
-                </Button>
+                <Button className="w-full text-xs h-8">Manage Support Queue</Button>
               </Link>
             </div>
           </CardContent>

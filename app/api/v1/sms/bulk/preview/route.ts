@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';

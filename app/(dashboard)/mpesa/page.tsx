@@ -16,21 +16,21 @@ import { formatKES, formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 
 interface MpesaTxn {
-  id:                   string;
-  transaction_type:     string;
-  direction:            'inbound' | 'outbound';
+  id: string;
+  transaction_type: string;
+  direction: 'inbound' | 'outbound';
   mpesa_receipt_number: string | null;
-  phone_number:         string | null;
-  amount:               string;
-  status:               string;
-  reference:            string | null;
-  description:          string | null;
-  failure_reason:       string | null;
-  created_at:           string;
-  completed_at:         string | null;
+  phone_number: string | null;
+  amount: string;
+  status: string;
+  reference: string | null;
+  description: string | null;
+  failure_reason: string | null;
+  created_at: string;
+  completed_at: string | null;
 }
 
-const TYPES   = ['', 'stk_push', 'c2b', 'b2c', 'b2b', 'reversal', 'balance_query', 'transaction_status'];
+const TYPES = ['', 'stk_push', 'c2b', 'b2c', 'b2b', 'reversal', 'balance_query', 'transaction_status'];
 const STATUSES = ['', 'initiated', 'pending', 'completed', 'failed', 'timeout', 'cancelled', 'reversed'];
 
 // completed/pending/failed/cancelled/reversed are already mapped by
@@ -38,47 +38,61 @@ const STATUSES = ['', 'initiated', 'pending', 'completed', 'failed', 'timeout', 
 // explicit override.
 const MPESA_STATUS_TONE: Record<string, Tone> = {
   initiated: 'pending',
-  timeout:   'negative',
+  timeout: 'negative',
 };
 
 export default function MpesaPage() {
-  const [page, setPage]     = useState(1);
-  const [type, setType]     = useState('');
+  const [page, setPage] = useState(1);
+  const [type, setType] = useState('');
   const [status, setStatus] = useState('');
-  const [phone, setPhone]   = useState('');
+  const [phone, setPhone] = useState('');
 
   const qs = new URLSearchParams({ page: String(page), limit: '25' });
-  if (type)   qs.set('type', type);
+  if (type) qs.set('type', type);
   if (status) qs.set('status', status);
-  if (phone)  qs.set('phone', phone);
+  if (phone) qs.set('phone', phone);
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery<PaginatedResult<MpesaTxn>>({
     queryKey: ['mpesa', 'transactions', page, type, status, phone],
-    queryFn:  () => api.get<PaginatedResult<MpesaTxn>>(`/mpesa/transactions?${qs.toString()}`),
+    queryFn: () => api.get<PaginatedResult<MpesaTxn>>(`/mpesa/transactions?${qs.toString()}`),
   });
 
   const columns = [
     {
-      key: 'type', header: 'Type',
+      key: 'type',
+      header: 'Type',
       render: (r: MpesaTxn) => (
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="uppercase text-[10px]">{r.transaction_type}</Badge>
+          <Badge variant="outline" className="uppercase text-[10px]">
+            {r.transaction_type}
+          </Badge>
           <span className={`text-[10px] ${r.direction === 'inbound' ? 'text-green-600' : 'text-amber-600'}`}>
             {r.direction === 'inbound' ? '↓ in' : '↑ out'}
           </span>
         </div>
       ),
     },
-    { key: 'amount',  header: 'Amount', render: (r: MpesaTxn) => <span className="font-semibold">{formatKES(Number(r.amount))}</span> },
-    { key: 'phone',   header: 'Phone',  render: (r: MpesaTxn) => r.phone_number ?? '—' },
-    { key: 'receipt', header: 'Receipt', render: (r: MpesaTxn) => r.mpesa_receipt_number ?? <span className="text-muted-foreground">—</span> },
-    { key: 'ref',     header: 'Reference', render: (r: MpesaTxn) => r.reference ?? '—' },
     {
-      key: 'status', header: 'Status',
+      key: 'amount',
+      header: 'Amount',
+      render: (r: MpesaTxn) => <span className="font-semibold">{formatKES(Number(r.amount))}</span>,
+    },
+    { key: 'phone', header: 'Phone', render: (r: MpesaTxn) => r.phone_number ?? '—' },
+    {
+      key: 'receipt',
+      header: 'Receipt',
+      render: (r: MpesaTxn) => r.mpesa_receipt_number ?? <span className="text-muted-foreground">—</span>,
+    },
+    { key: 'ref', header: 'Reference', render: (r: MpesaTxn) => r.reference ?? '—' },
+    {
+      key: 'status',
+      header: 'Status',
       render: (r: MpesaTxn) => (
         <div>
           <StatusPill status={r.status} tone={MPESA_STATUS_TONE[r.status]} size="sm" />
-          {r.failure_reason && <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate">{r.failure_reason}</p>}
+          {r.failure_reason && (
+            <p className="text-[10px] text-destructive mt-0.5 max-w-[180px] truncate">{r.failure_reason}</p>
+          )}
         </div>
       ),
     },
@@ -93,13 +107,19 @@ export default function MpesaPage() {
         actions={
           <>
             <Link href="/mpesa/unrouted">
-              <Button variant="outline" size="sm"><Inbox size={15} className="mr-2" /> Unrouted</Button>
+              <Button variant="outline" size="sm">
+                <Inbox size={15} className="mr-2" /> Unrouted
+              </Button>
             </Link>
             <Link href="/mpesa/reallocations">
-              <Button variant="outline" size="sm"><ArrowRightLeft size={15} className="mr-2" /> Corrections</Button>
+              <Button variant="outline" size="sm">
+                <ArrowRightLeft size={15} className="mr-2" /> Corrections
+              </Button>
             </Link>
             <Link href="/mpesa/reconciliations">
-              <Button variant="outline" size="sm"><AlertTriangle size={15} className="mr-2" /> Reconciliations</Button>
+              <Button variant="outline" size="sm">
+                <AlertTriangle size={15} className="mr-2" /> Reconciliations
+              </Button>
             </Link>
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               <RefreshCw size={15} className={isFetching ? 'animate-spin' : ''} />
@@ -113,27 +133,44 @@ export default function MpesaPage() {
           <label className="text-xs text-muted-foreground">Type</label>
           <select
             value={type}
-            onChange={(e) => { setType(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setType(e.target.value);
+              setPage(1);
+            }}
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
           >
-            {TYPES.map((t) => <option key={t} value={t}>{t || 'All types'}</option>)}
+            {TYPES.map((t) => (
+              <option key={t} value={t}>
+                {t || 'All types'}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Status</label>
           <select
             value={status}
-            onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setStatus(e.target.value);
+              setPage(1);
+            }}
             className="flex h-9 rounded-md border border-input bg-background px-2 text-sm"
           >
-            {STATUSES.map((s) => <option key={s} value={s}>{s || 'All statuses'}</option>)}
+            {STATUSES.map((s) => (
+              <option key={s} value={s}>
+                {s || 'All statuses'}
+              </option>
+            ))}
           </select>
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground">Phone</label>
           <Input
             value={phone}
-            onChange={(e) => { setPhone(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setPhone(e.target.value);
+              setPage(1);
+            }}
             placeholder="2547…"
             className="h-9 w-40"
           />

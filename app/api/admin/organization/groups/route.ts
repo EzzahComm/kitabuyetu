@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic'
+﻿export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { organizationService } from '@/lib/services/organization.service';

@@ -5,10 +5,12 @@ import { completeOrgInvitation } from '@/lib/services/organization-members.servi
 import { ok, handleError } from '@/lib/utils/response';
 
 const Schema = z.object({
-  token:    z.string().min(32).max(128),
-  password: z.string().min(8, 'Password must be at least 8 characters')
-              .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-              .regex(/[0-9]/, 'Password must contain at least one number'),
+  token: z.string().min(32).max(128),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
 /** POST /api/v1/organization-invitations/complete — public, final step: sets the password and creates the account. */

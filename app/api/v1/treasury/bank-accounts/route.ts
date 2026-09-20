@@ -22,7 +22,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
       const input = CreateGroupBankAccountSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return created(await groupBankAccountsService.create(ctx, input));
     } catch (err) {
       return handleError(err);

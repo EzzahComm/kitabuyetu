@@ -51,7 +51,7 @@ describe('deriveUuid', () => {
 
   it('stamps RFC 4122 version 5 and the correct variant', () => {
     const key = deriveUuid(JOB_ID, 'chunk:0');
-    expect(key[14]).toBe('5');                       // version nibble
+    expect(key[14]).toBe('5'); // version nibble
     expect(['8', '9', 'a', 'b']).toContain(key[19]); // variant nibble
   });
 

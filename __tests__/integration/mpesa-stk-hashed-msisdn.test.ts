@@ -22,19 +22,14 @@ import { rawQuery } from './helpers/db';
 
 jest.mock('@/lib/redis', () => ({
   cacheMpesaStatus: jest.fn().mockResolvedValue(undefined),
-  acquireStkLock:   jest.fn().mockResolvedValue(true),
-  releaseStkLock:   jest.fn().mockResolvedValue(undefined),
+  acquireStkLock: jest.fn().mockResolvedValue(true),
+  releaseStkLock: jest.fn().mockResolvedValue(undefined),
 }));
 
 /** A real Safaricom-style hashed MSISDN: 64 hex chars, not a phone number. */
 const HASHED_MSISDN = '1bc5cfe71c4ed76d6881e05f1e396f82e91b796046c8df5051a4b8945c7d0d2a';
 
-function stkSuccess(
-  checkoutRequestId: string,
-  receipt: string,
-  amount: number,
-  phone: string | null,
-): StkCallbackBody {
+function stkSuccess(checkoutRequestId: string, receipt: string, amount: number, phone: string | null): StkCallbackBody {
   const items: { Name: string; Value: string | number }[] = [
     { Name: 'Amount', Value: amount },
     { Name: 'MpesaReceiptNumber', Value: receipt },
@@ -57,7 +52,13 @@ function stkSuccess(
   } as StkCallbackBody;
 }
 
-async function seedStkRequest(groupId: string, checkoutRequestId: string, accountRef: string, amount: number, phone: string) {
+async function seedStkRequest(
+  groupId: string,
+  checkoutRequestId: string,
+  accountRef: string,
+  amount: number,
+  phone: string,
+) {
   await rawQuery(
     `INSERT INTO mpesa_stk_requests
        (group_id, checkout_request_id, merchant_request_id, phone, amount,
@@ -96,11 +97,9 @@ describe('STK callback with an unusable payer phone', () => {
 
     // Before the fix this threw on normalizePhone and never reached the
     // crediting transaction at all.
-    const result = await handleSTKCallback(
-      stkSuccess(checkoutRequestId, receipt, 500, HASHED_MSISDN),
-      '0.0.0.0',
-      { skipIpCheck: true },
-    );
+    const result = await handleSTKCallback(stkSuccess(checkoutRequestId, receipt, 500, HASHED_MSISDN), '0.0.0.0', {
+      skipIpCheck: true,
+    });
     expect(result.success).toBe(true);
 
     const [payment] = await rawQuery<{ status: string; allocation_status: string }>(
@@ -112,7 +111,8 @@ describe('STK callback with an unusable payer phone', () => {
     expect(payment.allocation_status).toBe('allocated');
 
     const contributions = await rawQuery<{ amount: string }>(
-      `SELECT amount FROM contributions WHERE mpesa_receipt_number=$1`, [receipt],
+      `SELECT amount FROM contributions WHERE mpesa_receipt_number=$1`,
+      [receipt],
     );
     expect(contributions).toHaveLength(1);
     expect(parseFloat(contributions[0].amount)).toBeCloseTo(500, 2);
@@ -130,15 +130,14 @@ describe('STK callback with an unusable payer phone', () => {
     const receipt = `NOP${Date.now().toString().slice(-7)}`;
     await seedStkRequest(groupId, checkoutRequestId, membership_no, 250, phone);
 
-    const result = await handleSTKCallback(
-      stkSuccess(checkoutRequestId, receipt, 250, null),
-      '0.0.0.0',
-      { skipIpCheck: true },
-    );
+    const result = await handleSTKCallback(stkSuccess(checkoutRequestId, receipt, 250, null), '0.0.0.0', {
+      skipIpCheck: true,
+    });
     expect(result.success).toBe(true);
 
     const [payment] = await rawQuery<{ status: string }>(
-      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`, [checkoutRequestId],
+      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`,
+      [checkoutRequestId],
     );
     expect(payment.status).toBe('completed');
   });
@@ -151,15 +150,17 @@ describe('STK callback with an unusable payer phone', () => {
 
     const malformed = stkSuccess(checkoutRequestId, 'PLACEHOLDER', 100, phone);
     // Strip the receipt item — a success code with no MpesaReceiptNumber.
-    malformed.Body.stkCallback.CallbackMetadata!.Item =
-      malformed.Body.stkCallback.CallbackMetadata!.Item.filter((i) => i.Name !== 'MpesaReceiptNumber');
+    malformed.Body.stkCallback.CallbackMetadata!.Item = malformed.Body.stkCallback.CallbackMetadata!.Item.filter(
+      (i) => i.Name !== 'MpesaReceiptNumber',
+    );
 
     const result = await handleSTKCallback(malformed, '0.0.0.0', { skipIpCheck: true });
     expect(result.success).toBe(false);
 
     // The pending payment must be left alone, not completed against a null receipt.
     const [payment] = await rawQuery<{ status: string }>(
-      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`, [checkoutRequestId],
+      `SELECT status FROM payments WHERE mpesa_checkout_request_id=$1`,
+      [checkoutRequestId],
     );
     expect(payment.status).toBe('pending');
   });

@@ -17,7 +17,7 @@ jest.mock('@/lib/services/notifications.service', () => ({
   notifyMember: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 const mockNotifyMember = notifyMember as jest.Mock;
 
@@ -36,12 +36,12 @@ function callMatching(re: RegExp): unknown[] {
 const NO_COOLDOWN = { rows: [{ exists: false }] };
 
 const baseInput: ReminderInput = {
-  groupId:       'group-1',
-  memberId:      'member-1',
-  phone:         '254712345678',
-  body:          'Your installment is due soon.',
+  groupId: 'group-1',
+  memberId: 'member-1',
+  phone: '254712345678',
+  body: 'Your installment is due soon.',
   referenceType: 'loan_repayment',
-  referenceId:   'repayment-1',
+  referenceId: 'repayment-1',
   reminderStage: 'due_3_days',
 };
 
@@ -53,8 +53,8 @@ beforeEach(() => {
 describe('sendOnce', () => {
   it('claims a fresh (reference, stage) slot and sends via notifyMember', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-1' }] }); // INSERT claim succeeds
-    mockQuery.mockResolvedValueOnce({ rows: [] });                     // audit log: reminder_dispatch.claimed
-    mockQuery.mockResolvedValueOnce(NO_COOLDOWN);                      // cooldown lookup
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce(NO_COOLDOWN); // cooldown lookup
     mockNotifyMember.mockResolvedValueOnce({ channel: 'sms', status: 'sent' });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-1', status: 'pending', attempts: 0 }] }); // settle: fetch existing
     mockQuery.mockResolvedValueOnce({ rows: [] }); // settle UPDATE
@@ -107,7 +107,7 @@ describe('sendOnce', () => {
 
   it('records a failed outcome without marking the stage terminal, so a later run can retry it', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-1' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });                     // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
     mockQuery.mockResolvedValueOnce(NO_COOLDOWN);
     mockNotifyMember.mockResolvedValueOnce({ channel: 'sms', status: 'failed', detail: 'provider outage' });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-1', status: 'pending', attempts: 0 }] }); // settle: fetch existing
@@ -139,9 +139,9 @@ describe('sendOnce', () => {
  */
 describe('sendOnce member cooldown', () => {
   it('defers a second reminder for the same member, without calling the provider', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-2' }] });  // claim succeeds
-    mockQuery.mockResolvedValueOnce({ rows: [] });                      // audit log: reminder_dispatch.claimed
-    mockQuery.mockResolvedValueOnce({ rows: [{ exists: true }] });      // recently reminded
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-2' }] }); // claim succeeds
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce({ rows: [{ exists: true }] }); // recently reminded
 
     const result = await sendOnce({ ...baseInput, reminderStage: 'a_different_stage' });
 
@@ -152,7 +152,7 @@ describe('sendOnce member cooldown', () => {
 
   it('leaves the claimed row resumable, so the reminder is deferred and not lost', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-2' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });                      // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
     mockQuery.mockResolvedValueOnce({ rows: [{ exists: true }] });
 
     await sendOnce(baseInput);
@@ -165,7 +165,7 @@ describe('sendOnce member cooldown', () => {
 
   it('sends normally when the member has not been reminded recently', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-3' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });                     // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
     mockQuery.mockResolvedValueOnce(NO_COOLDOWN);
     mockNotifyMember.mockResolvedValueOnce({ channel: 'sms', status: 'sent' });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-3', status: 'pending', attempts: 0 }] }); // settle: fetch existing
@@ -180,7 +180,7 @@ describe('sendOnce member cooldown', () => {
 
   it('allows the send when the cooldown lookup itself fails — it is politeness, not correctness', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-4' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });                     // audit log: reminder_dispatch.claimed
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
     mockQuery.mockRejectedValueOnce(new Error('db blip'));
     mockNotifyMember.mockResolvedValueOnce({ channel: 'sms', status: 'sent' });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-4', status: 'pending', attempts: 0 }] }); // settle: fetch existing

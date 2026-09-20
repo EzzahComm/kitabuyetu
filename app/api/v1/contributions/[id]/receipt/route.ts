@@ -8,7 +8,9 @@ import { errorResponse, handleError } from '@/lib/utils/response';
 import { ContributionReceipt } from '@/components/pdf/contribution-receipt';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
 
-interface RouteParams { params: Promise<{ id: string }> }
+interface RouteParams {
+  params: Promise<{ id: string }>;
+}
 
 /**
  * GET /api/v1/contributions/[id]/receipt
@@ -24,18 +26,18 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
 
       const data = await withDb(ctx, async (client) => {
         const { rows } = await client.query<{
-          id:                   string;
-          amount:               string;
-          status:               string;
-          payment_method:       string | null;
+          id: string;
+          amount: string;
+          status: string;
+          payment_method: string | null;
           mpesa_receipt_number: string | null;
-          contribution_date:    string;
-          created_at:           string;
-          group_name:           string;
-          group_code:           string;
-          member_first_name:    string;
-          member_last_name:     string;
-          membership_no:        string | null;
+          contribution_date: string;
+          created_at: string;
+          group_name: string;
+          group_code: string;
+          member_first_name: string;
+          member_last_name: string;
+          membership_no: string | null;
         }>(
           `SELECT c.id, c.amount, c.status, c.payment_method,
                   c.mpesa_receipt_number, c.contribution_date, c.created_at,
@@ -61,17 +63,17 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
 
       const pdfBuffer = await renderToBuffer(
         ContributionReceipt({
-          groupName:        data.group_name,
-          groupCode:        data.group_code,
-          memberFirstName:  data.member_first_name,
-          memberLastName:   data.member_last_name,
-          membershipNo:     data.membership_no ? formatMembershipNo(data.membership_no) : null,
-          amount:           data.amount,
-          paymentMethod:    data.payment_method,
-          mpesaReceipt:     data.mpesa_receipt_number,
+          groupName: data.group_name,
+          groupCode: data.group_code,
+          memberFirstName: data.member_first_name,
+          memberLastName: data.member_last_name,
+          membershipNo: data.membership_no ? formatMembershipNo(data.membership_no) : null,
+          amount: data.amount,
+          paymentMethod: data.payment_method,
+          mpesaReceipt: data.mpesa_receipt_number,
           contributionDate: data.contribution_date,
-          receiptNo:        data.id.slice(0, 8).toUpperCase(),
-          issuedAt:         data.created_at,
+          receiptNo: data.id.slice(0, 8).toUpperCase(),
+          issuedAt: data.created_at,
         }),
       );
 
@@ -79,9 +81,9 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
       return new Response(blob, {
         status: 200,
         headers: {
-          'Content-Type':        'application/pdf',
+          'Content-Type': 'application/pdf',
           'Content-Disposition': `inline; filename="receipt-${data.id.slice(0, 8)}.pdf"`,
-          'Cache-Control':       'private, max-age=0, must-revalidate',
+          'Cache-Control': 'private, max-age=0, must-revalidate',
         },
       });
     } catch (err) {

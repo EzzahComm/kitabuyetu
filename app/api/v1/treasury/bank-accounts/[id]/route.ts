@@ -37,10 +37,10 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');
 
       const input = BankAccountActionSchema.parse(await req.json());
-      const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+      const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
       if (input.action === 'activate') return ok(await groupBankAccountsService.activate(ctx, id));
-      if (input.action === 'reject')   return ok(await groupBankAccountsService.reject(ctx, id, input.reason));
+      if (input.action === 'reject') return ok(await groupBankAccountsService.reject(ctx, id, input.reason));
       return ok(await groupBankAccountsService.disable(ctx, id, input.reason));
     } catch (err) {
       return handleError(err);

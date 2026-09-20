@@ -31,7 +31,8 @@ async function stuckJob(attempts: number, maxAttempts = 5): Promise<string> {
 
 async function readJob(id: string) {
   const [row] = await rawQuery<{ status: string; attempts: number; last_error: string | null }>(
-    `SELECT status, attempts, last_error FROM job_queue WHERE id=$1`, [id],
+    `SELECT status, attempts, last_error FROM job_queue WHERE id=$1`,
+    [id],
   );
   return row;
 }

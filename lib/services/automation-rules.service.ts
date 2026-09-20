@@ -79,7 +79,10 @@ export interface AutomationRuleInput {
 }
 
 export type AutomationRuleUpdate = Partial<
-  Pick<AutomationRuleInput, 'description' | 'conditions' | 'template_key' | 'recipient_spec' | 'delay_seconds' | 'max_retries'>
+  Pick<
+    AutomationRuleInput,
+    'description' | 'conditions' | 'template_key' | 'recipient_spec' | 'delay_seconds' | 'max_retries'
+  >
 > & { is_active?: boolean };
 
 function assertChannel(channel: string): asserts channel is AutomationChannel {
@@ -162,10 +165,7 @@ async function assertTemplateExists(
 // LIST / GET
 // ============================================================================
 
-export async function listAutomationRules(
-  ctx: TenantContext,
-  channel?: AutomationChannel,
-): Promise<AutomationRule[]> {
+export async function listAutomationRules(ctx: TenantContext, channel?: AutomationChannel): Promise<AutomationRule[]> {
   return withDb(ctx, async (db) => {
     const out: AutomationRule[] = [];
 
@@ -239,10 +239,17 @@ export async function createAutomationRule(
                  template_key, recipient_spec, delay_seconds, max_retries, is_active,
                  created_by, created_at, updated_at`,
       [
-        scope.groupId, scope.organizationId, data.name.trim(), data.description?.trim() || null,
-        data.event_type, JSON.stringify(data.conditions ?? {}),
-        data.template_key, JSON.stringify(data.recipient_spec), data.delay_seconds ?? 0,
-        data.max_retries ?? 3, ctx.userId,
+        scope.groupId,
+        scope.organizationId,
+        data.name.trim(),
+        data.description?.trim() || null,
+        data.event_type,
+        JSON.stringify(data.conditions ?? {}),
+        data.template_key,
+        JSON.stringify(data.recipient_spec),
+        data.delay_seconds ?? 0,
+        data.max_retries ?? 3,
+        ctx.userId,
       ],
     );
     return { ...rows[0], channel };
@@ -280,13 +287,34 @@ export async function updateAutomationRule(
     const vals: unknown[] = [];
     let idx = 1;
 
-    if (data.description !== undefined) { sets.push(`description = $${++idx}`); vals.push(data.description?.trim() || null); }
-    if (data.conditions !== undefined)   { sets.push(`conditions = $${++idx}::jsonb`);   vals.push(JSON.stringify(data.conditions)); }
-    if (data.template_key !== undefined) { sets.push(`template_key = $${++idx}`); vals.push(data.template_key); }
-    if (data.recipient_spec !== undefined) { sets.push(`recipient_spec = $${++idx}::jsonb`); vals.push(JSON.stringify(data.recipient_spec)); }
-    if (data.delay_seconds !== undefined) { sets.push(`delay_seconds = $${++idx}`); vals.push(data.delay_seconds); }
-    if (data.max_retries !== undefined)  { sets.push(`max_retries = $${++idx}`);  vals.push(data.max_retries); }
-    if (data.is_active !== undefined)    { sets.push(`is_active = $${++idx}`);    vals.push(data.is_active); }
+    if (data.description !== undefined) {
+      sets.push(`description = $${++idx}`);
+      vals.push(data.description?.trim() || null);
+    }
+    if (data.conditions !== undefined) {
+      sets.push(`conditions = $${++idx}::jsonb`);
+      vals.push(JSON.stringify(data.conditions));
+    }
+    if (data.template_key !== undefined) {
+      sets.push(`template_key = $${++idx}`);
+      vals.push(data.template_key);
+    }
+    if (data.recipient_spec !== undefined) {
+      sets.push(`recipient_spec = $${++idx}::jsonb`);
+      vals.push(JSON.stringify(data.recipient_spec));
+    }
+    if (data.delay_seconds !== undefined) {
+      sets.push(`delay_seconds = $${++idx}`);
+      vals.push(data.delay_seconds);
+    }
+    if (data.max_retries !== undefined) {
+      sets.push(`max_retries = $${++idx}`);
+      vals.push(data.max_retries);
+    }
+    if (data.is_active !== undefined) {
+      sets.push(`is_active = $${++idx}`);
+      vals.push(data.is_active);
+    }
 
     // Ownership: only the caller's own group/org rule is editable, never an
     // inherited platform or (for a group user) organization-level default —
@@ -357,7 +385,8 @@ export async function upsertFrequencyCap(
     throw new ValidationError('max_per_day must be between 1 and 9999');
   }
   const scope = requireScope(ctx);
-  if (!scope.groupId) throw new ValidationError('Frequency caps are group-scoped; switch to a group context to set one');
+  if (!scope.groupId)
+    throw new ValidationError('Frequency caps are group-scoped; switch to a group context to set one');
 
   return withDb(ctx, async (db) => {
     const { rows: ruleRows } = await db.query(

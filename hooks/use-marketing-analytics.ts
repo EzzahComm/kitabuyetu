@@ -7,6 +7,6 @@ import type { MarketingAnalytics } from '@/lib/services/marketing-analytics.serv
 export function useMarketingAnalytics(days = 30) {
   return useQuery({
     queryKey: ['marketing', 'analytics', days],
-    queryFn:  () => api.get<MarketingAnalytics>(`/marketing/analytics?days=${days}`),
+    queryFn: () => api.get<MarketingAnalytics>(`/marketing/analytics?days=${days}`),
   });
 }

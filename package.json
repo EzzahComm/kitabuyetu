@@ -19,7 +19,9 @@
     "test:ci": "jest --ci --forceExit",
     "test:integration": "jest --config jest.integration.config.ts --runInBand --forceExit",
     "test:integration:app-tenant": "jest --config jest.integration.app-tenant.config.ts --runInBand --forceExit",
-    "ci": "npm run lint && npm run typecheck && npm run test:ci && npm run build"
+    "ci": "npm run lint && npm run typecheck && npm run test:ci && npm run build",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@headlessui/react": "^2.2.10",
@@ -94,6 +96,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "^16.2.6",
     "jest": "^30.4.2",
+    "prettier": "^3.8.3",
     "react-email": "^6.5.0",
     "sharp": "^0.35.4",
     "tsx": "^4.16.2",

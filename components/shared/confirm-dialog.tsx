@@ -3,7 +3,12 @@
 import * as React from 'react';
 import { AlertTriangle, ShieldCheck } from 'lucide-react';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { cn, formatKES } from '@/lib/utils';
@@ -27,8 +32,14 @@ interface ConfirmDialogProps {
  * disables dismissal while in flight so an action can't be double-fired.
  */
 export function ConfirmDialog({
-  open, onOpenChange, title, description, onConfirm,
-  confirmLabel = 'Confirm', cancelLabel = 'Cancel', variant = 'default',
+  open,
+  onOpenChange,
+  title,
+  description,
+  onConfirm,
+  confirmLabel = 'Confirm',
+  cancelLabel = 'Cancel',
+  variant = 'default',
 }: ConfirmDialogProps) {
   const [loading, setLoading] = React.useState(false);
 
@@ -50,17 +61,17 @@ export function ConfirmDialog({
             {variant === 'danger' && <AlertTriangle className="h-5 w-5 text-destructive" aria-hidden />}
             <DialogTitle>{title}</DialogTitle>
           </div>
-          {description && <DialogDescription asChild><div>{description}</div></DialogDescription>}
+          {description && (
+            <DialogDescription asChild>
+              <div>{description}</div>
+            </DialogDescription>
+          )}
         </DialogHeader>
         <DialogFooter className="gap-2 sm:gap-2">
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             {cancelLabel}
           </Button>
-          <Button
-            variant={variant === 'danger' ? 'destructive' : 'default'}
-            onClick={handleConfirm}
-            loading={loading}
-          >
+          <Button variant={variant === 'danger' ? 'destructive' : 'default'} onClick={handleConfirm} loading={loading}>
             {confirmLabel}
           </Button>
         </DialogFooter>
@@ -89,7 +100,14 @@ interface MoneyActionDialogProps {
  * verify every detail before funds move — the moment that most needs clarity.
  */
 export function MoneyActionDialog({
-  open, onOpenChange, title, amount, details, warning, onConfirm, confirmLabel,
+  open,
+  onOpenChange,
+  title,
+  amount,
+  details,
+  warning,
+  onConfirm,
+  confirmLabel,
 }: MoneyActionDialogProps) {
   const [loading, setLoading] = React.useState(false);
 
@@ -142,7 +160,9 @@ export function MoneyActionDialog({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>Cancel</Button>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
+            Cancel
+          </Button>
           <Button onClick={handleConfirm} loading={loading}>
             {confirmLabel ?? `Confirm ${formatKES(amount)}`}
           </Button>

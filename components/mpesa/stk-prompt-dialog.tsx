@@ -19,9 +19,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckCircle2, Loader2, Smartphone, XCircle } from 'lucide-react';
-import {
-  Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -35,23 +33,23 @@ import type { GroupMemberRow } from '@/types/api.types';
 type Step = 'form' | 'sending' | 'waiting' | 'completed' | 'failed';
 
 export interface StkPromptDialogProps {
-  open:    boolean;
+  open: boolean;
   onClose: () => void;
   /** Preset payer (member page). Omit to show the member picker (dashboard). */
   member?: { name: string; phone: string };
 }
 
 const POLL_INTERVAL_MS = 3000;
-const POLL_ATTEMPTS    = 40; // × 3s = 2 minutes, past Daraja's own timeout
+const POLL_ATTEMPTS = 40; // × 3s = 2 minutes, past Daraja's own timeout
 
 export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps) {
   const { toast } = useToast();
   const qc = useQueryClient();
 
   const [memberId, setMemberId] = useState('');
-  const [phone, setPhone]       = useState(member?.phone ?? '');
-  const [amount, setAmount]     = useState('');
-  const [step, setStep]         = useState<Step>('form');
+  const [phone, setPhone] = useState(member?.phone ?? '');
+  const [amount, setAmount] = useState('');
+  const [step, setStep] = useState<Step>('form');
   const [reference, setReference] = useState<string | null>(null);
   const [failReason, setFailReason] = useState<string | null>(null);
   const pollGen = useRef(0); // invalidates in-flight polls on close/retry
@@ -59,13 +57,12 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   // Member picker (dashboard mode only) — active members with a phone.
   const { data: membersData, isLoading: loadingMembers } = useQuery({
     queryKey: ['members', 'stk-picker'],
-    queryFn:  () => membersApi.list({ page: 1, limit: 100, status: 'active' }),
-    enabled:  open && !member,
+    queryFn: () => membersApi.list({ page: 1, limit: 100, status: 'active' }),
+    enabled: open && !member,
     staleTime: 60_000,
   });
   const pickable = useMemo(
-    () => (((membersData as { items?: GroupMemberRow[] } | undefined)?.items) ?? [])
-      .filter((m) => m.phone),
+    () => ((membersData as { items?: GroupMemberRow[] } | undefined)?.items ?? []).filter((m) => m.phone),
     [membersData],
   );
 
@@ -76,16 +73,17 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
     if (picked) setPhone(picked.phone);
   }
 
-  const payerName = member?.name
-    ?? (() => {
+  const payerName =
+    member?.name ??
+    (() => {
       const p = pickable.find((m) => m.id === memberId);
       return p ? `${p.first_name} ${p.last_name}` : null;
     })();
 
   const amt = parseInt(amount, 10);
-  const phoneOk  = isValidKenyanPhone(phone);
+  const phoneOk = isValidKenyanPhone(phone);
   const amountOk = Number.isFinite(amt) && amt > 0;
-  const canSend  = phoneOk && amountOk && (member ? true : !!memberId);
+  const canSend = phoneOk && amountOk && (member ? true : !!memberId);
 
   function resetAndClose() {
     pollGen.current++;
@@ -147,8 +145,8 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
         phone,
         amount: amt,
         accountReference: 'CONTRIB',
-        description:      'Contribution',
-        purpose:          'contribution',
+        description: 'Contribution',
+        purpose: 'contribution',
       });
       setReference(res.checkoutRequestId ?? null);
       setStep('waiting');
@@ -168,7 +166,12 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   }
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { if (!o) resetAndClose(); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        if (!o) resetAndClose();
+      }}
+    >
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -180,7 +183,8 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
           <div className="space-y-4">
             {member ? (
               <p className="text-sm text-muted-foreground">
-                Prompt <span className="font-medium text-foreground">{member.name}</span> ({member.phone}) to pay a contribution.
+                Prompt <span className="font-medium text-foreground">{member.name}</span> ({member.phone}) to pay a
+                contribution.
               </p>
             ) : (
               <div className="space-y-1">
@@ -190,9 +194,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                   value={memberId}
                   onChange={(e) => pickMember(e.target.value)}
                 >
-                  <option value="">
-                    {loadingMembers ? 'Loading members…' : 'Select a member…'}
-                  </option>
+                  <option value="">{loadingMembers ? 'Loading members…' : 'Select a member…'}</option>
                   {pickable.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.first_name} {m.last_name} — {m.phone}
@@ -213,15 +215,15 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                 placeholder="0712345678"
                 inputMode="tel"
               />
-              {phone && !phoneOk && (
-                <p className="text-xs text-destructive">Enter a valid Kenyan phone number.</p>
-              )}
+              {phone && !phoneOk && <p className="text-xs text-destructive">Enter a valid Kenyan phone number.</p>}
             </div>
 
             <div className="space-y-1">
               <Label>Amount (KES)</Label>
               <Input
-                type="number" min={1} step={1}
+                type="number"
+                min={1}
+                step={1}
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="500"
@@ -229,8 +231,8 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Category: <span className="font-medium text-foreground">Contribution</span> · Ref: CONTRIB.
-              The payment posts to savings and the ledger automatically on confirmation.
+              Category: <span className="font-medium text-foreground">Contribution</span> · Ref: CONTRIB. The payment
+              posts to savings and the ledger automatically on confirmation.
             </p>
           </div>
         )}
@@ -243,8 +245,14 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                 {step === 'sending' ? 'Sending STK prompt…' : `Waiting for ${payerName ?? phone} to enter their PIN…`}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {amountOk ? `${formatKES(amt)} · ` : ''}{phone}
-                {reference && <> · Ref <span className="font-mono">{reference.slice(-10)}</span></>}
+                {amountOk ? `${formatKES(amt)} · ` : ''}
+                {phone}
+                {reference && (
+                  <>
+                    {' '}
+                    · Ref <span className="font-mono">{reference.slice(-10)}</span>
+                  </>
+                )}
               </p>
             </div>
           </div>
@@ -256,7 +264,8 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
             <div>
               <p className="text-sm font-semibold text-green-700">Payment received</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {amountOk ? `${formatKES(amt)} from ` : ''}{payerName ?? phone}. Contribution and ledger updated.
+                {amountOk ? `${formatKES(amt)} from ` : ''}
+                {payerName ?? phone}. Contribution and ledger updated.
               </p>
             </div>
           </div>
@@ -275,19 +284,25 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
         <DialogFooter>
           {step === 'form' && (
             <>
-              <Button variant="outline" onClick={resetAndClose}>Cancel</Button>
-              <Button onClick={send} disabled={!canSend}>Send prompt</Button>
+              <Button variant="outline" onClick={resetAndClose}>
+                Cancel
+              </Button>
+              <Button onClick={send} disabled={!canSend}>
+                Send prompt
+              </Button>
             </>
           )}
           {(step === 'sending' || step === 'waiting') && (
-            <Button variant="outline" onClick={resetAndClose}>Close — keep processing</Button>
+            <Button variant="outline" onClick={resetAndClose}>
+              Close — keep processing
+            </Button>
           )}
-          {step === 'completed' && (
-            <Button onClick={resetAndClose}>Done</Button>
-          )}
+          {step === 'completed' && <Button onClick={resetAndClose}>Done</Button>}
           {step === 'failed' && (
             <>
-              <Button variant="outline" onClick={resetAndClose}>Close</Button>
+              <Button variant="outline" onClick={resetAndClose}>
+                Close
+              </Button>
               <Button onClick={retry}>Try again</Button>
             </>
           )}

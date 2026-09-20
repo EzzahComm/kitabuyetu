@@ -13,11 +13,15 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
   withAdminDb: jest.fn(),
 }));
-jest.mock('./organization.service', () => ({
-  organizationService: { assertOrganizationCoordinator: jest.fn() },
-}), { virtual: true });
+jest.mock(
+  './organization.service',
+  () => ({
+    organizationService: { assertOrganizationCoordinator: jest.fn() },
+  }),
+  { virtual: true },
+);
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -70,23 +74,41 @@ function sqlRouter(threshold: number) {
 
     if (/INSERT INTO organization_disbursements/.test(s)) {
       return {
-        rows: [{
-          id: 'disb-1', organization_id: 'org-1', wallet_id: 'wallet-1', group_id: 'grp-1',
-          funding_program_id: null, disbursement_type: 'grant', amount: '5000.00',
-          reference: 'ODB-1', is_repayable: false, processing_fee_amount: '0.00',
-          net_disbursed_amount: '5000.00',
-          status: needsApproval ? 'pending_approval' : 'approved',
-        }],
+        rows: [
+          {
+            id: 'disb-1',
+            organization_id: 'org-1',
+            wallet_id: 'wallet-1',
+            group_id: 'grp-1',
+            funding_program_id: null,
+            disbursement_type: 'grant',
+            amount: '5000.00',
+            reference: 'ODB-1',
+            is_repayable: false,
+            processing_fee_amount: '0.00',
+            net_disbursed_amount: '5000.00',
+            status: needsApproval ? 'pending_approval' : 'approved',
+          },
+        ],
       };
     }
     if (/FROM organization_disbursements[\s\S]*FOR UPDATE/.test(s)) {
       return {
-        rows: [{
-          id: 'disb-1', organization_id: 'org-1', wallet_id: 'wallet-1', group_id: 'grp-1',
-          funding_program_id: null, disbursement_type: 'grant', amount: '5000.00',
-          reference: 'ODB-1', is_repayable: false, processing_fee_amount: '0.00',
-          net_disbursed_amount: '5000.00',
-        }],
+        rows: [
+          {
+            id: 'disb-1',
+            organization_id: 'org-1',
+            wallet_id: 'wallet-1',
+            group_id: 'grp-1',
+            funding_program_id: null,
+            disbursement_type: 'grant',
+            amount: '5000.00',
+            reference: 'ODB-1',
+            is_repayable: false,
+            processing_fee_amount: '0.00',
+            net_disbursed_amount: '5000.00',
+          },
+        ],
       };
     }
     if (/SELECT status FROM organization_disbursements/.test(s)) return { rows: [{ status: 'approved' }] };
@@ -102,12 +124,23 @@ function sqlRouter(threshold: number) {
     if (/FROM group_funding_sources/.test(s)) return { rows: [] };
     if (/INSERT INTO group_funding_sources/.test(s)) return { rows: [] };
 
-    if (/FROM accounts\b/.test(s)) return { rows: [{ code: '1001', id: 'acct-cash' }, { code: '4005', id: 'acct-income' }] };
+    if (/FROM accounts\b/.test(s))
+      return {
+        rows: [
+          { code: '1001', id: 'acct-cash' },
+          { code: '4005', id: 'acct-income' },
+        ],
+      };
     if (/INSERT INTO journal_entries/.test(s)) return { rows: [{ id: 'je-1' }] };
     if (/INSERT INTO journal_lines/.test(s)) return { rows: [] };
 
     if (/FROM organization_accounts/.test(s)) {
-      return { rows: [{ id: 'org-acct-5001', account_code: '5001' }, { id: 'org-acct-1001', account_code: '1001' }] };
+      return {
+        rows: [
+          { id: 'org-acct-5001', account_code: '5001' },
+          { id: 'org-acct-1001', account_code: '1001' },
+        ],
+      };
     }
     if (/INSERT INTO organization_journal_entries/.test(s)) return { rows: [{ id: 'org-je-1' }] };
     if (/INSERT INTO organization_journal_lines/.test(s)) return { rows: [{ id: 'org-jl-1' }] };
@@ -118,17 +151,15 @@ function sqlRouter(threshold: number) {
 
 describe('organizationFinanceService.disburse', () => {
   it('rejects insufficient wallet balance', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'access-1' }] });               // group link
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'access-1' }] }); // group link
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '1000.00' }] }); // wallet lock
 
-    await expect(organizationFinanceService.disburse(ctx, input))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(organizationFinanceService.disburse(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('throws NotFoundError when the group has no active org link', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(organizationFinanceService.disburse(ctx, input))
-      .rejects.toBeInstanceOf(NotFoundError);
+    await expect(organizationFinanceService.disburse(ctx, input)).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('settles immediately under the org threshold', async () => {
@@ -139,8 +170,8 @@ describe('organizationFinanceService.disburse', () => {
     expect(result.needsApproval).toBe(false);
     expect(result.status).toBe('completed');
     // Reservation used committed_balance, not a bare debit.
-    const reserveCall = mockQuery.mock.calls.find(
-      ([sql]: [string]) => /available_balance\s*=\s*available_balance\s*-/.test(sql),
+    const reserveCall = mockQuery.mock.calls.find(([sql]: [string]) =>
+      /available_balance\s*=\s*available_balance\s*-/.test(sql),
     );
     expect(reserveCall?.[0]).toContain('committed_balance');
   });
@@ -161,8 +192,7 @@ describe('organizationFinanceService.disburse', () => {
 describe('organizationFinanceService.approveDisbursement', () => {
   it('refuses approval by the same coordinator who created it (maker-checker)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'disb-2', created_by: 'coord-1' }] });
-    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2'))
-      .rejects.toBeInstanceOf(ForbiddenError);
+    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2')).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 

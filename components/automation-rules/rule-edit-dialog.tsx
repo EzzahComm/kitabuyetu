@@ -10,7 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { RecipientSpecEditor, fromRecipientSpec, toRecipientSpec } from './recipient-spec-editor';
 import { ConditionEditor, fromConditions, toConditions } from './condition-editor';
-import { useUpdateAutomationRule, useSmsTemplates, useFrequencyCaps, useUpsertFrequencyCap } from '@/hooks/use-automation-rules';
+import {
+  useUpdateAutomationRule,
+  useSmsTemplates,
+  useFrequencyCaps,
+  useUpsertFrequencyCap,
+} from '@/hooks/use-automation-rules';
 import { useEmailTemplates } from '@/hooks/use-email';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
@@ -73,19 +78,28 @@ export function RuleEditDialog({ rule, open, onOpenChange }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
-        <DialogHeader><DialogTitle>{rule.name}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{rule.name}</DialogTitle>
+        </DialogHeader>
         <div className="space-y-3">
           <div className="flex items-center justify-between rounded-md border p-3">
             <div>
               <p className="text-sm font-medium">{rule.is_active ? 'Active' : 'Paused'}</p>
-              <p className="text-xs text-muted-foreground">{rule.channel === 'sms' ? 'SMS' : 'Email'} · fires on {rule.event_type}</p>
+              <p className="text-xs text-muted-foreground">
+                {rule.channel === 'sms' ? 'SMS' : 'Email'} · fires on {rule.event_type}
+              </p>
             </div>
             <Switch checked={rule.is_active} onCheckedChange={onToggleActive} disabled={updateRule.isPending} />
           </div>
 
           <div className="space-y-1.5">
             <Label htmlFor="e_description">Description</Label>
-            <Textarea id="e_description" rows={2} value={description} onChange={(e) => setDescription(e.target.value)} />
+            <Textarea
+              id="e_description"
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+            />
           </div>
 
           <ConditionEditor value={condition} onChange={setCondition} />
@@ -93,9 +107,15 @@ export function RuleEditDialog({ rule, open, onOpenChange }: Props) {
           <div className="space-y-1.5">
             <Label htmlFor="e_template">Template</Label>
             <Select value={templateKey} onValueChange={setTemplateKey}>
-              <SelectTrigger id="e_template"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="e_template">
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
-                {activeTemplates.map((t) => <SelectItem key={t.template_key} value={t.template_key}>{t.name}</SelectItem>)}
+                {activeTemplates.map((t) => (
+                  <SelectItem key={t.template_key} value={t.template_key}>
+                    {t.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -105,11 +125,25 @@ export function RuleEditDialog({ rule, open, onOpenChange }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="e_delay">Delay (seconds)</Label>
-              <Input id="e_delay" type="number" min={0} max={2592000} value={delaySeconds} onChange={(e) => setDelaySeconds(e.target.value)} />
+              <Input
+                id="e_delay"
+                type="number"
+                min={0}
+                max={2592000}
+                value={delaySeconds}
+                onChange={(e) => setDelaySeconds(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="e_retries">Max retries</Label>
-              <Input id="e_retries" type="number" min={0} max={10} value={maxRetries} onChange={(e) => setMaxRetries(e.target.value)} />
+              <Input
+                id="e_retries"
+                type="number"
+                min={0}
+                max={10}
+                value={maxRetries}
+                onChange={(e) => setMaxRetries(e.target.value)}
+              />
             </div>
           </div>
 
@@ -154,19 +188,34 @@ function FrequencyCapSection({ ruleId, open }: { ruleId: string; open: boolean }
           {caps.map((c) => (
             <li key={c.id} className="flex justify-between">
               <span className="capitalize">{c.category}</span>
-              <span>{c.max_per_day} / day{!c.is_active && ' (off)'}</span>
+              <span>
+                {c.max_per_day} / day{!c.is_active && ' (off)'}
+              </span>
             </li>
           ))}
         </ul>
       )}
       <div className="flex gap-2">
         <Select value={category} onValueChange={(v) => setCategory(v as FrequencyCapCategory)}>
-          <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="flex-1">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
-            {CAP_CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            {CAP_CATEGORIES.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
-        <Input type="number" min={1} max={9999} className="w-24" value={maxPerDay} onChange={(e) => setMaxPerDay(e.target.value)} />
+        <Input
+          type="number"
+          min={1}
+          max={9999}
+          className="w-24"
+          value={maxPerDay}
+          onChange={(e) => setMaxPerDay(e.target.value)}
+        />
         <Button type="button" variant="outline" size="sm" onClick={onSaveCap} disabled={upsertCap.isPending}>
           {upsertCap.isPending ? 'Saving…' : 'Save'}
         </Button>

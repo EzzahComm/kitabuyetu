@@ -1,8 +1,19 @@
 'use client';
 
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, Line, LineChart, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { chartPalette, chartTheme, tone, brandNavy, brandOrange } from '@/lib/ui/tokens';
 
@@ -10,17 +21,23 @@ type Grain = 'day' | 'month';
 type Tier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
 const fmtMoney = (v: string | number | null | undefined) =>
-  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
+  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(
+    Number(v ?? 0),
+  );
 
 const TIER_COLOR: Record<Tier, string> = {
   excellent: tone.positive.solid,
-  good:      brandNavy[500],
-  fair:      tone.warning.solid,
-  poor:      brandOrange[500],
+  good: brandNavy[500],
+  fair: tone.warning.solid,
+  poor: brandOrange[500],
   high_risk: tone.negative.solid,
 };
 const TIER_LABEL: Record<Tier, string> = {
-  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  high_risk: 'High risk',
 };
 const PORTFOLIO_COLORS = [chartPalette[0], chartPalette[1], chartPalette[2]];
 
@@ -32,44 +49,51 @@ function fmtBucket(iso: string, grain: Grain): string {
 
 function formatAxisMoney(v: number): string {
   if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
-  if (Math.abs(v) >= 1_000)     return `${(v / 1_000).toFixed(0)}K`;
+  if (Math.abs(v) >= 1_000) return `${(v / 1_000).toFixed(0)}K`;
   return v.toString();
 }
 
 export function ContributionsChart({
-  buckets, grain,
+  buckets,
+  grain,
 }: {
   buckets: { bucket: string; amount: string }[];
   grain: Grain;
 }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <LineChart data={buckets.map((b) => ({
-        bucket: fmtBucket(b.bucket, grain),
-        amount: Number(b.amount),
-      }))}>
+      <LineChart
+        data={buckets.map((b) => ({
+          bucket: fmtBucket(b.bucket, grain),
+          amount: Number(b.amount),
+        }))}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
         <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
         <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
         <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
-        <Line type="monotone" dataKey="amount" stroke={tone.positive.solid} strokeWidth={2} dot={{ r: 3 }} name="Amount" />
+        <Line
+          type="monotone"
+          dataKey="amount"
+          stroke={tone.positive.solid}
+          strokeWidth={2}
+          dot={{ r: 3 }}
+          name="Amount"
+        />
       </LineChart>
     </ResponsiveContainer>
   );
 }
 
-export function RepaymentsChart({
-  buckets, grain,
-}: {
-  buckets: { bucket: string; amount: string }[];
-  grain: Grain;
-}) {
+export function RepaymentsChart({ buckets, grain }: { buckets: { bucket: string; amount: string }[]; grain: Grain }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={buckets.map((b) => ({
-        bucket: fmtBucket(b.bucket, grain),
-        amount: Number(b.amount),
-      }))}>
+      <BarChart
+        data={buckets.map((b) => ({
+          bucket: fmtBucket(b.bucket, grain),
+          amount: Number(b.amount),
+        }))}
+      >
         <CartesianGrid strokeDasharray="3 3" stroke={chartTheme.grid} />
         <XAxis dataKey="bucket" tick={{ fontSize: 10 }} />
         <YAxis tick={{ fontSize: 10 }} tickFormatter={(v) => formatAxisMoney(v)} />
@@ -81,9 +105,13 @@ export function RepaymentsChart({
 }
 
 export function PortfolioDonutChart({
-  contributionsTotal, shareCapital, loansOutstanding,
+  contributionsTotal,
+  shareCapital,
+  loansOutstanding,
 }: {
-  contributionsTotal: string; shareCapital: string; loansOutstanding: string;
+  contributionsTotal: string;
+  shareCapital: string;
+  loansOutstanding: string;
 }) {
   const data = [
     { name: 'Contributions', value: Number(contributionsTotal) },
@@ -97,7 +125,9 @@ export function PortfolioDonutChart({
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie data={data} dataKey="value" nameKey="name" innerRadius={55} outerRadius={85} paddingAngle={2}>
-          {data.map((_, i) => <Cell key={i} fill={PORTFOLIO_COLORS[i % PORTFOLIO_COLORS.length]} />)}
+          {data.map((_, i) => (
+            <Cell key={i} fill={PORTFOLIO_COLORS[i % PORTFOLIO_COLORS.length]} />
+          ))}
         </Pie>
         <Tooltip formatter={(v) => fmtMoney(Number(v ?? 0))} />
         <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -111,11 +141,13 @@ export function CreditTierChart({ byTier }: { byTier: Record<Tier, number> }) {
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie
-          data={(Object.keys(byTier) as Tier[]).map((t) => ({
-            name: TIER_LABEL[t],
-            value: byTier[t],
-            tier:  t,
-          })).filter((d) => d.value > 0)}
+          data={(Object.keys(byTier) as Tier[])
+            .map((t) => ({
+              name: TIER_LABEL[t],
+              value: byTier[t],
+              tier: t,
+            }))
+            .filter((d) => d.value > 0)}
           dataKey="value"
           nameKey="name"
           innerRadius={55}

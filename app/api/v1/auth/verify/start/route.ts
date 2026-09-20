@@ -12,12 +12,12 @@ const Schema = z.object({ channel: z.enum(['email', 'sms']) });
 
 interface GroupMemberRow {
   group_status: string;
-  group_name:   string;
-  group_code:   string;
-  email:        string | null;
-  phone:        string;
-  first_name:   string;
-  last_name:    string;
+  group_name: string;
+  group_code: string;
+  email: string | null;
+  phone: string;
+  first_name: string;
+  last_name: string;
 }
 
 /**
@@ -69,12 +69,12 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       const { expiresAt } = await startGroupVerification(
         {
-          groupId:    auth.groupId,
-          groupName:  row.group_name,
-          groupCode:  row.group_code,
+          groupId: auth.groupId,
+          groupName: row.group_name,
+          groupCode: row.group_code,
           memberName: `${row.first_name} ${row.last_name}`,
-          email:      row.email,
-          phone:      row.phone,
+          email: row.email,
+          phone: row.phone,
         },
         channel,
       );

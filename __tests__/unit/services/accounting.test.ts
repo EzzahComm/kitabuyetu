@@ -8,7 +8,9 @@
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import {
-  accountingService, reconcileGLCashToMpesaBalance, postSystemJournal,
+  accountingService,
+  reconcileGLCashToMpesaBalance,
+  postSystemJournal,
   postContributionJournal,
 } from '@/lib/services/accounting.service';
 import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
@@ -29,7 +31,7 @@ jest.mock('@/lib/redis', () => ({
   keys: { cache: (name: string, scope: string) => `cache:${name}:${scope}` },
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -45,10 +47,10 @@ describe('getProfitAndLoss', () => {
   it('computes correct totals and netProfit when profitable', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { account_code: '4001', account_name: 'Contributions',   type: 'income',  total: '50000.00' },
-        { account_code: '4002', account_name: 'Interest Income', type: 'income',  total: '8000.00'  },
-        { account_code: '5001', account_name: 'Admin Expenses',  type: 'expense', total: '5000.00'  },
-        { account_code: '5002', account_name: 'SMS Expenses',    type: 'expense', total: '1500.00'  },
+        { account_code: '4001', account_name: 'Contributions', type: 'income', total: '50000.00' },
+        { account_code: '4002', account_name: 'Interest Income', type: 'income', total: '8000.00' },
+        { account_code: '5001', account_name: 'Admin Expenses', type: 'expense', total: '5000.00' },
+        { account_code: '5002', account_name: 'SMS Expenses', type: 'expense', total: '1500.00' },
       ],
     });
 
@@ -64,8 +66,8 @@ describe('getProfitAndLoss', () => {
   it('returns zero net profit when income equals expenses', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { account_code: '4001', account_name: 'Contributions', type: 'income',  total: '10000.00' },
-        { account_code: '5001', account_name: 'Admin',         type: 'expense', total: '10000.00' },
+        { account_code: '4001', account_name: 'Contributions', type: 'income', total: '10000.00' },
+        { account_code: '5001', account_name: 'Admin', type: 'expense', total: '10000.00' },
       ],
     });
 
@@ -76,8 +78,8 @@ describe('getProfitAndLoss', () => {
   it('returns negative net profit (loss) when expenses exceed income', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { account_code: '4001', account_name: 'Contributions', type: 'income',  total: '5000.00' },
-        { account_code: '5001', account_name: 'Admin',         type: 'expense', total: '8000.00' },
+        { account_code: '4001', account_name: 'Contributions', type: 'income', total: '5000.00' },
+        { account_code: '5001', account_name: 'Admin', type: 'expense', total: '8000.00' },
       ],
     });
 
@@ -88,8 +90,8 @@ describe('getProfitAndLoss', () => {
   it('handles zero-activity period (all totals are zero)', async () => {
     mockQuery.mockResolvedValueOnce({
       rows: [
-        { account_code: '4001', account_name: 'Contributions', type: 'income',  total: '0.00' },
-        { account_code: '5001', account_name: 'Admin',         type: 'expense', total: '0.00' },
+        { account_code: '4001', account_name: 'Contributions', type: 'income', total: '0.00' },
+        { account_code: '5001', account_name: 'Admin', type: 'expense', total: '0.00' },
       ],
     });
 
@@ -130,8 +132,12 @@ describe('getProfitAndLoss', () => {
     await accountingService.getProfitAndLoss(ctx, '2025-04-01', '2025-06-30');
 
     const sql = mockQuery.mock.calls[0][0] as string;
-    expect(sql).toMatch(/SUM\(jl\.debit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/);
-    expect(sql).toMatch(/SUM\(jl\.credit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/);
+    expect(sql).toMatch(
+      /SUM\(jl\.debit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/,
+    );
+    expect(sql).toMatch(
+      /SUM\(jl\.credit\)\s+FILTER\s+\(WHERE je\.status = 'posted' AND je\.entry_date BETWEEN \$2 AND \$3\)/,
+    );
     expect(sql).toContain('jl.entry_date BETWEEN $2 AND $3');
     // journal_entries join must carry no status/date condition of its own anymore.
     expect(sql).toMatch(/LEFT JOIN journal_entries je ON je\.id = jl\.journal_entry_id\s+WHERE/);
@@ -214,15 +220,20 @@ describe('voidJournalEntry maker-checker', () => {
 describe('postSystemJournal', () => {
   it('posts a balanced entry when both accounts exist', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }, { id: 'acct-equity', account_code: '3001' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 'acct-cash', account_code: '1001' },
+          { id: 'acct-equity', account_code: '3001' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
-    const result = await postSystemJournal(
-      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Share purchase',
-      [{ accountCode: '1001', debit: 1000 }, { accountCode: '3001', credit: 1000 }],
-    );
+    const result = await postSystemJournal(mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Share purchase', [
+      { accountCode: '1001', debit: 1000 },
+      { accountCode: '3001', credit: 1000 },
+    ]);
 
     expect(result).toBe('je-1');
     expect(mockQuery).toHaveBeenCalledTimes(4); // account lookup + journal insert + 2 line inserts
@@ -239,18 +250,23 @@ describe('postSystemJournal', () => {
 
   it('posts a 3-line entry (dividend gross split into net + tax)', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [
-        { id: 'acct-surplus', account_code: '3101' },
-        { id: 'acct-payable', account_code: '2103' },
-        { id: 'acct-tax', account_code: '2104' },
-      ] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 'acct-surplus', account_code: '3101' },
+          { id: 'acct-payable', account_code: '2103' },
+          { id: 'acct-tax', account_code: '2104' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await postSystemJournal(
-      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Dividend declaration approved',
+      mockClient as unknown as PoolClient,
+      'group-1',
+      'user-1',
+      'Dividend declaration approved',
       [
         { accountCode: '3101', debit: 1000 },
         { accountCode: '2103', credit: 850 },
@@ -265,8 +281,14 @@ describe('postSystemJournal', () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }] }); // 2102 missing
 
     const result = await postSystemJournal(
-      mockClient as unknown as PoolClient, 'group-1', 'user-1', 'Welfare pool contribution',
-      [{ accountCode: '1001', debit: 500 }, { accountCode: '2102', credit: 500 }],
+      mockClient as unknown as PoolClient,
+      'group-1',
+      'user-1',
+      'Welfare pool contribution',
+      [
+        { accountCode: '1001', debit: 500 },
+        { accountCode: '2102', credit: 500 },
+      ],
     );
 
     expect(result).toBeNull();
@@ -275,15 +297,20 @@ describe('postSystemJournal', () => {
 
   it('allows a null userId for system-posted entries (no authenticated actor)', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'acct-cash', account_code: '1001' }, { id: 'acct-sub', account_code: '5003' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 'acct-cash', account_code: '1001' },
+          { id: 'acct-sub', account_code: '5003' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ id: 'je-3' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] });
 
-    await postSystemJournal(
-      mockClient as unknown as PoolClient, 'group-1', null, 'Platform subscription payment',
-      [{ accountCode: '5003', debit: 500 }, { accountCode: '1001', credit: 500 }],
-    );
+    await postSystemJournal(mockClient as unknown as PoolClient, 'group-1', null, 'Platform subscription payment', [
+      { accountCode: '5003', debit: 500 },
+      { accountCode: '1001', credit: 500 },
+    ]);
     const journalInsert = mockQuery.mock.calls[1];
     expect(journalInsert[1]).toContain(null); // created_by
   });
@@ -298,15 +325,23 @@ describe('postContributionJournal', () => {
   it('posts 100% to the default income account when no split rules are configured', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // loadActiveSplitRules — none configured
-      .mockResolvedValueOnce({ rows: [{ code: '1001', id: 'acct-cash' }, { code: '4001', id: 'acct-4001' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { code: '1001', id: 'acct-cash' },
+          { code: '4001', id: 'acct-4001' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ id: 'je-1' }] })
       .mockResolvedValueOnce({ rows: [] }) // cash debit line
       .mockResolvedValueOnce({ rows: [] }) // credit line (4001)
       .mockResolvedValueOnce({ rows: [] }); // UPDATE contributions.journal_entry_id
 
     const result = await postContributionJournal(mockClient as unknown as PoolClient, {
-      groupId: 'group-1', contributionId: 'contrib-1', amount: 1000,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      contributionId: 'contrib-1',
+      amount: 1000,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toBe('je-1');
@@ -317,9 +352,13 @@ describe('postContributionJournal', () => {
   it('splits the credit side across configured income accounts', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ account_code: '2101', percentage: '80', fixed_amount: null, priority: 100 }] })
-      .mockResolvedValueOnce({ rows: [
-        { code: '1001', id: 'acct-cash' }, { code: '4001', id: 'acct-4001' }, { code: '2101', id: 'acct-2101' },
-      ] })
+      .mockResolvedValueOnce({
+        rows: [
+          { code: '1001', id: 'acct-cash' },
+          { code: '4001', id: 'acct-4001' },
+          { code: '2101', id: 'acct-2101' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [{ id: 'je-2' }] })
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] })
@@ -327,8 +366,12 @@ describe('postContributionJournal', () => {
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await postContributionJournal(mockClient as unknown as PoolClient, {
-      groupId: 'group-1', contributionId: 'contrib-2', amount: 1000,
-      entryDate: '2026-01-15', createdBy: null, isTest: true,
+      groupId: 'group-1',
+      contributionId: 'contrib-2',
+      amount: 1000,
+      entryDate: '2026-01-15',
+      createdBy: null,
+      isTest: true,
     });
 
     expect(result).toBe('je-2');
@@ -337,13 +380,14 @@ describe('postContributionJournal', () => {
   });
 
   it('returns null and does not post when the cash account is missing', async () => {
-    mockQuery
-      .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ code: '4001', id: 'acct-4001' }] }); // no 1001
+    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ code: '4001', id: 'acct-4001' }] }); // no 1001
 
     const result = await postContributionJournal(mockClient as unknown as PoolClient, {
-      groupId: 'group-1', contributionId: 'contrib-3', amount: 500,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      contributionId: 'contrib-3',
+      amount: 500,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
 
     expect(result).toBeNull();
@@ -353,8 +397,11 @@ describe('postContributionJournal', () => {
   it('returns null (amount <= 0 guard) after checking split rules but before any posting', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // loadActiveSplitRules
     const result = await postContributionJournal(mockClient as unknown as PoolClient, {
-      groupId: 'group-1', contributionId: 'contrib-4', amount: 0,
-      entryDate: '2026-01-15', createdBy: 'user-1',
+      groupId: 'group-1',
+      contributionId: 'contrib-4',
+      amount: 0,
+      entryDate: '2026-01-15',
+      createdBy: 'user-1',
     });
     expect(result).toBeNull();
     expect(mockQuery).toHaveBeenCalledTimes(1);

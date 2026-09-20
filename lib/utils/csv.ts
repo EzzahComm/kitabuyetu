@@ -3,9 +3,7 @@
 export function rowsToCsv(headers: string[], rows: Record<string, string | null>[]): string {
   const headerLine = headers.join(',');
   if (rows.length === 0) return headerLine + '\n';
-  const dataLines = rows.map((r) =>
-    headers.map((h) => csvEscape(r[h])).join(','),
-  );
+  const dataLines = rows.map((r) => headers.map((h) => csvEscape(r[h])).join(','));
   return [headerLine, ...dataLines].join('\n') + '\n';
 }
 

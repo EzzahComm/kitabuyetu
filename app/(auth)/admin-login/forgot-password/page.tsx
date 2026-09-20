@@ -7,9 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
 import { ArrowLeft, Shield, MailCheck } from 'lucide-react';
-import {
-  Card, CardContent, CardDescription, CardHeader, CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -54,8 +52,8 @@ export default function AdminForgotPasswordPage() {
       setSent(true);
     } catch (err) {
       toast({
-        variant:     'destructive',
-        title:       'Something went wrong',
+        variant: 'destructive',
+        title: 'Something went wrong',
         description: (err as Error).message ?? 'Please try again',
       });
     } finally {
@@ -105,9 +103,14 @@ export default function AdminForgotPasswordPage() {
             ) : (
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="email" className="text-slate-300">Work email</Label>
+                  <Label htmlFor="email" className="text-slate-300">
+                    Work email
+                  </Label>
                   <Input
-                    id="email" type="email" autoComplete="email" autoFocus
+                    id="email"
+                    type="email"
+                    autoComplete="email"
+                    autoFocus
                     placeholder="you@kitabuyetu.co.ke"
                     className="bg-slate-950 border-slate-800 text-slate-100 placeholder:text-slate-600"
                     {...form.register('email')}

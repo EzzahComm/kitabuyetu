@@ -18,11 +18,11 @@ import { assertSubscriptionActive } from './subscription-gate';
  * the proxy stamps with `x-aud: backoffice` and should never reach a tenant route).
  */
 export function getAuthContext(req: NextRequest): AuthContext {
-  const userId  = req.headers.get('x-user-id');
+  const userId = req.headers.get('x-user-id');
   const groupId = req.headers.get('x-group-id');
-  const role    = req.headers.get('x-role') as MemberRole | PlatformRole | null;
-  const organizationId   = req.headers.get('x-organization-id') ?? undefined;
-  const aud     = req.headers.get('x-aud');
+  const role = req.headers.get('x-role') as MemberRole | PlatformRole | null;
+  const organizationId = req.headers.get('x-organization-id') ?? undefined;
+  const aud = req.headers.get('x-aud');
 
   if (aud === 'backoffice') {
     throw new ForbiddenError('Backoffice token cannot be used on tenant routes');
@@ -33,18 +33,22 @@ export function getAuthContext(req: NextRequest): AuthContext {
 
   // Active Membership Context + epochs (§2.1/§2.5) — proxy-stamped from the
   // JWT; absent on legacy tokens.
-  const membershipId  = req.headers.get('x-membership-id') ?? undefined;
-  const membershipNo  = req.headers.get('x-membership-no') ?? undefined;
-  const authVersionH  = req.headers.get('x-auth-version');
+  const membershipId = req.headers.get('x-membership-id') ?? undefined;
+  const membershipNo = req.headers.get('x-membership-no') ?? undefined;
+  const authVersionH = req.headers.get('x-auth-version');
   const sessionVersionH = req.headers.get('x-session-version');
-  const permissionsH  = req.headers.get('x-permissions');
+  const permissionsH = req.headers.get('x-permissions');
 
   return {
-    userId, groupId, role, organizationId,
-    membershipId, membershipNo,
-    authVersion:    authVersionH    != null ? Number(authVersionH)    : undefined,
+    userId,
+    groupId,
+    role,
+    organizationId,
+    membershipId,
+    membershipNo,
+    authVersion: authVersionH != null ? Number(authVersionH) : undefined,
     sessionVersion: sessionVersionH != null ? Number(sessionVersionH) : undefined,
-    permissions:    permissionsH    != null ? permissionsH.split(',').filter(Boolean) : undefined,
+    permissions: permissionsH != null ? permissionsH.split(',').filter(Boolean) : undefined,
   };
 }
 
@@ -138,9 +142,9 @@ export function withAnyPermission(
 export type AdminPlatformRole = Exclude<PlatformRole, 'member'>;
 
 export interface BackofficeContext {
-  userId:       string;
+  userId: string;
   platformRole: AdminPlatformRole;
-  organizationId?:       string;
+  organizationId?: string;
 }
 
 /**
@@ -149,10 +153,10 @@ export interface BackofficeContext {
  * has `aud: 'backoffice'` before stamping these headers.
  */
 export function getBackofficeContext(req: NextRequest): BackofficeContext {
-  const userId       = req.headers.get('x-user-id');
+  const userId = req.headers.get('x-user-id');
   const platformRole = req.headers.get('x-platform-role') as AdminPlatformRole | null;
-  const organizationId        = req.headers.get('x-organization-id') ?? undefined;
-  const aud          = req.headers.get('x-aud');
+  const organizationId = req.headers.get('x-organization-id') ?? undefined;
+  const aud = req.headers.get('x-aud');
 
   if (aud !== 'backoffice') {
     throw new ForbiddenError('Tenant token cannot be used on backoffice routes');
@@ -195,9 +199,7 @@ export function withPlatformRole(
   const list = Array.isArray(allowed) ? allowed : [allowed];
   return withBackofficeAuth(req, async (ctx) => {
     if (!list.includes(ctx.platformRole)) {
-      throw new ForbiddenError(
-        `Role '${ctx.platformRole}' cannot perform this action. Allowed: ${list.join(', ')}`,
-      );
+      throw new ForbiddenError(`Role '${ctx.platformRole}' cannot perform this action. Allowed: ${list.join(', ')}`);
     }
     return handler(ctx);
   });
@@ -227,20 +229,17 @@ export function withOrganizationAccess(
   handler: (ctx: TenantContext) => Promise<Response>,
 ): Promise<Response> {
   return withBackofficeAuth(req, async (bo) => {
-    requireOrganizationPermission(
-      { role: bo.platformRole, organizationId: bo.organizationId },
-      permission,
-    );
+    requireOrganizationPermission({ role: bo.platformRole, organizationId: bo.organizationId }, permission);
     return handler({
-      userId:         bo.userId,
+      userId: bo.userId,
       // No group, and that is the point. '' is the sentinel
       // app_current_group_id() already reads as "no group"
       // (NULLIF(current_setting(...), '')::uuid), so group-scoped RLS matches
       // nothing — correct for an organization coordinator. TenantContext
       // keeps groupId required so no group-scoped service loses that
       // guarantee; this tree simply never reads it.
-      groupId:        '',
-      role:           bo.platformRole,
+      groupId: '',
+      role: bo.platformRole,
       organizationId: bo.organizationId,
     });
   });

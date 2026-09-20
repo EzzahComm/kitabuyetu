@@ -6,12 +6,16 @@ import { usePathname } from 'next/navigation';
 import { Home, BookOpen, Target, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface Tab { href: string; label: string; icon: LucideIcon }
+interface Tab {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+}
 
 const TABS: Tab[] = [
-  { href: '/me',          label: 'Home',     icon: Home },
+  { href: '/me', label: 'Home', icon: Home },
   { href: '/me/passbook', label: 'Passbook', icon: BookOpen },
-  { href: '/me/goals',    label: 'Goals',    icon: Target },
+  { href: '/me/goals', label: 'Goals', icon: Target },
 ];
 
 /**

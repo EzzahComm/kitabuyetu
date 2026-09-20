@@ -20,15 +20,17 @@ const DOMAIN = 'savings';
 const POLICY_KEY = 'limits';
 
 export interface SavingsLimits {
-  minContribution:  number;
-  maxContribution:  number | null;
-  gracePeriodDays:  number;
+  minContribution: number;
+  maxContribution: number | null;
+  gracePeriodDays: number;
 }
 
 // Kept identical to migration 092's seed — the defensive floor if a domain
 // row is ever missing (should not happen once the migration has run).
 const DEFAULT_SAVINGS_LIMITS: SavingsLimits = {
-  minContribution: 0, maxContribution: null, gracePeriodDays: 0,
+  minContribution: 0,
+  maxContribution: null,
+  gracePeriodDays: 0,
 };
 
 export interface EffectiveSavingsLimits {
@@ -39,7 +41,7 @@ export interface EffectiveSavingsLimits {
 /** Used inline by advisory read paths — no route/role concerns, just a read. */
 export async function getEffectiveSavingsLimits(
   client: PoolClient,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<SavingsLimits> {
   return resolvePolicy<SavingsLimits>(client, DOMAIN, POLICY_KEY, scope, DEFAULT_SAVINGS_LIMITS);
 }
@@ -60,7 +62,11 @@ export const savingsPolicyService = {
   async getGroupLimits(ctx: TenantContext): Promise<EffectiveSavingsLimits> {
     return withDb(ctx, async (client) => {
       const resolved = await resolvePolicyDetailed<SavingsLimits>(
-        client, DOMAIN, POLICY_KEY, { groupId: ctx.groupId }, DEFAULT_SAVINGS_LIMITS,
+        client,
+        DOMAIN,
+        POLICY_KEY,
+        { groupId: ctx.groupId },
+        DEFAULT_SAVINGS_LIMITS,
       );
       return { limits: resolved.value, source: resolved.source };
     });

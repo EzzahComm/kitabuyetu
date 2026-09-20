@@ -4,8 +4,14 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/shared/page-header';
 import { SmsCreditsPanel } from '@/components/sms/sms-credits-panel';
 import {
-  TABS, type TabKey,
-  ComposeTab, CampaignsTab, TemplatesTab, SchedulesTab, LogsTab, OptOutsTab,
+  TABS,
+  type TabKey,
+  ComposeTab,
+  CampaignsTab,
+  TemplatesTab,
+  SchedulesTab,
+  LogsTab,
+  OptOutsTab,
 } from '@/components/sms/tabs';
 import { FailuresTab, ReminderHistoryTab } from '@/components/sms/ops-tabs';
 
@@ -38,14 +44,14 @@ export default function SmsPage() {
       {/* Spec §13 — the customer-facing credits view, above the working tabs. */}
       <SmsCreditsPanel />
 
-      {tab === 'compose'   && <ComposeTab />}
+      {tab === 'compose' && <ComposeTab />}
       {tab === 'campaigns' && <CampaignsTab />}
       {tab === 'templates' && <TemplatesTab />}
       {tab === 'schedules' && <SchedulesTab />}
-      {tab === 'logs'      && <LogsTab />}
-      {tab === 'failures'  && <FailuresTab />}
-      {tab === 'history'   && <ReminderHistoryTab />}
-      {tab === 'optouts'   && <OptOutsTab />}
+      {tab === 'logs' && <LogsTab />}
+      {tab === 'failures' && <FailuresTab />}
+      {tab === 'history' && <ReminderHistoryTab />}
+      {tab === 'optouts' && <OptOutsTab />}
     </div>
   );
 }

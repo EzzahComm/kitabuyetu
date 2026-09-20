@@ -8,10 +8,10 @@ import { z } from 'zod';
  */
 
 export const LOAN_CHARGE_CALCULATION_TYPES = ['fixed', 'percentage'] as const;
-export const LOAN_CHARGE_TRIGGER_EVENTS    = ['on_disburse', 'on_overdue'] as const;
+export const LOAN_CHARGE_TRIGGER_EVENTS = ['on_disburse', 'on_overdue'] as const;
 
 export type LoanChargeCalculationType = (typeof LOAN_CHARGE_CALCULATION_TYPES)[number];
-export type LoanChargeTriggerEvent    = (typeof LOAN_CHARGE_TRIGGER_EVENTS)[number];
+export type LoanChargeTriggerEvent = (typeof LOAN_CHARGE_TRIGGER_EVENTS)[number];
 
 /**
  * Create-or-update a group-level charge type. Supplying `id` updates that
@@ -20,29 +20,32 @@ export type LoanChargeTriggerEvent    = (typeof LOAN_CHARGE_TRIGGER_EVENTS)[numb
  * exceed 100, matching loan_charge_types_amount_bounded's DB CHECK so a bad
  * value 400s here rather than surfacing as a raw constraint violation.
  */
-export const ConfigureChargeTypeSchema = z.object({
-  id:              z.string().uuid().optional(),
-  name:            z.string().trim().min(2).max(100),
-  calculationType: z.enum(LOAN_CHARGE_CALCULATION_TYPES),
-  amount:          z.number().nonnegative(),
-  triggerEvent:    z.enum(LOAN_CHARGE_TRIGGER_EVENTS),
-  isActive:        z.boolean().optional().default(true),
-}).superRefine((v, ctx) => {
-  if (v.calculationType === 'percentage' && v.amount > 100) {
-    ctx.addIssue({
-      code: 'custom', path: ['amount'],
-      message: 'A percentage charge cannot exceed 100',
-    });
-  }
-});
+export const ConfigureChargeTypeSchema = z
+  .object({
+    id: z.string().uuid().optional(),
+    name: z.string().trim().min(2).max(100),
+    calculationType: z.enum(LOAN_CHARGE_CALCULATION_TYPES),
+    amount: z.number().nonnegative(),
+    triggerEvent: z.enum(LOAN_CHARGE_TRIGGER_EVENTS),
+    isActive: z.boolean().optional().default(true),
+  })
+  .superRefine((v, ctx) => {
+    if (v.calculationType === 'percentage' && v.amount > 100) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['amount'],
+        message: 'A percentage charge cannot exceed 100',
+      });
+    }
+  });
 
 export const WaiveChargeSchema = z.object({
   chargeId: z.string().uuid(),
-  reason:   z.string().min(5).max(500),
+  reason: z.string().min(5).max(500),
 });
 
 export type ConfigureChargeTypeInput = z.infer<typeof ConfigureChargeTypeSchema>;
-export type WaiveChargeInput         = z.infer<typeof WaiveChargeSchema>;
+export type WaiveChargeInput = z.infer<typeof WaiveChargeSchema>;
 
 export type ConfigureChargeTypePayload = z.input<typeof ConfigureChargeTypeSchema>;
-export type WaiveChargePayload         = z.input<typeof WaiveChargeSchema>;
+export type WaiveChargePayload = z.input<typeof WaiveChargeSchema>;

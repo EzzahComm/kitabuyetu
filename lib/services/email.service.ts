@@ -58,15 +58,11 @@ export async function queueEmail(
 ): Promise<string> {
   const { delayMs, priority, ...payload } = opts;
   const jobPriority = priority === 'high' ? 8 : priority === 'low' ? 2 : 5;
-  const id = await enqueueJob(
-    'email_send',
-    payload,
-    {
-      priority:     jobPriority,
-      run_at:       delayMs ? new Date(Date.now() + delayMs) : undefined,
-      max_attempts: 5,
-    },
-  );
+  const id = await enqueueJob('email_send', payload, {
+    priority: jobPriority,
+    run_at: delayMs ? new Date(Date.now() + delayMs) : undefined,
+    max_attempts: 5,
+  });
   return id ?? '';
 }
 

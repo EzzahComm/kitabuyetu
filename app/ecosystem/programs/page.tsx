@@ -32,10 +32,7 @@ export default async function EcosystemProgramsPage() {
   }
 
   return (
-    <PageShell
-      title="Support Programs"
-      description="Browse active programs and support causes that matter to you."
-    >
+    <PageShell title="Support Programs" description="Browse active programs and support causes that matter to you.">
       {campaigns.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-600 mb-4">No active programs yet.</p>

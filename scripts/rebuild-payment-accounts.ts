@@ -18,14 +18,13 @@ import { withAdminDb } from '../lib/db';
 
 interface RebuildCounts {
   membershipNos: number;
-  legacyCodes:   number;
-  invoices:      number;
+  legacyCodes: number;
+  invoices: number;
 }
 
 async function countMissing(): Promise<RebuildCounts> {
   return withAdminDb(async (db) => {
-    const q = async (sql: string) =>
-      parseInt((await db.query<{ n: string }>(sql)).rows[0].n, 10);
+    const q = async (sql: string) => parseInt((await db.query<{ n: string }>(sql)).rows[0].n, 10);
 
     return {
       membershipNos: await q(
@@ -63,8 +62,8 @@ async function rebuild(): Promise<RebuildCounts> {
     );
     return {
       membershipNos: m.rowCount ?? 0,
-      legacyCodes:   l.rowCount ?? 0,
-      invoices:      i.rowCount ?? 0,
+      legacyCodes: l.rowCount ?? 0,
+      invoices: i.rowCount ?? 0,
     };
   });
 }
@@ -91,7 +90,7 @@ async function main(): Promise<void> {
   const inserted = await rebuild();
   console.log(
     `\nInserted: ${inserted.membershipNos} membership numbers, ` +
-    `${inserted.legacyCodes} legacy codes, ${inserted.invoices} invoices.`,
+      `${inserted.legacyCodes} legacy codes, ${inserted.invoices} invoices.`,
   );
 
   const after = await countMissing();
@@ -106,7 +105,9 @@ async function main(): Promise<void> {
   }
 }
 
-main().then(() => process.exit()).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit())
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

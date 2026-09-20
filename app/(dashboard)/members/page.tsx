@@ -25,60 +25,81 @@ import type { CreateMemberPayload } from '@/lib/validators/member.schema';
 // ─── Constants mirrored from validators/member.schema.ts ────────────────────
 const MEMBER_STATUSES = [
   { value: 'pending_verification', label: 'Pending verification' },
-  { value: 'active',               label: 'Active' },
-  { value: 'inactive',             label: 'Inactive' },
-  { value: 'suspended',            label: 'Suspended' },
-  { value: 'rejected',             label: 'Rejected' },
-  { value: 'blacklisted',          label: 'Blacklisted' },
-  { value: 'exited',               label: 'Exited' },
-  { value: 'archived',             label: 'Archived' },
+  { value: 'active', label: 'Active' },
+  { value: 'inactive', label: 'Inactive' },
+  { value: 'suspended', label: 'Suspended' },
+  { value: 'rejected', label: 'Rejected' },
+  { value: 'blacklisted', label: 'Blacklisted' },
+  { value: 'exited', label: 'Exited' },
+  { value: 'archived', label: 'Archived' },
 ] as const;
 
 const schema = z.object({
-  firstName:        z.string().min(2),
-  middleName:       z.string().max(100).optional().or(z.literal('')),
-  lastName:         z.string().min(2),
-  phone:            z.string().regex(/^(?:\+254|0)[17]\d{8}$/),
-  alternativePhone: z.string().regex(/^(?:\+254|0)[17]\d{8}$/).optional().or(z.literal('')),
-  email:            z.string().email().optional().or(z.literal('')),
-  nationalId:       z.string().optional(),
-  occupation:       z.string().max(150).optional().or(z.literal('')),
-  countyId:         z.string().uuid('Pick a county').optional().or(z.literal('')),
-  role:             z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
+  firstName: z.string().min(2),
+  middleName: z.string().max(100).optional().or(z.literal('')),
+  lastName: z.string().min(2),
+  phone: z.string().regex(/^(?:\+254|0)[17]\d{8}$/),
+  alternativePhone: z
+    .string()
+    .regex(/^(?:\+254|0)[17]\d{8}$/)
+    .optional()
+    .or(z.literal('')),
+  email: z.string().email().optional().or(z.literal('')),
+  nationalId: z.string().optional(),
+  occupation: z.string().max(150).optional().or(z.literal('')),
+  countyId: z.string().uuid('Pick a county').optional().or(z.literal('')),
+  role: z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
 });
 type FormValues = z.infer<typeof schema>;
 
-interface County { id: string; code: string; name: string; region: string | null }
+interface County {
+  id: string;
+  code: string;
+  name: string;
+  region: string | null;
+}
 
 export default function MembersPage() {
-  const [page, setPage]                 = useState(1);
-  const [search, setSearch]             = useState('');
-  const [status, setStatus]             = useState<string>('');         // '' = "all (excl archived)"
-  const [open, setOpen]                 = useState(false);
-  const [selectedIds, setSelectedIds]   = useState<Set<string>>(new Set());
-  const [bulkBusy, setBulkBusy]         = useState(false);
-  const { toast }                       = useToast();
-  const qc                              = useQueryClient();
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState<string>(''); // '' = "all (excl archived)"
+  const [open, setOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
-  const queryParams = useMemo(() => ({
-    page, pageSize: 20,
-    ...(search ? { search } : {}),
-    ...(status ? { status, includeArchived: status === 'archived' } : {}),
-  }), [page, search, status]);
+  const queryParams = useMemo(
+    () => ({
+      page,
+      pageSize: 20,
+      ...(search ? { search } : {}),
+      ...(status ? { status, includeArchived: status === 'archived' } : {}),
+    }),
+    [page, search, status],
+  );
 
   const { data, isLoading, isError, error } = useMembers(queryParams);
-  const createMember        = useCreateMember();
+  const createMember = useCreateMember();
 
   // Counties for the create-form dropdown. The endpoint is already CDN-cached
   // server-side; staleTime here just avoids client refetch on every dialog
   // open within the same tab session.
   const { data: countyList = [] } = useQuery<County[]>({
     queryKey: ['jurisdictions', 'counties'],
-    queryFn:  () => fetch('/api/v1/jurisdictions/counties').then((r) => r.json()).then((j) => j.data ?? []),
+    queryFn: () =>
+      fetch('/api/v1/jurisdictions/counties')
+        .then((r) => r.json())
+        .then((j) => j.data ?? []),
     staleTime: 1000 * 60 * 60,
   });
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { role: 'member' },
   });
@@ -110,7 +131,7 @@ export default function MembersPage() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
-      else              next.add(id);
+      else next.add(id);
       return next;
     });
   };
@@ -118,7 +139,7 @@ export default function MembersPage() {
     setSelectedIds((prev) => {
       const next = new Set(prev);
       if (allOnPageSelected) rows.forEach((r) => next.delete(r.id));
-      else                   rows.forEach((r) => next.add(r.id));
+      else rows.forEach((r) => next.add(r.id));
       return next;
     });
   };
@@ -131,7 +152,8 @@ export default function MembersPage() {
     setBulkBusy(true);
     const ids = Array.from(selectedIds);
     const target = action === 'archive' ? 'archived' : 'active';
-    let success = 0; let failed = 0;
+    let success = 0;
+    let failed = 0;
     for (const id of ids) {
       try {
         await membersApi.transitionStatus(id, target);
@@ -152,7 +174,8 @@ export default function MembersPage() {
 
   const columns = [
     {
-      key: '_select', header: (
+      key: '_select',
+      header: (
         <input
           type="checkbox"
           checked={allOnPageSelected}
@@ -171,7 +194,8 @@ export default function MembersPage() {
       ),
     },
     {
-      key: 'name', header: 'Name',
+      key: 'name',
+      header: 'Name',
       render: (row: GroupMemberRow) => {
         const name = [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' ');
         return (
@@ -181,10 +205,21 @@ export default function MembersPage() {
         );
       },
     },
-    { key: 'phone',      header: 'Phone',      render: (row: GroupMemberRow) => <span className="font-mono text-xs">{row.phone}</span> },
-    { key: 'occupation', header: 'Occupation', hideBelow: 'md' as const, render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span> },
     {
-      key: 'groupRole', header: 'Role', hideBelow: 'lg' as const,
+      key: 'phone',
+      header: 'Phone',
+      render: (row: GroupMemberRow) => <span className="font-mono text-xs">{row.phone}</span>,
+    },
+    {
+      key: 'occupation',
+      header: 'Occupation',
+      hideBelow: 'md' as const,
+      render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span>,
+    },
+    {
+      key: 'groupRole',
+      header: 'Role',
+      hideBelow: 'lg' as const,
       render: (row: GroupMemberRow) => (
         <Badge variant="outline" className="capitalize">
           {row.group_role?.replace('_', ' ')}
@@ -192,12 +227,18 @@ export default function MembersPage() {
       ),
     },
     {
-      key: 'status', header: 'Status',
+      key: 'status',
+      header: 'Status',
       render: (row: GroupMemberRow) => (
         <StatusPill status={row.group_status ?? (row.is_active ? 'active' : 'inactive')} />
       ),
     },
-    { key: 'joinedAt', header: 'Joined', hideBelow: 'lg' as const, render: (row: GroupMemberRow) => formatDate(row.joined_at ?? row.created_at) },
+    {
+      key: 'joinedAt',
+      header: 'Joined',
+      hideBelow: 'lg' as const,
+      render: (row: GroupMemberRow) => formatDate(row.joined_at ?? row.created_at),
+    },
   ];
 
   return (
@@ -227,18 +268,26 @@ export default function MembersPage() {
             className="pl-9"
             placeholder="Search by name, middle name, or phone…"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
           />
         </div>
         <select
           value={status}
-          onChange={(e) => { setStatus(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setStatus(e.target.value);
+            setPage(1);
+          }}
           className="h-10 rounded-md border border-input bg-background px-3 text-sm"
           aria-label="Filter by status"
         >
           <option value="">All statuses (excl. archived)</option>
           {MEMBER_STATUSES.map((s) => (
-            <option key={s.value} value={s.value}>{s.label}</option>
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
           ))}
         </select>
       </div>
@@ -249,26 +298,17 @@ export default function MembersPage() {
           <p className="text-sm flex-1">
             <span className="font-semibold">{selectedIds.size}</span> selected
           </p>
-          <Button
-            type="button" variant="outline" size="sm"
-            disabled={bulkBusy}
-            onClick={() => runBulk('archive')}
-          >
+          <Button type="button" variant="outline" size="sm" disabled={bulkBusy} onClick={() => runBulk('archive')}>
             {bulkBusy ? <Loader2 size={14} className="mr-1 animate-spin" /> : <Archive size={14} className="mr-1" />}
             Archive
           </Button>
-          <Button
-            type="button" variant="outline" size="sm"
-            disabled={bulkBusy}
-            onClick={() => runBulk('restore')}
-          >
+          <Button type="button" variant="outline" size="sm" disabled={bulkBusy} onClick={() => runBulk('restore')}>
             {bulkBusy ? <Loader2 size={14} className="mr-1 animate-spin" /> : <RotateCcw size={14} className="mr-1" />}
             Restore
           </Button>
-          <Button
-            type="button" variant="ghost" size="sm"
-            onClick={() => setSelectedIds(new Set())}
-          >Clear</Button>
+          <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>
+            Clear
+          </Button>
         </div>
       )}
 
@@ -284,7 +324,9 @@ export default function MembersPage() {
 
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>Add new member</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add new member</DialogTitle>
+          </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1">
@@ -293,7 +335,9 @@ export default function MembersPage() {
                 {errors.firstName && <p className="text-xs text-destructive">{errors.firstName.message}</p>}
               </div>
               <div className="space-y-1">
-                <Label>Middle name <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>
+                  Middle name <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input {...register('middleName')} />
               </div>
               <div className="space-y-1 sm:col-span-2">
@@ -307,12 +351,18 @@ export default function MembersPage() {
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
               </div>
               <div className="space-y-1">
-                <Label>Alt. phone <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>
+                  Alt. phone <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input placeholder="0712345678" {...register('alternativePhone')} />
-                {errors.alternativePhone && <p className="text-xs text-destructive">{errors.alternativePhone.message}</p>}
+                {errors.alternativePhone && (
+                  <p className="text-xs text-destructive">{errors.alternativePhone.message}</p>
+                )}
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label>Email <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>
+                  Email <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input type="email" {...register('email')} />
               </div>
               <div className="space-y-1">
@@ -320,7 +370,9 @@ export default function MembersPage() {
                 <Input {...register('nationalId')} />
               </div>
               <div className="space-y-1">
-                <Label>Occupation <span className="text-muted-foreground text-xs">(optional)</span></Label>
+                <Label>
+                  Occupation <span className="text-muted-foreground text-xs">(optional)</span>
+                </Label>
                 <Input {...register('occupation')} />
               </div>
               <div className="space-y-1">
@@ -332,7 +384,9 @@ export default function MembersPage() {
                 >
                   <option value="">— Optional —</option>
                   {countyList.map((c) => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>
+                      {c.name}
+                    </option>
                   ))}
                 </select>
                 {errors.countyId && <p className="text-xs text-destructive">{errors.countyId.message}</p>}
@@ -351,8 +405,12 @@ export default function MembersPage() {
               </div>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={isSubmitting}>Add member</Button>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmitting}>
+                Add member
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

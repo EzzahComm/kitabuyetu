@@ -10,36 +10,43 @@
  */
 import type { PoolClient } from 'pg';
 import { withAdminDb, withDb, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError, OrganizationCapError, OrganizationFeatureGatedError } from '@/lib/utils/errors';
 import {
-  ORGANIZATION_PLAN_FEATURES, ORGANIZATION_PLAN_MONTHLY_FEES,
-  type OrganizationPlanType, type OrganizationSupportTier,
+  NotFoundError,
+  ValidationError,
+  OrganizationCapError,
+  OrganizationFeatureGatedError,
+} from '@/lib/utils/errors';
+import {
+  ORGANIZATION_PLAN_FEATURES,
+  ORGANIZATION_PLAN_MONTHLY_FEES,
+  type OrganizationPlanType,
+  type OrganizationSupportTier,
 } from '@/types/enums';
 
 export interface OrganizationSubscription {
-  id:                     string;
-  organization_id:        string;
-  plan_type:               OrganizationPlanType;
-  status:                 'active' | 'cancelled';
-  monthly_fee:            string;
-  max_linked_groups:      number | null;
-  max_staff:              number | null;
-  max_funding_programs:   number | null;
+  id: string;
+  organization_id: string;
+  plan_type: OrganizationPlanType;
+  status: 'active' | 'cancelled';
+  monthly_fee: string;
+  max_linked_groups: number | null;
+  max_staff: number | null;
+  max_funding_programs: number | null;
   sms_allowance_included: string;
-  white_label_branding:   boolean;
-  advanced_reports:       boolean;
-  support_tier:           OrganizationSupportTier;
-  is_custom:              boolean;
-  started_at:             string;
+  white_label_branding: boolean;
+  advanced_reports: boolean;
+  support_tier: OrganizationSupportTier;
+  is_custom: boolean;
+  started_at: string;
 }
 
 export interface CustomPlanTerms {
-  monthlyFee:            number;
-  maxLinkedGroups?:      number | null;
-  maxStaff?:             number | null;
-  maxFundingPrograms?:   number | null;
+  monthlyFee: number;
+  maxLinkedGroups?: number | null;
+  maxStaff?: number | null;
+  maxFundingPrograms?: number | null;
   smsAllowanceIncluded?: number;
-  supportTier?:          OrganizationSupportTier;
+  supportTier?: OrganizationSupportTier;
 }
 
 /**
@@ -63,7 +70,8 @@ function actorId(userId: string | undefined | null): string | null {
 }
 
 async function getActiveSubscriptionForUpdate(
-  db: PoolClient, organizationId: string,
+  db: PoolClient,
+  organizationId: string,
 ): Promise<OrganizationSubscription | null> {
   const { rows } = await db.query<OrganizationSubscription>(
     `SELECT * FROM organization_subscriptions WHERE organization_id = $1 AND status = 'active' FOR UPDATE`,
@@ -83,14 +91,19 @@ async function getActiveSubscriptionForUpdate(
  */
 export async function assignOrganizationPlan(
   organizationId: string,
-  planType:       OrganizationPlanType,
-  adminId:        string,
-  opts:           { custom?: CustomPlanTerms; notes?: string } = {},
+  planType: OrganizationPlanType,
+  adminId: string,
+  opts: { custom?: CustomPlanTerms; notes?: string } = {},
 ): Promise<OrganizationSubscription> {
   let snapshot: {
-    monthlyFee: number; maxLinkedGroups: number | null; maxStaff: number | null;
-    maxFundingPrograms: number | null; smsAllowanceIncluded: number;
-    whiteLabelBranding: boolean; advancedReports: boolean; supportTier: OrganizationSupportTier;
+    monthlyFee: number;
+    maxLinkedGroups: number | null;
+    maxStaff: number | null;
+    maxFundingPrograms: number | null;
+    smsAllowanceIncluded: number;
+    whiteLabelBranding: boolean;
+    advancedReports: boolean;
+    supportTier: OrganizationSupportTier;
     isCustom: boolean;
   };
 
@@ -99,28 +112,28 @@ export async function assignOrganizationPlan(
       throw new ValidationError('Premium+ requires a monthly fee — every term is negotiated per contract');
     }
     snapshot = {
-      monthlyFee:           opts.custom.monthlyFee,
-      maxLinkedGroups:      opts.custom.maxLinkedGroups ?? null,
-      maxStaff:             opts.custom.maxStaff ?? null,
-      maxFundingPrograms:   opts.custom.maxFundingPrograms ?? null,
+      monthlyFee: opts.custom.monthlyFee,
+      maxLinkedGroups: opts.custom.maxLinkedGroups ?? null,
+      maxStaff: opts.custom.maxStaff ?? null,
+      maxFundingPrograms: opts.custom.maxFundingPrograms ?? null,
       smsAllowanceIncluded: opts.custom.smsAllowanceIncluded ?? 0,
-      whiteLabelBranding:   true, // Premium+ is the ONLY tier with white-label
-      advancedReports:      true,
-      supportTier:          opts.custom.supportTier ?? 'priority_plus',
-      isCustom:             true,
+      whiteLabelBranding: true, // Premium+ is the ONLY tier with white-label
+      advancedReports: true,
+      supportTier: opts.custom.supportTier ?? 'priority_plus',
+      isCustom: true,
     };
   } else {
     const f = ORGANIZATION_PLAN_FEATURES[planType];
     snapshot = {
-      monthlyFee:           ORGANIZATION_PLAN_MONTHLY_FEES[planType],
-      maxLinkedGroups:      f.maxLinkedGroups,
-      maxStaff:             f.maxStaff,
-      maxFundingPrograms:   f.maxFundingPrograms,
+      monthlyFee: ORGANIZATION_PLAN_MONTHLY_FEES[planType],
+      maxLinkedGroups: f.maxLinkedGroups,
+      maxStaff: f.maxStaff,
+      maxFundingPrograms: f.maxFundingPrograms,
       smsAllowanceIncluded: f.smsAllowanceIncluded,
-      whiteLabelBranding:   f.whiteLabelBranding,
-      advancedReports:      f.advancedReports,
-      supportTier:          f.supportTier,
-      isCustom:             false,
+      whiteLabelBranding: f.whiteLabelBranding,
+      advancedReports: f.advancedReports,
+      supportTier: f.supportTier,
+      isCustom: false,
     };
   }
 
@@ -130,10 +143,9 @@ export async function assignOrganizationPlan(
 
     const before = await getActiveSubscriptionForUpdate(db, organizationId);
     if (before) {
-      await db.query(
-        `UPDATE organization_subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`,
-        [before.id],
-      );
+      await db.query(`UPDATE organization_subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`, [
+        before.id,
+      ]);
     }
 
     const { rows } = await db.query<OrganizationSubscription>(
@@ -144,11 +156,19 @@ export async function assignOrganizationPlan(
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
        RETURNING *`,
       [
-        organizationId, planType, snapshot.monthlyFee.toFixed(2),
-        snapshot.maxLinkedGroups, snapshot.maxStaff, snapshot.maxFundingPrograms,
-        snapshot.smsAllowanceIncluded.toFixed(2), snapshot.whiteLabelBranding,
-        snapshot.advancedReports, snapshot.supportTier, snapshot.isCustom,
-        adminId, opts.notes ?? null,
+        organizationId,
+        planType,
+        snapshot.monthlyFee.toFixed(2),
+        snapshot.maxLinkedGroups,
+        snapshot.maxStaff,
+        snapshot.maxFundingPrograms,
+        snapshot.smsAllowanceIncluded.toFixed(2),
+        snapshot.whiteLabelBranding,
+        snapshot.advancedReports,
+        snapshot.supportTier,
+        snapshot.isCustom,
+        adminId,
+        opts.notes ?? null,
       ],
     );
     const after = rows[0];
@@ -157,7 +177,8 @@ export async function assignOrganizationPlan(
       `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, 'organization.plan_assigned', 'organization', $2, $3::jsonb, $4::jsonb)`,
       [
-        adminId, organizationId,
+        adminId,
+        organizationId,
         JSON.stringify(before ? { plan_type: before.plan_type, monthly_fee: before.monthly_fee } : null),
         JSON.stringify({ plan_type: after.plan_type, monthly_fee: after.monthly_fee }),
       ],
@@ -168,7 +189,13 @@ export async function assignOrganizationPlan(
     // credited balance addition rather than the group side's separate
     // used/included counter (deliberately simpler; see migration 152).
     if (snapshot.smsAllowanceIncluded > 0) {
-      await grantSmsAllowanceInTx(db, organizationId, snapshot.smsAllowanceIncluded, adminId, 'Plan assignment allowance');
+      await grantSmsAllowanceInTx(
+        db,
+        organizationId,
+        snapshot.smsAllowanceIncluded,
+        adminId,
+        'Plan assignment allowance',
+      );
     }
 
     return after;
@@ -195,8 +222,8 @@ export async function getOrganizationPlan(organizationId: string): Promise<{
     return {
       subscription: sub[0] ?? null,
       usage: {
-        linkedGroups:          Number(usage[0].linked_groups),
-        staff:                 Number(usage[0].staff),
+        linkedGroups: Number(usage[0].linked_groups),
+        staff: Number(usage[0].staff),
         activeFundingPrograms: Number(usage[0].active_programs),
       },
     };
@@ -204,13 +231,22 @@ export async function getOrganizationPlan(organizationId: string): Promise<{
 }
 
 /** The active plan's caps/flags, or the Starter defaults when no plan is assigned (see NO_PLAN_DEFAULTS). */
-async function getEffectiveLimits(db: PoolClient, organizationId: string): Promise<{
-  maxLinkedGroups: number | null; maxStaff: number | null; maxFundingPrograms: number | null;
-  whiteLabelBranding: boolean; advancedReports: boolean;
+async function getEffectiveLimits(
+  db: PoolClient,
+  organizationId: string,
+): Promise<{
+  maxLinkedGroups: number | null;
+  maxStaff: number | null;
+  maxFundingPrograms: number | null;
+  whiteLabelBranding: boolean;
+  advancedReports: boolean;
 }> {
   const { rows } = await db.query<{
-    max_linked_groups: number | null; max_staff: number | null; max_funding_programs: number | null;
-    white_label_branding: boolean; advanced_reports: boolean;
+    max_linked_groups: number | null;
+    max_staff: number | null;
+    max_funding_programs: number | null;
+    white_label_branding: boolean;
+    advanced_reports: boolean;
   }>(
     `SELECT max_linked_groups, max_staff, max_funding_programs, white_label_branding, advanced_reports
      FROM organization_subscriptions WHERE organization_id = $1 AND status = 'active'`,
@@ -218,19 +254,19 @@ async function getEffectiveLimits(db: PoolClient, organizationId: string): Promi
   );
   if (!rows[0]) {
     return {
-      maxLinkedGroups:    NO_PLAN_DEFAULTS.maxLinkedGroups,
-      maxStaff:           NO_PLAN_DEFAULTS.maxStaff,
+      maxLinkedGroups: NO_PLAN_DEFAULTS.maxLinkedGroups,
+      maxStaff: NO_PLAN_DEFAULTS.maxStaff,
       maxFundingPrograms: NO_PLAN_DEFAULTS.maxFundingPrograms,
       whiteLabelBranding: NO_PLAN_DEFAULTS.whiteLabelBranding,
-      advancedReports:    NO_PLAN_DEFAULTS.advancedReports,
+      advancedReports: NO_PLAN_DEFAULTS.advancedReports,
     };
   }
   return {
-    maxLinkedGroups:    rows[0].max_linked_groups,
-    maxStaff:           rows[0].max_staff,
+    maxLinkedGroups: rows[0].max_linked_groups,
+    maxStaff: rows[0].max_staff,
     maxFundingPrograms: rows[0].max_funding_programs,
     whiteLabelBranding: rows[0].white_label_branding,
-    advancedReports:    rows[0].advanced_reports,
+    advancedReports: rows[0].advanced_reports,
   };
 }
 
@@ -277,7 +313,8 @@ export async function assertFundingProgramCap(db: PoolClient, organizationId: st
     `SELECT COUNT(*) AS n FROM funding_programs WHERE organization_id = $1 AND status = 'active'`,
     [organizationId],
   );
-  if (parseInt(count[0].n, 10) >= maxFundingPrograms) throw new OrganizationCapError('active funding programs', maxFundingPrograms);
+  if (parseInt(count[0].n, 10) >= maxFundingPrograms)
+    throw new OrganizationCapError('active funding programs', maxFundingPrograms);
 }
 
 export async function assertReportsAccess(db: PoolClient, organizationId: string): Promise<void> {
@@ -298,7 +335,11 @@ export async function assertWhiteLabelAccess(db: PoolClient, organizationId: str
  * a plan assignment and its allowance grant commit atomically.
  */
 async function grantSmsAllowanceInTx(
-  db: PoolClient, organizationId: string, amount: number, adminId: string, notes: string,
+  db: PoolClient,
+  organizationId: string,
+  amount: number,
+  adminId: string,
+  notes: string,
 ): Promise<void> {
   const { rows: account } = await db.query<{ id: string }>(
     `INSERT INTO organization_billing_accounts (organization_id) VALUES ($1)
@@ -313,11 +354,20 @@ async function grantSmsAllowanceInTx(
     [amount.toFixed(4), organizationId],
   );
   void account; // id not needed beyond ensuring the row exists
-  await db.query(
-    `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
-    ['organization', null, organizationId, 'adjustment', amount.toFixed(4), amount.toFixed(4),
-     after[0]?.sms_credits ?? null, 'plan_allowance', null, null, actorId(adminId), notes],
-  );
+  await db.query(`SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`, [
+    'organization',
+    null,
+    organizationId,
+    'adjustment',
+    amount.toFixed(4),
+    amount.toFixed(4),
+    after[0]?.sms_credits ?? null,
+    'plan_allowance',
+    null,
+    null,
+    actorId(adminId),
+    notes,
+  ]);
 }
 
 /**
@@ -331,7 +381,8 @@ async function grantSmsAllowanceInTx(
 export async function grantDueOrganizationSmsAllowances(): Promise<{ organizationsGranted: number }> {
   return withAdminDb(async (db) => {
     const { rows: due } = await db.query<{
-      organization_id: string; allowance: string;
+      organization_id: string;
+      allowance: string;
     }>(
       `SELECT s.organization_id, s.sms_allowance_included AS allowance
        FROM organization_subscriptions s

@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
   const { id } = await params;
   return withPermission(req, 'loans.approve', async (auth) => {
     const input = RecordRepaymentSchema.parse(await req.json());
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     return ok(await loansService.recordRepayment(ctx, id, input));
   });
 }

@@ -1,6 +1,6 @@
 const mockPublishJSON = jest.fn();
-const mockTrigger      = jest.fn();
-const mockNotify       = jest.fn();
+const mockTrigger = jest.fn();
+const mockNotify = jest.fn();
 
 jest.mock('@upstash/qstash', () => ({
   Client: jest.fn().mockImplementation(() => ({
@@ -11,7 +11,7 @@ jest.mock('@upstash/qstash', () => ({
 jest.mock('@upstash/workflow', () => ({
   Client: jest.fn().mockImplementation(() => ({
     trigger: mockTrigger,
-    notify:  mockNotify,
+    notify: mockNotify,
   })),
 }));
 
@@ -20,8 +20,10 @@ jest.mock('@/lib/logger', () => ({
 }));
 
 const CONFIGURED_ENV = {
-  QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok',
-  QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next',
+  QSTASH_URL: 'https://qstash.example.com',
+  QSTASH_TOKEN: 'tok',
+  QSTASH_CURRENT_SIGNING_KEY: 'cur',
+  QSTASH_NEXT_SIGNING_KEY: 'next',
   NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.vercel.app',
 };
 
@@ -36,7 +38,12 @@ describe('lib/queue/qstash', () => {
   describe('isQstashConfigured', () => {
     it('is false when any of the four QSTASH_* vars is missing', async () => {
       jest.doMock('@/lib/env', () => ({
-        env: { QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok', QSTASH_CURRENT_SIGNING_KEY: undefined, QSTASH_NEXT_SIGNING_KEY: 'next' },
+        env: {
+          QSTASH_URL: 'https://qstash.example.com',
+          QSTASH_TOKEN: 'tok',
+          QSTASH_CURRENT_SIGNING_KEY: undefined,
+          QSTASH_NEXT_SIGNING_KEY: 'next',
+        },
       }));
       const { isQstashConfigured } = await import('@/lib/queue/qstash');
       expect(isQstashConfigured()).toBe(false);
@@ -44,7 +51,12 @@ describe('lib/queue/qstash', () => {
 
     it('is true when all four are set', async () => {
       jest.doMock('@/lib/env', () => ({
-        env: { QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok', QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next' },
+        env: {
+          QSTASH_URL: 'https://qstash.example.com',
+          QSTASH_TOKEN: 'tok',
+          QSTASH_CURRENT_SIGNING_KEY: 'cur',
+          QSTASH_NEXT_SIGNING_KEY: 'next',
+        },
       }));
       const { isQstashConfigured } = await import('@/lib/queue/qstash');
       expect(isQstashConfigured()).toBe(true);
@@ -55,8 +67,10 @@ describe('lib/queue/qstash', () => {
     it('publishes to the sms-dispatch-chunk route with the app base URL and retries: 3', async () => {
       jest.doMock('@/lib/env', () => ({
         env: {
-          QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok',
-          QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next',
+          QSTASH_URL: 'https://qstash.example.com',
+          QSTASH_TOKEN: 'tok',
+          QSTASH_CURRENT_SIGNING_KEY: 'cur',
+          QSTASH_NEXT_SIGNING_KEY: 'next',
           NEXT_PUBLIC_APP_URL: 'https://kitabuyetu.vercel.app',
         },
       }));
@@ -64,17 +78,22 @@ describe('lib/queue/qstash', () => {
 
       const { publishSmsChunk } = await import('@/lib/queue/qstash');
       const payload = {
-        jobId: 'job-1', chunkIndex: 0, chunkCount: 2,
-        groupId: 'group-1', phones: ['254700000001'], message: 'hi',
-        sentBy: 'tester', totalRecipientCount: 60,
+        jobId: 'job-1',
+        chunkIndex: 0,
+        chunkCount: 2,
+        groupId: 'group-1',
+        phones: ['254700000001'],
+        message: 'hi',
+        sentBy: 'tester',
+        totalRecipientCount: 60,
       };
 
       const messageId = await publishSmsChunk(payload);
 
       expect(messageId).toBe('msg_123');
       expect(mockPublishJSON).toHaveBeenCalledWith({
-        url:     'https://kitabuyetu.vercel.app/api/v1/workers/sms-dispatch-chunk',
-        body:    payload,
+        url: 'https://kitabuyetu.vercel.app/api/v1/workers/sms-dispatch-chunk',
+        body: payload,
         retries: 3,
       });
     });
@@ -82,8 +101,10 @@ describe('lib/queue/qstash', () => {
     it('falls back to the production domain when NEXT_PUBLIC_APP_URL is unset', async () => {
       jest.doMock('@/lib/env', () => ({
         env: {
-          QSTASH_URL: 'https://qstash.example.com', QSTASH_TOKEN: 'tok',
-          QSTASH_CURRENT_SIGNING_KEY: 'cur', QSTASH_NEXT_SIGNING_KEY: 'next',
+          QSTASH_URL: 'https://qstash.example.com',
+          QSTASH_TOKEN: 'tok',
+          QSTASH_CURRENT_SIGNING_KEY: 'cur',
+          QSTASH_NEXT_SIGNING_KEY: 'next',
           NEXT_PUBLIC_APP_URL: undefined,
         },
       }));
@@ -91,9 +112,14 @@ describe('lib/queue/qstash', () => {
 
       const { publishSmsChunk } = await import('@/lib/queue/qstash');
       await publishSmsChunk({
-        jobId: 'job-2', chunkIndex: 0, chunkCount: 1,
-        groupId: 'group-1', phones: ['254700000001'], message: 'hi',
-        sentBy: 'tester', totalRecipientCount: 1,
+        jobId: 'job-2',
+        chunkIndex: 0,
+        chunkCount: 1,
+        groupId: 'group-1',
+        phones: ['254700000001'],
+        message: 'hi',
+        sentBy: 'tester',
+        totalRecipientCount: 1,
       });
 
       expect(mockPublishJSON).toHaveBeenCalledWith(
@@ -115,7 +141,12 @@ describe('lib/queue/qstash', () => {
   describe('triggerDisbursementWatchdog', () => {
     it('no-ops when QStash is not configured (never calls trigger)', async () => {
       jest.doMock('@/lib/env', () => ({
-        env: { QSTASH_URL: undefined, QSTASH_TOKEN: undefined, QSTASH_CURRENT_SIGNING_KEY: undefined, QSTASH_NEXT_SIGNING_KEY: undefined },
+        env: {
+          QSTASH_URL: undefined,
+          QSTASH_TOKEN: undefined,
+          QSTASH_CURRENT_SIGNING_KEY: undefined,
+          QSTASH_NEXT_SIGNING_KEY: undefined,
+        },
       }));
       const { triggerDisbursementWatchdog } = await import('@/lib/queue/qstash');
 
@@ -131,8 +162,8 @@ describe('lib/queue/qstash', () => {
       await triggerDisbursementWatchdog({ kind: 'settlement', rowId: 'row-42' });
 
       expect(mockTrigger).toHaveBeenCalledWith({
-        url:           'https://kitabuyetu.vercel.app/api/v1/workers/disbursement-watchdog',
-        body:          { kind: 'settlement', rowId: 'row-42' },
+        url: 'https://kitabuyetu.vercel.app/api/v1/workers/disbursement-watchdog',
+        body: { kind: 'settlement', rowId: 'row-42' },
         workflowRunId: 'settlement:row-42',
       });
     });
@@ -142,16 +173,19 @@ describe('lib/queue/qstash', () => {
       mockTrigger.mockRejectedValue(new Error('qstash unavailable'));
       const { triggerDisbursementWatchdog } = await import('@/lib/queue/qstash');
 
-      await expect(
-        triggerDisbursementWatchdog({ kind: 'vendor_payment', rowId: 'row-99' }),
-      ).resolves.toBeUndefined();
+      await expect(triggerDisbursementWatchdog({ kind: 'vendor_payment', rowId: 'row-99' })).resolves.toBeUndefined();
     });
   });
 
   describe('notifyDisbursementCallback', () => {
     it('no-ops when QStash is not configured (never calls notify)', async () => {
       jest.doMock('@/lib/env', () => ({
-        env: { QSTASH_URL: undefined, QSTASH_TOKEN: undefined, QSTASH_CURRENT_SIGNING_KEY: undefined, QSTASH_NEXT_SIGNING_KEY: undefined },
+        env: {
+          QSTASH_URL: undefined,
+          QSTASH_TOKEN: undefined,
+          QSTASH_CURRENT_SIGNING_KEY: undefined,
+          QSTASH_NEXT_SIGNING_KEY: undefined,
+        },
       }));
       const { notifyDisbursementCallback } = await import('@/lib/queue/qstash');
 
@@ -169,9 +203,9 @@ describe('lib/queue/qstash', () => {
       await notifyDisbursementCallback('disbursement', 'row-7', { status: 'completed', mpesaReceiptNumber: 'ABC123' });
 
       expect(mockNotify).toHaveBeenCalledWith({
-        eventId:       'disbursement:row-7',
+        eventId: 'disbursement:row-7',
         workflowRunId: 'disbursement:row-7',
-        eventData:     { status: 'completed', mpesaReceiptNumber: 'ABC123' },
+        eventData: { status: 'completed', mpesaReceiptNumber: 'ABC123' },
       });
     });
 

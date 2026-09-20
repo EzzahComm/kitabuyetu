@@ -9,15 +9,15 @@ import * as provider from '@/lib/sms/provider';
 import { resetCircuit } from '@/lib/sms/circuit-breaker';
 import { ServiceUnavailableError } from '@/lib/utils/errors';
 
-const mockSendSingleSms      = jest.fn();
+const mockSendSingleSms = jest.fn();
 const mockSendBulkSmsChunked = jest.fn();
-const mockGetDeliveryReport  = jest.fn();
+const mockGetDeliveryReport = jest.fn();
 const mockGetProviderBalance = jest.fn();
 
 jest.mock('@/lib/services/textsms.service', () => ({
-  sendSingleSms:      (...args: unknown[]) => mockSendSingleSms(...args),
+  sendSingleSms: (...args: unknown[]) => mockSendSingleSms(...args),
   sendBulkSmsChunked: (...args: unknown[]) => mockSendBulkSmsChunked(...args),
-  getDeliveryReport:  (...args: unknown[]) => mockGetDeliveryReport(...args),
+  getDeliveryReport: (...args: unknown[]) => mockGetDeliveryReport(...args),
   getProviderBalance: (...args: unknown[]) => mockGetProviderBalance(...args),
 }));
 
@@ -53,9 +53,10 @@ describe('sms provider abstraction', () => {
       mockGetDeliveryReport.mockResolvedValueOnce({ messageId: 'm1', status: 'DeliveredToTerminal' });
       mockGetProviderBalance.mockResolvedValueOnce({ balance: 100, currency: 'KES' });
 
-      await expect(provider.getDeliveryReport('m1')).resolves.toEqual(
-        { messageId: 'm1', status: 'DeliveredToTerminal' },
-      );
+      await expect(provider.getDeliveryReport('m1')).resolves.toEqual({
+        messageId: 'm1',
+        status: 'DeliveredToTerminal',
+      });
       await expect(provider.getProviderBalance()).resolves.toEqual({ balance: 100, currency: 'KES' });
     });
   });
@@ -72,9 +73,7 @@ describe('sms provider abstraction', () => {
   describe('circuit breaker integration', () => {
     it('a transport-level throw records a failure and rethrows the original error', async () => {
       mockSendSingleSms.mockRejectedValueOnce(new Error('ETIMEDOUT'));
-      await expect(
-        provider.sendSingleSms({ mobile: '254700000001', message: 'hi' }),
-      ).rejects.toThrow('ETIMEDOUT');
+      await expect(provider.sendSingleSms({ mobile: '254700000001', message: 'hi' })).rejects.toThrow('ETIMEDOUT');
     });
 
     it('a resolved per-item REJECTION (no throw) does not trip the breaker', async () => {
@@ -95,9 +94,9 @@ describe('sms provider abstraction', () => {
       expect(provider.isProviderAvailable()).toBe(false);
 
       mockSendSingleSms.mockClear();
-      await expect(
-        provider.sendSingleSms({ mobile: '254700000001', message: 'hi' }),
-      ).rejects.toThrow(ServiceUnavailableError);
+      await expect(provider.sendSingleSms({ mobile: '254700000001', message: 'hi' })).rejects.toThrow(
+        ServiceUnavailableError,
+      );
       expect(mockSendSingleSms).not.toHaveBeenCalled();
     });
 

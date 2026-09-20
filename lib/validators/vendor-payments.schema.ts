@@ -9,21 +9,27 @@ import { isValidKenyanPhone } from '@/lib/utils/phone';
  */
 export const CreateVendorPaymentSchema = z.discriminatedUnion('channel', [
   z.object({
-    channel:            z.literal('b2c'),
-    payeeName:          z.string().min(1).max(200),
-    payeePhone:         z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-    amount:             z.number().positive(),
-    expenseAccountCode: z.string().regex(/^\d{4}$/).optional(),
-    description:        z.string().max(1000).optional(),
+    channel: z.literal('b2c'),
+    payeeName: z.string().min(1).max(200),
+    payeePhone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+    amount: z.number().positive(),
+    expenseAccountCode: z
+      .string()
+      .regex(/^\d{4}$/)
+      .optional(),
+    description: z.string().max(1000).optional(),
   }),
   z.object({
-    channel:            z.literal('b2b'),
-    payeeName:          z.string().min(1).max(200),
-    payeeShortcode:     z.string().min(3).max(20),
-    payeeAccount:       z.string().min(1).max(50),
-    amount:             z.number().positive(),
-    expenseAccountCode: z.string().regex(/^\d{4}$/).optional(),
-    description:        z.string().max(1000).optional(),
+    channel: z.literal('b2b'),
+    payeeName: z.string().min(1).max(200),
+    payeeShortcode: z.string().min(3).max(20),
+    payeeAccount: z.string().min(1).max(50),
+    amount: z.number().positive(),
+    expenseAccountCode: z
+      .string()
+      .regex(/^\d{4}$/)
+      .optional(),
+    description: z.string().max(1000).optional(),
   }),
 ]);
 export type CreateVendorPaymentPayload = z.input<typeof CreateVendorPaymentSchema>;

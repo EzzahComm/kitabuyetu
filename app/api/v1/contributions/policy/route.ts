@@ -23,7 +23,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const input = SetSavingsLimitsSchema.parse(await req.json());
     await savingsPolicyService.setGroupLimitsOverride(ctx, input);
     return ok(await savingsPolicyService.getGroupLimits(ctx));

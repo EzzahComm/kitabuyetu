@@ -39,7 +39,14 @@ export default function MemberHomePage() {
   const actions: QuickAction[] = [
     { label: 'Contribute', icon: HandCoins, tint: 'bg-brand-50 text-brand-600', onClick: () => setFlow('contribute') },
     ...(activeLoan
-      ? [{ label: 'Pay loan', icon: Receipt, tint: 'bg-brand-blue-50 text-brand-blue-600', onClick: () => setFlow('repay') } as QuickAction]
+      ? [
+          {
+            label: 'Pay loan',
+            icon: Receipt,
+            tint: 'bg-brand-blue-50 text-brand-blue-600',
+            onClick: () => setFlow('repay'),
+          } as QuickAction,
+        ]
       : []),
     { label: 'Goals', icon: Target, tint: 'bg-orange-50 text-orange-600', href: '/me/goals' },
     { label: 'Statement', icon: FileText, tint: 'bg-purple-50 text-purple-600', href: '/me/passbook' },
@@ -57,11 +64,7 @@ export default function MemberHomePage() {
 
   if (wallet.isError || !wallet.data) {
     return (
-      <EmptyState
-        icon={AlertCircle}
-        title="Could not load your account"
-        description={getErrorMessage(wallet.error)}
-      />
+      <EmptyState icon={AlertCircle} title="Could not load your account" description={getErrorMessage(wallet.error)} />
     );
   }
 
@@ -91,11 +94,14 @@ export default function MemberHomePage() {
                   <p className="money text-xs text-muted-foreground">{formatKES(activeLoan.balance)} remaining</p>
                 </div>
               </div>
-              <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">{activeLoan.nextDueLabel}</span>
+              <span className="rounded-full bg-orange-50 px-2 py-0.5 text-xs font-medium text-orange-700">
+                {activeLoan.nextDueLabel}
+              </span>
             </div>
             <Progress value={activeLoan.progress} className="mt-3" />
             <p className="mt-2 text-xs text-muted-foreground">
-              {activeLoan.progress}% repaid · next payment <span className="money font-semibold text-foreground">{formatKES(activeLoan.nextAmount)}</span>
+              {activeLoan.progress}% repaid · next payment{' '}
+              <span className="money font-semibold text-foreground">{formatKES(activeLoan.nextAmount)}</span>
             </p>
           </CardContent>
         </Card>
@@ -109,7 +115,10 @@ export default function MemberHomePage() {
         ) : topGoal ? (
           <SavingsGoalCard goal={topGoal} />
         ) : (
-          <Link href="/me/goals" className="block rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground hover:bg-muted/40">
+          <Link
+            href="/me/goals"
+            className="block rounded-2xl border border-dashed p-4 text-center text-sm text-muted-foreground hover:bg-muted/40"
+          >
             Set your first savings goal
           </Link>
         )}
@@ -125,7 +134,9 @@ export default function MemberHomePage() {
         ) : (
           <Card>
             <CardContent className="divide-y px-4 py-0">
-              {recent.map((e) => <PassbookRow key={e.id} entry={e} />)}
+              {recent.map((e) => (
+                <PassbookRow key={e.id} entry={e} />
+              ))}
             </CardContent>
           </Card>
         )}
@@ -141,7 +152,9 @@ export default function MemberHomePage() {
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-foreground">{latestNotification.title}</p>
               <p className="line-clamp-2 text-xs text-muted-foreground">{latestNotification.body}</p>
-              <p className="mt-1 text-[11px] text-muted-foreground/70">{formatDateTime(latestNotification.createdAt)}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground/70">
+                {formatDateTime(latestNotification.createdAt)}
+              </p>
             </div>
           </div>
         </Link>
@@ -168,7 +181,10 @@ export default function MemberHomePage() {
         amount={activeLoan?.nextAmount ?? 0}
         details={[
           { label: 'To', value: groupName ?? 'your group' },
-          { label: 'Remaining after', value: formatKES(Math.max(0, (activeLoan?.balance ?? 0) - (activeLoan?.nextAmount ?? 0))) },
+          {
+            label: 'Remaining after',
+            value: formatKES(Math.max(0, (activeLoan?.balance ?? 0) - (activeLoan?.nextAmount ?? 0))),
+          },
         ]}
         warning="Preview only — this doesn't move money yet. Contact your treasurer to record a real payment."
         confirmLabel="Pay now"

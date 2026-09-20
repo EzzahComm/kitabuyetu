@@ -1,7 +1,7 @@
-import { withAdminDb } from "@/lib/db";
-import { sendTemplatedEmail } from "./email.service";
-import { logger } from "@/lib/logger";
-import { tickBudgetExhausted } from "@/lib/jobs/deadline";
+import { withAdminDb } from '@/lib/db';
+import { sendTemplatedEmail } from './email.service';
+import { logger } from '@/lib/logger';
+import { tickBudgetExhausted } from '@/lib/jobs/deadline';
 
 // Process all due email_schedules rows
 export async function processDueSchedules(): Promise<{
@@ -23,8 +23,7 @@ export async function processDueSchedules(): Promise<{
 
   for (const sched of rows) {
     try {
-      const vars =
-        (sched.variables as Record<string, string | number | boolean>) ?? {};
+      const vars = (sched.variables as Record<string, string | number | boolean>) ?? {};
 
       await sendTemplatedEmail({
         templateKey: sched.template_key,
@@ -35,12 +34,9 @@ export async function processDueSchedules(): Promise<{
         referenceType: sched.reference_type,
       });
 
-      if (sched.schedule_type === "once") {
+      if (sched.schedule_type === 'once') {
         await withAdminDb(async (db) => {
-          await db.query(
-            `UPDATE email_schedules SET is_active=false, last_run_at=NOW() WHERE id=$1`,
-            [sched.id],
-          );
+          await db.query(`UPDATE email_schedules SET is_active=false, last_run_at=NOW() WHERE id=$1`, [sched.id]);
           await db.query(
             `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
              VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
@@ -54,15 +50,12 @@ export async function processDueSchedules(): Promise<{
           );
         });
       } else {
-        const nextRun = computeNextRun(
-          sched.schedule_type,
-          new Date(sched.next_run_at),
-        );
+        const nextRun = computeNextRun(sched.schedule_type, new Date(sched.next_run_at));
         await withAdminDb(async (db) => {
-          await db.query(
-            `UPDATE email_schedules SET last_run_at=NOW(), next_run_at=$1 WHERE id=$2`,
-            [nextRun.toISOString(), sched.id],
-          );
+          await db.query(`UPDATE email_schedules SET last_run_at=NOW(), next_run_at=$1 WHERE id=$2`, [
+            nextRun.toISOString(),
+            sched.id,
+          ]);
           await db.query(
             `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
              VALUES ($1, NULL, $2, 'email_schedule', $3, $4, $5)`,
@@ -79,7 +72,7 @@ export async function processDueSchedules(): Promise<{
 
       processed++;
     } catch (err) {
-      logger.error("[scheduler] Failed to send scheduled email", sched.id, err);
+      logger.error('[scheduler] Failed to send scheduled email', sched.id, err);
       failed++;
     }
   }
@@ -90,13 +83,13 @@ export async function processDueSchedules(): Promise<{
 function computeNextRun(scheduleType: string, current: Date): Date {
   const d = new Date(current);
   switch (scheduleType) {
-    case "daily":
+    case 'daily':
       d.setDate(d.getDate() + 1);
       break;
-    case "weekly":
+    case 'weekly':
       d.setDate(d.getDate() + 7);
       break;
-    case "monthly":
+    case 'monthly':
       d.setMonth(d.getMonth() + 1);
       break;
     default:
@@ -143,7 +136,7 @@ export async function retryFailedEmails(): Promise<{
     // sends something unusable — so this template is excluded from retry
     // entirely rather than merely rate-limited (docs/audits/
     // optimization-2026-09).
-    if (log.template_key === "group_verification_link") {
+    if (log.template_key === 'group_verification_link') {
       skipped++;
       continue;
     }
@@ -177,7 +170,7 @@ export async function retryFailedEmails(): Promise<{
     } catch (err) {
       // A guard-query failure must not crash the whole batch the way the
       // COALESCE bug did — skip just this row.
-      logger.error("[scheduler] Retry-count guard failed, skipping row", err);
+      logger.error('[scheduler] Retry-count guard failed, skipping row', err);
       skipped++;
       continue;
     }
@@ -197,13 +190,10 @@ export async function retryFailedEmails(): Promise<{
       });
       if (result.success) {
         retried++;
-      } else if (/quota/i.test(result.error ?? "")) {
+      } else if (/quota/i.test(result.error ?? '')) {
         // A quota rejection means every remaining send in this batch fails
         // the same way — stop burning tick budget on certain failures.
-        logger.warn(
-          "[scheduler] Provider quota hit — aborting retry batch",
-          result.error,
-        );
+        logger.warn('[scheduler] Provider quota hit — aborting retry batch', result.error);
         break;
       }
     } catch {

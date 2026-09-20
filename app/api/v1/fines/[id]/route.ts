@@ -25,9 +25,9 @@ export async function GET(req: NextRequest, { params }: Params): Promise<Respons
 export async function PATCH(req: NextRequest, { params }: Params): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'fines.manage', async (auth) => {
-    const body   = await req.json();
+    const body = await req.json();
     const action = body.action as string;
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
     if (action === 'waive') {
       const input = WaiveFineSchema.parse(body);

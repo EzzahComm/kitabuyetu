@@ -17,21 +17,23 @@ export type { SeriesDef } from './charts-impl';
 
 /** Placeholder shown while the Recharts chunk loads. Fills its container; a
  *  min-height keeps tiny sparklines from collapsing during the brief load. */
-const chartLoading = () => (
-  <div className="h-full min-h-[2.5rem] w-full animate-pulse rounded-md bg-muted" />
-);
+const chartLoading = () => <div className="h-full min-h-[2.5rem] w-full animate-pulse rounded-md bg-muted" />;
 
 export const TrendChart = dynamic(() => import('./charts-impl').then((m) => m.TrendChartImpl), {
-  ssr: false, loading: chartLoading,
+  ssr: false,
+  loading: chartLoading,
 });
 export const BarSeriesChart = dynamic(() => import('./charts-impl').then((m) => m.BarSeriesChartImpl), {
-  ssr: false, loading: chartLoading,
+  ssr: false,
+  loading: chartLoading,
 });
 export const DonutChart = dynamic(() => import('./charts-impl').then((m) => m.DonutChartImpl), {
-  ssr: false, loading: chartLoading,
+  ssr: false,
+  loading: chartLoading,
 });
 export const Sparkline = dynamic(() => import('./charts-impl').then((m) => m.SparklineImpl), {
-  ssr: false, loading: chartLoading,
+  ssr: false,
+  loading: chartLoading,
 });
 
 interface ChartCardProps {

@@ -10,8 +10,13 @@ import { enqueueJob } from '@/lib/jobs';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
 import { getCampaignRecipients } from '@/lib/services/campaign.service';
 import {
-  createAudience, createCampaign, getCampaignById, submitForReview, approveCampaign,
-  rejectCampaign, completeMarketingCampaignSend,
+  createAudience,
+  createCampaign,
+  getCampaignById,
+  submitForReview,
+  approveCampaign,
+  rejectCampaign,
+  completeMarketingCampaignSend,
 } from '@/lib/services/marketing-campaigns.service';
 import { ValidationError, ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 
@@ -29,7 +34,7 @@ jest.mock('@/lib/services/campaign.service', () => ({
   getCampaignRecipients: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -41,44 +46,51 @@ beforeEach(() => {
   (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
 });
 
-const chairCtx     = { groupId: 'grp-1', userId: 'chair-1', role: 'chairperson' };
+const chairCtx = { groupId: 'grp-1', userId: 'chair-1', role: 'chairperson' };
 const treasurerCtx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' };
-const coordCtx     = { groupId: '', organizationId: 'org-1', userId: 'coord-1', role: 'organization_coordinator' };
+const coordCtx = { groupId: '', organizationId: 'org-1', userId: 'coord-1', role: 'organization_coordinator' };
 
 describe('createAudience / createCampaign validation', () => {
   it('rejects a blank audience name before any query runs', async () => {
-    await expect(createAudience(treasurerCtx, { name: '  ', source: 'all_members' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(createAudience(treasurerCtx, { name: '  ', source: 'all_members' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('rejects org_group_officers for a group-scoped caller before any query runs', async () => {
-    await expect(createAudience(treasurerCtx, { name: 'Officers', source: 'org_group_officers' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      createAudience(treasurerCtx, { name: 'Officers', source: 'org_group_officers' }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('allows org_group_officers for an organization-scoped caller', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'aud-1', organization_id: 'org-1', source: 'org_group_officers' }] });
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'aud-1', organization_id: 'org-1', source: 'org_group_officers' }],
+    });
     const result = await createAudience(coordCtx, { name: 'Officers', source: 'org_group_officers' });
     expect(result.id).toBe('aud-1');
   });
 
   it('rejects a campaign with a blank message', async () => {
-    await expect(createCampaign(treasurerCtx, { title: 'Reminder', message: '  ', audience_id: 'a1' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      createCampaign(treasurerCtx, { title: 'Reminder', message: '  ', audience_id: 'a1' }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('rejects an email campaign with no subject', async () => {
-    await expect(createCampaign(treasurerCtx, { title: 'Newsletter', message: 'Hi', audience_id: 'a1', channel: 'email' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      createCampaign(treasurerCtx, { title: 'Newsletter', message: 'Hi', audience_id: 'a1', channel: 'email' }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('rejects an SMS campaign from an organization-scoped (groupless) caller', async () => {
-    await expect(createCampaign(coordCtx, { title: 'Reminder', message: 'Hi', audience_id: 'a1', channel: 'sms' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      createCampaign(coordCtx, { title: 'Reminder', message: 'Hi', audience_id: 'a1', channel: 'sms' }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
@@ -87,7 +99,11 @@ describe('createAudience / createCampaign validation', () => {
       rows: [{ id: 'c1', organization_id: 'org-1', channel: 'email', subject: 'News', title: 'Newsletter' }],
     });
     const result = await createCampaign(coordCtx, {
-      title: 'Newsletter', message: 'Hi all', audience_id: 'a1', channel: 'email', subject: 'News',
+      title: 'Newsletter',
+      message: 'Hi all',
+      audience_id: 'a1',
+      channel: 'email',
+      subject: 'News',
     });
     expect(result.id).toBe('c1');
   });
@@ -159,7 +175,17 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('rejects a group campaign approval by a non-chairperson', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1', channel: 'sms', audience_id: 'a1', message: 'Hi' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hi',
+        },
+      ],
     });
     await expect(approveCampaign(treasurerCtx, 'c1')).rejects.toBeInstanceOf(ForbiddenError);
     expect(enqueueJob).not.toHaveBeenCalled();
@@ -167,7 +193,18 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('rejects an organization campaign approval by a non-coordinator', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'someone-else', organization_id: 'org-1', channel: 'email', audience_id: 'a1', message: 'Hi', subject: 'News' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'someone-else',
+          organization_id: 'org-1',
+          channel: 'email',
+          audience_id: 'a1',
+          message: 'Hi',
+          subject: 'News',
+        },
+      ],
     });
     await expect(approveCampaign(chairCtx, 'c1')).rejects.toBeInstanceOf(ForbiddenError);
     expect(enqueueJob).not.toHaveBeenCalled();
@@ -175,7 +212,17 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('rejects the campaign creator approving their own campaign, even as chairperson', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'chair-1', group_id: 'grp-1', channel: 'sms', audience_id: 'a1', message: 'Hi' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'chair-1',
+          group_id: 'grp-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hi',
+        },
+      ],
     });
 
     await expect(approveCampaign(chairCtx, 'c1')).rejects.toBeInstanceOf(ForbiddenError);
@@ -184,7 +231,17 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('throws ValidationError when the audience resolves to zero recipients', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1', channel: 'sms', audience_id: 'a1', message: 'Hi' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hi',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'active_members', group_id: 'grp-1' }] });
     (resolveSmsRecipients as jest.Mock).mockResolvedValueOnce([]);
@@ -195,7 +252,17 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('freezes the SMS audience snapshot, marks sending, and enqueues the send job on success', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1', channel: 'sms', audience_id: 'a1', message: 'Hello!' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hello!',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'active_members', group_id: 'grp-1' }] });
     // Two INSERT INTO marketing_audience_members calls (one per recipient)
@@ -221,7 +288,17 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('resolves crm_contacts_opted_in audiences by querying crm_contacts directly, not resolveSmsRecipients', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1', channel: 'sms', audience_id: 'a1', message: 'Hi' }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hi',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'crm_contacts_opted_in', group_id: 'grp-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contact-1', phone: '254711111111' }] });
@@ -235,9 +312,20 @@ describe('approveCampaign — maker-checker across group and organization scope'
     expect(insertCall![1]).toEqual(['c1', 'a1', 'crm_contact', 'contact-1', '254711111111']);
   });
 
-  it('resolves org_group_officers audiences across an organization\'s active groups', async () => {
+  it("resolves org_group_officers audiences across an organization's active groups", async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'c1', status: 'pending_review', created_by: 'someone-else', organization_id: 'org-1', channel: 'sms', audience_id: 'a1', message: 'Hi', subject: null }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'someone-else',
+          organization_id: 'org-1',
+          channel: 'sms',
+          audience_id: 'a1',
+          message: 'Hi',
+          subject: null,
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'org_group_officers', organization_id: 'org-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ member_id: 'mem-1', phone: '254722222222', name: 'Officer One' }] });
@@ -258,10 +346,19 @@ describe('approveCampaign — maker-checker across group and organization scope'
 
   it('sends an email campaign via email_campaigns/email_campaign_recipients, without enqueuing an SMS job', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1',
-        channel: 'email', audience_id: 'a1', message: '<p>Hi</p>', subject: 'Newsletter', title: 'Sept newsletter',
-      }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'email',
+          audience_id: 'a1',
+          message: '<p>Hi</p>',
+          subject: 'Newsletter',
+          title: 'Sept newsletter',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'active_members', group_id: 'grp-1' }] });
     (getCampaignRecipients as jest.Mock).mockResolvedValueOnce([
@@ -278,15 +375,34 @@ describe('approveCampaign — maker-checker across group and organization scope'
     expect(result.status).toBe('sending');
     expect(enqueueJob).not.toHaveBeenCalled();
     const ecInsert = mockQuery.mock.calls.find((c) => String(c[0]).includes('INSERT INTO email_campaigns'));
-    expect(ecInsert![1]).toEqual(['grp-1', null, 'Sept newsletter', 'Newsletter', '<p>Hi</p>', 1, 'a1', 'c1', 'chair-1']);
+    expect(ecInsert![1]).toEqual([
+      'grp-1',
+      null,
+      'Sept newsletter',
+      'Newsletter',
+      '<p>Hi</p>',
+      1,
+      'a1',
+      'c1',
+      'chair-1',
+    ]);
   });
 
   it('filters suppressed emails out of the resolved audience before creating any recipient rows', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{
-        id: 'c1', status: 'pending_review', created_by: 'treasurer-1', group_id: 'grp-1',
-        channel: 'email', audience_id: 'a1', message: 'Hi', subject: 'News', title: 'News',
-      }],
+      rows: [
+        {
+          id: 'c1',
+          status: 'pending_review',
+          created_by: 'treasurer-1',
+          group_id: 'grp-1',
+          channel: 'email',
+          audience_id: 'a1',
+          message: 'Hi',
+          subject: 'News',
+          title: 'News',
+        },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'a1', source: 'active_members', group_id: 'grp-1' }] });
     (getCampaignRecipients as jest.Mock).mockResolvedValueOnce([
@@ -304,7 +420,9 @@ describe('approveCampaign — maker-checker across group and organization scope'
     expect(result.recipient_count).toBe(1);
     const ecInsert = mockQuery.mock.calls.find((c) => String(c[0]).includes('INSERT INTO email_campaigns'));
     expect(ecInsert![1][5]).toBe(1); // total_recipients reflects only the surviving recipient
-    const recipientInsert = mockQuery.mock.calls.find((c) => String(c[0]).includes('INSERT INTO email_campaign_recipients'));
+    const recipientInsert = mockQuery.mock.calls.find((c) =>
+      String(c[0]).includes('INSERT INTO email_campaign_recipients'),
+    );
     expect(recipientInsert![1]).toContain('good@example.com');
   });
 });

@@ -4,19 +4,17 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
 
 const schema = z.object({
-  name:         z.string().min(1, 'Name required').max(100),
-  emoji:        z.string().min(1).max(8),
+  name: z.string().min(1, 'Name required').max(100),
+  emoji: z.string().min(1).max(8),
   targetAmount: z.coerce.number().positive('Target must be greater than 0'),
-  deadline:     z.string().optional(),
+  deadline: z.string().optional(),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -32,19 +30,26 @@ interface GoalFormDialogProps {
 /** Create/edit dialog for a personal savings goal. */
 export function GoalFormDialog({ open, onOpenChange, goal, onSubmit }: GoalFormDialogProps) {
   const isEdit = !!goal;
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
     values: {
-      name:         goal?.name ?? '',
-      emoji:        goal?.emoji ?? '🎯',
+      name: goal?.name ?? '',
+      emoji: goal?.emoji ?? '🎯',
       targetAmount: goal?.targetAmount ?? 0,
-      deadline:     goal?.deadline ?? '',
+      deadline: goal?.deadline ?? '',
     },
   });
 
   const submit = async (values: FormValues) => {
     await onSubmit({
-      name: values.name, emoji: values.emoji, targetAmount: values.targetAmount,
+      name: values.name,
+      emoji: values.emoji,
+      targetAmount: values.targetAmount,
       deadline: values.deadline || null,
     });
     reset();
@@ -54,7 +59,9 @@ export function GoalFormDialog({ open, onOpenChange, goal, onSubmit }: GoalFormD
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>{isEdit ? 'Edit goal' : 'New savings goal'}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>{isEdit ? 'Edit goal' : 'New savings goal'}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="space-y-3">
           <div className="grid grid-cols-[4rem,1fr] gap-3">
             <div className="space-y-1">
@@ -77,8 +84,12 @@ export function GoalFormDialog({ open, onOpenChange, goal, onSubmit }: GoalFormD
             <Input id="deadline" type="date" {...register('deadline')} />
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" loading={isSubmitting}>{isEdit ? 'Save changes' : 'Create goal'}</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              {isEdit ? 'Save changes' : 'Create goal'}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

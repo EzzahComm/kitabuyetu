@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -24,40 +24,45 @@ import { ok } from '@/lib/utils/response';
 
 const DEFAULTS = {
   autoSendContribution: false,
-  autoSendLoan:         false,
-  autoSendMeeting:      false,
-  autoSendBirthday:     false,
-  senderId:             null as string | null,
-  dailySendLimit:       null as number | null,
+  autoSendLoan: false,
+  autoSendMeeting: false,
+  autoSendBirthday: false,
+  senderId: null as string | null,
+  dailySendLimit: null as number | null,
 };
 
 interface SettingsRow {
-  sender_id:               string | null;
-  auto_send_contribution:  boolean;
-  auto_send_loan:          boolean;
-  auto_send_meeting:       boolean;
-  auto_send_birthday:      boolean;
-  daily_send_limit:        number | null;
+  sender_id: string | null;
+  auto_send_contribution: boolean;
+  auto_send_loan: boolean;
+  auto_send_meeting: boolean;
+  auto_send_birthday: boolean;
+  daily_send_limit: number | null;
 }
 
-const present = (row: SettingsRow | undefined) => row ? {
-  senderId:             row.sender_id,
-  autoSendContribution: row.auto_send_contribution,
-  autoSendLoan:         row.auto_send_loan,
-  autoSendMeeting:      row.auto_send_meeting,
-  autoSendBirthday:     row.auto_send_birthday,
-  dailySendLimit:       row.daily_send_limit,
-} : DEFAULTS;
+const present = (row: SettingsRow | undefined) =>
+  row
+    ? {
+        senderId: row.sender_id,
+        autoSendContribution: row.auto_send_contribution,
+        autoSendLoan: row.auto_send_loan,
+        autoSendMeeting: row.auto_send_meeting,
+        autoSendBirthday: row.auto_send_birthday,
+        dailySendLimit: row.daily_send_limit,
+      }
+    : DEFAULTS;
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.view', async (auth) => {
     const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    const { rows } = await withDb(ctx, (db) => db.query<SettingsRow>(
-      `SELECT sender_id, auto_send_contribution, auto_send_loan,
+    const { rows } = await withDb(ctx, (db) =>
+      db.query<SettingsRow>(
+        `SELECT sender_id, auto_send_contribution, auto_send_loan,
               auto_send_meeting, auto_send_birthday, daily_send_limit
          FROM sms_group_settings WHERE group_id = $1`,
-      [auth.groupId],
-    ));
+        [auth.groupId],
+      ),
+    );
     // A group with no row has every automation off, which is the same thing
     // the jobs see — they INNER JOIN this table, so no row means no sends.
     return ok(present(rows[0]));
@@ -69,16 +74,17 @@ export async function PUT(req: NextRequest): Promise<Response> {
     const input = SmsGroupSettingsUpdateSchema.parse(await req.json());
     const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
 
-    const { rows } = await withTransaction(ctx, (db) => db.query<SettingsRow>(
-      // Upsert: the row may genuinely not exist yet. COALESCE on every column
-      // makes this a partial update — a page that only toggles birthdays must
-      // not silently clear the other three automations.
-      // daily_send_limit uses the same COALESCE partial-update idiom as the
-      // booleans. That works here precisely BECAUSE the column is NOT NULL
-      // (migration 013): null can only mean "the caller did not send this
-      // field", never "clear the cap", so there is no ambiguity to resolve.
-      // On insert it is omitted entirely so the column default (500) applies.
-      `INSERT INTO sms_group_settings
+    const { rows } = await withTransaction(ctx, (db) =>
+      db.query<SettingsRow>(
+        // Upsert: the row may genuinely not exist yet. COALESCE on every column
+        // makes this a partial update — a page that only toggles birthdays must
+        // not silently clear the other three automations.
+        // daily_send_limit uses the same COALESCE partial-update idiom as the
+        // booleans. That works here precisely BECAUSE the column is NOT NULL
+        // (migration 013): null can only mean "the caller did not send this
+        // field", never "clear the cap", so there is no ambiguity to resolve.
+        // On insert it is omitted entirely so the column default (500) applies.
+        `INSERT INTO sms_group_settings
          (group_id, auto_send_contribution, auto_send_loan, auto_send_meeting, auto_send_birthday, daily_send_limit)
        VALUES ($1, COALESCE($2, false), COALESCE($3, false), COALESCE($4, false), COALESCE($5, false),
                COALESCE($6, 500))
@@ -91,15 +97,16 @@ export async function PUT(req: NextRequest): Promise<Response> {
          updated_at             = NOW()
        RETURNING sender_id, auto_send_contribution, auto_send_loan,
                  auto_send_meeting, auto_send_birthday, daily_send_limit`,
-      [
-        auth.groupId,
-        input.autoSendContribution ?? null,
-        input.autoSendLoan         ?? null,
-        input.autoSendMeeting      ?? null,
-        input.autoSendBirthday     ?? null,
-        input.dailySendLimit ?? null,
-      ],
-    ));
+        [
+          auth.groupId,
+          input.autoSendContribution ?? null,
+          input.autoSendLoan ?? null,
+          input.autoSendMeeting ?? null,
+          input.autoSendBirthday ?? null,
+          input.dailySendLimit ?? null,
+        ],
+      ),
+    );
 
     return ok(present(rows[0]));
   });

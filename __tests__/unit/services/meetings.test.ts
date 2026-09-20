@@ -18,7 +18,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -29,7 +29,11 @@ beforeEach(() => {
 const ctx = { groupId: 'g1', userId: 'u1', role: 'secretary' };
 
 const existingRow = {
-  id: 'r1', meeting_id: 'm1', group_id: 'g1', implemented: false, implemented_at: null,
+  id: 'r1',
+  meeting_id: 'm1',
+  group_id: 'g1',
+  implemented: false,
+  implemented_at: null,
 };
 
 describe('meetingsService.updateResolution', () => {
@@ -40,9 +44,7 @@ describe('meetingsService.updateResolution', () => {
     await meetingsService.updateResolution(ctx, 'm1', 'r1', { implemented: true });
 
     const [selectSql, selectArgs] = mockQuery.mock.calls[0];
-    expect((selectSql as string).replace(/\s+/g, ' ')).toMatch(
-      /WHERE id=\$1 AND meeting_id=\$2 AND group_id=\$3/,
-    );
+    expect((selectSql as string).replace(/\s+/g, ' ')).toMatch(/WHERE id=\$1 AND meeting_id=\$2 AND group_id=\$3/);
     expect(selectArgs).toEqual(['r1', 'm1', 'g1']);
   });
 
@@ -51,9 +53,9 @@ describe('meetingsService.updateResolution', () => {
     // group's tenant must not be reachable through this route.
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
-    await expect(
-      meetingsService.updateResolution(ctx, 'm1', 'not-mine', { implemented: true }),
-    ).rejects.toBeInstanceOf(NotFoundError);
+    await expect(meetingsService.updateResolution(ctx, 'm1', 'not-mine', { implemented: true })).rejects.toBeInstanceOf(
+      NotFoundError,
+    );
   });
 
   it('sets implemented_at=now() when marking implemented', async () => {
@@ -107,12 +109,9 @@ describe('meetingsService.updateResolution', () => {
 });
 
 describe('UpdateResolutionSchema', () => {
-  it.each(['carried', 'defeated', 'tabled', 'deferred'])(
-    'accepts %s, a real resolution status',
-    (status) => {
-      expect(UpdateResolutionSchema.safeParse({ status }).success).toBe(true);
-    },
-  );
+  it.each(['carried', 'defeated', 'tabled', 'deferred'])('accepts %s, a real resolution status', (status) => {
+    expect(UpdateResolutionSchema.safeParse({ status }).success).toBe(true);
+  });
 
   it('rejects a status outside the four real outcomes', () => {
     expect(UpdateResolutionSchema.safeParse({ status: 'approved' }).success).toBe(false);

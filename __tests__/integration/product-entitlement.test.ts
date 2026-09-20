@@ -25,8 +25,12 @@ import { rawQuery } from './helpers/db';
 import { __resetSubscriptionCache } from '@/lib/auth/subscription-gate';
 
 const PERMISSIONS = [
-  'contributions.view', 'members.view', 'meetings.view',
-  'messaging.view', 'messaging.send', 'billing.manage',
+  'contributions.view',
+  'members.view',
+  'meetings.view',
+  'messaging.view',
+  'messaging.send',
+  'billing.manage',
 ];
 
 function headersFor(groupId: string, officerId: string) {
@@ -36,12 +40,9 @@ function headersFor(groupId: string, officerId: string) {
 const statusOf = {
   contributions: (g: string, o: string) =>
     contributionsGet(buildRequest('/api/v1/contributions', { headers: headersFor(g, o) })),
-  smsUsage: (g: string, o: string) =>
-    smsUsageGet(buildRequest('/api/v1/sms/usage', { headers: headersFor(g, o) })),
-  members: (g: string, o: string) =>
-    membersGet(buildRequest('/api/v1/members', { headers: headersFor(g, o) })),
-  meetings: (g: string, o: string) =>
-    meetingsGet(buildRequest('/api/v1/meetings', { headers: headersFor(g, o) })),
+  smsUsage: (g: string, o: string) => smsUsageGet(buildRequest('/api/v1/sms/usage', { headers: headersFor(g, o) })),
+  members: (g: string, o: string) => membersGet(buildRequest('/api/v1/members', { headers: headersFor(g, o) })),
+  meetings: (g: string, o: string) => meetingsGet(buildRequest('/api/v1/meetings', { headers: headersFor(g, o) })),
 };
 
 describe('product-scoped entitlement', () => {
@@ -60,7 +61,7 @@ describe('product-scoped entitlement', () => {
       // PRODUCT_NOT_ENTITLED, not PAYMENT_REQUIRED. The two must never be
       // confusable: one means "pay us", the other means "you already do, just
       // not for this" — and the client routes them to different pages.
-      const body = await res.json() as { code: string };
+      const body = (await res.json()) as { code: string };
       expect(body.code).toBe('PRODUCT_NOT_ENTITLED');
     });
 
@@ -76,7 +77,8 @@ describe('product-scoped entitlement', () => {
       // 16, the Chama Reminder signup has quietly become a Kitabu Yetu one.
       const { groupId } = await createTestGroup('chairperson', { product: 'chama_reminder' });
       const [{ count }] = await rawQuery<{ count: string }>(
-        `SELECT count(*)::text AS count FROM accounts WHERE group_id = $1`, [groupId],
+        `SELECT count(*)::text AS count FROM accounts WHERE group_id = $1`,
+        [groupId],
       );
       expect(Number(count)).toBe(0);
     });
@@ -110,7 +112,7 @@ describe('product-scoped entitlement', () => {
 
       const res = await statusOf.contributions(groupId, officerId);
       expect(res.status).toBe(402);
-      expect((await res.json() as { code: string }).code).toBe('PAYMENT_REQUIRED');
+      expect(((await res.json()) as { code: string }).code).toBe('PAYMENT_REQUIRED');
     });
 
     it('is refused /members and /meetings too', async () => {
@@ -130,7 +132,8 @@ describe('product-scoped entitlement', () => {
       // what it owes. entitlements lives there for the same reason: a group
       // with ZERO subscriptions must still be able to render a subscribe page.
       const { groupId, officerId } = await createTestGroup('chairperson', {
-        subscribed: false, product: 'chama_reminder',
+        subscribed: false,
+        product: 'chama_reminder',
       });
 
       const res = await entitlementsGet(
@@ -138,7 +141,7 @@ describe('product-scoped entitlement', () => {
       );
       expect(res.status).toBe(200);
 
-      const body = await res.json() as { data: { products: string[]; signupProduct: string } };
+      const body = (await res.json()) as { data: { products: string[]; signupProduct: string } };
       expect(body.data.products).toEqual([]);
       // The only thing that can tell us where to send them. Without
       // signup_product a never-paid Chama Reminder registrant is

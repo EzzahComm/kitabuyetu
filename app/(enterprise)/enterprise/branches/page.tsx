@@ -23,7 +23,7 @@ export default function BranchesPage() {
 
   const { data: groupsPage, isLoading } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: enterpriseKeys.groups(),
-    queryFn:  () => organizationApi.groups(),
+    queryFn: () => organizationApi.groups(),
   });
 
   const groups = groupsPage?.items;
@@ -54,14 +54,23 @@ export default function BranchesPage() {
         title="Branches"
         description="Multi-branch financial visibility and comparative performance"
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Branches' }]}
-        actions={<Button variant="outline" size="sm"><Download className="h-4 w-4" /> Export CSV</Button>}
+        actions={
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4" /> Export CSV
+          </Button>
+        }
       />
 
       {/* Filters */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative max-w-xs flex-1">
           <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search branches…" className="pl-8" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search branches…"
+            className="pl-8"
+          />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {regions.map((r) => (
@@ -84,14 +93,26 @@ export default function BranchesPage() {
         <CardContent className="p-0">
           {isLoading ? (
             <div className="space-y-2 p-4">
-              {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              {Array.from({ length: 5 }).map((_, i) => (
+                <Skeleton key={i} className="h-10 w-full" />
+              ))}
             </div>
           ) : filtered.length === 0 ? (
             <EmptyState
               icon={Network}
               title="No branches match"
               description="Try a different search term or clear the region filter."
-              action={<Button variant="outline" onClick={() => { setQuery(''); setRegion('all'); }}>Clear filters</Button>}
+              action={
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setQuery('');
+                    setRegion('all');
+                  }}
+                >
+                  Clear filters
+                </Button>
+              }
             />
           ) : (
             <div className="overflow-x-auto">
@@ -114,10 +135,18 @@ export default function BranchesPage() {
                         <p className="text-xs text-muted-foreground">{g.county ?? '—'}</p>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{g.activeMemberCount.toLocaleString()}</td>
-                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" /></td>
-                      <td className="px-4 py-3 text-right"><MoneyDisplay amount={parseFloat(g.activeLoanPortfolio)} size="sm" /></td>
+                      <td className="px-4 py-3 text-right">
+                        <MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" />
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <MoneyDisplay amount={parseFloat(g.activeLoanPortfolio)} size="sm" />
+                      </td>
                       <td className="px-4 py-3 text-right tabular-nums">
-                        <span className={g.defaultedLoanCount > 0 ? 'font-semibold text-red-600' : 'text-muted-foreground'}>{g.defaultedLoanCount}</span>
+                        <span
+                          className={g.defaultedLoanCount > 0 ? 'font-semibold text-red-600' : 'text-muted-foreground'}
+                        >
+                          {g.defaultedLoanCount}
+                        </span>
                       </td>
                       <td className="px-4 py-3">
                         <StatusPill
@@ -132,10 +161,16 @@ export default function BranchesPage() {
                 </tbody>
                 <tfoot>
                   <tr className="border-t bg-muted/40 font-medium">
-                    <td className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">{filtered.length} branches</td>
+                    <td className="px-4 py-3 text-xs uppercase tracking-wide text-muted-foreground">
+                      {filtered.length} branches
+                    </td>
                     <td className="px-4 py-3 text-right tabular-nums">{totals.members.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-right"><MoneyDisplay amount={totals.savings} size="sm" /></td>
-                    <td className="px-4 py-3 text-right"><MoneyDisplay amount={totals.loansOut} size="sm" /></td>
+                    <td className="px-4 py-3 text-right">
+                      <MoneyDisplay amount={totals.savings} size="sm" />
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <MoneyDisplay amount={totals.loansOut} size="sm" />
+                    </td>
                     <td colSpan={2} />
                   </tr>
                 </tfoot>

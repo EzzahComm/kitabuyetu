@@ -5,9 +5,9 @@ services:
     image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER:     kitabuyetu
+      POSTGRES_USER: kitabuyetu
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
-      POSTGRES_DB:       kitabuyetu
+      POSTGRES_DB: kitabuyetu
     ports:
       - '5432:5432'
     volumes:
@@ -22,10 +22,10 @@ services:
       # why this is needed.
       - ./scripts/docker-init/00-bootstrap-roles.sql:/docker-entrypoint-initdb.d/00-bootstrap-roles.sql:ro
     healthcheck:
-      test:     ['CMD-SHELL', 'pg_isready -U kitabuyetu']
+      test: ['CMD-SHELL', 'pg_isready -U kitabuyetu']
       interval: 10s
-      timeout:  5s
-      retries:  5
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
@@ -36,10 +36,10 @@ services:
     volumes:
       - redis_data:/data
     healthcheck:
-      test:     ['CMD', 'redis-cli', '--no-auth-warning', '-a', '${REDIS_PASSWORD:-changeme}', 'ping']
+      test: ['CMD', 'redis-cli', '--no-auth-warning', '-a', '${REDIS_PASSWORD:-changeme}', 'ping']
       interval: 10s
-      timeout:  5s
-      retries:  5
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:

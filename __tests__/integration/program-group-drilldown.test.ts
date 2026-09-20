@@ -25,24 +25,30 @@ import { assignGroupToOrganization } from '@/lib/services/admin-organizations.se
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import type { TenantContext } from '@/lib/db';
 
-const DISBURSED = 10_000;   // below the 50,000 maker-checker threshold on purpose
-const RESERVED  = 60_000;   // above it on purpose — parks at 'pending_approval'
+const DISBURSED = 10_000; // below the 50,000 maker-checker threshold on purpose
+const RESERVED = 60_000; // above it on purpose — parks at 'pending_approval'
 
 interface GroupLine {
-  group_id: string; group_name: string;
-  disbursed: string; reserved: string;
-  disbursement_count: number; active_members: number;
+  group_id: string;
+  group_name: string;
+  disbursed: string;
+  reserved: string;
+  disbursement_count: number;
+  active_members: number;
 }
 
 describe('Funding-program group drill-down', () => {
-  let orgA = '', coordA = '', orgB = '', coordB = '';
-  let groupId = '', programId = '';
+  let orgA = '',
+    coordA = '',
+    orgB = '',
+    coordB = '';
+  let groupId = '',
+    programId = '';
 
   const call = (id: string, headers: Record<string, string>) =>
-    programGroupsGet(
-      buildRequest(`/api/admin/organization/programs/${id}/groups`, { headers }),
-      { params: Promise.resolve({ id }) },
-    );
+    programGroupsGet(buildRequest(`/api/admin/organization/programs/${id}/groups`, { headers }), {
+      params: Promise.resolve({ id }),
+    });
 
   beforeAll(async () => {
     await resetDatabase();
@@ -61,21 +67,32 @@ describe('Funding-program group drill-down', () => {
     // createTestOrgDisbursement does — settlement posts a journal entry into
     // the GROUP's books, so the group-scoped path has to resolve.
     const ctx: TenantContext = {
-      userId: coordA, groupId, role: 'organization_coordinator', organizationId: orgA,
+      userId: coordA,
+      groupId,
+      role: 'organization_coordinator',
+      organizationId: orgA,
     };
-    await organizationFinanceService.getWallet(ctx);   // lazily bootstraps the wallet row
+    await organizationFinanceService.getWallet(ctx); // lazily bootstraps the wallet row
     await organizationFinanceService.deposit(ctx, { amount: 1_000_000, source: 'Integration test funding' });
 
     const program = await organizationFinanceService.createProgram(ctx, {
-      name: 'Drill-down Test Grant', programType: 'grant', budget: 500_000,
+      name: 'Drill-down Test Grant',
+      programType: 'grant',
+      budget: 500_000,
     });
     programId = program.id;
 
     await organizationFinanceService.disburse(ctx, {
-      groupId, amount: DISBURSED, disbursementType: 'grant', fundingProgramId: programId,
+      groupId,
+      amount: DISBURSED,
+      disbursementType: 'grant',
+      fundingProgramId: programId,
     });
     await organizationFinanceService.disburse(ctx, {
-      groupId, amount: RESERVED, disbursementType: 'grant', fundingProgramId: programId,
+      groupId,
+      amount: RESERVED,
+      disbursementType: 'grant',
+      fundingProgramId: programId,
     });
   });
 
@@ -86,16 +103,26 @@ describe('Funding-program group drill-down', () => {
   // ── Authorization boundaries ──────────────────────────────────────────────
 
   it('denies a non-organization platform role', async () => {
-    const res = await call(programId, backofficeHeaders({
-      userId: coordA, platformRole: 'support', organizationId: orgA,
-    }));
+    const res = await call(
+      programId,
+      backofficeHeaders({
+        userId: coordA,
+        platformRole: 'support',
+        organizationId: orgA,
+      }),
+    );
     expect(res.status).toBe(403);
   });
 
   it("returns 404 — not 403, and no rows — for another organization's program", async () => {
-    const res = await call(programId, backofficeHeaders({
-      userId: coordB, platformRole: 'organization_coordinator', organizationId: orgB,
-    }));
+    const res = await call(
+      programId,
+      backofficeHeaders({
+        userId: coordB,
+        platformRole: 'organization_coordinator',
+        organizationId: orgB,
+      }),
+    );
     expect(res.status).toBe(404);
 
     // Belt and braces: whatever the body is, it must not carry the group.
@@ -103,9 +130,14 @@ describe('Funding-program group drill-down', () => {
   });
 
   it('rejects a malformed program id at the boundary rather than in Postgres', async () => {
-    const res = await call('not-a-uuid', backofficeHeaders({
-      userId: coordA, platformRole: 'organization_coordinator', organizationId: orgA,
-    }));
+    const res = await call(
+      'not-a-uuid',
+      backofficeHeaders({
+        userId: coordA,
+        platformRole: 'organization_coordinator',
+        organizationId: orgA,
+      }),
+    );
     // 422, not 400: handleError maps ZodError -> VALIDATION_ERROR/422
     // (lib/utils/response.ts). Without the boundary schema this id would reach
     // `WHERE id = $1` against a uuid column and surface as a Postgres cast
@@ -116,13 +148,18 @@ describe('Funding-program group drill-down', () => {
   // ── Money paths ───────────────────────────────────────────────────────────
 
   it('does NOT inflate disbursed by member count (fan-out regression guard)', async () => {
-    const res = await call(programId, backofficeHeaders({
-      userId: coordA, platformRole: 'organization_coordinator', organizationId: orgA,
-    }));
+    const res = await call(
+      programId,
+      backofficeHeaders({
+        userId: coordA,
+        platformRole: 'organization_coordinator',
+        organizationId: orgA,
+      }),
+    );
     expect(res.status).toBe(200);
 
-    const { data } = await res.json() as { data: { groups: GroupLine[]; incomplete: string[] } };
-    const line = data.groups.find(g => g.group_id === groupId);
+    const { data } = (await res.json()) as { data: { groups: GroupLine[]; incomplete: string[] } };
+    const line = data.groups.find((g) => g.group_id === groupId);
     expect(line).toBeDefined();
 
     // The group really does have several members — otherwise this test proves
@@ -133,12 +170,17 @@ describe('Funding-program group drill-down', () => {
     expect(line!.disbursement_count).toBe(1);
   });
 
-  it("counts only settled money as disbursed, and pending approval as reserved", async () => {
-    const res = await call(programId, backofficeHeaders({
-      userId: coordA, platformRole: 'organization_coordinator', organizationId: orgA,
-    }));
-    const { data } = await res.json() as { data: { groups: GroupLine[] } };
-    const line = data.groups.find(g => g.group_id === groupId)!;
+  it('counts only settled money as disbursed, and pending approval as reserved', async () => {
+    const res = await call(
+      programId,
+      backofficeHeaders({
+        userId: coordA,
+        platformRole: 'organization_coordinator',
+        organizationId: orgA,
+      }),
+    );
+    const { data } = (await res.json()) as { data: { groups: GroupLine[] } };
+    const line = data.groups.find((g) => g.group_id === groupId)!;
 
     // The 60,000 exceeded the maker-checker threshold, so it is authorised-
     // pending, not money that has moved. It must never be added to disbursed.
@@ -147,10 +189,15 @@ describe('Funding-program group drill-down', () => {
   });
 
   it('reconciles with the program header — per-group disbursed sums to disbursed_total', async () => {
-    const res = await call(programId, backofficeHeaders({
-      userId: coordA, platformRole: 'organization_coordinator', organizationId: orgA,
-    }));
-    const { data } = await res.json() as {
+    const res = await call(
+      programId,
+      backofficeHeaders({
+        userId: coordA,
+        platformRole: 'organization_coordinator',
+        organizationId: orgA,
+      }),
+    );
+    const { data } = (await res.json()) as {
       data: { program: { disbursed_total: string }; groups: GroupLine[]; incomplete: string[] };
     };
 

@@ -25,7 +25,7 @@ interface ExpandableTextProps {
 export function ExpandableText({ children, lines = 2, className }: ExpandableTextProps) {
   const ref = useRef<HTMLSpanElement>(null);
   const [overflows, setOverflows] = useState(false);
-  const [expanded, setExpanded]   = useState(false);
+  const [expanded, setExpanded] = useState(false);
 
   useLayoutEffect(() => {
     const el = ref.current;
@@ -34,9 +34,7 @@ export function ExpandableText({ children, lines = 2, className }: ExpandableTex
     if (!expanded) setOverflows(el.scrollHeight > el.clientHeight + 1);
   }, [children, expanded]);
 
-  const clamp = expanded
-    ? ''
-    : lines === 1 ? 'line-clamp-1' : lines === 3 ? 'line-clamp-3' : 'line-clamp-2';
+  const clamp = expanded ? '' : lines === 1 ? 'line-clamp-1' : lines === 3 ? 'line-clamp-3' : 'line-clamp-2';
 
   const text = (
     <span ref={ref} className={cn('block', clamp, className)}>

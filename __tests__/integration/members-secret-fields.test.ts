@@ -19,7 +19,11 @@ import type { TenantContext } from '@/lib/db';
 import { MemberQuerySchema } from '@/lib/validators/member.schema';
 
 const SENSITIVE_FIELDS = [
-  'password_hash', 'reset_otp_hash', 'reset_otp_expires_at', 'reset_otp_attempts', 'session_version',
+  'password_hash',
+  'reset_otp_hash',
+  'reset_otp_expires_at',
+  'reset_otp_attempts',
+  'session_version',
 ];
 
 describe('members.service — sensitive fields never leave the service', () => {

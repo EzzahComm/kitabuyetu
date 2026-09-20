@@ -21,29 +21,44 @@ import type { Tone } from '@/lib/ui/tokens';
 type Tier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
 
 interface CreditScore {
-  id: string; member_id: string;
+  id: string;
+  member_id: string;
   computed_at: string;
-  financial_score: string; social_score: string; overall_score: string;
+  financial_score: string;
+  social_score: string;
+  overall_score: string;
   reliability_tier: Tier;
   loan_eligibility_limit: string;
-  member_first_name: string; member_last_name: string; member_phone: string;
+  member_first_name: string;
+  member_last_name: string;
+  member_phone: string;
 }
 interface Summary {
-  totalMembers: number; scoredMembers: number;
+  totalMembers: number;
+  scoredMembers: number;
   averageOverall: string;
   byTier: Record<Tier, number>;
 }
-interface TierThreshold { tier: Tier; min: number; loanMultiplier: number }
-interface TierPolicy { thresholds: TierThreshold[]; source: 'group' | 'organization' | 'platform' }
+interface TierThreshold {
+  tier: Tier;
+  min: number;
+  loanMultiplier: number;
+}
+interface TierPolicy {
+  thresholds: TierThreshold[];
+  source: 'group' | 'organization' | 'platform';
+}
 
 const fmtMoney = (v: string | number | null | undefined) =>
-  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
+  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(
+    Number(v ?? 0),
+  );
 
 const TIER_LABEL: Record<Tier, string> = {
   excellent: 'Excellent',
-  good:      'Good',
-  fair:      'Fair',
-  poor:      'Poor',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
   high_risk: 'High risk',
 };
 // Reliability-tier → StatusPill tone mapping. Kept in sync with the same
@@ -53,16 +68,16 @@ const TIER_LABEL: Record<Tier, string> = {
 // map (only "high_risk" is, coincidentally already 'negative').
 const TIER_TONE: Record<Tier, Tone> = {
   excellent: 'positive',
-  good:      'positive',
-  fair:      'warning',
-  poor:      'negative',
+  good: 'positive',
+  fair: 'warning',
+  poor: 'negative',
   high_risk: 'negative',
 };
 
 export default function CreditScoresPage() {
   const { toast } = useToast();
-  const qc        = useQueryClient();
-  const router    = useRouter();
+  const qc = useQueryClient();
+  const router = useRouter();
   const [busy, setBusy] = useState(false);
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — was a native window.confirm().
   const [recomputeOpen, setRecomputeOpen] = useState(false);
@@ -70,15 +85,15 @@ export default function CreditScoresPage() {
 
   const summaryQ = useQuery<Summary>({
     queryKey: ['credit-scores', 'summary'],
-    queryFn:  () => api.get<Summary>('/credit-scores/summary'),
+    queryFn: () => api.get<Summary>('/credit-scores/summary'),
   });
   const listQ = useQuery<PaginatedResult<CreditScore>>({
     queryKey: ['credit-scores', 'list', page],
-    queryFn:  () => api.get<PaginatedResult<CreditScore>>(`/credit-scores?page=${page}&limit=50`),
+    queryFn: () => api.get<PaginatedResult<CreditScore>>(`/credit-scores?page=${page}&limit=50`),
   });
   const policyQ = useQuery<TierPolicy>({
     queryKey: ['credit-scores', 'policy'],
-    queryFn:  () => api.get<TierPolicy>('/credit-scores/policy'),
+    queryFn: () => api.get<TierPolicy>('/credit-scores/policy'),
   });
   const [policyEdits, setPolicyEdits] = useState<Record<Tier, { min: string; loanMultiplier: string }>>({} as never);
   const setPolicy = useMutation({
@@ -87,7 +102,12 @@ export default function CreditScoresPage() {
       qc.invalidateQueries({ queryKey: ['credit-scores', 'policy'] });
       toast({ title: 'Scoring policy updated' });
     },
-    onError: (err: unknown) => toast({ variant: 'destructive', title: 'Update failed', description: err instanceof ApiError ? err.message : '' }),
+    onError: (err: unknown) =>
+      toast({
+        variant: 'destructive',
+        title: 'Update failed',
+        description: err instanceof ApiError ? err.message : '',
+      }),
   });
 
   const summary = summaryQ.data;
@@ -95,7 +115,10 @@ export default function CreditScoresPage() {
   const recomputeAll = async () => {
     setBusy(true);
     try {
-      const result = await api.post<{ recomputed: number; failed: { memberId: string; reason: string }[] }>('/credit-scores/recompute', {});
+      const result = await api.post<{ recomputed: number; failed: { memberId: string; reason: string }[] }>(
+        '/credit-scores/recompute',
+        {},
+      );
       toast({
         title: `Recomputed ${result.recomputed} member(s)`,
         description: result.failed.length > 0 ? `${result.failed.length} failed — check the audit log.` : undefined,
@@ -106,7 +129,11 @@ export default function CreditScoresPage() {
         qc.invalidateQueries({ queryKey: ['credit-scores', 'list'] }),
       ]);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Recompute failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Recompute failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -127,29 +154,43 @@ export default function CreditScoresPage() {
 
       <div className="grid gap-3 md:grid-cols-4">
         <StatCard title="Avg overall score" value={summaryQ.isLoading ? '—' : (summary?.averageOverall ?? '—')} />
-        <StatCard title="Members scored"    value={summaryQ.isLoading ? '—' : `${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`} />
-        <StatCard title="Excellent / Good"  value={summaryQ.isLoading ? '—' : `${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`} description={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`} />
-        <StatCard title="Poor / High risk"  value={summaryQ.isLoading ? '—' : `${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`} description={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`} />
+        <StatCard
+          title="Members scored"
+          value={summaryQ.isLoading ? '—' : `${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`}
+        />
+        <StatCard
+          title="Excellent / Good"
+          value={summaryQ.isLoading ? '—' : `${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`}
+          description={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`}
+        />
+        <StatCard
+          title="Poor / High risk"
+          value={summaryQ.isLoading ? '—' : `${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`}
+          description={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`}
+        />
       </div>
 
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Scoring policy</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            The reliability-tier ladder used to compute each member&apos;s tier
-            and advisory loan limit (savings × multiplier). Overriding here
-            only affects this group.
+            The reliability-tier ladder used to compute each member&apos;s tier and advisory loan limit (savings ×
+            multiplier). Overriding here only affects this group.
           </p>
         </CardHeader>
         <CardContent className="overflow-x-auto p-0">
           {policyQ.isLoading ? (
-            <div className="p-4"><Loader2 className="h-5 w-5 animate-spin" /></div>
+            <div className="p-4">
+              <Loader2 className="h-5 w-5 animate-spin" />
+            </div>
           ) : (
             <table className="w-full text-sm">
               <thead className="bg-muted/50">
                 <tr>
                   {['Tier', 'Min score', 'Loan multiplier', ''].map((h) => (
-                    <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">{h}</th>
+                    <th key={h} className="px-4 py-2 text-left text-xs font-medium text-muted-foreground">
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
@@ -158,19 +199,34 @@ export default function CreditScoresPage() {
                   const edit = policyEdits[t.tier] ?? { min: String(t.min), loanMultiplier: String(t.loanMultiplier) };
                   return (
                     <tr key={t.tier} className="border-t hover:bg-muted/20">
-                      <td className="px-4 py-2"><StatusPill status={t.tier} tone={TIER_TONE[t.tier]} label={TIER_LABEL[t.tier]} /></td>
+                      <td className="px-4 py-2">
+                        <StatusPill status={t.tier} tone={TIER_TONE[t.tier]} label={TIER_LABEL[t.tier]} />
+                      </td>
                       <td className="px-4 py-2">
                         <Input
-                          type="number" min={0} max={100} className="h-8 w-24"
+                          type="number"
+                          min={0}
+                          max={100}
+                          className="h-8 w-24"
                           value={edit.min}
-                          onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [t.tier]: { ...edit, min: e.target.value } }))}
+                          onChange={(e) =>
+                            setPolicyEdits((prev) => ({ ...prev, [t.tier]: { ...edit, min: e.target.value } }))
+                          }
                         />
                       </td>
                       <td className="px-4 py-2">
                         <Input
-                          type="number" min={0} step="0.5" className="h-8 w-24"
+                          type="number"
+                          min={0}
+                          step="0.5"
+                          className="h-8 w-24"
                           value={edit.loanMultiplier}
-                          onChange={(e) => setPolicyEdits((prev) => ({ ...prev, [t.tier]: { ...edit, loanMultiplier: e.target.value } }))}
+                          onChange={(e) =>
+                            setPolicyEdits((prev) => ({
+                              ...prev,
+                              [t.tier]: { ...edit, loanMultiplier: e.target.value },
+                            }))
+                          }
                         />
                       </td>
                       <td />
@@ -187,7 +243,9 @@ export default function CreditScoresPage() {
               {policyQ.data.source === 'group' ? 'Your override' : `Inherited — ${policyQ.data.source}`}
             </Badge>
             <Button
-              size="sm" variant="outline" className="h-8 gap-1.5"
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5"
               disabled={Object.keys(policyEdits).length === 0 || setPolicy.isPending}
               onClick={() => {
                 const merged = (policyQ.data?.thresholds ?? []).map((t) => {
@@ -212,7 +270,8 @@ export default function CreditScoresPage() {
             <Activity className="h-10 w-10 text-muted-foreground" />
             <p className="font-medium">No scores computed yet</p>
             <p className="max-w-md text-sm text-muted-foreground">
-              Click <strong>Recompute all</strong> to score every active member based on their contribution, loan, share, and dividend history.
+              Click <strong>Recompute all</strong> to score every active member based on their contribution, loan,
+              share, and dividend history.
             </p>
           </CardContent>
         </Card>
@@ -229,17 +288,56 @@ export default function CreditScoresPage() {
           emptyMessage="No scored members yet"
           emptyIcon={Users}
           columns={[
-            { key: 'member', header: 'Member', render: (s) => (
-              <div>
-                <p className="font-medium">{s.member_first_name} {s.member_last_name}</p>
-                <p className="font-mono text-xs text-muted-foreground">{s.member_phone}</p>
-              </div>
-            ) },
-            { key: 'overall', header: 'Overall', className: 'text-right', render: (s) => <span className="font-mono text-base font-semibold">{Number(s.overall_score).toFixed(0)}</span> },
-            { key: 'financial', header: 'Financial', className: 'text-right', render: (s) => <span className="font-mono">{Number(s.financial_score).toFixed(0)}</span> },
-            { key: 'tier', header: 'Tier', render: (s) => <StatusPill status={s.reliability_tier} tone={TIER_TONE[s.reliability_tier]} label={TIER_LABEL[s.reliability_tier]} /> },
-            { key: 'limit', header: 'Loan limit', className: 'text-right', render: (s) => <span className="font-mono">{fmtMoney(s.loan_eligibility_limit)}</span> },
-            { key: 'computed_at', header: 'Last computed', render: (s) => <span className="text-xs text-muted-foreground">{new Date(s.computed_at).toLocaleString()}</span> },
+            {
+              key: 'member',
+              header: 'Member',
+              render: (s) => (
+                <div>
+                  <p className="font-medium">
+                    {s.member_first_name} {s.member_last_name}
+                  </p>
+                  <p className="font-mono text-xs text-muted-foreground">{s.member_phone}</p>
+                </div>
+              ),
+            },
+            {
+              key: 'overall',
+              header: 'Overall',
+              className: 'text-right',
+              render: (s) => (
+                <span className="font-mono text-base font-semibold">{Number(s.overall_score).toFixed(0)}</span>
+              ),
+            },
+            {
+              key: 'financial',
+              header: 'Financial',
+              className: 'text-right',
+              render: (s) => <span className="font-mono">{Number(s.financial_score).toFixed(0)}</span>,
+            },
+            {
+              key: 'tier',
+              header: 'Tier',
+              render: (s) => (
+                <StatusPill
+                  status={s.reliability_tier}
+                  tone={TIER_TONE[s.reliability_tier]}
+                  label={TIER_LABEL[s.reliability_tier]}
+                />
+              ),
+            },
+            {
+              key: 'limit',
+              header: 'Loan limit',
+              className: 'text-right',
+              render: (s) => <span className="font-mono">{fmtMoney(s.loan_eligibility_limit)}</span>,
+            },
+            {
+              key: 'computed_at',
+              header: 'Last computed',
+              render: (s) => (
+                <span className="text-xs text-muted-foreground">{new Date(s.computed_at).toLocaleString()}</span>
+              ),
+            },
           ]}
         />
       )}

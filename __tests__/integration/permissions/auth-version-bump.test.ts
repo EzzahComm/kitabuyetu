@@ -47,19 +47,28 @@ describe('permissions claim tracks live role via auth_version (Batch 1 plumbing)
 
     const [{ result }] = await rawQuery<{ result: { group_id: string; member_id: string } }>(
       `SELECT register_group($1::jsonb) AS result`,
-      [JSON.stringify({
-        groupName: `Auth Version Bump Test ${phone}`,
-        groupType: 'chama',
-        firstName: 'Test', lastName: 'Treasurer',
-        phone, passwordHash, creatorRole: 'treasurer', primaryObjective: 'savings',
-      })],
+      [
+        JSON.stringify({
+          groupName: `Auth Version Bump Test ${phone}`,
+          groupType: 'chama',
+          firstName: 'Test',
+          lastName: 'Treasurer',
+          phone,
+          passwordHash,
+          creatorRole: 'treasurer',
+          primaryObjective: 'savings',
+        }),
+      ],
     );
     const { group_id: groupId, member_id: memberId } = result;
 
     // ── Real login: prove the token's permissions claim reflects treasurer today ──
-    const loginRes = await loginPost(buildRequest('/api/v1/auth/login', {
-      method: 'POST', body: { identifier: phone, password: PASSWORD },
-    }));
+    const loginRes = await loginPost(
+      buildRequest('/api/v1/auth/login', {
+        method: 'POST',
+        body: { identifier: phone, password: PASSWORD },
+      }),
+    );
     expect(loginRes.status).toBe(200);
     const loginBody = await jsonOf(loginRes);
     const initialAccessToken = loginBody.data.accessToken as string;
@@ -79,7 +88,10 @@ describe('permissions claim tracks live role via auth_version (Batch 1 plumbing)
       `SELECT id FROM public.roles WHERE group_id IS NULL AND code = 'member'`,
     );
     await assignGroupMemberRole({
-      actorId: memberId, memberId, groupId, roleId: memberRoleId,
+      actorId: memberId,
+      memberId,
+      groupId,
+      roleId: memberRoleId,
     });
 
     const [{ auth_version: authVersionAfter }] = await rawQuery<{ auth_version: number }>(
@@ -91,9 +103,12 @@ describe('permissions claim tracks live role via auth_version (Batch 1 plumbing)
     expect(authVersionAfter).toBeGreaterThan(authVersionBefore);
 
     // ── Real refresh: the new token must reflect the LIVE role, not the stale claim ──
-    const refreshRes = await refreshPost(buildRequest('/api/v1/auth/refresh', {
-      method: 'POST', body: { refreshToken },
-    }));
+    const refreshRes = await refreshPost(
+      buildRequest('/api/v1/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken },
+      }),
+    );
     expect(refreshRes.status).toBe(200);
     const refreshBody = await jsonOf(refreshRes);
     const refreshedClaims = verifyAccessToken(refreshBody.data.accessToken as string);

@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { listReminderHistory } from '@/lib/services/reminder.service';
@@ -26,9 +26,7 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.view', async (auth) => {
-    const params = ReminderHistoryQuerySchema.parse(
-      Object.fromEntries(req.nextUrl.searchParams),
-    );
+    const params = ReminderHistoryQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const history = await listReminderHistory(ctx, params);
     return ok(history);

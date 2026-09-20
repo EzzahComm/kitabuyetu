@@ -15,7 +15,7 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -29,7 +29,11 @@ const ctx = { groupId: 'group-1', userId: 'user-1', role: 'treasurer' };
 describe('fiscalPeriodsService.close', () => {
   it('upserts a closed period row and writes an audit log', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [{ id: 'fp-1', group_id: 'group-1', period_start: '2026-01-01', period_end: '2026-01-31', status: 'closed' }] })
+      .mockResolvedValueOnce({
+        rows: [
+          { id: 'fp-1', group_id: 'group-1', period_start: '2026-01-01', period_end: '2026-01-31', status: 'closed' },
+        ],
+      })
       .mockResolvedValueOnce({ rows: [] }); // audit log
 
     const result = await fiscalPeriodsService.close(ctx, { periodStart: '2026-01-01', periodEnd: '2026-01-31' });
@@ -44,14 +48,16 @@ describe('fiscalPeriodsService.close', () => {
 describe('fiscalPeriodsService.reopen', () => {
   it('throws NotFoundError when the period does not exist', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(fiscalPeriodsService.reopen(ctx, 'fp-1', { reason: 'Correcting a posting error' }))
-      .rejects.toBeInstanceOf(NotFoundError);
+    await expect(
+      fiscalPeriodsService.reopen(ctx, 'fp-1', { reason: 'Correcting a posting error' }),
+    ).rejects.toBeInstanceOf(NotFoundError);
   });
 
   it('throws ConflictError when the period is already open', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'fp-1', status: 'open' }] });
-    await expect(fiscalPeriodsService.reopen(ctx, 'fp-1', { reason: 'Correcting a posting error' }))
-      .rejects.toBeInstanceOf(ConflictError);
+    await expect(
+      fiscalPeriodsService.reopen(ctx, 'fp-1', { reason: 'Correcting a posting error' }),
+    ).rejects.toBeInstanceOf(ConflictError);
   });
 
   it('reopens a closed period and records the reason', async () => {

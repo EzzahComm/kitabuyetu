@@ -28,11 +28,11 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
   beforeAll(async () => {
     await resetDatabase();
     const { groupId: gId, officerId: founderId } = await createTestGroup('chairperson');
-    groupId   = gId;
+    groupId = gId;
     memberAId = await addGroupOfficer(gId, founderId, 'member');
     memberBId = await addGroupOfficer(gId, founderId, 'member');
-    memberPerms      = await permissionsFor('member');
-    secretaryPerms   = await permissionsFor('secretary');
+    memberPerms = await permissionsFor('member');
+    secretaryPerms = await permissionsFor('secretary');
     chairpersonPerms = await permissionsFor('chairperson');
   });
 
@@ -43,7 +43,8 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
   it('members.manage: a plain member CAN edit their own profile', async () => {
     const res = await memberPatch(
       buildRequest(`/api/v1/members/${memberAId}`, {
-        method: 'PATCH', body: { firstName: 'SelfEdited' },
+        method: 'PATCH',
+        body: { firstName: 'SelfEdited' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'member', permissions: memberPerms }),
       }),
       { params: Promise.resolve({ id: memberAId }) },
@@ -51,10 +52,11 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
     expect(res.status).toBe(200);
   });
 
-  it('members.manage: a plain member CANNOT edit a different member\'s profile', async () => {
+  it("members.manage: a plain member CANNOT edit a different member's profile", async () => {
     const res = await memberPatch(
       buildRequest(`/api/v1/members/${memberBId}`, {
-        method: 'PATCH', body: { firstName: 'Hijacked' },
+        method: 'PATCH',
+        body: { firstName: 'Hijacked' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'member', permissions: memberPerms }),
       }),
       { params: Promise.resolve({ id: memberBId }) },
@@ -62,10 +64,11 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
     expect(res.status).toBe(403);
   });
 
-  it('members.manage: a secretary CAN edit a different member\'s profile', async () => {
+  it("members.manage: a secretary CAN edit a different member's profile", async () => {
     const res = await memberPatch(
       buildRequest(`/api/v1/members/${memberBId}`, {
-        method: 'PATCH', body: { firstName: 'EditedBySecretary' },
+        method: 'PATCH',
+        body: { firstName: 'EditedBySecretary' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'secretary', permissions: secretaryPerms }),
       }),
       { params: Promise.resolve({ id: memberBId }) },
@@ -73,10 +76,11 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
     expect(res.status).toBe(200);
   });
 
-  it('roles.manage: a secretary CANNOT change a member\'s group role, a chairperson CAN', async () => {
+  it("roles.manage: a secretary CANNOT change a member's group role, a chairperson CAN", async () => {
     const denied = await memberPut(
       buildRequest(`/api/v1/members/${memberBId}`, {
-        method: 'PUT', body: { role: 'treasurer' },
+        method: 'PUT',
+        body: { role: 'treasurer' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'secretary', permissions: secretaryPerms }),
       }),
       { params: Promise.resolve({ id: memberBId }) },
@@ -85,7 +89,8 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
 
     const allowed = await memberPut(
       buildRequest(`/api/v1/members/${memberBId}`, {
-        method: 'PUT', body: { role: 'treasurer' },
+        method: 'PUT',
+        body: { role: 'treasurer' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
       }),
       { params: Promise.resolve({ id: memberBId }) },
@@ -105,7 +110,8 @@ describe('Members domain permission gates (formerly inline ROLES.can*())', () =>
 
     const statusRes = await statusPost(
       buildRequest(`/api/v1/members/${memberBId}/status`, {
-        method: 'POST', body: { status: 'suspended', reason: 'test' },
+        method: 'POST',
+        body: { status: 'suspended', reason: 'test' },
         headers: authHeaders({ userId: memberAId, groupId, role: 'member', permissions: memberPerms }),
       }),
       { params: Promise.resolve({ id: memberBId }) },

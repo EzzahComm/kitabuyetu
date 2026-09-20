@@ -33,9 +33,9 @@ describe('Meetings/Welfare/Investments permission gates (net-new)', () => {
     // register_group() founders are always officers — a genuine plain
     // 'member' needs a second, explicitly-added membership.
     const { groupId: gId, officerId: founderId } = await createTestGroup('treasurer');
-    groupId  = gId;
+    groupId = gId;
     memberId = await addGroupOfficer(gId, founderId, 'member');
-    memberPerms    = await permissionsFor('member');
+    memberPerms = await permissionsFor('member');
     secretaryPerms = await permissionsFor('secretary');
     treasurerPerms = await permissionsFor('treasurer');
   });
@@ -46,38 +46,46 @@ describe('Meetings/Welfare/Investments permission gates (net-new)', () => {
 
   describe('meetings', () => {
     it('a plain member can list meetings (meetings.view)', async () => {
-      const res = await meetingsGet(buildRequest('/api/v1/meetings', {
-        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-      }));
+      const res = await meetingsGet(
+        buildRequest('/api/v1/meetings', {
+          headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+        }),
+      );
       expect(res.status).toBe(200);
     });
 
     it('a plain member cannot create a meeting (needs meetings.manage)', async () => {
-      const res = await meetingsPost(buildRequest('/api/v1/meetings', {
-        method: 'POST',
-        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-        body: { title: 'AGM 2026', scheduledAt: new Date().toISOString() },
-      }));
+      const res = await meetingsPost(
+        buildRequest('/api/v1/meetings', {
+          method: 'POST',
+          headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+          body: { title: 'AGM 2026', scheduledAt: new Date().toISOString() },
+        }),
+      );
       expect(res.status).toBe(403);
     });
 
     it('a secretary CAN create a meeting (meetings.manage)', async () => {
-      const res = await meetingsPost(buildRequest('/api/v1/meetings', {
-        method: 'POST',
-        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-        body: { title: 'AGM 2026', scheduledAt: new Date().toISOString() },
-      }));
+      const res = await meetingsPost(
+        buildRequest('/api/v1/meetings', {
+          method: 'POST',
+          headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+          body: { title: 'AGM 2026', scheduledAt: new Date().toISOString() },
+        }),
+      );
       expect(res.status).toBe(201);
     });
   });
 
   describe('welfare', () => {
     it('a plain member CAN self-request welfare help (welfare.request)', async () => {
-      const res = await welfarePost(buildRequest('/api/v1/welfare', {
-        method: 'POST',
-        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-        body: { requestType: 'hospital', title: 'Hospital bill assistance', amountRequested: 5000 },
-      }));
+      const res = await welfarePost(
+        buildRequest('/api/v1/welfare', {
+          method: 'POST',
+          headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+          body: { requestType: 'hospital', title: 'Hospital bill assistance', amountRequested: 5000 },
+        }),
+      );
       expect(res.status).toBe(201);
     });
 
@@ -108,33 +116,43 @@ describe('Meetings/Welfare/Investments permission gates (net-new)', () => {
 
   describe('investments', () => {
     it('a plain member can list investments (investments.view)', async () => {
-      const res = await investmentsGet(buildRequest('/api/v1/investments', {
-        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-      }));
+      const res = await investmentsGet(
+        buildRequest('/api/v1/investments', {
+          headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+        }),
+      );
       expect(res.status).toBe(200);
     });
 
     it('a plain member cannot create an investment (needs investments.manage)', async () => {
-      const res = await investmentsPost(buildRequest('/api/v1/investments', {
-        method: 'POST',
-        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-        body: {
-          name: 'Land parcel', investmentType: 'land',
-          principalAmount: 100000, startDate: '2026-01-01',
-        },
-      }));
+      const res = await investmentsPost(
+        buildRequest('/api/v1/investments', {
+          method: 'POST',
+          headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+          body: {
+            name: 'Land parcel',
+            investmentType: 'land',
+            principalAmount: 100000,
+            startDate: '2026-01-01',
+          },
+        }),
+      );
       expect(res.status).toBe(403);
     });
 
     it('a treasurer CAN create an investment (investments.manage)', async () => {
-      const res = await investmentsPost(buildRequest('/api/v1/investments', {
-        method: 'POST',
-        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-        body: {
-          name: 'Land parcel', investmentType: 'land',
-          principalAmount: 100000, startDate: '2026-01-01',
-        },
-      }));
+      const res = await investmentsPost(
+        buildRequest('/api/v1/investments', {
+          method: 'POST',
+          headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+          body: {
+            name: 'Land parcel',
+            investmentType: 'land',
+            principalAmount: 100000,
+            startDate: '2026-01-01',
+          },
+        }),
+      );
       expect(res.status).toBe(201);
     });
   });

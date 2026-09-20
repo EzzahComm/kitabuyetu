@@ -2,15 +2,21 @@ import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
-import type { CreateContributionInput, UpdateContributionInput, ContributionQueryInput } from '@/lib/validators/contribution.schema';
+import type {
+  CreateContributionInput,
+  UpdateContributionInput,
+  ContributionQueryInput,
+} from '@/lib/validators/contribution.schema';
 import { postContributionJournal } from './accounting.service';
 import { sendContributionConfirmation } from './notification-email.service';
 import { SMS_EVENTS } from '@/lib/sms/events';
 import { logger } from '@/lib/logger';
 
 export const contributionsService = {
-
-  async list(ctx: TenantContext, params: ContributionQueryInput): Promise<PaginatedResult<Contribution & { member_name: string }>> {
+  async list(
+    ctx: TenantContext,
+    params: ContributionQueryInput,
+  ): Promise<PaginatedResult<Contribution & { member_name: string }>> {
     return withDb(ctx, async (client) => {
       const { page, limit, memberId, status, from, to, sortDir } = params;
       const offset = (page - 1) * limit;
@@ -19,18 +25,28 @@ export const contributionsService = {
       const values: unknown[] = [ctx.groupId];
       let idx = 2;
 
-      if (memberId) { conditions.push(`c.member_id = $${idx++}`);                              values.push(memberId); }
-      if (status)   { conditions.push(`c.status = $${idx++}`);                                 values.push(status); }
-      if (from)     { conditions.push(`c.contribution_date >= $${idx++}`);                     values.push(from); }
-      if (to)       { conditions.push(`c.contribution_date <= $${idx++}`);                     values.push(to); }
+      if (memberId) {
+        conditions.push(`c.member_id = $${idx++}`);
+        values.push(memberId);
+      }
+      if (status) {
+        conditions.push(`c.status = $${idx++}`);
+        values.push(status);
+      }
+      if (from) {
+        conditions.push(`c.contribution_date >= $${idx++}`);
+        values.push(from);
+      }
+      if (to) {
+        conditions.push(`c.contribution_date <= $${idx++}`);
+        values.push(to);
+      }
 
-      const where   = conditions.join(' AND ');
+      const where = conditions.join(' AND ');
       const orderDir = sortDir === 'asc' ? 'ASC' : 'DESC';
 
       const [{ rows: countRows }, { rows }] = await Promise.all([
-        client.query<{ count: string }>(
-          `SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values,
-        ),
+        client.query<{ count: string }>(`SELECT COUNT(*) AS count FROM contributions c WHERE ${where}`, values),
         client.query<Contribution & { member_name: string }>(
           `SELECT c.*,
                   m.first_name || ' ' || m.last_name AS member_name
@@ -90,11 +106,18 @@ export const contributionsService = {
   // vice versa) via reminder_dispatch_log's UNIQUE constraint, suppressing a
   // real reminder neither action actually sent. Idempotent per (member,
   // month) regardless — clicking twice in the same month only sends once.
-  async remindNonContributors(ctx: TenantContext): Promise<{ attempted: number; sent: number; skipped: number; failed: number }> {
+  async remindNonContributors(
+    ctx: TenantContext,
+  ): Promise<{ attempted: number; sent: number; skipped: number; failed: number }> {
     const { rows } = await withDb(ctx, (client) =>
       client.query<{
-        membership_id: string; member_id: string; phone: string;
-        first_name: string; group_name: string; period_key: string; month_label: string;
+        membership_id: string;
+        member_id: string;
+        phone: string;
+        first_name: string;
+        group_name: string;
+        period_key: string;
+        month_label: string;
         membership_no: string;
       }>(
         `SELECT gm.id AS membership_id, gm.member_id, m.phone, m.first_name, g.name AS group_name,
@@ -123,8 +146,7 @@ export const contributionsService = {
       return { attempted: 0, sent: 0, skipped: 0, failed: 0 };
     }
 
-    const { renderTemplate, platformPaybill, DEFAULT_TEMPLATES, TEMPLATE_KEYS } =
-      await import('@/lib/sms/templates');
+    const { renderTemplate, platformPaybill, DEFAULT_TEMPLATES, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
     const { sendOnce } = await import('./reminder.service');
     // The body and the paybill lookup both used to live here as literals,
     // duplicated in lib/jobs/handlers.ts and mpesa-stk.service.ts — so a
@@ -134,16 +156,18 @@ export const contributionsService = {
     const paybill = platformPaybill();
     const template = DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER];
 
-    let sent = 0, skipped = 0, failed = 0;
+    let sent = 0,
+      skipped = 0,
+      failed = 0;
     for (const r of rows) {
       const result = await sendOnce({
-        groupId:       ctx.groupId,
-        memberId:      r.member_id,
-        phone:         r.phone,
-        body:          renderTemplate(template, {
-          first_name:     r.first_name,
-          group_name:     r.group_name,
-          month:          r.month_label,
+        groupId: ctx.groupId,
+        memberId: r.member_id,
+        phone: r.phone,
+        body: renderTemplate(template, {
+          first_name: r.first_name,
+          group_name: r.group_name,
+          month: r.month_label,
           paybill,
           // No product suffix — a bare membership_no is the contribution/
           // savings account reference (lib/utils/membership-no.ts's
@@ -157,19 +181,23 @@ export const contributionsService = {
           // best without anything having to keep a second copy in step.
           membership_no: r.membership_no,
         }),
-        referenceType:  'contribution_nudge',
-        referenceId:    r.membership_id,
-        reminderStage:  `contribution_nudge:${r.period_key}`,
+        referenceType: 'contribution_nudge',
+        referenceId: r.membership_id,
+        reminderStage: `contribution_nudge:${r.period_key}`,
         // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision
         // B): bundled allowance now exists, so this real send-path bills,
         // same as the scheduled reminder it mirrors.
-        billingMode:    'billed',
+        billingMode: 'billed',
       });
       if (result.sent) sent++;
       // 'cooldown' defers rather than fails — see the identical note in
       // lib/jobs/handlers.ts.
-      else if (result.status === 'already_sent' || result.status === 'already_suppressed'
-               || result.status === 'cooldown') skipped++;
+      else if (
+        result.status === 'already_sent' ||
+        result.status === 'already_suppressed' ||
+        result.status === 'cooldown'
+      )
+        skipped++;
       else failed++;
     }
 
@@ -199,10 +227,9 @@ export const contributionsService = {
       const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
 
       if (data.mpesaReceiptNumber) {
-        const dup = await client.query(
-          'SELECT id FROM contributions WHERE mpesa_receipt_number = $1',
-          [data.mpesaReceiptNumber],
-        );
+        const dup = await client.query('SELECT id FROM contributions WHERE mpesa_receipt_number = $1', [
+          data.mpesaReceiptNumber,
+        ]);
         if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
       }
 
@@ -213,8 +240,12 @@ export const contributionsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
-          ctx.groupId, data.memberId, membershipId, data.amount.toFixed(2),
-          data.contributionDate, data.dueDate ?? null,
+          ctx.groupId,
+          data.memberId,
+          membershipId,
+          data.amount.toFixed(2),
+          data.contributionDate,
+          data.dueDate ?? null,
           data.paymentMethod ? 'completed' : 'pending',
           data.paymentMethod ?? null,
           data.mpesaReceiptNumber ?? null,
@@ -250,8 +281,12 @@ export const contributionsService = {
       // Auto-post a journal entry when the contribution is completed on creation
       if (contribution.status === 'completed') {
         await postContributionJournal(client, {
-          groupId: ctx.groupId, contributionId: contribution.id, amount: parseFloat(contribution.amount),
-          entryDate: contribution.contribution_date, reference: contribution.mpesa_receipt_number, createdBy: ctx.userId,
+          groupId: ctx.groupId,
+          contributionId: contribution.id,
+          amount: parseFloat(contribution.amount),
+          entryDate: contribution.contribution_date,
+          reference: contribution.mpesa_receipt_number,
+          createdBy: ctx.userId,
         });
 
         // Emit event for trigger engine (best-effort, never throws)
@@ -267,7 +302,12 @@ export const contributionsService = {
             paymentMethod: contribution.payment_method ?? 'manual',
           },
           actorId: ctx.userId,
-        }).catch((err) => logger.warn('[contributions] event emit failed', { contributionId: contribution.id, error: (err as Error).message }));
+        }).catch((err) =>
+          logger.warn('[contributions] event emit failed', {
+            contributionId: contribution.id,
+            error: (err as Error).message,
+          }),
+        );
       }
 
       return contribution;
@@ -284,7 +324,10 @@ export const contributionsService = {
     try {
       const data = await withDb(ctx, async (client) => {
         const { rows } = await client.query<{
-          email: string | null; member_name: string; group_name: string; total: string;
+          email: string | null;
+          member_name: string;
+          group_name: string;
+          total: string;
         }>(
           `SELECT m.email,
                   m.first_name || ' ' || m.last_name AS member_name,
@@ -316,7 +359,10 @@ export const contributionsService = {
         status: 'completed',
       });
     } catch (err) {
-      logger.warn('[contributions] receipt email failed', { contributionId: contribution.id, error: (err as Error).message });
+      logger.warn('[contributions] receipt email failed', {
+        contributionId: contribution.id,
+        error: (err as Error).message,
+      });
     }
   },
 
@@ -334,13 +380,22 @@ export const contributionsService = {
       const values: unknown[] = [];
       let idx = 1;
 
-      if (data.status  !== undefined) { sets.push(`status = $${idx++}`);               values.push(data.status); }
-      if (data.paymentMethod !== undefined) { sets.push(`payment_method = $${idx++}`); values.push(data.paymentMethod); }
+      if (data.status !== undefined) {
+        sets.push(`status = $${idx++}`);
+        values.push(data.status);
+      }
+      if (data.paymentMethod !== undefined) {
+        sets.push(`payment_method = $${idx++}`);
+        values.push(data.paymentMethod);
+      }
       if (data.mpesaReceiptNumber !== undefined) {
         sets.push(`mpesa_receipt_number = $${idx++}`);
         values.push(data.mpesaReceiptNumber);
       }
-      if (data.notes !== undefined) { sets.push(`notes = $${idx++}`);                  values.push(data.notes); }
+      if (data.notes !== undefined) {
+        sets.push(`notes = $${idx++}`);
+        values.push(data.notes);
+      }
 
       if (!sets.length) return prev;
 
@@ -379,8 +434,12 @@ export const contributionsService = {
       // Post journal when status transitions to completed
       if (updated.status === 'completed' && prev.status !== 'completed') {
         await postContributionJournal(client, {
-          groupId: ctx.groupId, contributionId: updated.id, amount: parseFloat(updated.amount),
-          entryDate: updated.contribution_date, reference: updated.mpesa_receipt_number, createdBy: ctx.userId,
+          groupId: ctx.groupId,
+          contributionId: updated.id,
+          amount: parseFloat(updated.amount),
+          entryDate: updated.contribution_date,
+          reference: updated.mpesa_receipt_number,
+          createdBy: ctx.userId,
         });
 
         // Emit event for trigger engine (best-effort, never throws)
@@ -396,7 +455,12 @@ export const contributionsService = {
             paymentMethod: updated.payment_method ?? 'manual',
           },
           actorId: ctx.userId,
-        }).catch((err) => logger.warn('[contributions] event emit failed', { contributionId: updated.id, error: (err as Error).message }));
+        }).catch((err) =>
+          logger.warn('[contributions] event emit failed', {
+            contributionId: updated.id,
+            error: (err as Error).message,
+          }),
+        );
       }
 
       return updated;
@@ -415,10 +479,10 @@ export const contributionsService = {
 
       const prev = existing[0];
 
-      await client.query(
-        `UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2`,
-        [id, ctx.groupId],
-      );
+      await client.query(`UPDATE contributions SET status = 'cancelled' WHERE id = $1 AND group_id = $2`, [
+        id,
+        ctx.groupId,
+      ]);
 
       // Record audit log entry for the soft delete (atomic with the update)
       await client.query(

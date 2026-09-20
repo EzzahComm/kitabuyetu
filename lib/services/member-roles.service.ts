@@ -22,13 +22,13 @@ import { logger } from '@/lib/logger';
 import { notifyMember } from '@/lib/services/notifications.service';
 
 export interface AssignableRole {
-  id:          string;
-  code:        string;
-  name:        string;
+  id: string;
+  code: string;
+  name: string;
   description: string | null;
-  base_role:   string;
-  rank:        number;
-  is_system:   boolean;
+  base_role: string;
+  rank: number;
+  is_system: boolean;
   permissions: string[];
 }
 
@@ -51,24 +51,24 @@ export async function listAssignableRoles(groupId: string): Promise<AssignableRo
 }
 
 interface MembershipRow {
-  member_id:       string;
-  group_id:        string;
-  first_name:      string;
-  last_name:       string;
-  phone:           string | null;
-  group_name:      string;
+  member_id: string;
+  group_id: string;
+  first_name: string;
+  last_name: string;
+  phone: string | null;
+  group_name: string;
   organization_id: string | null;
-  current_role:    string;
+  current_role: string;
   current_role_id: string | null;
   current_role_name: string | null;
 }
 
 export interface AssignRoleResult {
-  success:      true;
-  memberId:     string;
-  groupId:      string;
+  success: true;
+  memberId: string;
+  groupId: string;
   previousRole: { id: string | null; name: string | null; base: string };
-  newRole:      { id: string; name: string; base: string };
+  newRole: { id: string; name: string; base: string };
   notification: { inApp: boolean; channel: string; status: string };
 }
 
@@ -77,10 +77,10 @@ export interface AssignRoleResult {
  * — the caller is authorized by the route (withPlatformRole('super_admin')).
  */
 export async function assignGroupMemberRole(input: {
-  actorId:   string;
-  memberId:  string;
-  groupId:   string;
-  roleId:    string;
+  actorId: string;
+  memberId: string;
+  groupId: string;
+  roleId: string;
   ipAddress?: string | null;
   userAgent?: string | null;
 }): Promise<AssignRoleResult> {
@@ -150,16 +150,16 @@ export async function assignGroupMemberRole(input: {
         actorId,
         memberId,
         JSON.stringify({
-          role_id:   membership.current_role_id,
+          role_id: membership.current_role_id,
           role_name: membership.current_role_name,
           base_role: membership.current_role,
         }),
         JSON.stringify({
-          role_id:         role.id,
-          role_name:       role.name,
-          base_role:       role.base_role,
+          role_id: role.id,
+          role_name: role.name,
+          base_role: role.base_role,
           organization_id: membership.organization_id,
-          group_id:        groupId,
+          group_id: groupId,
         }),
         ipAddress ?? null,
         userAgent ?? null,
@@ -192,9 +192,10 @@ export async function assignGroupMemberRole(input: {
 
   const baseResult: AssignRoleResult = {
     success: true,
-    memberId, groupId,
+    memberId,
+    groupId,
     previousRole: { id: membership.current_role_id, name: membership.current_role_name, base: membership.current_role },
-    newRole:      { id: role.id, name: role.name, base: role.base_role },
+    newRole: { id: role.id, name: role.name, base: role.base_role },
     notification: { inApp: txn.inApp, channel: 'none', status: changed ? 'skipped' : 'unchanged' },
   };
 
@@ -204,18 +205,19 @@ export async function assignGroupMemberRole(input: {
   if (membership.phone) {
     try {
       const out = await notifyMember({
-        groupId, memberId,
+        groupId,
+        memberId,
         phone: membership.phone,
         // No brand prefix — the sender ID is already "KITABU YETU".
-        body:  `Your role in ${membership.group_name} is now ${role.name}.`,
+        body: `Your role in ${membership.group_name} is now ${role.name}.`,
         referenceType: 'role_assignment',
-        referenceId:   memberId,
+        referenceId: memberId,
         // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
         // bundled allowance now exists, so this real send-path bills.
-        billingMode:   'billed',
+        billingMode: 'billed',
       });
       baseResult.notification.channel = out.channel;
-      baseResult.notification.status  = out.status;
+      baseResult.notification.status = out.status;
     } catch (err) {
       logger.error('[member-roles] SMS/WhatsApp notify failed', { memberId, err });
       baseResult.notification.status = 'failed';
@@ -223,9 +225,11 @@ export async function assignGroupMemberRole(input: {
   }
 
   logger.info('[member-roles] role assigned', {
-    actorId, memberId, groupId,
+    actorId,
+    memberId,
+    groupId,
     from: membership.current_role_name ?? membership.current_role,
-    to:   role.name,
+    to: role.name,
   });
 
   return baseResult;

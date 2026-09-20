@@ -16,10 +16,7 @@ const ParamsSchema = z.object({ countyId: z.string().uuid('Invalid county id') }
  * breakdown within one county, scoped to this organization's own linked
  * groups. Row drill-down for the counties table above.
  */
-export async function GET(
-  req: NextRequest,
-  { params }: { params: Promise<{ countyId: string }> },
-): Promise<Response> {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ countyId: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.dashboard.view', async (auth) => {
     const { countyId } = ParamsSchema.parse(await params);
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };

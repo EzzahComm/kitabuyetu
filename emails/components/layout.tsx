@@ -1,7 +1,5 @@
 import * as React from 'react';
-import {
-  Body, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text,
-} from '@react-email/components';
+import { Body, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@react-email/components';
 import { BRAND, getBrandLogoUrl } from '@/lib/brand';
 
 /**
@@ -61,7 +59,10 @@ export function EmailLayout({ preview, children, footerNote }: EmailLayoutProps)
                     <Img src={getBrandLogoUrl()} width="36" height="36" alt="Kitabu Yetu" style={{ borderRadius: 8 }} />
                   </td>
                   <td>
-                    <Heading as="h2" style={{ margin: 0, fontSize: 18, fontWeight: 700, color: c.blue, lineHeight: '20px' }}>
+                    <Heading
+                      as="h2"
+                      style={{ margin: 0, fontSize: 18, fontWeight: 700, color: c.blue, lineHeight: '20px' }}
+                    >
                       Kitabu Yetu
                     </Heading>
                     <Text style={{ margin: 0, fontSize: 11, color: c.green, fontWeight: 600 }}>{BRAND.tagline}</Text>

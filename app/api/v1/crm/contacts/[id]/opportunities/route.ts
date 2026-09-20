@@ -15,7 +15,11 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const opportunity = await createOpportunity(ctx, {
-      contact_id: params.id, title, stage: stage as OpportunityStage | undefined, amount, notes,
+      contact_id: params.id,
+      title,
+      stage: stage as OpportunityStage | undefined,
+      amount,
+      notes,
     });
 
     return created(opportunity);

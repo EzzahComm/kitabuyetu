@@ -17,7 +17,7 @@ import { ok } from '@/lib/utils/response';
 export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.disbursements.manage', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
-    const page  = parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10);
+    const page = parseInt(req.nextUrl.searchParams.get('page') ?? '1', 10);
     const limit = parseInt(req.nextUrl.searchParams.get('limit') ?? '25', 10);
     return ok(await organizationFinanceService.listDisbursements(ctx, { page, limit }));
   });

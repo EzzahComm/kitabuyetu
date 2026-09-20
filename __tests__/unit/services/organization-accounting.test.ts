@@ -4,19 +4,20 @@
  * to the group-scoped accounting.service.ts, not an extension of it.
  */
 import { withDb } from '@/lib/db';
-import {
-  organizationAccountingService,
-  postOrgSystemJournal,
-} from '@/lib/services/organization-accounting.service';
+import { organizationAccountingService, postOrgSystemJournal } from '@/lib/services/organization-accounting.service';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
 }));
-jest.mock('./organization.service', () => ({
-  organizationService: { assertOrganizationCoordinator: jest.fn() },
-}), { virtual: true });
+jest.mock(
+  './organization.service',
+  () => ({
+    organizationService: { assertOrganizationCoordinator: jest.fn() },
+  }),
+  { virtual: true },
+);
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -38,7 +39,9 @@ describe('organizationAccountingService.listAccounts', () => {
 describe('organizationAccountingService.getTrialBalance', () => {
   it('flips sign for liability/equity/income accounts', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ accountCode: '4001', accountName: 'Donor Contributions', accountType: 'income', netBalance: '-5000.00' }],
+      rows: [
+        { accountCode: '4001', accountName: 'Donor Contributions', accountType: 'income', netBalance: '-5000.00' },
+      ],
     });
     const result = await organizationAccountingService.getTrialBalance(ctx);
     expect(result[0].netBalance).toBe('-5000.00');
@@ -58,7 +61,10 @@ describe('organizationAccountingService.seedDefaultAccountsInTx', () => {
 describe('postOrgSystemJournal', () => {
   it('posts a balanced entry when both accounts exist', async () => {
     mockQuery.mockResolvedValueOnce({
-      rows: [{ id: 'acct-1001', account_code: '1001' }, { id: 'acct-4001', account_code: '4001' }],
+      rows: [
+        { id: 'acct-1001', account_code: '1001' },
+        { id: 'acct-4001', account_code: '4001' },
+      ],
     });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'je-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: org_journal.posted
@@ -66,8 +72,14 @@ describe('postOrgSystemJournal', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     const jeId = await postOrgSystemJournal(
-      mockClient as never, 'org-1', 'coord-1', 'Deposit',
-      [{ accountCode: '1001', debit: 1000 }, { accountCode: '4001', credit: 1000 }],
+      mockClient as never,
+      'org-1',
+      'coord-1',
+      'Deposit',
+      [
+        { accountCode: '1001', debit: 1000 },
+        { accountCode: '4001', credit: 1000 },
+      ],
       { reference: 'REF-1' },
     );
 
@@ -82,10 +94,10 @@ describe('postOrgSystemJournal', () => {
   it('skips posting and returns null when a chart-of-accounts row is missing', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'acct-1001', account_code: '1001' }] }); // 4001 missing
 
-    const jeId = await postOrgSystemJournal(
-      mockClient as never, 'org-1', 'coord-1', 'Deposit',
-      [{ accountCode: '1001', debit: 1000 }, { accountCode: '4001', credit: 1000 }],
-    );
+    const jeId = await postOrgSystemJournal(mockClient as never, 'org-1', 'coord-1', 'Deposit', [
+      { accountCode: '1001', debit: 1000 },
+      { accountCode: '4001', credit: 1000 },
+    ]);
 
     expect(jeId).toBeNull();
     expect(mockQuery).toHaveBeenCalledTimes(1); // never reaches the INSERT

@@ -13,7 +13,7 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const ctx    = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const parsed = AnalyticsQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));
     const result = await analyticsService.getExecutiveSummary(ctx, parsed.period);
     return ok(result);

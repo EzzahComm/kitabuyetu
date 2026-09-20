@@ -14,8 +14,8 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const ROOT = process.cwd();
-const SRC  = join(ROOT, 'public', 'brand', 'kitabu-yetu-logo.png');
-const OUT  = join(ROOT, 'public', 'icons');
+const SRC = join(ROOT, 'public', 'brand', 'kitabu-yetu-logo.png');
+const OUT = join(ROOT, 'public', 'icons');
 
 // Sizes referenced by app/manifest.ts + app/layout.tsx
 const PWA_SIZES = [72, 96, 128, 144, 152, 192, 384, 512] as const;

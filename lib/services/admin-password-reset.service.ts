@@ -80,8 +80,8 @@ export async function startAdminPasswordReset(email: string): Promise<void> {
   if (!staff) return; // no staff account for this email — stay silent
 
   await sendPasswordResetEmail({
-    email:     normalized,
-    resetUrl:  buildResetUrl(token),
+    email: normalized,
+    resetUrl: buildResetUrl(token),
     expiresIn: `${RESET_TTL_MINUTES} minutes`,
   });
 }
@@ -92,18 +92,23 @@ export async function resetAdminPasswordWithToken(token: string, newPassword: st
 
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; reset_otp_expires_at: Date | null; platform_role: string; is_active: boolean;
+      id: string;
+      reset_otp_expires_at: Date | null;
+      platform_role: string;
+      is_active: boolean;
     }>(
       `SELECT id, reset_otp_expires_at, platform_role, is_active
        FROM public.members WHERE reset_otp_hash = $1`,
       [tokenHash],
     );
     const staff = rows[0];
-    if (!staff
-        || !staff.is_active
-        || !PLATFORM_ROLES.includes(staff.platform_role)
-        || !staff.reset_otp_expires_at
-        || staff.reset_otp_expires_at < new Date()) {
+    if (
+      !staff ||
+      !staff.is_active ||
+      !PLATFORM_ROLES.includes(staff.platform_role) ||
+      !staff.reset_otp_expires_at ||
+      staff.reset_otp_expires_at < new Date()
+    ) {
       throw new ValidationError(GENERIC_ERROR);
     }
 

@@ -1,0 +1,24 @@
+# Build output and dependencies
+.next/
+node_modules/
+out/
+dist/
+build/
+coverage/
+
+# Generated — reformatting these just creates churn the generator undoes
+next-env.d.ts
+package-lock.json
+yarn.lock
+
+# SQL migrations are hand-formatted and reviewed as SQL, not as prettier's idea
+# of SQL; and prettier has no SQL parser here anyway.
+supabase/migrations/
+
+# Not application source: agent skill definitions, local editor settings, and
+# CI workflow YAML. Reformatting these buys nothing and a bad YAML rewrite
+# would break the pipeline.
+.agents/
+.claude/
+.github/
+*.code-workspace

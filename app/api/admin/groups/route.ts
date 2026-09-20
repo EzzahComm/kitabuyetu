@@ -8,14 +8,14 @@ export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
-    const p    = new URL(req.url).searchParams;
+    const p = new URL(req.url).searchParams;
     const { page, limit } = parsePagination(p, { defaultLimit: 20 });
     const data = await listGroups({
       page,
       limit,
       search: p.get('search') ?? undefined,
       status: p.get('status') ?? undefined,
-      plan:   p.get('plan')   ?? undefined,
+      plan: p.get('plan') ?? undefined,
       // Whitelisted rather than passed through: this lands in the LATERAL's
       // enum comparison, and an unknown string would fail the query outright
       // instead of degrading to the default view. Migration 127.

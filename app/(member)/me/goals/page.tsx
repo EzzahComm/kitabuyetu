@@ -9,9 +9,7 @@ import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/empty-state';
 import { ListSkeleton } from '@/components/shared/skeletons';
 import { useToast } from '@/hooks/use-toast';
-import {
-  useMyGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useLogGoalProgress,
-} from '@/hooks/use-member';
+import { useMyGoals, useCreateGoal, useUpdateGoal, useDeleteGoal, useLogGoalProgress } from '@/hooks/use-member';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
 
@@ -19,14 +17,14 @@ export default function GoalsPage() {
   const { data: goals, isLoading, isError, error } = useMyGoals();
   const { toast } = useToast();
 
-  const [formOpen, setFormOpen]         = React.useState(false);
-  const [editingGoal, setEditingGoal]   = React.useState<MemberGoal | null>(null);
+  const [formOpen, setFormOpen] = React.useState(false);
+  const [editingGoal, setEditingGoal] = React.useState<MemberGoal | null>(null);
   const [progressGoal, setProgressGoal] = React.useState<MemberGoal | null>(null);
 
-  const createGoal   = useCreateGoal();
-  const updateGoal   = useUpdateGoal(editingGoal?.id ?? '');
-  const deleteGoal   = useDeleteGoal();
-  const logProgress  = useLogGoalProgress(progressGoal?.id ?? '');
+  const createGoal = useCreateGoal();
+  const updateGoal = useUpdateGoal(editingGoal?.id ?? '');
+  const deleteGoal = useDeleteGoal();
+  const logProgress = useLogGoalProgress(progressGoal?.id ?? '');
 
   if (isLoading) {
     return (
@@ -40,21 +38,21 @@ export default function GoalsPage() {
   }
 
   if (isError) {
-    return (
-      <EmptyState
-        icon={Target}
-        title="Could not load your goals"
-        description={getErrorMessage(error)}
-      />
-    );
+    return <EmptyState icon={Target} title="Could not load your goals" description={getErrorMessage(error)} />;
   }
 
   const items = goals ?? [];
-  const totalSaved  = items.reduce((a, g) => a + g.savedAmount, 0);
+  const totalSaved = items.reduce((a, g) => a + g.savedAmount, 0);
   const totalTarget = items.reduce((a, g) => a + g.targetAmount, 0);
 
-  const openCreate = () => { setEditingGoal(null); setFormOpen(true); };
-  const openEdit   = (g: MemberGoal) => { setEditingGoal(g); setFormOpen(true); };
+  const openCreate = () => {
+    setEditingGoal(null);
+    setFormOpen(true);
+  };
+  const openEdit = (g: MemberGoal) => {
+    setEditingGoal(g);
+    setFormOpen(true);
+  };
 
   const submitForm = async (values: { name: string; emoji: string; targetAmount: number; deadline: string | null }) => {
     try {
@@ -104,7 +102,11 @@ export default function GoalsPage() {
           icon={Target}
           title="No goals yet"
           description="Set a target — school fees, stock, an emergency fund — and we'll help you track every step."
-          action={<Button onClick={openCreate}><Plus className="h-4 w-4" /> Create a goal</Button>}
+          action={
+            <Button onClick={openCreate}>
+              <Plus className="h-4 w-4" /> Create a goal
+            </Button>
+          }
         />
       ) : (
         <>

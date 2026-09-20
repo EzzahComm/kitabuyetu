@@ -31,8 +31,8 @@ import { rawQuery } from './helpers/db';
 
 jest.mock('@/lib/redis', () => ({
   cacheMpesaStatus: jest.fn().mockResolvedValue(undefined),
-  acquireStkLock:   jest.fn().mockResolvedValue(true),
-  releaseStkLock:   jest.fn().mockResolvedValue(undefined),
+  acquireStkLock: jest.fn().mockResolvedValue(true),
+  releaseStkLock: jest.fn().mockResolvedValue(undefined),
 }));
 
 /** A real Safaricom-style hashed MSISDN: 64 hex chars, not a phone number. */
@@ -41,13 +41,13 @@ const HASHED_MSISDN = '1bc5cfe71c4ed76d6881e05f1e396f82e91b796046c8df5051a4b8945
 function c2bBody(receipt: string, billRef: string, amount: number, msisdn: string): C2BCallbackBody {
   return {
     TransactionType: 'Pay Bill',
-    TransID:         receipt,
-    TransTime:       '20260815120000',
-    TransAmount:     amount.toFixed(2),
+    TransID: receipt,
+    TransTime: '20260815120000',
+    TransAmount: amount.toFixed(2),
     BusinessShortCode: '4137755',
-    BillRefNumber:   billRef,
-    MSISDN:          msisdn,
-    FirstName:       'TEST',
+    BillRefNumber: billRef,
+    MSISDN: msisdn,
+    FirstName: 'TEST',
   } as C2BCallbackBody;
 }
 
@@ -68,7 +68,9 @@ describe('C2B confirmation with a hashed MSISDN', () => {
     const receipt = 'TESTHASH01';
 
     await expect(
-      handleC2BConfirmation(c2bBody(receipt, 'NOSUCHACCT', 250, HASHED_MSISDN), '196.201.214.200', { skipIpCheck: true }),
+      handleC2BConfirmation(c2bBody(receipt, 'NOSUCHACCT', 250, HASHED_MSISDN), '196.201.214.200', {
+        skipIpCheck: true,
+      }),
     ).resolves.not.toThrow();
 
     const rows = await rawQuery<{ receipt: string; amount: string; phone: string; reason: string }>(
@@ -93,11 +95,9 @@ describe('C2B confirmation with a hashed MSISDN', () => {
 
     const receipt = 'TESTHASH02';
     await expect(
-      handleC2BConfirmation(
-        c2bBody(receipt, membership.membership_no, 500, HASHED_MSISDN),
-        '196.201.214.200',
-        { skipIpCheck: true },
-      ),
+      handleC2BConfirmation(c2bBody(receipt, membership.membership_no, 500, HASHED_MSISDN), '196.201.214.200', {
+        skipIpCheck: true,
+      }),
     ).resolves.not.toThrow();
 
     // The money is recorded against the right group — the whole point.
@@ -112,12 +112,12 @@ describe('C2B confirmation with a hashed MSISDN', () => {
 
   it(
     'never files to unrouted when this exact receipt already has a completed payment ' +
-    '(found 2026-08-26: a race between the STK success callback and a separate C2B ' +
-    'notification for the same transaction filed 7 real payments to mpesa_unrouted as ' +
-    '"unroutable" even though every one of them had already activated correctly via STK — ' +
-    'this asserts the end-to-end outcome; the exact in-transaction race window that produced ' +
-    'the duplicates is not reproducible by sequential calls, so this covers the invariant, ' +
-    'not the specific line that closes it)',
+      '(found 2026-08-26: a race between the STK success callback and a separate C2B ' +
+      'notification for the same transaction filed 7 real payments to mpesa_unrouted as ' +
+      '"unroutable" even though every one of them had already activated correctly via STK — ' +
+      'this asserts the end-to-end outcome; the exact in-transaction race window that produced ' +
+      'the duplicates is not reproducible by sequential calls, so this covers the invariant, ' +
+      'not the specific line that closes it)',
     async () => {
       const { groupId } = await createTestGroup('chairperson');
       const receipt = 'TESTHASH04';
@@ -134,7 +134,9 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       );
 
       await expect(
-        handleC2BConfirmation(c2bBody(receipt, 'SUBSCRIPT', 150, HASHED_MSISDN), '196.201.214.200', { skipIpCheck: true }),
+        handleC2BConfirmation(c2bBody(receipt, 'SUBSCRIPT', 150, HASHED_MSISDN), '196.201.214.200', {
+          skipIpCheck: true,
+        }),
       ).resolves.not.toThrow();
 
       const unrouted = await rawQuery(`SELECT id FROM mpesa_unrouted WHERE receipt = $1`, [receipt]);
@@ -143,7 +145,8 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       // The original STK-recorded payment must be untouched — this path only
       // ever recognises the duplicate and logs it, never mutates the payment.
       const payment = await rawQuery<{ status: string }>(
-        `SELECT status FROM payments WHERE mpesa_receipt_number = $1`, [receipt],
+        `SELECT status FROM payments WHERE mpesa_receipt_number = $1`,
+        [receipt],
       );
       expect(payment[0].status).toBe('completed');
     },
@@ -157,11 +160,9 @@ describe('C2B confirmation with a hashed MSISDN', () => {
     );
 
     const receipt = 'TESTHASH03';
-    await handleC2BConfirmation(
-      c2bBody(receipt, membership.membership_no, 300, '254712345678'),
-      '196.201.214.200',
-      { skipIpCheck: true },
-    );
+    await handleC2BConfirmation(c2bBody(receipt, membership.membership_no, 300, '254712345678'), '196.201.214.200', {
+      skipIpCheck: true,
+    });
 
     const tx = await rawQuery<{ phone_number: string }>(
       `SELECT phone_number FROM mpesa_transactions WHERE mpesa_receipt_number = $1`,

@@ -32,10 +32,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     const parsed = TopUpSmsCreditsSchema.safeParse(await req.json());
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 
-    const result = await addOrganizationSmsCredits(
-      ctx.organizationId, parsed.data.amountKes, ctx.userId,
-      { reference: parsed.data.reference, notes: parsed.data.notes },
-    );
+    const result = await addOrganizationSmsCredits(ctx.organizationId, parsed.data.amountKes, ctx.userId, {
+      reference: parsed.data.reference,
+      notes: parsed.data.notes,
+    });
     // null means the insert was swallowed as a duplicate payment (G27).
     // Unreachable from here — this route never passes a paymentId and a NULL
     // one cannot conflict — but reporting a top-up that did not happen is the

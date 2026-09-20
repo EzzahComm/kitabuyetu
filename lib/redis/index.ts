@@ -32,15 +32,15 @@ export const redis = globalWithRedis._kyRedis as Redis;
 // Typed key namespaces — prevents key collisions across modules
 // ------------------------------------------------------------------
 export const keys = {
-  refreshToken:  (tokenHash: string)       => `rt:${tokenHash}`,
-  loginAttempts: (phone: string)           => `login_attempts:${phone}`,
-  accountLock:   (phone: string)           => `account_lock:${phone}`,
-  smsQueue:      (groupId: string)         => `sms_queue:${groupId}`,
-  mpesaStatus:   (checkoutReqId: string)   => `mpesa:${checkoutReqId}`,
-  stkLock:       (fingerprint: string)     => `stk_lock:${fingerprint}`,
-  rateLimit:     (ip: string)              => `rl:${ip}`,
-  sessionCache:  (userId: string)          => `session:${userId}`,
-  cache:         (name: string, scope: string) => `cache:${name}:${scope}`,
+  refreshToken: (tokenHash: string) => `rt:${tokenHash}`,
+  loginAttempts: (phone: string) => `login_attempts:${phone}`,
+  accountLock: (phone: string) => `account_lock:${phone}`,
+  smsQueue: (groupId: string) => `sms_queue:${groupId}`,
+  mpesaStatus: (checkoutReqId: string) => `mpesa:${checkoutReqId}`,
+  stkLock: (fingerprint: string) => `stk_lock:${fingerprint}`,
+  rateLimit: (ip: string) => `rl:${ip}`,
+  sessionCache: (userId: string) => `session:${userId}`,
+  cache: (name: string, scope: string) => `cache:${name}:${scope}`,
 };
 
 const PREFIX = process.env.REDIS_PREFIX ?? 'ky:';
@@ -50,11 +50,7 @@ const k = (key: string) => `${PREFIX}${key}`;
 // Helpers
 // ------------------------------------------------------------------
 
-export async function storeRefreshToken(
-  tokenHash: string,
-  userId: string,
-  ttlSeconds: number,
-): Promise<void> {
+export async function storeRefreshToken(tokenHash: string, userId: string, ttlSeconds: number): Promise<void> {
   await redis.set(k(keys.refreshToken(tokenHash)), userId, { ex: ttlSeconds });
 }
 
@@ -130,9 +126,7 @@ export async function cacheMpesaStatus(
   await redis.set(k(keys.mpesaStatus(checkoutRequestId)), status, { ex: ttlSeconds });
 }
 
-export async function getMpesaStatus(
-  checkoutRequestId: string,
-): Promise<'pending' | 'completed' | 'failed' | null> {
+export async function getMpesaStatus(checkoutRequestId: string): Promise<'pending' | 'completed' | 'failed' | null> {
   return redis.get<'pending' | 'completed' | 'failed'>(k(keys.mpesaStatus(checkoutRequestId)));
 }
 
@@ -142,10 +136,7 @@ export async function getMpesaStatus(
  * false when an identical prompt was initiated within the TTL window.
  * Fail-open: a Redis outage must never block payments, only dedup.
  */
-export async function acquireStkLock(
-  fingerprint: string,
-  ttlSeconds = 30,
-): Promise<boolean> {
+export async function acquireStkLock(fingerprint: string, ttlSeconds = 30): Promise<boolean> {
   try {
     const res = await redis.set(k(keys.stkLock(fingerprint)), '1', { nx: true, ex: ttlSeconds });
     return res === 'OK';
@@ -169,11 +160,7 @@ export async function releaseStkLock(fingerprint: string): Promise<void> {
  * events per `windowSeconds` for the given key. Fail-open: a Redis outage
  * must never block payments — abuse control degrades, correctness doesn't.
  */
-export async function checkRateLimit(
-  key: string,
-  limit: number,
-  windowSeconds: number,
-): Promise<boolean> {
+export async function checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
   try {
     const fullKey = k(keys.rateLimit(key));
     const count = await redis.incr(fullKey);
@@ -194,11 +181,7 @@ export async function checkRateLimit(
  * direct DB read, it must never fail the request (same convention as
  * `acquireStkLock`/`checkRateLimit` above).
  */
-export async function cached<T>(
-  key: string,
-  ttlSeconds: number,
-  fn: () => Promise<T>,
-): Promise<T> {
+export async function cached<T>(key: string, ttlSeconds: number, fn: () => Promise<T>): Promise<T> {
   try {
     const hit = await redis.get<T>(k(key));
     if (hit !== null && hit !== undefined) return hit;
@@ -207,8 +190,8 @@ export async function cached<T>(
   }
 
   const value = await fn();
-  redis.set(k(key), value, { ex: ttlSeconds }).catch((err) =>
-    logger.warn('[redis] cache write failed', { key, err: String(err) }),
-  );
+  redis
+    .set(k(key), value, { ex: ttlSeconds })
+    .catch((err) => logger.warn('[redis] cache write failed', { key, err: String(err) }));
   return value;
 }

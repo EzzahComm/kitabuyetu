@@ -6,10 +6,10 @@ import { ok } from '@/lib/utils/response';
 
 const CreateTemplateSchema = z.object({
   templateKey: z.string().min(1),
-  locale:      z.string().optional(),
-  name:        z.string().min(1),
-  subject:     z.string().min(1),
-  body:        z.string().min(1),
+  locale: z.string().optional(),
+  name: z.string().min(1),
+  subject: z.string().min(1),
+  body: z.string().min(1),
 });
 
 // Was withAuth only (any authenticated member) — same gap the SMS templates
@@ -55,14 +55,7 @@ export async function POST(req: NextRequest): Promise<Response> {
          ON CONFLICT (group_id, template_key, locale) DO UPDATE
            SET name=$4, subject=$5, body=$6, updated_at=NOW()
          RETURNING id`,
-        [
-          auth.groupId,
-          body.templateKey,
-          body.locale ?? 'en',
-          body.name,
-          body.subject,
-          body.body,
-        ],
+        [auth.groupId, body.templateKey, body.locale ?? 'en', body.name, body.subject, body.body],
       );
 
       return ok({ id: result.rows[0].id }, 201);

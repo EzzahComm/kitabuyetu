@@ -32,22 +32,22 @@ export interface SmsUsageAnalytics {
    * it was not. `smsService.getBalance()` had the allowance all along; this
    * one number simply never asked for it.
    */
-  balance:            number;
+  balance: number;
   /** The two halves of `balance`, so the panel can show where it comes from. */
-  purchasedBalance:   number;
+  purchasedBalance: number;
   allowanceRemaining: number;
-  creditsPurchased:   number;
-  creditsConsumed:    number;
-  usageThisMonth:     number;
-  usageLastMonth:     number;
+  creditsPurchased: number;
+  creditsConsumed: number;
+  usageThisMonth: number;
+  usageLastMonth: number;
   /** Mean daily consumption over the trailing window, x30. Null when there is nothing to project from. */
-  projectedMonthly:   number | null;
+  projectedMonthly: number | null;
   /** Whole days of balance left at the current rate. Null when idle (never runs out) or already empty. */
-  daysRemaining:      number | null;
+  daysRemaining: number | null;
   /** What this group's usage has cost THEM, at their own rate. Never provider cost. */
-  costThisMonth:      number;
-  byFeature:          FeatureUsage[];
-  byCampaign:         Array<{ campaignId: string; name: string | null; credits: number; messages: number }>;
+  costThisMonth: number;
+  byFeature: FeatureUsage[];
+  byCampaign: Array<{ campaignId: string; name: string | null; credits: number; messages: number }>;
   /**
    * True when any consumption predates per-feature attribution. The UI must say
    * so rather than implying those messages were free or uncategorised by
@@ -85,10 +85,14 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
       ),
       db.query<{ purchased: string }>(
         `SELECT COALESCE(SUM(credits_added), 0) AS purchased
-         FROM sms_credits WHERE group_id = $1`, [groupId],
+         FROM sms_credits WHERE group_id = $1`,
+        [groupId],
       ),
       db.query<{
-        consumed: string; this_month: string; last_month: string; window_credits: string;
+        consumed: string;
+        this_month: string;
+        last_month: string;
+        window_credits: string;
       }>(
         // One pass over the consumed rows rather than four round trips.
         // billing_state = 'consumed' only: reserved rows are not yet spent and
@@ -136,48 +140,48 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
       ),
     ]);
 
-    const purchasedBal   = Number(balance.rows[0]?.sms_credits ?? 0);
-    const allowanceLeft  = Math.max(
+    const purchasedBal = Number(balance.rows[0]?.sms_credits ?? 0);
+    const allowanceLeft = Math.max(
       Number(balance.rows[0]?.allowance_included ?? 0) - Number(balance.rows[0]?.allowance_used ?? 0),
       0,
     );
     // What the group can send TODAY. Allowance is spent before purchased
     // credits, but for "can I send?" only the sum matters.
-    const bal            = purchasedBal + allowanceLeft;
-    const windowCredits  = Number(consumption.rows[0].window_credits);
-    const thisMonth      = Number(consumption.rows[0].this_month);
-    const groupRate      = Number(rate.rows[0]?.sms_rate ?? 0.9);
+    const bal = purchasedBal + allowanceLeft;
+    const windowCredits = Number(consumption.rows[0].window_credits);
+    const thisMonth = Number(consumption.rows[0].this_month);
+    const groupRate = Number(rate.rows[0]?.sms_rate ?? 0.9);
 
     // Projection only means something once something has been sent. Reporting
     // "0 days remaining" for a group that has never sent is worse than
     // reporting nothing — it reads as an alarm.
-    const dailyRate        = windowCredits / PROJECTION_WINDOW_DAYS;
+    const dailyRate = windowCredits / PROJECTION_WINDOW_DAYS;
     const projectedMonthly = windowCredits > 0 ? dailyRate * 30 : null;
-    const daysRemaining    = dailyRate > 0 ? Math.floor(bal / dailyRate) : null;
+    const daysRemaining = dailyRate > 0 ? Math.floor(bal / dailyRate) : null;
 
     const features = byFeature.rows.map((r) => ({
-      feature:  r.feature,
-      credits:  Number(r.credits),
+      feature: r.feature,
+      credits: Number(r.credits),
       messages: Number(r.messages),
     }));
 
     return {
-      balance:            bal,
-      purchasedBalance:   purchasedBal,
+      balance: bal,
+      purchasedBalance: purchasedBal,
       allowanceRemaining: allowanceLeft,
       creditsPurchased: Number(purchased.rows[0].purchased),
-      creditsConsumed:  Number(consumption.rows[0].consumed),
-      usageThisMonth:   thisMonth,
-      usageLastMonth:   Number(consumption.rows[0].last_month),
+      creditsConsumed: Number(consumption.rows[0].consumed),
+      usageThisMonth: thisMonth,
+      usageLastMonth: Number(consumption.rows[0].last_month),
       projectedMonthly,
       daysRemaining,
-      costThisMonth:    thisMonth * groupRate,
-      byFeature:        features,
+      costThisMonth: thisMonth * groupRate,
+      byFeature: features,
       byCampaign: byCampaign.rows.map((r) => ({
         campaignId: r.campaign_id,
-        name:       r.name,
-        credits:    Number(r.credits),
-        messages:   Number(r.messages),
+        name: r.name,
+        credits: Number(r.credits),
+        messages: Number(r.messages),
       })),
       hasUnattributedHistory: features.some((f) => f.feature === null && f.messages > 0),
     };

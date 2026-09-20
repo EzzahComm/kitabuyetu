@@ -25,7 +25,7 @@ export default function MembersPage() {
 
   const { data, isLoading, isError, error } = useQuery<PaginatedResult<OrganizationMemberRow>>({
     queryKey: enterpriseKeys.members(page, search),
-    queryFn:  () => organizationApi.members({ page, limit: 25, search: search || undefined }),
+    queryFn: () => organizationApi.members({ page, limit: 25, search: search || undefined }),
   });
 
   return (
@@ -40,7 +40,10 @@ export default function MembersPage() {
         <Search size={15} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
         <Input
           value={search}
-          onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
           placeholder="Search by name or phone…"
           className="pl-8"
         />
@@ -57,28 +60,35 @@ export default function MembersPage() {
         emptyIcon={Users2}
         columns={[
           {
-            key: 'name', header: 'Member',
+            key: 'name',
+            header: 'Member',
             render: (r) => (
               <div>
-                <p className="font-medium text-foreground">{r.firstName} {r.lastName}</p>
+                <p className="font-medium text-foreground">
+                  {r.firstName} {r.lastName}
+                </p>
                 <p className="text-xs text-muted-foreground">{r.phone}</p>
               </div>
             ),
           },
           {
-            key: 'branch', header: 'Branch',
+            key: 'branch',
+            header: 'Branch',
             render: (r) => <span className="text-muted-foreground">{r.groupName}</span>,
           },
           {
-            key: 'role', header: 'Role',
+            key: 'role',
+            header: 'Role',
             render: (r) => <span className="capitalize text-muted-foreground">{r.role.replace(/_/g, ' ')}</span>,
           },
           {
-            key: 'joined', header: 'Joined',
+            key: 'joined',
+            header: 'Joined',
             render: (r) => <span className="text-muted-foreground">{formatDate(r.joinedAt)}</span>,
           },
           {
-            key: 'status', header: 'Status',
+            key: 'status',
+            header: 'Status',
             render: (r) => (
               <StatusPill
                 status={r.isActive ? 'active' : 'inactive'}

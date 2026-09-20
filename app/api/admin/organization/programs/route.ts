@@ -27,8 +27,10 @@ export async function GET(req: NextRequest): Promise<Response> {
     // 120s interval, and recording that would bury the real accesses.
     const auditReport = async (kind: string) => {
       await recordOrgRead({
-        ctx, action: `organization.report.${kind}.view`,
-        resourceType: 'organization', resourceId: auth.organizationId ?? null,
+        ctx,
+        action: `organization.report.${kind}.view`,
+        resourceType: 'organization',
+        resourceId: auth.organizationId ?? null,
         ...auditRequestMeta(req),
       });
     };

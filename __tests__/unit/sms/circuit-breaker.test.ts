@@ -4,9 +4,7 @@
  * faked with Jest timers so each assertion states exactly what "now" is
  * without depending on fake-timer/Date interop.
  */
-import {
-  canAttempt, recordSuccess, recordFailure, circuitState, resetCircuit,
-} from '@/lib/sms/circuit-breaker';
+import { canAttempt, recordSuccess, recordFailure, circuitState, resetCircuit } from '@/lib/sms/circuit-breaker';
 
 const PROVIDER = 'test-provider';
 

@@ -9,11 +9,11 @@ import { getErrorMessage, formatDate } from '@/lib/utils';
 import type { OpportunityStage, OpportunityWithContact } from '@/lib/services/crm.service';
 
 const STAGES: { value: OpportunityStage; label: string }[] = [
-  { value: 'draft',     label: 'Draft' },
+  { value: 'draft', label: 'Draft' },
   { value: 'qualified', label: 'Qualified' },
-  { value: 'proposal',  label: 'Proposal' },
-  { value: 'won',       label: 'Won' },
-  { value: 'lost',      label: 'Lost' },
+  { value: 'proposal', label: 'Proposal' },
+  { value: 'won', label: 'Won' },
+  { value: 'lost', label: 'Lost' },
 ];
 
 interface Props {
@@ -39,7 +39,10 @@ export function OpportunityCard({ opportunity, canManage }: Props) {
     <Card>
       <CardContent className="space-y-2 p-3">
         <p className="text-sm font-medium leading-snug">{opportunity.title}</p>
-        <Link href={`/crm/${opportunity.contact_id}`} className="block truncate text-xs text-muted-foreground hover:text-foreground hover:underline">
+        <Link
+          href={`/crm/${opportunity.contact_id}`}
+          className="block truncate text-xs text-muted-foreground hover:text-foreground hover:underline"
+        >
           {opportunity.contact_name}
         </Link>
         {opportunity.amount != null && (
@@ -47,10 +50,20 @@ export function OpportunityCard({ opportunity, canManage }: Props) {
         )}
         <p className="text-xs text-muted-foreground">Updated {formatDate(opportunity.updated_at)}</p>
         {canManage && (
-          <Select value={opportunity.stage} onValueChange={(v) => onMove(v as OpportunityStage)} disabled={updateOpportunity.isPending}>
-            <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+          <Select
+            value={opportunity.stage}
+            onValueChange={(v) => onMove(v as OpportunityStage)}
+            disabled={updateOpportunity.isPending}
+          >
+            <SelectTrigger className="h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {STAGES.map((s) => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
+              {STAGES.map((s) => (
+                <SelectItem key={s.value} value={s.value}>
+                  {s.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         )}

@@ -18,7 +18,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -30,28 +30,32 @@ const ctx = { groupId: 'g1', userId: 'u1', role: 'treasurer' };
 
 /** pg hands back `numeric` as a string — mirror that, it is half the bug. */
 const summaryRow = (o: Record<string, string>) => ({
-  rows: [{
-    total_investments:  '1',
-    active_count:       '0',
-    held_count:         '1',
-    revalued_count:     '0',
-    total_principal:    '0',
-    total_current_value:'0',
-    total_returns:      '0',
-    total_expenses:     '0',
-    ...o,
-  }],
+  rows: [
+    {
+      total_investments: '1',
+      active_count: '0',
+      held_count: '1',
+      revalued_count: '0',
+      total_principal: '0',
+      total_current_value: '0',
+      total_returns: '0',
+      total_expenses: '0',
+      ...o,
+    },
+  ],
 });
 
 describe('investmentsService.getSummary', () => {
   it('reports 0% ROI, not -100%, for a recorded investment awaiting approval', async () => {
     // One pending_approval holding, never revalued. The fixed query carries it
     // at cost, so value == principal and the group is flat, not wiped out.
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      total_returns:       '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        total_returns: '0',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
@@ -71,23 +75,27 @@ describe('investmentsService.getSummary', () => {
   });
 
   it('counts gains and returns into ROI', async () => {
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '120000',
-      total_returns:       '5000',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '120000',
+        total_returns: '5000',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
-    expect(s.roi).toBe(25);           // (120000 + 5000 - 100000) / 100000
+    expect(s.roi).toBe(25); // (120000 + 5000 - 100000) / 100000
   });
 
   it('still reports a real loss as a loss', async () => {
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '80000',
-      total_returns:       '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '80000',
+        total_returns: '0',
+      }),
+    );
 
     expect((await investmentsService.getSummary(ctx)).roi).toBe(-20);
   });
@@ -96,29 +104,33 @@ describe('investmentsService.getSummary', () => {
     // The case the module could not express before expenses existed: an
     // activity returning well that is still behind once its costs are counted.
     // Without the subtraction this reads +25%, which is the overstatement.
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      total_returns:       '25000',
-      total_expenses:      '40000',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        total_returns: '25000',
+        total_expenses: '40000',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
     expect(s.totalExpenses).toBe(40000);
-    expect(s.roi).toBe(-15);          // (100000 + 25000 - 40000 - 100000) / 100000
+    expect(s.roi).toBe(-15); // (100000 + 25000 - 40000 - 100000) / 100000
   });
 
   it('becomes measurable on an expense alone, with nothing revalued or returned', async () => {
     // A group that has spent on an activity but not yet seen income has real
     // data — a real, negative answer — so ROI must not render as "no data".
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      total_returns:       '0',
-      total_expenses:      '10000',
-      revalued_count:      '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        total_returns: '0',
+        total_expenses: '10000',
+        revalued_count: '0',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
@@ -130,7 +142,7 @@ describe('investmentsService.getSummary', () => {
     // Number(undefined) is NaN and propagates silently through the ROI
     // arithmetic to a literal "NaN%" on the dashboard.
     const { total_expenses: _omitted, ...withoutExpenses } = summaryRow({
-      total_principal:     '100000',
+      total_principal: '100000',
       total_current_value: '120000',
     }).rows[0];
     mockQuery.mockResolvedValueOnce({ rows: [withoutExpenses] });
@@ -157,12 +169,14 @@ describe('investmentsService.getSummary', () => {
   // it reads as a measurement rather than as "nothing has been measured yet".
   // roiMeasurable is what lets the UI show a dash instead.
   it('reports ROI as not measurable when nothing is revalued and no returns exist', async () => {
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      revalued_count:      '0',
-      total_returns:       '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        revalued_count: '0',
+        total_returns: '0',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
@@ -171,12 +185,14 @@ describe('investmentsService.getSummary', () => {
   });
 
   it('becomes measurable once a holding is revalued', async () => {
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      revalued_count:      '1',
-      total_returns:       '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        revalued_count: '1',
+        total_returns: '0',
+      }),
+    );
 
     // Still 0%, but now that is a real answer: someone revalued it at cost.
     const s = await investmentsService.getSummary(ctx);
@@ -186,12 +202,14 @@ describe('investmentsService.getSummary', () => {
   });
 
   it('becomes measurable on a return alone, with nothing revalued', async () => {
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_principal:     '100000',
-      total_current_value: '100000',
-      revalued_count:      '0',
-      total_returns:       '5000',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_principal: '100000',
+        total_current_value: '100000',
+        revalued_count: '0',
+        total_returns: '5000',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
@@ -202,9 +220,13 @@ describe('investmentsService.getSummary', () => {
   it('is not measurable when there are no investments at all', async () => {
     // COUNT/COALESCE always return a row, so an empty group looks like zeroes
     // rather than no row — guard against a 0/0 ROI being called measurable.
-    mockQuery.mockResolvedValueOnce(summaryRow({
-      total_investments: '0', held_count: '0', total_principal: '0',
-    }));
+    mockQuery.mockResolvedValueOnce(
+      summaryRow({
+        total_investments: '0',
+        held_count: '0',
+        total_principal: '0',
+      }),
+    );
 
     const s = await investmentsService.getSummary(ctx);
 
@@ -227,7 +249,9 @@ describe('RecordReturnSchema', () => {
     'accepts %s, a real member of public.return_type',
     (returnType) => {
       const parsed = RecordReturnSchema.safeParse({
-        returnType, amount: 1000, returnDate: '2026-08-24',
+        returnType,
+        amount: 1000,
+        returnDate: '2026-08-24',
       });
       expect(parsed.success).toBe(true);
     },
@@ -235,7 +259,9 @@ describe('RecordReturnSchema', () => {
 
   it('rejects coupon, which is not in the DB enum and failed at INSERT', () => {
     const parsed = RecordReturnSchema.safeParse({
-      returnType: 'coupon', amount: 1000, returnDate: '2026-08-24',
+      returnType: 'coupon',
+      amount: 1000,
+      returnDate: '2026-08-24',
     });
     expect(parsed.success).toBe(false);
   });

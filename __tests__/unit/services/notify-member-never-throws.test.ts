@@ -15,7 +15,8 @@ import { notifyMember } from '@/lib/services/notifications.service';
 jest.mock('@/lib/db', () => ({
   pool: { query: jest.fn().mockResolvedValue({ rows: [{ id: 'log-1' }], rowCount: 1 }) },
   withAdminDb: jest.fn(async (fn: (db: unknown) => unknown) =>
-    fn({ query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) })),
+    fn({ query: jest.fn().mockResolvedValue({ rows: [], rowCount: 0 }) }),
+  ),
 }));
 jest.mock('@/lib/integrations/whatsapp-client', () => ({
   isWhatsAppConfigured: jest.fn(() => false),
@@ -28,16 +29,16 @@ import { pool } from '@/lib/db';
 import { isWhatsAppConfigured, sendText } from '@/lib/integrations/whatsapp-client';
 import { sendSingleSms } from '@/lib/services/textsms.service';
 
-const mockPoolQuery  = pool.query as unknown as jest.Mock;
-const mockWaEnabled  = isWhatsAppConfigured as unknown as jest.Mock;
-const mockSendText   = sendText as unknown as jest.Mock;
-const mockSendSms    = sendSingleSms as unknown as jest.Mock;
+const mockPoolQuery = pool.query as unknown as jest.Mock;
+const mockWaEnabled = isWhatsAppConfigured as unknown as jest.Mock;
+const mockSendText = sendText as unknown as jest.Mock;
+const mockSendSms = sendSingleSms as unknown as jest.Mock;
 
 const RCPT = {
-  groupId:  '11111111-1111-1111-1111-111111111111',
+  groupId: '11111111-1111-1111-1111-111111111111',
   memberId: '22222222-2222-2222-2222-222222222222',
-  phone:    '0717548646',
-  body:     'hello',
+  phone: '0717548646',
+  body: 'hello',
 };
 
 beforeEach(() => {
@@ -54,8 +55,12 @@ beforeEach(() => {
   );
   mockWaEnabled.mockReturnValue(false);
   mockSendSms.mockResolvedValue({
-    success: true, messageId: 'm1', networkId: '1',
-    responseCode: 200, responseDescription: 'Success', mobile: '254717548646',
+    success: true,
+    messageId: 'm1',
+    networkId: '1',
+    responseCode: 200,
+    responseDescription: 'Success',
+    mobile: '254717548646',
   });
 });
 

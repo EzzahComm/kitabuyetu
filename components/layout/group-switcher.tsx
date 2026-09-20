@@ -24,11 +24,11 @@ export function GroupSwitcher() {
   const { user, login } = useAuth();
   const router = useRouter();
 
-  const [open, setOpen]             = useState(false);
-  const [items, setItems]           = useState<MembershipSwitcherItem[] | null>(null);
-  const [loading, setLoading]       = useState(false);
+  const [open, setOpen] = useState(false);
+  const [items, setItems] = useState<MembershipSwitcherItem[] | null>(null);
+  const [loading, setLoading] = useState(false);
   const [switchingTo, setSwitching] = useState<string | null>(null);
-  const [error, setError]           = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const toggle = useCallback(async () => {
     const next = !open;
@@ -47,24 +47,27 @@ export function GroupSwitcher() {
     }
   }, [open, items, loading]);
 
-  const switchTo = useCallback(async (item: MembershipSwitcherItem) => {
-    if (item.isCurrent || switchingTo) return;
-    setSwitching(item.groupId);
-    setError(null);
-    try {
-      const data = await authApi.switchGroup(item.groupId);
-      login(data);            // new session replaces the stored one
-      setOpen(false);
-      setItems(null);         // stale isCurrent flags — refetch next open
-      // Switching groups can change the PRODUCT too, not just the role.
-      router.push(await resolvePostLoginPath(data.member.groupRole));
-      router.refresh();
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setSwitching(null);
-    }
-  }, [login, router, switchingTo]);
+  const switchTo = useCallback(
+    async (item: MembershipSwitcherItem) => {
+      if (item.isCurrent || switchingTo) return;
+      setSwitching(item.groupId);
+      setError(null);
+      try {
+        const data = await authApi.switchGroup(item.groupId);
+        login(data); // new session replaces the stored one
+        setOpen(false);
+        setItems(null); // stale isCurrent flags — refetch next open
+        // Switching groups can change the PRODUCT too, not just the role.
+        router.push(await resolvePostLoginPath(data.member.groupRole));
+        router.refresh();
+      } catch (err) {
+        setError(getErrorMessage(err));
+      } finally {
+        setSwitching(null);
+      }
+    },
+    [login, router, switchingTo],
+  );
 
   if (!isTenantUser(user)) return null;
 
@@ -79,7 +82,9 @@ export function GroupSwitcher() {
         <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="text-xs text-gray-400 truncate">{user.groupName}</p>
-            <p className="text-sm font-medium truncate">{user.firstName} {user.lastName}</p>
+            <p className="text-sm font-medium truncate">
+              {user.firstName} {user.lastName}
+            </p>
             <p className="text-xs text-gray-400 capitalize">{user.groupRole.replace('_', ' ')}</p>
             {user.membershipNo && (
               // The Membership Number is the member's PayBill account number —
@@ -111,9 +116,7 @@ export function GroupSwitcher() {
               onClick={() => switchTo(item)}
               className={cn(
                 'w-full rounded px-2 py-2 text-left transition-colors',
-                item.isCurrent
-                  ? 'bg-gray-800 cursor-default'
-                  : 'hover:bg-gray-800 disabled:opacity-50',
+                item.isCurrent ? 'bg-gray-800 cursor-default' : 'hover:bg-gray-800 disabled:opacity-50',
               )}
             >
               <div className="flex items-center justify-between gap-2">
@@ -130,9 +133,7 @@ export function GroupSwitcher() {
                   </p>
                 </div>
                 {item.isCurrent && <Check size={13} className="shrink-0 text-emerald-400" />}
-                {switchingTo === item.groupId && (
-                  <Loader2 size={13} className="shrink-0 animate-spin text-gray-400" />
-                )}
+                {switchingTo === item.groupId && <Loader2 size={13} className="shrink-0 animate-spin text-gray-400" />}
               </div>
             </button>
           ))}

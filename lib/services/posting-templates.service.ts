@@ -69,9 +69,9 @@ export type PostingEvent =
 
 export interface TemplateLine {
   accountCode: string;
-  side:        'debit' | 'credit';
+  side: 'debit' | 'credit';
   /** Which named amount this line posts — 'amount' for single-amount events. */
-  amount:      string;
+  amount: string;
 }
 
 export interface PostingTemplate {
@@ -81,57 +81,77 @@ export interface PostingTemplate {
 // Kept identical to migration 090's seed — each entry is the exact mapping
 // the call sites hardcoded before templates existed.
 export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
-  share_purchase: { lines: [
-    { accountCode: '1001', side: 'debit',  amount: 'amount' },
-    { accountCode: '3001', side: 'credit', amount: 'amount' },
-  ]},
-  share_redemption: { lines: [
-    { accountCode: '3001', side: 'debit',  amount: 'amount' },
-    { accountCode: '1001', side: 'credit', amount: 'amount' },
-  ]},
-  welfare_disbursement: { lines: [
-    { accountCode: '2102', side: 'debit',  amount: 'amount' },
-    { accountCode: '1001', side: 'credit', amount: 'amount' },
-  ]},
-  welfare_pool_contribution: { lines: [
-    { accountCode: '1001', side: 'debit',  amount: 'amount' },
-    { accountCode: '2102', side: 'credit', amount: 'amount' },
-  ]},
+  share_purchase: {
+    lines: [
+      { accountCode: '1001', side: 'debit', amount: 'amount' },
+      { accountCode: '3001', side: 'credit', amount: 'amount' },
+    ],
+  },
+  share_redemption: {
+    lines: [
+      { accountCode: '3001', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+    ],
+  },
+  welfare_disbursement: {
+    lines: [
+      { accountCode: '2102', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+    ],
+  },
+  welfare_pool_contribution: {
+    lines: [
+      { accountCode: '1001', side: 'debit', amount: 'amount' },
+      { accountCode: '2102', side: 'credit', amount: 'amount' },
+    ],
+  },
   // gross = net + tax is guaranteed by the dividend computation itself; a
   // zero tax simply drops the 2104 line (see buildTemplateLines).
-  dividend_declaration: { lines: [
-    { accountCode: '3101', side: 'debit',  amount: 'gross' },
-    { accountCode: '2103', side: 'credit', amount: 'net' },
-    { accountCode: '2104', side: 'credit', amount: 'tax' },
-  ]},
-  dividend_payment: { lines: [
-    { accountCode: '2103', side: 'debit',  amount: 'net' },
-    { accountCode: '1001', side: 'credit', amount: 'net' },
-  ]},
-  subscription_payment: { lines: [
-    { accountCode: '5003', side: 'debit',  amount: 'amount' },
-    { accountCode: '1001', side: 'credit', amount: 'amount' },
-  ]},
-  loan_writeoff: { lines: [
-    { accountCode: '5004', side: 'debit',  amount: 'outstanding' },
-    { accountCode: '1101', side: 'credit', amount: 'outstanding' },
-  ]},
+  dividend_declaration: {
+    lines: [
+      { accountCode: '3101', side: 'debit', amount: 'gross' },
+      { accountCode: '2103', side: 'credit', amount: 'net' },
+      { accountCode: '2104', side: 'credit', amount: 'tax' },
+    ],
+  },
+  dividend_payment: {
+    lines: [
+      { accountCode: '2103', side: 'debit', amount: 'net' },
+      { accountCode: '1001', side: 'credit', amount: 'net' },
+    ],
+  },
+  subscription_payment: {
+    lines: [
+      { accountCode: '5003', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+    ],
+  },
+  loan_writeoff: {
+    lines: [
+      { accountCode: '5004', side: 'debit', amount: 'outstanding' },
+      { accountCode: '1101', side: 'credit', amount: 'outstanding' },
+    ],
+  },
   // Today's single combined "CR cash principal+charge" line becomes two
   // separate lines (principal-credit, charge-credit) here, both to 1001 —
   // legal (no per-entry uniqueness constraint on account) and nets to the
   // identical account balance, just one more row in the journal detail view.
-  loan_disbursement: { lines: [
-    { accountCode: '1101', side: 'debit',  amount: 'principal' },
-    { accountCode: '1001', side: 'credit', amount: 'principal' },
-    { accountCode: '5001', side: 'debit',  amount: 'charge' },
-    { accountCode: '1001', side: 'credit', amount: 'charge' },
-  ]},
-  loan_repayment: { lines: [
-    { accountCode: '1001', side: 'debit',  amount: 'principal' },
-    { accountCode: '1101', side: 'credit', amount: 'principal' },
-    { accountCode: '1001', side: 'debit',  amount: 'interest' },
-    { accountCode: '4002', side: 'credit', amount: 'interest' },
-  ]},
+  loan_disbursement: {
+    lines: [
+      { accountCode: '1101', side: 'debit', amount: 'principal' },
+      { accountCode: '1001', side: 'credit', amount: 'principal' },
+      { accountCode: '5001', side: 'debit', amount: 'charge' },
+      { accountCode: '1001', side: 'credit', amount: 'charge' },
+    ],
+  },
+  loan_repayment: {
+    lines: [
+      { accountCode: '1001', side: 'debit', amount: 'principal' },
+      { accountCode: '1101', side: 'credit', amount: 'principal' },
+      { accountCode: '1001', side: 'debit', amount: 'interest' },
+      { accountCode: '4002', side: 'credit', amount: 'interest' },
+    ],
+  },
   // A configured loan charge (migration 179: loan_charge_types /
   // loan_charges) — a processing fee, insurance fee, or automatic late
   // charge — is added to what the borrower owes and recognized as revenue
@@ -148,37 +168,45 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
   // mechanism exists for. Waiving a charge posts the same event inverted
   // (loan-charges.service.ts's waiveCharge), which correctly reverses
   // whichever account the group has it mapped to.
-  loan_charge: { lines: [
-    { accountCode: '1101', side: 'debit',  amount: 'amount' },
-    { accountCode: '4004', side: 'credit', amount: 'amount' },
-  ]},
+  loan_charge: {
+    lines: [
+      { accountCode: '1101', side: 'debit', amount: 'amount' },
+      { accountCode: '4004', side: 'credit', amount: 'amount' },
+    ],
+  },
   // Bank Accounts / Settlements / Vendor Payments rebuild. Matches migration
   // 134's policies seed exactly — see postSettlementSweepJournal/
   // postVendorPaymentJournal below for the wrapper functions.
-  settlement_sweep: { lines: [
-    { accountCode: '1002', side: 'debit',  amount: 'amount' },
-    { accountCode: '1001', side: 'credit', amount: 'amount' },
-    { accountCode: '5001', side: 'debit',  amount: 'fee' },
-    { accountCode: '1001', side: 'credit', amount: 'fee' },
-  ]},
+  settlement_sweep: {
+    lines: [
+      { accountCode: '1002', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+      { accountCode: '5001', side: 'debit', amount: 'fee' },
+      { accountCode: '1001', side: 'credit', amount: 'fee' },
+    ],
+  },
   // accountCode here is the *default* — postVendorPaymentJournal overrides
   // the resolved expense-role line's account with the payment row's own
   // expense_account_code before building lines (per-row, not per-tenant).
-  vendor_payment: { lines: [
-    { accountCode: '5001', side: 'debit',  amount: 'amount' },
-    { accountCode: '1001', side: 'credit', amount: 'amount' },
-    { accountCode: '5001', side: 'debit',  amount: 'fee' },
-    { accountCode: '1001', side: 'credit', amount: 'fee' },
-  ]},
+  vendor_payment: {
+    lines: [
+      { accountCode: '5001', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+      { accountCode: '5001', side: 'debit', amount: 'fee' },
+      { accountCode: '1001', side: 'credit', amount: 'fee' },
+    ],
+  },
   // Phase 3 (migration 180): a fine actually collected is realized revenue
   // for the group, not a liability held in trust like welfare_pool_contribution
   // — credited to 4004 (Other Income), the standard chart's only generic
   // income account, rather than adding a new account code to every group's
   // seeded chart of accounts.
-  fine_collection: { lines: [
-    { accountCode: '1001', side: 'debit',  amount: 'amount' },
-    { accountCode: '4004', side: 'credit', amount: 'amount' },
-  ]},
+  fine_collection: {
+    lines: [
+      { accountCode: '1001', side: 'debit', amount: 'amount' },
+      { accountCode: '4004', side: 'credit', amount: 'amount' },
+    ],
+  },
 };
 
 export const POSTING_EVENTS = Object.keys(DEFAULT_TEMPLATES) as PostingEvent[];
@@ -192,8 +220,8 @@ export const POSTING_EVENTS = Object.keys(DEFAULT_TEMPLATES) as PostingEvent[];
  */
 export function buildTemplateLines(
   template: PostingTemplate,
-  amounts:  Record<string, number>,
-  opts?:    { invert?: boolean },
+  amounts: Record<string, number>,
+  opts?: { invert?: boolean },
 ): SystemJournalLine[] {
   const lines: SystemJournalLine[] = [];
   for (const line of template.lines) {
@@ -205,9 +233,7 @@ export function buildTemplateLines(
       throw new ValidationError(`Posting amount '${line.amount}' must be zero or positive`);
     }
     if (value === 0) continue;
-    const side = opts?.invert
-      ? (line.side === 'debit' ? 'credit' : 'debit')
-      : line.side;
+    const side = opts?.invert ? (line.side === 'debit' ? 'credit' : 'debit') : line.side;
     lines.push({ accountCode: line.accountCode, [side]: value });
   }
   return lines;
@@ -216,8 +242,8 @@ export function buildTemplateLines(
 /** Used inline by posting paths — resolves the group's effective template for an event. */
 export async function resolvePostingTemplate(
   client: PoolClient,
-  event:  PostingEvent,
-  scope:  { organizationId?: string | null; groupId?: string | null },
+  event: PostingEvent,
+  scope: { organizationId?: string | null; groupId?: string | null },
 ): Promise<PostingTemplate> {
   return resolvePolicy<PostingTemplate>(client, DOMAIN, keyFor(event), scope, DEFAULT_TEMPLATES[event]);
 }
@@ -230,15 +256,19 @@ export async function resolvePostingTemplate(
  * returns null rather than failing the business transaction).
  */
 export async function postTemplatedJournal(
-  client:      PoolClient,
-  groupId:     string,
-  userId:      string | null,
-  event:       PostingEvent,
+  client: PoolClient,
+  groupId: string,
+  userId: string | null,
+  event: PostingEvent,
   description: string,
-  amounts:     Record<string, number>,
+  amounts: Record<string, number>,
   opts?: {
-    reference?: string; memberId?: string; groupMembershipId?: string;
-    entryDate?: string; isTest?: boolean; invert?: boolean;
+    reference?: string;
+    memberId?: string;
+    groupMembershipId?: string;
+    entryDate?: string;
+    isTest?: boolean;
+    invert?: boolean;
   },
 ): Promise<string | null> {
   const template = await resolvePostingTemplate(client, event, { groupId });
@@ -248,7 +278,7 @@ export async function postTemplatedJournal(
   return postSystemJournal(client, groupId, userId, description, lines, journalOpts);
 }
 
-const toDateString = (d: string | Date): string => typeof d === 'string' ? d : d.toISOString().slice(0, 10);
+const toDateString = (d: string | Date): string => (typeof d === 'string' ? d : d.toISOString().slice(0, 10));
 
 /**
  * Posts a loan disbursement: DR Loans Receivable (principal) [+ DR fee
@@ -268,8 +298,14 @@ const toDateString = (d: string | Date): string => typeof d === 'string' ? d : d
 export async function postLoanDisbursementJournal(
   client: PoolClient,
   args: {
-    groupId: string; loanId: string; principal: number; charge?: number;
-    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+    groupId: string;
+    loanId: string;
+    principal: number;
+    charge?: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<{ journalEntryId: string; chargePosted: boolean } | null> {
   const charge = args.charge ?? 0;
@@ -277,9 +313,7 @@ export async function postLoanDisbursementJournal(
 
   let postCharge = charge > 0;
   if (postCharge) {
-    const chargeCodes = [...new Set(
-      template.lines.filter((l) => l.amount === 'charge').map((l) => l.accountCode),
-    )];
+    const chargeCodes = [...new Set(template.lines.filter((l) => l.amount === 'charge').map((l) => l.accountCode))];
     const { rows } = await client.query<{ account_code: string }>(
       `SELECT account_code FROM accounts WHERE group_id = $1 AND account_code = ANY($2) AND is_active = true`,
       [args.groupId, chargeCodes],
@@ -291,17 +325,22 @@ export async function postLoanDisbursementJournal(
   if (lines.length === 0) return null;
 
   const { rows: loanRows } = await client.query<{ member_id: string | null; group_membership_id: string | null }>(
-    `SELECT member_id, group_membership_id FROM loans WHERE id = $1`, [args.loanId],
+    `SELECT member_id, group_membership_id FROM loans WHERE id = $1`,
+    [args.loanId],
   );
 
   const jeId = await postSystemJournal(
-    client, args.groupId, args.createdBy, `Loan disbursement — ${args.loanId}`, lines,
+    client,
+    args.groupId,
+    args.createdBy,
+    `Loan disbursement — ${args.loanId}`,
+    lines,
     {
-      reference:         args.reference ?? undefined,
-      memberId:          loanRows[0]?.member_id ?? undefined,
+      reference: args.reference ?? undefined,
+      memberId: loanRows[0]?.member_id ?? undefined,
       groupMembershipId: loanRows[0]?.group_membership_id ?? undefined,
-      entryDate:         toDateString(args.entryDate),
-      isTest:            args.isTest,
+      entryDate: toDateString(args.entryDate),
+      isTest: args.isTest,
     },
   );
   if (!jeId) return null;
@@ -338,9 +377,15 @@ export async function postLoanDisbursementJournal(
 export async function postLoanRepaymentJournal(
   client: PoolClient,
   args: {
-    groupId: string; repaymentId: string; loanId: string;
-    principalPortion: number; interestPortion: number;
-    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+    groupId: string;
+    repaymentId: string;
+    loanId: string;
+    principalPortion: number;
+    interestPortion: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<string | null> {
   const template = await resolvePostingTemplate(client, 'loan_repayment', { groupId: args.groupId });
@@ -348,17 +393,22 @@ export async function postLoanRepaymentJournal(
   if (lines.length === 0) return null;
 
   const { rows: repaymentRows } = await client.query<{ member_id: string | null; group_membership_id: string | null }>(
-    `SELECT member_id, group_membership_id FROM loan_repayments WHERE id = $1`, [args.repaymentId],
+    `SELECT member_id, group_membership_id FROM loan_repayments WHERE id = $1`,
+    [args.repaymentId],
   );
 
   const jeId = await postSystemJournal(
-    client, args.groupId, args.createdBy, `Loan repayment — ${args.loanId} #${args.repaymentId}`, lines,
+    client,
+    args.groupId,
+    args.createdBy,
+    `Loan repayment — ${args.loanId} #${args.repaymentId}`,
+    lines,
     {
-      reference:         args.reference ?? undefined,
-      memberId:          repaymentRows[0]?.member_id ?? undefined,
+      reference: args.reference ?? undefined,
+      memberId: repaymentRows[0]?.member_id ?? undefined,
       groupMembershipId: repaymentRows[0]?.group_membership_id ?? undefined,
-      entryDate:         toDateString(args.entryDate),
-      isTest:            args.isTest,
+      entryDate: toDateString(args.entryDate),
+      isTest: args.isTest,
     },
   );
   if (!jeId) return null;
@@ -392,8 +442,14 @@ export async function postLoanRepaymentJournal(
 export async function postSettlementSweepJournal(
   client: PoolClient,
   args: {
-    groupId: string; settlementId: string; amount: number; fee?: number;
-    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+    groupId: string;
+    settlementId: string;
+    amount: number;
+    fee?: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<string | null> {
   const fee = args.fee ?? 0;
@@ -413,11 +469,15 @@ export async function postSettlementSweepJournal(
   if (lines.length === 0) return null;
 
   const jeId = await postSystemJournal(
-    client, args.groupId, args.createdBy, `Settlement sweep — ${args.settlementId}`, lines,
+    client,
+    args.groupId,
+    args.createdBy,
+    `Settlement sweep — ${args.settlementId}`,
+    lines,
     {
-      reference:  args.reference ?? undefined,
-      entryDate:  toDateString(args.entryDate),
-      isTest:     args.isTest,
+      reference: args.reference ?? undefined,
+      entryDate: toDateString(args.entryDate),
+      isTest: args.isTest,
     },
   );
   if (!jeId) return null;
@@ -459,9 +519,15 @@ export async function postSettlementSweepJournal(
 export async function postVendorPaymentJournal(
   client: PoolClient,
   args: {
-    groupId: string; vendorPaymentId: string; amount: number; fee?: number;
+    groupId: string;
+    vendorPaymentId: string;
+    amount: number;
+    fee?: number;
     expenseAccountCode: string;
-    entryDate: string | Date; reference?: string | null; createdBy: string | null; isTest?: boolean;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
   },
 ): Promise<string | null> {
   const fee = args.fee ?? 0;
@@ -484,11 +550,15 @@ export async function postVendorPaymentJournal(
   if (lines.length === 0) return null;
 
   const jeId = await postSystemJournal(
-    client, args.groupId, args.createdBy, `Vendor payment — ${args.vendorPaymentId}`, lines,
+    client,
+    args.groupId,
+    args.createdBy,
+    `Vendor payment — ${args.vendorPaymentId}`,
+    lines,
     {
-      reference:  args.reference ?? undefined,
-      entryDate:  toDateString(args.entryDate),
-      isTest:     args.isTest,
+      reference: args.reference ?? undefined,
+      entryDate: toDateString(args.entryDate),
+      isTest: args.isTest,
     },
   );
   if (!jeId) return null;
@@ -521,7 +591,10 @@ export async function postVendorPaymentJournal(
  */
 function validateOverrideStructure(event: PostingEvent, lines: TemplateLine[]): void {
   const shape = (ls: TemplateLine[]) =>
-    ls.map((l) => `${l.side}:${l.amount}`).sort().join('|');
+    ls
+      .map((l) => `${l.side}:${l.amount}`)
+      .sort()
+      .join('|');
   const expected = DEFAULT_TEMPLATES[event].lines;
   if (lines.length !== expected.length || shape(lines) !== shape(expected)) {
     throw new ValidationError(
@@ -549,8 +622,8 @@ async function assertCodesExistInGroupCoa(client: PoolClient, groupId: string, l
 }
 
 export interface EffectiveTemplate {
-  event:  PostingEvent;
-  lines:  TemplateLine[];
+  event: PostingEvent;
+  lines: TemplateLine[];
   source: PolicySource;
 }
 
@@ -561,7 +634,11 @@ export const postingTemplatesService = {
       const results: EffectiveTemplate[] = [];
       for (const event of POSTING_EVENTS) {
         const resolved = await resolvePolicyDetailed<PostingTemplate>(
-          client, DOMAIN, keyFor(event), { groupId: ctx.groupId }, DEFAULT_TEMPLATES[event],
+          client,
+          DOMAIN,
+          keyFor(event),
+          { groupId: ctx.groupId },
+          DEFAULT_TEMPLATES[event],
         );
         results.push({ event, lines: resolved.value.lines, source: resolved.source });
       }
@@ -583,14 +660,23 @@ export const postingTemplatesService = {
     const results: EffectiveTemplate[] = [];
     for (const event of POSTING_EVENTS) {
       const resolved = await resolvePolicyDetailed<PostingTemplate>(
-        client, DOMAIN, keyFor(event), {}, DEFAULT_TEMPLATES[event],
+        client,
+        DOMAIN,
+        keyFor(event),
+        {},
+        DEFAULT_TEMPLATES[event],
       );
       results.push({ event, lines: resolved.value.lines, source: resolved.source });
     }
     return results;
   },
 
-  async setPlatformDefault(userId: string, client: PoolClient, event: PostingEvent, lines: TemplateLine[]): Promise<void> {
+  async setPlatformDefault(
+    userId: string,
+    client: PoolClient,
+    event: PostingEvent,
+    lines: TemplateLine[],
+  ): Promise<void> {
     validateOverrideStructure(event, lines);
     // Platform templates must stick to the standard seeded chart — every
     // group is guaranteed those codes, anything else would silently skip

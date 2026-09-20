@@ -2,8 +2,19 @@
 
 import * as React from 'react';
 import {
-  Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Legend, Pie, PieChart,
-  ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts';
 import { chartPalette, chartTheme } from '@/lib/ui/tokens';
 import { cn, formatKES } from '@/lib/utils';
@@ -28,11 +39,24 @@ export interface SeriesDef {
 }
 
 // ── Shared tooltip ───────────────────────────────────────────────────────────
-interface TooltipPayloadItem { name?: string; value?: number | string; color?: string; dataKey?: string | number }
+interface TooltipPayloadItem {
+  name?: string;
+  value?: number | string;
+  color?: string;
+  dataKey?: string | number;
+}
 
 function ChartTooltip({
-  active, payload, label, money,
-}: { active?: boolean; payload?: TooltipPayloadItem[]; label?: string; money?: boolean }) {
+  active,
+  payload,
+  label,
+  money,
+}: {
+  active?: boolean;
+  payload?: TooltipPayloadItem[];
+  label?: string;
+  money?: boolean;
+}) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-md border bg-popover px-3 py-2 text-xs shadow-md">
@@ -149,7 +173,9 @@ export function DonutChartImpl({ data, money = true, colors = [...chartPalette] 
     <ResponsiveContainer width="100%" height="100%">
       <PieChart>
         <Pie data={data} dataKey="value" nameKey="name" innerRadius="58%" outerRadius="82%" paddingAngle={2}>
-          {data.map((_, i) => <Cell key={i} fill={colors[i % colors.length]} />)}
+          {data.map((_, i) => (
+            <Cell key={i} fill={colors[i % colors.length]} />
+          ))}
         </Pie>
         <Tooltip content={<ChartTooltip money={money} />} />
         <Legend wrapperStyle={{ fontSize: chartTheme.fontSize }} />

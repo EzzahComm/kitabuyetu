@@ -26,7 +26,15 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
  * optional CTA so low-literacy users always know the next step.
  */
 export function EmptyState({
-  icon: Icon, title, description, action, secondaryAction, size = 'md', variant = 'empty', className, ...props
+  icon: Icon,
+  title,
+  description,
+  action,
+  secondaryAction,
+  size = 'md',
+  variant = 'empty',
+  className,
+  ...props
 }: EmptyStateProps) {
   return (
     <div
@@ -49,12 +57,8 @@ export function EmptyState({
         </div>
       )}
       <div className="space-y-1">
-        <h3 className={cn('font-semibold text-foreground', size === 'md' ? 'text-base' : 'text-sm')}>
-          {title}
-        </h3>
-        {description && (
-          <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>
-        )}
+        <h3 className={cn('font-semibold text-foreground', size === 'md' ? 'text-base' : 'text-sm')}>{title}</h3>
+        {description && <p className="mx-auto max-w-sm text-sm text-muted-foreground">{description}</p>}
       </div>
       {(action || secondaryAction) && (
         <div className="mt-2 flex flex-col items-center gap-2 sm:flex-row">

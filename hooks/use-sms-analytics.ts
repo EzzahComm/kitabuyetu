@@ -9,7 +9,7 @@ export const smsAnalyticsKeys = {
 export function useSmsAnalytics() {
   return useQuery({
     queryKey: smsAnalyticsKeys.analytics,
-    queryFn:  smsApi.analytics,
+    queryFn: smsApi.analytics,
     staleTime: 60_000,
   });
 }

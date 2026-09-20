@@ -17,7 +17,7 @@ const mockInit = jest.fn();
 const mockCapture = jest.fn();
 
 jest.mock('@sentry/node', () => ({
-  init:             (...a: unknown[]) => mockInit(...a),
+  init: (...a: unknown[]) => mockInit(...a),
   captureException: (...a: unknown[]) => mockCapture(...a),
 }));
 
@@ -35,7 +35,9 @@ describe('error sink', () => {
     (process.env as Record<string, string | undefined>).NODE_ENV = ORIGINAL_ENV.NODE_ENV;
   });
 
-  afterAll(() => { process.env = ORIGINAL_ENV; });
+  afterAll(() => {
+    process.env = ORIGINAL_ENV;
+  });
 
   describe('with no DSN configured (today’s production state)', () => {
     it('never loads or calls the SDK', async () => {
@@ -52,7 +54,9 @@ describe('error sink', () => {
   });
 
   describe('with a DSN configured', () => {
-    beforeEach(() => { process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1'; });
+    beforeEach(() => {
+      process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1';
+    });
 
     it('initialises once, no matter how many errors arrive', async () => {
       reportError('first', {});
@@ -82,7 +86,9 @@ describe('error sink', () => {
     });
 
     it('survives an SDK that throws, rather than turning a logged problem into a crash', async () => {
-      mockCapture.mockImplementationOnce(() => { throw new Error('sentry is down'); });
+      mockCapture.mockImplementationOnce(() => {
+        throw new Error('sentry is down');
+      });
 
       expect(() => reportError('x', {})).not.toThrow();
       await settle();
@@ -90,7 +96,9 @@ describe('error sink', () => {
   });
 
   describe('secret redaction — the property that makes this safe to send outward at all', () => {
-    beforeEach(() => { process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1'; });
+    beforeEach(() => {
+      process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1';
+    });
 
     it('NEVER forwards a secret that the logger redacts', async () => {
       // Exactly the shape T0-3 found leaking in production: an axios error
@@ -115,7 +123,9 @@ describe('error sink', () => {
   });
 
   describe('logger integration', () => {
-    beforeEach(() => { process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1'; });
+    beforeEach(() => {
+      process.env.SENTRY_DSN = 'https://abc@o1.ingest.sentry.io/1';
+    });
 
     it('reports logger.error', async () => {
       logger.error('a real failure', { groupId: 'g-1' });

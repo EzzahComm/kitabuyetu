@@ -1,9 +1,7 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAdminDb } from '@/lib/db';
-import {
-  verifyRefreshToken, signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds,
-} from '@/lib/auth/jwt';
+import { verifyRefreshToken, signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';
 import { storeRefreshToken, revokeRefreshToken } from '@/lib/redis';
 import { RefreshSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
@@ -11,17 +9,17 @@ import { logger } from '@/lib/logger';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
 interface MembershipRow {
-  id:              string;    // members.id
-  platform_role:   string;
+  id: string; // members.id
+  platform_role: string;
   session_version: number;
-  membership_id:   string;    // group_members.id
-  group_id:        string;
-  role:            string;
-  auth_version:    number;
-  person_id:       string;
-  membership_no:   string;
-  group_status:    string;
-  permissions:     string[];   // roles.permissions via gm.role_id (RBAC activation)
+  membership_id: string; // group_members.id
+  group_id: string;
+  role: string;
+  auth_version: number;
+  person_id: string;
+  membership_no: string;
+  group_status: string;
+  permissions: string[]; // roles.permissions via gm.role_id (RBAC activation)
 }
 
 /**
@@ -50,7 +48,7 @@ interface MembershipRow {
  */
 export async function POST(req: NextRequest): Promise<Response> {
   try {
-    const body  = await req.json();
+    const body = await req.json();
     const input = RefreshSchema.parse(body);
 
     let payload;
@@ -104,7 +102,8 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     if (consumed.kind === 'replay') {
       logger.warn('[auth/refresh] consumed refresh token replayed — lineage revoked', {
-        memberId: payload.sub, lineageId: consumed.lineage_id,
+        memberId: payload.sub,
+        lineageId: consumed.lineage_id,
       });
       await revokeRefreshToken(tokenHash).catch(() => {});
       return errorResponse('Session revoked. Please sign in again.', 'TOKEN_REVOKED', 401);
@@ -148,7 +147,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     if (!membership) {
       return errorResponse(
-        'Your session\'s group membership is no longer active. Please sign in again.',
+        "Your session's group membership is no longer active. Please sign in again.",
         'NO_ACTIVE_GROUP',
         403,
       );
@@ -174,21 +173,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     const role = membership.platform_role === 'super_admin' ? 'super_admin' : membership.role;
 
     const accessToken = signAccessToken({
-      sub:            membership.id,
-      groupId:        membership.group_id,
-      role:           role as PlatformRole | MemberRole,
-      personId:       membership.person_id,
-      groupStatus:    membership.group_status,
-      membershipId:   membership.membership_id,
-      membershipNo:   membership.membership_no,
-      authVersion:    membership.auth_version,
+      sub: membership.id,
+      groupId: membership.group_id,
+      role: role as PlatformRole | MemberRole,
+      personId: membership.person_id,
+      groupStatus: membership.group_status,
+      membershipId: membership.membership_id,
+      membershipNo: membership.membership_no,
+      authVersion: membership.auth_version,
       sessionVersion: membership.session_version,
-      permissions:    membership.permissions,
+      permissions: membership.permissions,
     });
 
     // ── Rotate: issue the successor in the same lineage ────────────────────
     const { token: nextRefreshToken } = signRefreshToken(
-      membership.id, 'tenant', membership.group_id, membership.session_version,
+      membership.id,
+      'tenant',
+      membership.group_id,
+      membership.session_version,
     );
     const nextHash = hashToken(nextRefreshToken);
     await withAdminDb((client) =>
@@ -196,9 +198,14 @@ export async function POST(req: NextRequest): Promise<Response> {
         `INSERT INTO refresh_tokens
            (member_id, token_hash, expires_at, ip_address, lineage_id, membership_id)
          VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, $5, $6)`,
-        [membership.id, nextHash, refreshTtlSeconds(),
-         req.headers.get('x-forwarded-for') ?? null,
-         consumed.lineage_id, membership.membership_id],
+        [
+          membership.id,
+          nextHash,
+          refreshTtlSeconds(),
+          req.headers.get('x-forwarded-for') ?? null,
+          consumed.lineage_id,
+          membership.membership_id,
+        ],
       ),
     );
     // Redis: best-effort cache swap (revocation fast path only).

@@ -81,9 +81,7 @@ export default function NewsletterAdminPage() {
                     <TableCell className="text-muted-foreground">{s.source}</TableCell>
                     <TableCell>{formatDate(s.subscribed_at)}</TableCell>
                     <TableCell>
-                      {s.unsubscribed_at
-                        ? <Badge variant="outline">Unsubscribed</Badge>
-                        : <Badge>Active</Badge>}
+                      {s.unsubscribed_at ? <Badge variant="outline">Unsubscribed</Badge> : <Badge>Active</Badge>}
                     </TableCell>
                   </TableRow>
                 ))}

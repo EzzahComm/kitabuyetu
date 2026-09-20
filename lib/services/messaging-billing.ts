@@ -32,15 +32,15 @@ import { isFeatureEnabled } from './feature-flags.service';
 import { raiseStaffAlert, clearStaffAlert } from './staff-alerts';
 
 /** Postgres error codes raised by reserve_sms_credits (migration 123). */
-const PG_INSUFFICIENT   = '22003';
-const PG_BAD_INPUT      = '22023';
+const PG_INSUFFICIENT = '22003';
+const PG_BAD_INPUT = '22023';
 const PG_NOT_AUTHORIZED = '42501';
 
 export type SmsPayerType = 'group' | 'organization' | 'platform';
 
 export interface ReservationTarget {
-  payerType:       SmsPayerType;
-  groupId:         string | null;
+  payerType: SmsPayerType;
+  groupId: string | null;
   organizationId?: string | null;
 }
 
@@ -68,21 +68,32 @@ export const SMS_DISPATCH_FLAG = 'sms_dispatch';
 
 export type ReserveResult =
   | {
-      ok: true; rate: number; total: number; remaining: number;
+      ok: true;
+      rate: number;
+      total: number;
+      remaining: number;
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) — the
       // bundled-allowance/paid split. fromAllowance/fromPaid are money
       // values; fromAllowanceCount/fromPaidCount are message counts. Always
       // fromAllowance=0/fromAllowanceCount=0 for an organization payer —
       // organizations get no allowance, see migration 124.
-      fromAllowance: number; fromPaid: number;
-      fromAllowanceCount: number; fromPaidCount: number;
+      fromAllowance: number;
+      fromPaid: number;
+      fromAllowanceCount: number;
+      fromPaidCount: number;
     }
   | { ok: false; reason: ReserveFailure; detail: string };
 
 /** A `platform`-funded send is free by schema invariant — nothing to reserve. */
 export const PLATFORM_RATE_ZERO = {
-  ok: true as const, rate: 0, total: 0, remaining: 0,
-  fromAllowance: 0, fromPaid: 0, fromAllowanceCount: 0, fromPaidCount: 0,
+  ok: true as const,
+  rate: 0,
+  total: 0,
+  remaining: 0,
+  fromAllowance: 0,
+  fromPaid: 0,
+  fromAllowanceCount: 0,
+  fromPaidCount: 0,
 };
 
 /**
@@ -95,7 +106,7 @@ export const PLATFORM_RATE_ZERO = {
 export async function reserveCredits(
   client: Pick<PoolClient, 'query'>,
   target: ReservationTarget,
-  count:  number,
+  count: number,
 ): Promise<ReserveResult> {
   // Platform-funded sends (OTP, password reset, verification) bail out here,
   // BEFORE the kill switch below — deliberately. Those are the messages that
@@ -124,11 +135,7 @@ export async function reserveCredits(
   //      anything", not "halt the platform".
   let dispatchAllowed = true;
   try {
-    dispatchAllowed = await isFeatureEnabled(
-      client as PoolClient,
-      SMS_DISPATCH_FLAG,
-      { groupId: target.groupId },
-    );
+    dispatchAllowed = await isFeatureEnabled(client as PoolClient, SMS_DISPATCH_FLAG, { groupId: target.groupId });
   } catch (err) {
     logger.warn('[messaging-billing] kill-switch lookup failed — allowing dispatch', {
       err: err instanceof Error ? err.message : String(err),
@@ -171,24 +178,30 @@ export async function reserveCredits(
   try {
     const { rows } = await client.query<{
       result: {
-        rate: string; total: string; remaining: string;
-        fromAllowance: string; fromPaid: string;
-        fromAllowanceCount: number; fromPaidCount: number;
+        rate: string;
+        total: string;
+        remaining: string;
+        fromAllowance: string;
+        fromPaid: string;
+        fromAllowanceCount: number;
+        fromPaidCount: number;
       };
-    }>(
-      `SELECT reserve_sms_credits($1,$2,$3,$4) AS result`,
-      [target.payerType, target.groupId, target.organizationId ?? null, count],
-    );
+    }>(`SELECT reserve_sms_credits($1,$2,$3,$4) AS result`, [
+      target.payerType,
+      target.groupId,
+      target.organizationId ?? null,
+      count,
+    ]);
     const r = rows[0].result;
     return {
-      ok:                 true,
-      rate:               Number(r.rate),
-      total:              Number(r.total),
-      remaining:          Number(r.remaining),
-      fromAllowance:      Number(r.fromAllowance),
-      fromPaid:           Number(r.fromPaid),
+      ok: true,
+      rate: Number(r.rate),
+      total: Number(r.total),
+      remaining: Number(r.remaining),
+      fromAllowance: Number(r.fromAllowance),
+      fromPaid: Number(r.fromPaid),
       fromAllowanceCount: Number(r.fromAllowanceCount),
-      fromPaidCount:      Number(r.fromPaidCount),
+      fromPaidCount: Number(r.fromPaidCount),
     };
   } catch (err) {
     return classifyReserveError(err, target);
@@ -208,9 +221,9 @@ export async function reserveCredits(
  * all messaging down with it.
  */
 async function isOverDailyLimit(
-  client:  Pick<PoolClient, 'query'>,
+  client: Pick<PoolClient, 'query'>,
   groupId: string,
-  count:   number,
+  count: number,
 ): Promise<{ limit: number; used: number } | null> {
   try {
     const { rows } = await client.query<{ limit: number | null; used: string }>(
@@ -239,7 +252,7 @@ async function isOverDailyLimit(
 }
 
 function classifyReserveError(err: unknown, target: ReservationTarget): ReserveResult {
-  const code   = (err as { code?: string })?.code;
+  const code = (err as { code?: string })?.code;
   const detail = err instanceof Error ? err.message : String(err);
 
   if (code === PG_INSUFFICIENT) {
@@ -249,7 +262,7 @@ function classifyReserveError(err: unknown, target: ReservationTarget): ReserveR
     // The group path raises this for a missing/inactive subscription; the org
     // path raises it when the group has no active access under the org.
     return {
-      ok:     false,
+      ok: false,
       reason: target.payerType === 'organization' ? 'not_authorized' : 'subscription_inactive',
       detail,
     };
@@ -275,7 +288,7 @@ function classifyReserveError(err: unknown, target: ReservationTarget): ReserveR
  * reservation with the SMS already sent.
  */
 export async function settleReservation(
-  logIds:  string[],
+  logIds: string[],
   outcome: 'consume' | 'release',
 ): Promise<{ settled: boolean; credits: number }> {
   if (!logIds.length) return { settled: true, credits: 0 };
@@ -323,8 +336,8 @@ export async function settleReservation(
  * unrelated send.
  */
 export async function releaseUnticketedReservation(
-  target:             ReservationTarget,
-  fromPaid:           number,
+  target: ReservationTarget,
+  fromPaid: number,
   fromAllowanceCount: number,
 ): Promise<void> {
   if (target.payerType === 'platform') return;
@@ -332,25 +345,31 @@ export async function releaseUnticketedReservation(
 
   try {
     if (target.payerType === 'organization') {
-      await withAdminDb((db) => db.query(
-        `UPDATE organization_billing_accounts
+      await withAdminDb((db) =>
+        db.query(
+          `UPDATE organization_billing_accounts
             SET reserved_sms_credits = GREATEST(reserved_sms_credits - $2, 0),
                 updated_at           = NOW()
           WHERE organization_id = $1`,
-        [target.organizationId, fromPaid],
-      ));
+          [target.organizationId, fromPaid],
+        ),
+      );
     } else {
-      await withAdminDb((db) => db.query(
-        `UPDATE billing_accounts
+      await withAdminDb((db) =>
+        db.query(
+          `UPDATE billing_accounts
             SET reserved_sms_credits   = GREATEST(reserved_sms_credits - $2, 0),
                 sms_allowance_reserved = GREATEST(sms_allowance_reserved - $3, 0),
                 updated_at             = NOW()
           WHERE group_id = $1`,
-        [target.groupId, fromPaid, fromAllowanceCount],
-      ));
+          [target.groupId, fromPaid, fromAllowanceCount],
+        ),
+      );
     }
     logger.warn('[messaging-billing] released an unticketed reservation', {
-      payerType: target.payerType, fromPaid, fromAllowanceCount,
+      payerType: target.payerType,
+      fromPaid,
+      fromAllowanceCount,
     });
   } catch (err) {
     // Swallowed like settleReservation: this runs on a path whose whole point
@@ -402,15 +421,15 @@ export async function redactExpiredMessageBodies(): Promise<{ redacted: number }
 const RECONCILIATION_ALERT_KEY = 'sms_credit_reconciliation';
 
 export interface SmsReconciliationResult {
-  payersChecked:    number;
-  driftedPayers:    number;
+  payersChecked: number;
+  driftedPayers: number;
   campaignsChecked: number;
   driftedCampaigns: number;
   /** Campaigns whose counters were recomputed from the message log this run. */
   repairedCampaigns: number;
   /** Whether staff were actually emailed on THIS run (false when suppressed
    *  as a repeat of the same unchanged problem). */
-  alerted:          boolean;
+  alerted: boolean;
 }
 
 /**
@@ -434,7 +453,14 @@ export interface SmsReconciliationResult {
  */
 export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   const { rows: payers } = await withAdminDb((db) =>
-    db.query<{ payer_type: string; payer_id: string; balance: string; ledger_total: string; drift: string; lot_drift: string }>(
+    db.query<{
+      payer_type: string;
+      payer_id: string;
+      balance: string;
+      ledger_total: string;
+      drift: string;
+      lot_drift: string;
+    }>(
       `SELECT payer_type, payer_id, balance, ledger_total, drift, lot_drift
          FROM vw_sms_credit_reconciliation`,
     ),
@@ -443,9 +469,12 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   const drifted = payers.filter((p) => Number(p.drift) !== 0 || Number(p.lot_drift) !== 0);
   for (const p of drifted) {
     logger.error('[sms-reconciliation] credit drift', {
-      payerType: p.payer_type, payerId: p.payer_id,
-      balance: p.balance, ledgerTotal: p.ledger_total,
-      drift: p.drift, lotDrift: p.lot_drift,
+      payerType: p.payer_type,
+      payerId: p.payer_id,
+      balance: p.balance,
+      ledgerTotal: p.ledger_total,
+      drift: p.drift,
+      lotDrift: p.lot_drift,
     });
   }
 
@@ -488,12 +517,8 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   //      a campaign whose rows were somehow lost would have its real counters
   //      overwritten with 0/0 — destroying the only remaining record of what
   //      it did. Recomputing from an empty source is not a repair.
-  const repairable = badCampaigns.filter(
-    (c) => Number(c.real_sent) + Number(c.real_failed) > 0,
-  );
-  const unrepairable = badCampaigns.filter(
-    (c) => Number(c.real_sent) + Number(c.real_failed) === 0,
-  );
+  const repairable = badCampaigns.filter((c) => Number(c.real_sent) + Number(c.real_failed) > 0);
+  const unrepairable = badCampaigns.filter((c) => Number(c.real_sent) + Number(c.real_failed) === 0);
 
   for (const c of repairable) {
     await withAdminDb((db) =>
@@ -506,8 +531,10 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
     );
     logger.warn('[sms-reconciliation] repaired campaign counters from the message log', {
       campaignId: c.id,
-      wasSent: c.sent_count, nowSent: Number(c.real_sent),
-      wasFailed: c.failed_count, nowFailed: Number(c.real_failed),
+      wasSent: c.sent_count,
+      nowSent: Number(c.real_sent),
+      wasFailed: c.failed_count,
+      nowFailed: Number(c.real_failed),
     });
   }
 
@@ -516,7 +543,8 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   for (const c of unrepairable) {
     logger.error('[sms-reconciliation] campaign counters disagree and cannot be recomputed (no message rows)', {
       campaignId: c.id,
-      storedSent: c.sent_count, storedFailed: c.failed_count,
+      storedSent: c.sent_count,
+      storedFailed: c.failed_count,
     });
   }
 
@@ -542,32 +570,37 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
     }
 
     return raiseStaffAlert({
-      key:     RECONCILIATION_ALERT_KEY,
+      key: RECONCILIATION_ALERT_KEY,
       subject: `SMS reconciliation: ${drifted.length} payer(s) and ${unrepairable.length} campaign(s) need a human`,
       body:
-        'The daily SMS money-trail check found records that do not agree with each other. '
-        + 'Credit drift means a balance and its ledger tell different stories and a human has to '
-        + 'decide which is true — this job deliberately never repairs money. Any campaign '
-        + 'listed here disagrees with the message log AND has no message rows left to recompute '
-        + 'from, so it cannot be repaired automatically either.',
+        'The daily SMS money-trail check found records that do not agree with each other. ' +
+        'Credit drift means a balance and its ledger tell different stories and a human has to ' +
+        'decide which is true — this job deliberately never repairs money. Any campaign ' +
+        'listed here disagrees with the message log AND has no message rows left to recompute ' +
+        'from, so it cannot be repaired automatically either.',
       details: {
         driftedPayers: drifted.map((p) => ({
-          payerType: p.payer_type, payerId: p.payer_id,
-          balance: p.balance, ledgerTotal: p.ledger_total,
-          drift: p.drift, lotDrift: p.lot_drift,
+          payerType: p.payer_type,
+          payerId: p.payer_id,
+          balance: p.balance,
+          ledgerTotal: p.ledger_total,
+          drift: p.drift,
+          lotDrift: p.lot_drift,
         })),
         unrepairableCampaigns: unrepairable.map((c) => ({
           campaignId: c.id,
-          storedSent: c.sent_count, actualSent: Number(c.real_sent),
-          storedFailed: c.failed_count, actualFailed: Number(c.real_failed),
+          storedSent: c.sent_count,
+          actualSent: Number(c.real_sent),
+          storedFailed: c.failed_count,
+          actualFailed: Number(c.real_failed),
         })),
       },
     });
   })();
 
   return {
-    payersChecked:    payers.length,
-    driftedPayers:    drifted.length,
+    payersChecked: payers.length,
+    driftedPayers: drifted.length,
     campaignsChecked: campaigns.length,
     driftedCampaigns: badCampaigns.length,
     repairedCampaigns: repairable.length,
@@ -590,24 +623,26 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
   if (target.payerType === 'platform') return;
 
   const isOrg = target.payerType === 'organization';
-  const id    = isOrg ? target.organizationId : target.groupId;
+  const id = isOrg ? target.organizationId : target.groupId;
   if (!id) return;
 
   try {
-    const table  = isOrg ? 'organization_billing_accounts' : 'billing_accounts';
+    const table = isOrg ? 'organization_billing_accounts' : 'billing_accounts';
     const keyCol = isOrg ? 'organization_id' : 'group_id';
 
     // Claim-by-UPDATE: only the caller that actually moves the timestamp gets
     // to enqueue, so concurrent senders can't produce a burst of alerts.
     const claimed = await withAdminDb((db) =>
-      db.query(
-        `UPDATE ${table}
+      db
+        .query(
+          `UPDATE ${table}
          SET low_balance_notified_at = NOW()
          WHERE ${keyCol} = $1
            AND (low_balance_notified_at IS NULL
                 OR low_balance_notified_at < NOW() - INTERVAL '24 hours')`,
-        [id],
-      ).then((r) => r.rowCount ?? 0),
+          [id],
+        )
+        .then((r) => r.rowCount ?? 0),
     );
     if (!claimed) return;
 
@@ -636,18 +671,22 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
  * below was correct from the start.
  */
 export async function clearLowBalanceFlag(groupId: string): Promise<void> {
-  await pool.query(
-    `UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`,
-    [groupId],
-  ).catch(() => { /* best-effort */ });
+  await pool
+    .query(`UPDATE billing_accounts SET low_balance_notified_at = NULL WHERE group_id = $1`, [groupId])
+    .catch(() => {
+      /* best-effort */
+    });
 }
 
 /** Organization-side mirror of clearLowBalanceFlag, for addOrganizationSmsCredits. */
 export async function clearOrganizationLowBalanceFlag(organizationId: string): Promise<void> {
-  await pool.query(
-    `UPDATE organization_billing_accounts SET low_balance_notified_at = NULL WHERE organization_id = $1`,
-    [organizationId],
-  ).catch(() => { /* best-effort */ });
+  await pool
+    .query(`UPDATE organization_billing_accounts SET low_balance_notified_at = NULL WHERE organization_id = $1`, [
+      organizationId,
+    ])
+    .catch(() => {
+      /* best-effort */
+    });
 }
 
 /**

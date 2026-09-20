@@ -18,7 +18,14 @@ export function AutomationVolumeChart({ points }: { points: AutomationVolumePoin
         <Tooltip />
         <Legend wrapperStyle={{ fontSize: 11 }} />
         <Line type="monotone" dataKey="sms" stroke={brandNavy[500]} strokeWidth={2} dot={false} name="SMS sent" />
-        <Line type="monotone" dataKey="email" stroke={tone.positive.solid} strokeWidth={2} dot={false} name="Email sent" />
+        <Line
+          type="monotone"
+          dataKey="email"
+          stroke={tone.positive.solid}
+          strokeWidth={2}
+          dot={false}
+          name="Email sent"
+        />
       </LineChart>
     </ResponsiveContainer>
   );

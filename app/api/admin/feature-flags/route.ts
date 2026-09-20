@@ -14,13 +14,13 @@ export function GET(req: NextRequest) {
 }
 
 const toggleSchema = z.object({
-  key:     z.string().min(1),
+  key: z.string().min(1),
   enabled: z.boolean(),
 });
 
 export function PATCH(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
-    const body   = await req.json();
+    const body = await req.json();
     const parsed = toggleSchema.safeParse(body);
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
 

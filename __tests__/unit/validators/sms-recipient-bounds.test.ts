@@ -85,7 +85,9 @@ describe('rawRecipients audience validation (G10)', () => {
   it('caps a custom_phones audience', () => {
     const phones = Array.from({ length: 5001 }, () => VALID);
     const r = CampaignCreateSchema.safeParse({
-      ...campaign, recipientType: 'custom_phones', rawRecipients: { phones },
+      ...campaign,
+      recipientType: 'custom_phones',
+      rawRecipients: { phones },
     });
     expect(r.success).toBe(false);
   });
@@ -111,14 +113,18 @@ describe('rawRecipients audience validation (G10)', () => {
 
   it('rejects a non-uuid memberId', () => {
     const r = CampaignCreateSchema.safeParse({
-      ...campaign, recipientType: 'selected', rawRecipients: { memberIds: ['abc'] },
+      ...campaign,
+      recipientType: 'selected',
+      rawRecipients: { memberIds: ['abc'] },
     });
     expect(r.success).toBe(false);
   });
 
   it('accepts a well-formed selected audience', () => {
     const r = CampaignCreateSchema.safeParse({
-      ...campaign, recipientType: 'selected', rawRecipients: { memberIds: [UUID] },
+      ...campaign,
+      recipientType: 'selected',
+      rawRecipients: { memberIds: [UUID] },
     });
     expect(r.success).toBe(true);
   });
@@ -130,12 +136,12 @@ describe('rawRecipients audience validation (G10)', () => {
 
   it('applies the same rules to schedules', () => {
     const base = { name: 's', scheduleType: 'daily' as const, message: 'm' };
-    expect(
-      ScheduleCreateSchema.safeParse({ ...base, recipientType: 'custom_phones' }).success,
-    ).toBe(false);
+    expect(ScheduleCreateSchema.safeParse({ ...base, recipientType: 'custom_phones' }).success).toBe(false);
     expect(
       ScheduleCreateSchema.safeParse({
-        ...base, recipientType: 'custom_phones', rawRecipients: { phones: [VALID] },
+        ...base,
+        recipientType: 'custom_phones',
+        rawRecipients: { phones: [VALID] },
       }).success,
     ).toBe(true);
   });
@@ -147,9 +153,7 @@ describe('rawRecipients audience validation (G10)', () => {
   });
 
   it('still validates fields that a PATCH does send', () => {
-    expect(
-      ScheduleUpdateSchema.safeParse({ rawRecipients: { phones: ['nonsense'] } }).success,
-    ).toBe(false);
+    expect(ScheduleUpdateSchema.safeParse({ rawRecipients: { phones: ['nonsense'] } }).success).toBe(false);
   });
 });
 

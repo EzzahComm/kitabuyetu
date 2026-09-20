@@ -16,14 +16,14 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function EmailCampaignsPage() {
   const { data, isLoading } = useEmailCampaigns();
-  const createMutation      = useCreateCampaign();
-  const actionMutation      = useCampaignAction();
-  const { toast }           = useToast();
-  const [open, setOpen]     = useState(false);
+  const createMutation = useCreateCampaign();
+  const actionMutation = useCampaignAction();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
 
-  const [name, setName]       = useState('');
+  const [name, setName] = useState('');
   const [subject, setSubject] = useState('');
-  const [htmlBody, setHtml]   = useState('');
+  const [htmlBody, setHtml] = useState('');
 
   const campaigns = data ?? [];
 
@@ -31,7 +31,9 @@ export default function EmailCampaignsPage() {
     await createMutation.mutateAsync({ name, subject, htmlBody, launch });
     toast({ title: launch ? 'Campaign launched' : 'Campaign created' });
     setOpen(false);
-    setName(''); setSubject(''); setHtml('');
+    setName('');
+    setSubject('');
+    setHtml('');
   }
 
   async function handleLaunch(id: string) {
@@ -51,14 +53,23 @@ export default function EmailCampaignsPage() {
         actions={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
-              <Button><Plus className="h-4 w-4 mr-2" />New Campaign</Button>
+              <Button>
+                <Plus className="h-4 w-4 mr-2" />
+                New Campaign
+              </Button>
             </DialogTrigger>
             <DialogContent className="max-w-2xl">
-              <DialogHeader><DialogTitle>Create Campaign</DialogTitle></DialogHeader>
+              <DialogHeader>
+                <DialogTitle>Create Campaign</DialogTitle>
+              </DialogHeader>
               <div className="space-y-4">
                 <div>
                   <Label>Campaign Name</Label>
-                  <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. January Announcement" />
+                  <Input
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    placeholder="e.g. January Announcement"
+                  />
                 </div>
                 <div>
                   <Label>Email Subject</Label>
@@ -66,14 +77,30 @@ export default function EmailCampaignsPage() {
                 </div>
                 <div>
                   <Label>HTML Body</Label>
-                  <Textarea value={htmlBody} onChange={(e) => setHtml(e.target.value)} rows={10} placeholder="<p>Dear member...</p>" className="font-mono text-sm" />
+                  <Textarea
+                    value={htmlBody}
+                    onChange={(e) => setHtml(e.target.value)}
+                    rows={10}
+                    placeholder="<p>Dear member...</p>"
+                    className="font-mono text-sm"
+                  />
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" className="flex-1" onClick={() => handleCreate(false)} disabled={!name || !subject}>
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => handleCreate(false)}
+                    disabled={!name || !subject}
+                  >
                     Save as Draft
                   </Button>
-                  <Button className="flex-1" onClick={() => handleCreate(true)} disabled={!name || !subject || !htmlBody}>
-                    <Play className="h-4 w-4 mr-2" />Launch Now
+                  <Button
+                    className="flex-1"
+                    onClick={() => handleCreate(true)}
+                    disabled={!name || !subject || !htmlBody}
+                  >
+                    <Play className="h-4 w-4 mr-2" />
+                    Launch Now
                   </Button>
                 </div>
               </div>
@@ -96,22 +123,40 @@ export default function EmailCampaignsPage() {
                       </div>
                       <p className="text-sm text-muted-foreground">{c.subject}</p>
                       <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
-                        <span className="flex items-center gap-1"><Users className="h-3 w-3" />{c.total_recipients ?? 0} recipients</span>
-                        <span className="flex items-center gap-1"><Mail className="h-3 w-3" />{c.sent_count} sent</span>
-                        <span className="flex items-center gap-1"><CheckCircle className="h-3 w-3 text-purple-500" />{c.opened_count} opened</span>
+                        <span className="flex items-center gap-1">
+                          <Users className="h-3 w-3" />
+                          {c.total_recipients ?? 0} recipients
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Mail className="h-3 w-3" />
+                          {c.sent_count} sent
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3 text-purple-500" />
+                          {c.opened_count} opened
+                        </span>
                         {c.failed_count > 0 && (
-                          <span className="flex items-center gap-1 text-red-500"><AlertTriangle className="h-3 w-3" />{c.failed_count} failed</span>
+                          <span className="flex items-center gap-1 text-red-500">
+                            <AlertTriangle className="h-3 w-3" />
+                            {c.failed_count} failed
+                          </span>
                         )}
                       </div>
                     </div>
                     <div className="flex gap-2">
                       {c.status === 'draft' && (
                         <Button size="sm" onClick={() => handleLaunch(c.id)} disabled={actionMutation.isPending}>
-                          <Play className="h-3 w-3 mr-1" />Launch
+                          <Play className="h-3 w-3 mr-1" />
+                          Launch
                         </Button>
                       )}
-                      {['draft','scheduled'].includes(c.status) && (
-                        <Button size="sm" variant="outline" onClick={() => handleCancel(c.id)} disabled={actionMutation.isPending}>
+                      {['draft', 'scheduled'].includes(c.status) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleCancel(c.id)}
+                          disabled={actionMutation.isPending}
+                        >
                           <X className="h-3 w-3" />
                         </Button>
                       )}
@@ -121,7 +166,9 @@ export default function EmailCampaignsPage() {
               </Card>
             ))}
         {!isLoading && campaigns.length === 0 && (
-          <div className="text-center py-12 text-muted-foreground">No campaigns yet. Create your first campaign above.</div>
+          <div className="text-center py-12 text-muted-foreground">
+            No campaigns yet. Create your first campaign above.
+          </div>
         )}
       </div>
     </div>

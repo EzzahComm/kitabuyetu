@@ -7,7 +7,9 @@ export interface SmsUsageSummary {
   totalCredits: string;
 }
 
-export function summarizeUsageRows(rows: Array<{ status?: string | null; credits_deducted?: string | number | null }>): SmsUsageSummary {
+export function summarizeUsageRows(
+  rows: Array<{ status?: string | null; credits_deducted?: string | number | null }>,
+): SmsUsageSummary {
   const summary = rows.reduce(
     (acc, row) => {
       const status = (row.status ?? 'queued').toLowerCase();

@@ -33,13 +33,11 @@ async function AdminProgramsPage() {
 
         {pendingPrograms.length === 0 ? (
           <Card>
-            <CardContent className="py-12 text-center text-gray-500">
-              No pending programs. All caught up!
-            </CardContent>
+            <CardContent className="py-12 text-center text-gray-500">No pending programs. All caught up!</CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {pendingPrograms.map(program => (
+            {pendingPrograms.map((program) => (
               <Card key={program.id} className="hover:shadow-md transition">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
@@ -65,9 +63,7 @@ async function AdminProgramsPage() {
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <p className="text-gray-500">Target Amount</p>
-                        <p className="font-medium text-gray-900">
-                          KES {program.target_amount.toLocaleString()}
-                        </p>
+                        <p className="font-medium text-gray-900">KES {program.target_amount.toLocaleString()}</p>
                       </div>
                       {program.impact_metric_name && (
                         <div>

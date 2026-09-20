@@ -2,10 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { createClient } from '@/lib/supabase/server';
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, ['super_admin'], async (ctx) => {
     try {
       const { id } = await params;

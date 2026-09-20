@@ -27,8 +27,13 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
     setError(null);
     try {
       await submit.mutateAsync({
-        jobSlug, jobTitle, applicantName: name, applicantEmail: email,
-        applicantPhone: phone || undefined, coverNote: coverNote || undefined, resume,
+        jobSlug,
+        jobTitle,
+        applicantName: name,
+        applicantEmail: email,
+        applicantPhone: phone || undefined,
+        coverNote: coverNote || undefined,
+        resume,
       });
     } catch (err) {
       setError(getErrorMessage(err));
@@ -47,7 +52,10 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-trueGray-700 dark:bg-trueGray-800/40">
+    <form
+      onSubmit={onSubmit}
+      className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-trueGray-700 dark:bg-trueGray-800/40"
+    >
       <p className="font-bold text-gray-800 dark:text-white">Apply for this role</p>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
@@ -65,11 +73,22 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="app_resume">Resume (PDF or Word, max 5MB)</Label>
-        <Input id="app_resume" type="file" accept=".pdf,.doc,.docx" onChange={(e) => setResume(e.target.files?.[0] ?? null)} />
+        <Input
+          id="app_resume"
+          type="file"
+          accept=".pdf,.doc,.docx"
+          onChange={(e) => setResume(e.target.files?.[0] ?? null)}
+        />
       </div>
       <div className="space-y-1.5">
         <Label htmlFor="app_note">A note to the team</Label>
-        <Textarea id="app_note" rows={4} value={coverNote} onChange={(e) => setCoverNote(e.target.value)} placeholder="Why this role, why Kitabu Yetu?" />
+        <Textarea
+          id="app_note"
+          rows={4}
+          value={coverNote}
+          onChange={(e) => setCoverNote(e.target.value)}
+          placeholder="Why this role, why Kitabu Yetu?"
+        />
       </div>
       {error && <p className="text-sm text-red-600">{error}</p>}
       <Button type="submit" disabled={submit.isPending || !name.trim() || !email.trim()}>

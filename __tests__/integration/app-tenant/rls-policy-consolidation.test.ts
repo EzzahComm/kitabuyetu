@@ -48,7 +48,7 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       );
 
       const ctx: TenantContext = { userId: officerId, groupId: groupAId, role: 'treasurer' };
-      const rows = await withDb(ctx, (client) => client.query('SELECT id FROM share_classes').then(r => r.rows));
+      const rows = await withDb(ctx, (client) => client.query('SELECT id FROM share_classes').then((r) => r.rows));
 
       expect(rows).toHaveLength(1);
       expect(rows[0].id).toBe(classA.id);
@@ -61,7 +61,9 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       const memberCtx: TenantContext = { userId: memberId, groupId, role: 'member' };
       await expect(
         withDb(memberCtx, (client) =>
-          client.query(`INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'X', 'X', 1)`, [groupId]),
+          client.query(`INSERT INTO share_classes (group_id, name, code, par_value) VALUES ($1, 'X', 'X', 1)`, [
+            groupId,
+          ]),
         ),
       ).rejects.toThrow(/row-level security/i);
 
@@ -101,12 +103,12 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
     it('SELECT works for any authenticated role', async () => {
       const { groupId, officerId: treasurerId } = await createTestGroup('treasurer');
       const memberId = await addGroupOfficer(groupId, treasurerId, 'member');
-      await rawQuery(
-        `INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5)`,
-      );
+      await rawQuery(`INSERT INTO mpesa_b2c_charge_tiers (min_amount, max_amount, charge) VALUES (0, 100, 5)`);
 
       const ctx: TenantContext = { userId: memberId, groupId, role: 'member' };
-      const rows = await withDb(ctx, (client) => client.query('SELECT id FROM mpesa_b2c_charge_tiers').then(r => r.rows));
+      const rows = await withDb(ctx, (client) =>
+        client.query('SELECT id FROM mpesa_b2c_charge_tiers').then((r) => r.rows),
+      );
       expect(rows.length).toBeGreaterThanOrEqual(1);
     });
 
@@ -147,7 +149,9 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       );
 
       const ctx: TenantContext = { userId: memberA, groupId, role: 'treasurer' };
-      const rows = await withDb(ctx, (client) => client.query<{ key: string }>('SELECT key FROM idempotency_keys').then(r => r.rows));
+      const rows = await withDb(ctx, (client) =>
+        client.query<{ key: string }>('SELECT key FROM idempotency_keys').then((r) => r.rows),
+      );
 
       expect(rows).toHaveLength(1);
       expect(rows[0].key).toBe('key-a');
@@ -165,24 +169,27 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
 
       // Org-coordinator axis
       const coordinatorCtx: TenantContext = {
-        userId: coordinatorId, groupId: groupAId, role: 'organization_coordinator', organizationId,
+        userId: coordinatorId,
+        groupId: groupAId,
+        role: 'organization_coordinator',
+        organizationId,
       };
       const coordinatorRows = await withDb(coordinatorCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then((r) => r.rows),
       );
-      expect(coordinatorRows.map(r => r.id)).toContain(disb.id);
+      expect(coordinatorRows.map((r) => r.id)).toContain(disb.id);
 
       // Group-member axis — a plain member of group A, with NO organization role at all
       const groupMemberCtx: TenantContext = { userId: groupAMemberId, groupId: groupAId, role: 'member' };
       const groupMemberRows = await withDb(groupMemberCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then((r) => r.rows),
       );
-      expect(groupMemberRows.map(r => r.id)).toContain(disb.id);
+      expect(groupMemberRows.map((r) => r.id)).toContain(disb.id);
 
       // Unrelated group B sees nothing
       const groupBCtx: TenantContext = { userId: groupBOfficerId, groupId: groupBId, role: 'treasurer' };
       const groupBRows = await withDb(groupBCtx, (client) =>
-        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then(r => r.rows),
+        client.query<{ id: string }>('SELECT id FROM organization_disbursements').then((r) => r.rows),
       );
       expect(groupBRows).toHaveLength(0);
 
@@ -230,15 +237,22 @@ describe('RLS policy consolidation (migration 122) — real Postgres, no service
       );
 
       const groupCtx: TenantContext = { userId: officerId, groupId, role: 'treasurer' };
-      const groupRows = await withDb(groupCtx, (client) => client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then(r => r.rows));
-      expect(groupRows.map(r => r.id)).toEqual(expect.arrayContaining([groupFunded.id, orgFunded.id]));
+      const groupRows = await withDb(groupCtx, (client) =>
+        client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then((r) => r.rows),
+      );
+      expect(groupRows.map((r) => r.id)).toEqual(expect.arrayContaining([groupFunded.id, orgFunded.id]));
 
       const coordinatorCtx: TenantContext = {
-        userId: coordinatorId, groupId: unrelatedGroupId, role: 'organization_coordinator', organizationId,
+        userId: coordinatorId,
+        groupId: unrelatedGroupId,
+        role: 'organization_coordinator',
+        organizationId,
       };
-      const coordinatorRows = await withDb(coordinatorCtx, (client) => client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then(r => r.rows));
-      expect(coordinatorRows.map(r => r.id)).toContain(orgFunded.id);
-      expect(coordinatorRows.map(r => r.id)).not.toContain(groupFunded.id);
+      const coordinatorRows = await withDb(coordinatorCtx, (client) =>
+        client.query<{ id: string }>('SELECT id FROM sms_usage_logs').then((r) => r.rows),
+      );
+      expect(coordinatorRows.map((r) => r.id)).toContain(orgFunded.id);
+      expect(coordinatorRows.map((r) => r.id)).not.toContain(groupFunded.id);
 
       await expect(
         withDb(coordinatorCtx, (client) =>

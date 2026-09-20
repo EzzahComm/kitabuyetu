@@ -31,10 +31,15 @@ import { ok } from '@/lib/utils/response';
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
-    const page  = Math.max(1, parseInt(req.nextUrl.searchParams.get('page')  ?? '1', 10));
+    const page = Math.max(1, parseInt(req.nextUrl.searchParams.get('page') ?? '1', 10));
     const limit = Math.min(100, Math.max(1, parseInt(req.nextUrl.searchParams.get('limit') ?? '20', 10)));
 
-    const ctx: TenantContext = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
+    const ctx: TenantContext = {
+      userId: auth.userId,
+      groupId: auth.groupId,
+      role: auth.role,
+      organizationId: auth.organizationId,
+    };
 
     const { items, total, totalReceived } = await withDb(ctx, async (db) => {
       const { rows: countRows } = await db.query<{ n: string }>(
@@ -42,10 +47,17 @@ export async function GET(req: NextRequest): Promise<Response> {
         [auth.groupId],
       );
       const { rows } = await db.query<{
-        id: string; disbursement_type: string; amount: string; currency: string;
-        status: string; reference: string | null; notes: string | null;
-        created_at: string; completed_at: string | null;
-        organization_id: string; funding_program_id: string | null;
+        id: string;
+        disbursement_type: string;
+        amount: string;
+        currency: string;
+        status: string;
+        reference: string | null;
+        notes: string | null;
+        created_at: string;
+        completed_at: string | null;
+        organization_id: string;
+        funding_program_id: string | null;
       }>(
         `SELECT d.id, d.disbursement_type, d.amount, d.currency, d.status,
                 d.reference, d.notes, d.created_at, d.completed_at,
@@ -74,29 +86,28 @@ export async function GET(req: NextRequest): Promise<Response> {
     const orgIds = [...new Set(items.map((r) => r.organization_id))];
     const programIds = [...new Set(items.map((r) => r.funding_program_id).filter((id): id is string => !!id))];
 
-    const [orgNames, programNames] = orgIds.length === 0
-      ? [new Map<string, string>(), new Map<string, string>()]
-      : await withAdminDb(async (db) => {
-          const { rows: orgs } = await db.query<{ id: string; name: string }>(
-            `SELECT id, name FROM organizations WHERE id = ANY($1::uuid[])`,
-            [orgIds],
-          );
-          const { rows: programs } = programIds.length === 0
-            ? { rows: [] as { id: string; name: string }[] }
-            : await db.query<{ id: string; name: string }>(
-                `SELECT id, name FROM funding_programs WHERE id = ANY($1::uuid[])`,
-                [programIds],
-              );
-          return [
-            new Map(orgs.map((o) => [o.id, o.name])),
-            new Map(programs.map((p) => [p.id, p.name])),
-          ];
-        });
+    const [orgNames, programNames] =
+      orgIds.length === 0
+        ? [new Map<string, string>(), new Map<string, string>()]
+        : await withAdminDb(async (db) => {
+            const { rows: orgs } = await db.query<{ id: string; name: string }>(
+              `SELECT id, name FROM organizations WHERE id = ANY($1::uuid[])`,
+              [orgIds],
+            );
+            const { rows: programs } =
+              programIds.length === 0
+                ? { rows: [] as { id: string; name: string }[] }
+                : await db.query<{ id: string; name: string }>(
+                    `SELECT id, name FROM funding_programs WHERE id = ANY($1::uuid[])`,
+                    [programIds],
+                  );
+            return [new Map(orgs.map((o) => [o.id, o.name])), new Map(programs.map((p) => [p.id, p.name]))];
+          });
 
     const enrichedItems = items.map(({ organization_id, funding_program_id, ...rest }) => ({
       ...rest,
       organization_name: orgNames.get(organization_id) ?? null,
-      program_name: funding_program_id ? programNames.get(funding_program_id) ?? null : null,
+      program_name: funding_program_id ? (programNames.get(funding_program_id) ?? null) : null,
     }));
 
     return ok({ items: enrichedItems, total, totalReceived, page, limit });

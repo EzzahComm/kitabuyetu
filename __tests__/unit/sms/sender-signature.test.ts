@@ -13,9 +13,7 @@
  *    153). Measured: the real reminder is 1 segment unsigned, 2 with a hyphen
  *    signature, and 3 with an em-dash one.
  */
-import {
-  buildSenderVars, renderTemplate, DEFAULT_TEMPLATES, TEMPLATE_KEYS,
-} from '@/lib/sms/templates';
+import { buildSenderVars, renderTemplate, DEFAULT_TEMPLATES, TEMPLATE_KEYS } from '@/lib/sms/templates';
 import { countSegments } from '@/lib/sms/segments';
 
 describe('buildSenderVars', () => {
@@ -39,20 +37,22 @@ describe('buildSenderVars', () => {
   });
 
   it('omits an absent or blank role without leaving a dangling comma', () => {
-    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: 'John' } }).sender_signature)
-      .toBe('John, Umoja Chama');
-    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: 'John', role: '  ' } }).sender_signature)
-      .toBe('John, Umoja Chama');
+    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: 'John' } }).sender_signature).toBe(
+      'John, Umoja Chama',
+    );
+    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: 'John', role: '  ' } }).sender_signature).toBe(
+      'John, Umoja Chama',
+    );
   });
 
   it('treats a person with no name as automated, rather than signing blank', () => {
-    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: '' } }).sender_signature)
-      .toBe('Umoja Chama');
+    expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: '' } }).sender_signature).toBe('Umoja Chama');
   });
 
   it('never emits a non-GSM-7 separator — the cost guard', () => {
     const withPerson = buildSenderVars({
-      groupName: 'Umoja Chama', person: { name: 'John', role: 'Treasurer' },
+      groupName: 'Umoja Chama',
+      person: { name: 'John', role: 'Treasurer' },
     });
     for (const v of Object.values(withPerson)) {
       if (typeof v === 'string') expect(countSegments(v).encoding).toBe('gsm7');
@@ -73,8 +73,11 @@ describe('GSM-7 cost guard on the built-in templates', () => {
 
   it('keeps the contribution reminder to ONE segment for a typical group', () => {
     const body = renderTemplate(DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER], {
-      first_name: 'Mary', group_name: 'Umoja Chama', month: 'September',
-      paybill: '123456', membership_no: 'BG102534',
+      first_name: 'Mary',
+      group_name: 'Umoja Chama',
+      month: 'September',
+      paybill: '123456',
+      membership_no: 'BG102534',
     });
 
     // 151 of 153 when this was written — deliberately tight. If a future edit
@@ -85,8 +88,11 @@ describe('GSM-7 cost guard on the built-in templates', () => {
 
   it('shows why the automated templates do not carry a signature', () => {
     const body = renderTemplate(DEFAULT_TEMPLATES[TEMPLATE_KEYS.CONTRIBUTION_REMINDER], {
-      first_name: 'Mary', group_name: 'Umoja Chama', month: 'September',
-      paybill: '123456', membership_no: 'BG102534',
+      first_name: 'Mary',
+      group_name: 'Umoja Chama',
+      month: 'September',
+      paybill: '123456',
+      membership_no: 'BG102534',
     });
     const signed = `${body} - Umoja Chama`;
 

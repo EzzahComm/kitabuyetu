@@ -34,45 +34,55 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
   });
 
   it('a support-role caller is denied on every organization route', async () => {
-    const res = await profileGet(buildRequest('/api/admin/organization/profile', {
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'support', organizationId }),
-    }));
+    const res = await profileGet(
+      buildRequest('/api/admin/organization/profile', {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'support', organizationId }),
+      }),
+    );
     expect(res.status).toBe(403);
   });
 
   it('organization_coordinator with organizationId set CAN reach the profile route — with NO group context at all', async () => {
     // The whole point: this caller has no groupId, and that is now fine.
     // Previously it threw UnauthorizedError('Missing authentication context').
-    const res = await profileGet(buildRequest('/api/admin/organization/profile', {
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
-    }));
+    const res = await profileGet(
+      buildRequest('/api/admin/organization/profile', {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
+      }),
+    );
     expect(res.status).toBe(200);
   });
 
   it('organization_coordinator WITHOUT an organizationId claim is denied (context required)', async () => {
-    const res = await profileGet(buildRequest('/api/admin/organization/profile', {
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator' }),
-    }));
+    const res = await profileGet(
+      buildRequest('/api/admin/organization/profile', {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator' }),
+      }),
+    );
     expect(res.status).toBe(403);
   });
 
   it('super_admin bypasses the organization gate too (platform god-role, mirrors withPlatformRole precedent)', async () => {
-    const res = await walletGet(buildRequest('/api/admin/organization/wallet', {
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'super_admin', organizationId }),
-    }));
+    const res = await walletGet(
+      buildRequest('/api/admin/organization/wallet', {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'super_admin', organizationId }),
+      }),
+    );
     expect(res.status).toBe(200);
   });
 
   it('a TENANT token is rejected outright — this tree is not group-scoped', async () => {
-    const res = await groupsGet(buildRequest('/api/admin/organization/groups', {
-      headers: {
-        'x-aud': 'tenant',
-        'x-user-id': coordinatorId,
-        'x-group-id': '00000000-0000-0000-0000-000000000000',
-        'x-role': 'organization_coordinator',
-        'x-organization-id': organizationId,
-      },
-    }));
+    const res = await groupsGet(
+      buildRequest('/api/admin/organization/groups', {
+        headers: {
+          'x-aud': 'tenant',
+          'x-user-id': coordinatorId,
+          'x-group-id': '00000000-0000-0000-0000-000000000000',
+          'x-role': 'organization_coordinator',
+          'x-organization-id': organizationId,
+        },
+      }),
+    );
     expect(res.status).toBe(403);
   });
 
@@ -81,9 +91,11 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
     // session, app_current_group_id() resolves to NULL rather than erroring
     // (NULLIF(current_setting(...), '')::uuid), and organization scoping does
     // the real filtering. Guards the '' sentinel withOrganizationAccess passes.
-    const res = await groupsGet(buildRequest('/api/admin/organization/groups', {
-      headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
-    }));
+    const res = await groupsGet(
+      buildRequest('/api/admin/organization/groups', {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
+      }),
+    );
     expect(res.status).toBe(200);
   });
 });

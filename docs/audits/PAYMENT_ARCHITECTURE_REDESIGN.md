@@ -15,7 +15,7 @@ Core v2 decisions (unchanged):
 1. **Membership Number** — fixed 8-character `PP DDDDD C` with Damm check digit; the **only public payment identity**.
 2. **Payment prefix decoupled from group name** — an immutable routing code, like a bank branch code.
 3. Single **payment-identifier registry** (`payment_accounts`) for all routable identifiers, legacy and future.
-4. **C2B Validation active** — bad/inactive accounts rejected *before money moves* (fail-open on internal error).
+4. **C2B Validation active** — bad/inactive accounts rejected _before money moves_ (fail-open on internal error).
 5. **Payment spine** (`allocation_status` state machine + `payment_reallocations`) — exactly-once allocation, queryable orphans, contra-entry corrections; financial rows never mutated.
 6. **Single three-column composite FK** binding every transaction to exactly one membership row.
 7. **Payment requests are an optimization, never a dependency** — spontaneous deposits always allocate.
@@ -55,11 +55,11 @@ Members must never interact with: internal UUIDs, `members.id`, `group_members.i
 
 The same person in three groups holds three numbers:
 
-| Person | Group | Membership Number |
-| --- | --- | --- |
-| Jane Wanjiku | Bungoma Women's VSLA | `BG 10253 4` |
-| Jane Wanjiku | Dairy Farmers Group | `DF 04182 9` |
-| Jane Wanjiku | School Welfare Group | `SW 07821 3` |
+| Person       | Group                | Membership Number |
+| ------------ | -------------------- | ----------------- |
+| Jane Wanjiku | Bungoma Women's VSLA | `BG 10253 4`      |
+| Jane Wanjiku | Dairy Farmers Group  | `DF 04182 9`      |
+| Jane Wanjiku | School Welfare Group | `SW 07821 3`      |
 
 The internal routing chain is always:
 
@@ -79,7 +79,7 @@ Membership Number → Membership → Member → Group → Organization(s) → Ac
 - **Fixed length, forever** (Gap 1: maximum length). Entry validation is trivial; appended/dropped-digit typos are caught structurally. Any future format need (a longer space, a new scheme) is introduced as a **new registry `kind`** (§3.1), never by mutating this format.
 - **Damm check digit**, computed over the full identifier (prefix letters mapped `A=0…Z=25`, each taken mod 10, prepended to the 5 digits). Catches **all** single-character errors and all adjacent transpositions. A mistyped number fails the check and is rejected at validation (§3.2) instead of paying a stranger in another group.
 - **Capacity:** 99,999 accounts per prefix × ~670 assignable prefixes ≈ 67M memberships, with governed exhaustion strategy in §1.8.
-- **Why not a shorter variable format:** dense sequential short numbers make distance-1 typos land on *live accounts in other groups* — a cross-group contamination vector. Check digit + fixed length removes it for two extra characters; display grouping `BG 10253 4` keeps it readable.
+- **Why not a shorter variable format:** dense sequential short numbers make distance-1 typos land on _live accounts in other groups_ — a cross-group contamination vector. Check digit + fixed length removes it for two extra characters; display grouping `BG 10253 4` keeps it readable.
 
 **Verdict on prefix + sequence:** retained. Simple, allocation locks off the payment hot path, human-communicable; the check digit addresses the sole weakness. Sequential enumerability is an accepted low risk (§15.4).
 
@@ -87,7 +87,7 @@ Membership Number → Membership → Member → Group → Organization(s) → Ac
 
 `groups.payment_prefix` is an **immutable routing identifier**, treated exactly like a bank branch code:
 
-- Generated **once**, at group creation. The group's name initials merely *seed a suggestion* (Bungoma Group → try `BG`); if saturated or reserved, the allocator assigns the nearest free variant or draws from the unused-pair pool.
+- Generated **once**, at group creation. The group's name initials merely _seed a suggestion_ (Bungoma Group → try `BG`); if saturated or reserved, the allocator assigns the nearest free variant or draws from the unused-pair pool.
 - **Never regenerated. Never recomputed.** Group renames, rebrandings, language changes, organization renames, mergers, and platform migrations have **zero effect** on the prefix or any issued number.
 - The prefix carries **no semantic guarantee**. Two unrelated groups may share `BG`. UI copy must never promise the prefix "stands for" the group name.
 - **Reserved pairs** (never assigned to production groups): `KY` (legacy code collision) and `ZZ` (sandbox/test allocations — test memberships get `ZZ…` numbers so test traffic is structurally identifiable end-to-end; pairs with the existing `is_test` flags).
@@ -132,56 +132,56 @@ ALTER TABLE group_members ADD COLUMN display_alias VARCHAR(30);
 
 - **Never routable.** Aliases never appear in `payment_accounts`, are never accepted as a BillRef, and never substitute for the Membership Number. Routable identifiers live in exactly one table; aliases are not in it.
 - May appear alongside (never instead of) the Membership Number on card, receipts, statements, profile.
-- Freely editable precisely *because* nothing financial depends on it.
+- Freely editable precisely _because_ nothing financial depends on it.
 
 ### 1.6 Relationship to existing identifiers
 
-| Identifier | Fate |
-| --- | --- |
+| Identifier                  | Fate                                                                                                                          |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
 | `group_members.member_code` | **Kept, internal only** — regulator exports, audit screens. Registry `legacy_code` alias keeps old printed materials routing. |
-| `group_members.mpesa_ref` | **Dropped.** No duplicate routing mechanism may exist. |
-| `KYT-…` BillRef grammar | Legacy input via registry aliases; nothing new prints it. |
-| `groups.group_code` | Kept for group-level billing (`KYT-SUB-…`); never member-facing in payment contexts. |
-| Display alias | Cosmetic only (§1.5). |
-| Phone number | Metadata + third-party flagging only; **never routes** (§3.3). |
+| `group_members.mpesa_ref`   | **Dropped.** No duplicate routing mechanism may exist.                                                                        |
+| `KYT-…` BillRef grammar     | Legacy input via registry aliases; nothing new prints it.                                                                     |
+| `groups.group_code`         | Kept for group-level billing (`KYT-SUB-…`); never member-facing in payment contexts.                                          |
+| Display alias               | Cosmetic only (§1.5).                                                                                                         |
+| Phone number                | Metadata + third-party flagging only; **never routes** (§3.3).                                                                |
 
 ### 1.7 Where it appears
 
 Membership card, member profile, "Lipia" payment-instructions screen (copy button), every payment SMS/receipt, statements, QR codes (`paybill=222111;account=BG102534`), the STK `AccountReference`, the group switcher. Display always grouped `BG 10253 4`; input normalisation strips spaces/dashes. Forgot-my-number: SMS keyword `ACC` from a registered phone returns that phone's membership numbers and group names.
 
-### 1.8 Governance & lifecycle *(Gap 1)*
+### 1.8 Governance & lifecycle _(Gap 1)_
 
-| Concern | Rule |
-| --- | --- |
-| **Ownership** | Numbers are issued and owned by the **platform** (issuer of record); a number is *assigned to* exactly one membership for that membership's lifetime. Not transferable, not sellable, not member-choosable. |
-| **Generation** | Only by the allocator inside the membership-creation transaction. No manual assignment, no admin override, no import path that supplies its own numbers (imports call the same allocator). |
-| **Immutability** | DB trigger–enforced (§1.4). No UPDATE path exists in application code. |
-| **Reservation** | Prefixes `KY`, `ZZ` reserved (§1.3). No number ranges are pre-reserved for marketing or VIPs — uniformity is the integrity guarantee. |
-| **Recycling** | **Never.** Exited/blacklisted/archived memberships keep their numbers permanently; the unrouted queue (not reissuance) handles payments to them. |
-| **Collision handling** | Impossible by unique index; a race aborts the enclosing transaction and the caller retries the allocation. |
-| **Maximum length** | Fixed 8 characters, permanent. Format evolution = new registry `kind`, never mutation. |
-| **Exhaustion** | Per-prefix: allocator moves the group to a variant prefix for *new* memberships (existing numbers untouched). Platform-wide (~67M): introduce a 3-letter-prefix scheme as a **new registry kind** — documented escape hatch, no silent drift. Alert at 80% prefix saturation (§16). |
-| **Disaster recovery** | Numbers live on `group_members` (backed up with the database). Counters are derivable: `last_seq = MAX(substr(membership_no,3,5)::int)` per prefix. The registry is **rebuildable idempotently** from `group_members` + `invoices` — a maintenance script exists from Phase 1 and is part of DR runbooks. |
-| **Lifecycle** | Issued at membership creation → routable while membership `active` (obligations-only during `suspended`, §4) → non-routable but permanently bound in all other states → survives archival forever (statements/history reference it indefinitely). |
+| Concern                | Rule                                                                                                                                                                                                                                                                                                      |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Ownership**          | Numbers are issued and owned by the **platform** (issuer of record); a number is _assigned to_ exactly one membership for that membership's lifetime. Not transferable, not sellable, not member-choosable.                                                                                               |
+| **Generation**         | Only by the allocator inside the membership-creation transaction. No manual assignment, no admin override, no import path that supplies its own numbers (imports call the same allocator).                                                                                                                |
+| **Immutability**       | DB trigger–enforced (§1.4). No UPDATE path exists in application code.                                                                                                                                                                                                                                    |
+| **Reservation**        | Prefixes `KY`, `ZZ` reserved (§1.3). No number ranges are pre-reserved for marketing or VIPs — uniformity is the integrity guarantee.                                                                                                                                                                     |
+| **Recycling**          | **Never.** Exited/blacklisted/archived memberships keep their numbers permanently; the unrouted queue (not reissuance) handles payments to them.                                                                                                                                                          |
+| **Collision handling** | Impossible by unique index; a race aborts the enclosing transaction and the caller retries the allocation.                                                                                                                                                                                                |
+| **Maximum length**     | Fixed 8 characters, permanent. Format evolution = new registry `kind`, never mutation.                                                                                                                                                                                                                    |
+| **Exhaustion**         | Per-prefix: allocator moves the group to a variant prefix for _new_ memberships (existing numbers untouched). Platform-wide (~67M): introduce a 3-letter-prefix scheme as a **new registry kind** — documented escape hatch, no silent drift. Alert at 80% prefix saturation (§16).                       |
+| **Disaster recovery**  | Numbers live on `group_members` (backed up with the database). Counters are derivable: `last_seq = MAX(substr(membership_no,3,5)::int)` per prefix. The registry is **rebuildable idempotently** from `group_members` + `invoices` — a maintenance script exists from Phase 1 and is part of DR runbooks. |
+| **Lifecycle**          | Issued at membership creation → routable while membership `active` (obligations-only during `suspended`, §4) → non-routable but permanently bound in all other states → survives archival forever (statements/history reference it indefinitely).                                                         |
 
 ---
 
-## 2. Active Membership Context *(Gap 7)*
+## 2. Active Membership Context _(Gap 7)_
 
 ### 2.1 Session shape
 
 ```ts
 interface ActiveMembershipContext {
-  memberId:       string;   // members.id            (JWT sub)
-  membershipId:   string;   // group_members.id      — anchoring claim
-  membershipNo:   string;   // e.g. BG102534
-  groupId:        string;
-  organizationId: string | null;  // §2.4
-  role:           MemberRole;     // role in THIS membership
-  personId:       string;
-  groupStatus:    string;
-  authVersion:    number;   // §2.5 — membership auth epoch
-  sessionVersion: number;   // §2.5 — member-level session epoch
+  memberId: string; // members.id            (JWT sub)
+  membershipId: string; // group_members.id      — anchoring claim
+  membershipNo: string; // e.g. BG102534
+  groupId: string;
+  organizationId: string | null; // §2.4
+  role: MemberRole; // role in THIS membership
+  personId: string;
+  groupStatus: string;
+  authVersion: number; // §2.5 — membership auth epoch
+  sessionVersion: number; // §2.5 — member-level session epoch
 }
 ```
 
@@ -203,7 +203,7 @@ Persist the chosen `membership_id` with the refresh token (column on `refresh_to
 
 Organizations↔groups is **many-to-many** (`organization_group_access`), so `organizationId` is set only for organization-portal sessions and transaction rows carry no `NOT NULL organization_id` — attribution is derivable. If ownership later becomes 1:N, add `groups.organization_id` and denormalise then.
 
-### 2.5 Context versioning — no silent drift *(Gap 7)*
+### 2.5 Context versioning — no silent drift _(Gap 7)_
 
 Two monotonic epochs make every form of drift detectable:
 
@@ -215,7 +215,7 @@ ALTER TABLE members       ADD COLUMN session_version INTEGER NOT NULL DEFAULT 1;
 ```
 
 - Both are embedded in every access token (`authVersion`, `sessionVersion`).
-- **Refresh** compares both against the database; mismatch → context re-derived from current truth (new role) or session terminated (member-level bump). This bounds *any* drift to one access-token lifetime.
+- **Refresh** compares both against the database; mismatch → context re-derived from current truth (new role) or session terminated (member-level bump). This bounds _any_ drift to one access-token lifetime.
 - **Sensitive operations** (loan approval/disbursement, B2C, reallocation, member-status changes, switch-group) re-check both versions server-side at execution time — drift on these paths is bounded to zero, not fifteen minutes.
 - Blacklist/security events bump `session_version` → every outstanding session dies at its next request to a version-checked endpoint or refresh.
 
@@ -223,7 +223,7 @@ This closes: silent permission drift, role drift, membership drift, and context 
 
 ---
 
-## 3. Payment Routing *(Gaps 2, 3, 5)*
+## 3. Payment Routing _(Gaps 2, 3, 5)_
 
 ### 3.1 The payment-identifier registry — single routing index
 
@@ -239,7 +239,7 @@ CREATE TABLE payment_accounts (
 );
 ```
 
-Routing is **normalise → one indexed lookup → destination**. Legacy `member_code`s backfill as `legacy_code` aliases (old posters route forever, no grammar parsing in the hot path); invoices share the lookup but keep their lifecycle; every future channel is a new `kind`. Display aliases are deliberately absent — that absence *is* the "aliases never route" guarantee.
+Routing is **normalise → one indexed lookup → destination**. Legacy `member_code`s backfill as `legacy_code` aliases (old posters route forever, no grammar parsing in the hot path); invoices share the lookup but keep their lifecycle; every future channel is a new `kind`. Display aliases are deliberately absent — that absence _is_ the "aliases never route" guarantee.
 
 **Payment-identity sweep (Gap 2):** with the registry live, no module may route or attribute payments by phone, `member_code`, or UUID. Sweep targets: STK fulfilment (uses the request's `membership_id`), C2B (registry only), the STK-failure fallback SMS (quotes the membership number), import pipelines (allocator + guard), QR generation, receipts/statements/reports (display membership number). Enforced by integration tests + the CI template check (§1.1).
 
@@ -260,22 +260,22 @@ Validation request → normalise BillRef →
 
 One indexed query, p99-monitored (§16), rate-limited per MSISDN/IP (§15.4).
 
-### 3.3 Routing decision table — deterministic *(Gap 3)*
+### 3.3 Routing decision table — deterministic _(Gap 3)_
 
 Same input + same state → same outcome, always. No ordering dependence, no heuristics:
 
-| # | Input condition | Outcome |
-| --- | --- | --- |
-| R1 | Valid `membership_no`, membership payment-eligible (§4) | Route to membership → product resolution (§3.5) |
-| R2 | Valid `membership_no`, membership **not** eligible | Validation: REJECT. Confirmation (fail-open path): spine row + `unrouted (membership_inactive)` |
-| R3 | Check-digit failure / malformed | Validation: REJECT. Confirmation: `unrouted (bad_account)` |
-| R4 | `legacy_code` alias match | As R1/R2 for the bound membership |
-| R5 | `invoice` match | Invoice payment lifecycle (unchanged) |
-| R6 | Legacy `KYT-…` grammar (transition window only) | member_code suffix → membership; group-only ref → group-scoped unrouted for treasurer allocation. Never phone-resolved |
-| R7 | No registry match, no legacy match | `unrouted (unknown_account)` |
-| R8 | Duplicate receipt (any path, any timing) | Spine no-op (§11) |
-| R9 | Payer phone ≠ member's registered phone | Route unchanged; transaction flagged `is_third_party` (third-party routing = normal routing + flag; never a different destination) |
-| R10 | Group-name match, phone-only match | **Do not exist.** Deleted; never reintroduced |
+| #   | Input condition                                         | Outcome                                                                                                                            |
+| --- | ------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| R1  | Valid `membership_no`, membership payment-eligible (§4) | Route to membership → product resolution (§3.5)                                                                                    |
+| R2  | Valid `membership_no`, membership **not** eligible      | Validation: REJECT. Confirmation (fail-open path): spine row + `unrouted (membership_inactive)`                                    |
+| R3  | Check-digit failure / malformed                         | Validation: REJECT. Confirmation: `unrouted (bad_account)`                                                                         |
+| R4  | `legacy_code` alias match                               | As R1/R2 for the bound membership                                                                                                  |
+| R5  | `invoice` match                                         | Invoice payment lifecycle (unchanged)                                                                                              |
+| R6  | Legacy `KYT-…` grammar (transition window only)         | member_code suffix → membership; group-only ref → group-scoped unrouted for treasurer allocation. Never phone-resolved             |
+| R7  | No registry match, no legacy match                      | `unrouted (unknown_account)`                                                                                                       |
+| R8  | Duplicate receipt (any path, any timing)                | Spine no-op (§11)                                                                                                                  |
+| R9  | Payer phone ≠ member's registered phone                 | Route unchanged; transaction flagged `is_third_party` (third-party routing = normal routing + flag; never a different destination) |
+| R10 | Group-name match, phone-only match                      | **Do not exist.** Deleted; never reintroduced                                                                                      |
 
 Failure routing (processing crash after receipt) is handled by the spine + DLQ (§11, §14) — never by re-guessing.
 
@@ -299,23 +299,23 @@ ALTER TABLE contributions ADD COLUMN payment_id UUID REFERENCES payments (id);
 - **Corrections never mutate financial rows**: `payment_reallocations` records original allocation → contra journals → new allocation → new journals, with actor, approver, reason, timestamps (maker-checker, §15.5).
 - **Reconciliation as a control**: nightly Safaricom statement diff against the spine by receipt; alert on one-sided receipts (§16).
 
-### 3.5 Product allocation engine — deterministic *(Gap 5)*
+### 3.5 Product allocation engine — deterministic _(Gap 5)_
 
 **Payment requests are an optimization, never a dependency.** A payment with a valid, eligible Membership Number **always allocates** — the engine never guesses and never parks a routable payment for want of a request.
 
 Decision table (evaluated top-down; first match wins):
 
-| # | Condition | Allocation |
-| --- | --- | --- |
-| A1 | Suffix present and **invalid** (unknown letter) | Treated as malformed account → R3 (rejected at validation; never "closest guess") |
-| A2 | Open, unexpired request exists with **exact amount match** | That request's product; request → `fulfilled` |
-| A3 | Suffix present and valid (`-L`, `-W`, `-S`) | Suffix product (suffix never overrides A2) |
-| A4 | Exactly one open unexpired request | That request's product; `amount_variance` tagged if amounts differ |
-| A5 | Multiple open requests, no exact amount match | **Oldest** open request (deterministic); `amount_variance` tagged |
-| A6 | Request(s) exist but all **expired** | Ignored entirely (expiry job transitions `open → expired`; expired requests never influence allocation) |
-| A7 | No request, no suffix, membership has a default product set | Member default product |
-| A8 | Otherwise | Group default product (default: savings), or the group's configured allocation waterfall (arrears → loan due → savings) |
-| A9 | Resolved product has no registered handler (future-product misconfiguration) | Spine `unrouted (config_error)` + page (§16) — never a silent fallback to savings |
+| #   | Condition                                                                    | Allocation                                                                                                              |
+| --- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| A1  | Suffix present and **invalid** (unknown letter)                              | Treated as malformed account → R3 (rejected at validation; never "closest guess")                                       |
+| A2  | Open, unexpired request exists with **exact amount match**                   | That request's product; request → `fulfilled`                                                                           |
+| A3  | Suffix present and valid (`-L`, `-W`, `-S`)                                  | Suffix product (suffix never overrides A2)                                                                              |
+| A4  | Exactly one open unexpired request                                           | That request's product; `amount_variance` tagged if amounts differ                                                      |
+| A5  | Multiple open requests, no exact amount match                                | **Oldest** open request (deterministic); `amount_variance` tagged                                                       |
+| A6  | Request(s) exist but all **expired**                                         | Ignored entirely (expiry job transitions `open → expired`; expired requests never influence allocation)                 |
+| A7  | No request, no suffix, membership has a default product set                  | Member default product                                                                                                  |
+| A8  | Otherwise                                                                    | Group default product (default: savings), or the group's configured allocation waterfall (arrears → loan due → savings) |
+| A9  | Resolved product has no registered handler (future-product misconfiguration) | Spine `unrouted (config_error)` + page (§16) — never a silent fallback to savings                                       |
 
 Amount semantics (all products):
 
@@ -325,15 +325,15 @@ Amount semantics (all products):
 
 Dispatch is per product to the owning service/table — never a blanket insert into `contributions`:
 
-| Product | Destination | Ledger mapping |
-| --- | --- | --- |
-| Savings | `contributions` | DR 1001 / CR 4001 (split engine) |
-| Loan repayment | `loan_repayments` | DR 1001 / CR 1101 |
-| Welfare | `welfare_pool_contributions` | DR 1001 / CR welfare liability |
-| Shares | `share_transactions` | DR 1001 / CR share capital |
-| Investment | investment subscription | DR 1001 / CR investment |
-| Registration / subscription | billing pipeline | respective income |
-| Fine/penalty | fines ledger (future module) | fine income |
+| Product                     | Destination                  | Ledger mapping                   |
+| --------------------------- | ---------------------------- | -------------------------------- |
+| Savings                     | `contributions`              | DR 1001 / CR 4001 (split engine) |
+| Loan repayment              | `loan_repayments`            | DR 1001 / CR 1101                |
+| Welfare                     | `welfare_pool_contributions` | DR 1001 / CR welfare liability   |
+| Shares                      | `share_transactions`         | DR 1001 / CR share capital       |
+| Investment                  | investment subscription      | DR 1001 / CR investment          |
+| Registration / subscription | billing pipeline             | respective income                |
+| Fine/penalty                | fines ledger (future module) | fine income                      |
 
 ### 3.6 Payment requests table
 
@@ -367,45 +367,47 @@ STK initiation always creates one. Recurring/standing-order flows are future pro
 
 ---
 
-## 4. Membership Lifecycle — Single Status, Full State Machine *(Gap 4; audit C-2)*
+## 4. Membership Lifecycle — Single Status, Full State Machine _(Gap 4; audit C-2)_
 
 `group_members.status` is the **only** liveness signal. Every `gm.is_active = true` predicate is replaced with status logic; after a one-time sync the `is_active` column is **dropped**. (`members.is_active` — platform account lock — is unaffected.)
 
 ### 4.1 States, transitions, and behaviour
 
-| State | Allowed transitions → | Inbound payments | Authentication (this membership) | Reporting | Audit on entry |
-| --- | --- | --- | --- | --- | --- |
-| `pending_verification` | active, rejected | **Reject** at validation (not yet payment-eligible) | No sessions | Counted as pipeline, not membership | created_by |
-| `active` | suspended, inactive, archived, blacklisted, exited | **Accept** — fully eligible | Full | Full | — |
-| `inactive` (dormancy) | active, archived | Reject new savings; **accept obligation products** (loan repayments against existing loans) | No new sessions; existing sessions fail next refresh | Shown as dormant | actor + timestamp |
-| `suspended` | active *(reinstatement)*, archived | **Obligations-only**: loan repayments accepted; savings/welfare/shares rejected (`membership_inactive`) | Blocked for this membership; other memberships unaffected | Flagged | actor + reason (required) |
-| `rejected` | archived | Reject | Never had sessions | Excluded | reason (required) |
-| `exited` | archived | Reject all (incl. obligations — arrears collected via treasurer-managed flows, not auto-routing) | Blocked | Historical only | actor + reason (required) |
-| `blacklisted` | archived | Reject all | Blocked **and** `session_version` bumped → immediate platform-wide session kill for this member if platform-level; membership-level bumps `auth_version` | Flagged for governance | actor + reason (required) |
-| `archived` | active *(reinstatement)* | Reject all | Blocked | Soft-deleted | actor + timestamp |
+| State                  | Allowed transitions →                              | Inbound payments                                                                                        | Authentication (this membership)                                                                                                                         | Reporting                           | Audit on entry            |
+| ---------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------------------------- |
+| `pending_verification` | active, rejected                                   | **Reject** at validation (not yet payment-eligible)                                                     | No sessions                                                                                                                                              | Counted as pipeline, not membership | created_by                |
+| `active`               | suspended, inactive, archived, blacklisted, exited | **Accept** — fully eligible                                                                             | Full                                                                                                                                                     | Full                                | —                         |
+| `inactive` (dormancy)  | active, archived                                   | Reject new savings; **accept obligation products** (loan repayments against existing loans)             | No new sessions; existing sessions fail next refresh                                                                                                     | Shown as dormant                    | actor + timestamp         |
+| `suspended`            | active _(reinstatement)_, archived                 | **Obligations-only**: loan repayments accepted; savings/welfare/shares rejected (`membership_inactive`) | Blocked for this membership; other memberships unaffected                                                                                                | Flagged                             | actor + reason (required) |
+| `rejected`             | archived                                           | Reject                                                                                                  | Never had sessions                                                                                                                                       | Excluded                            | reason (required)         |
+| `exited`               | archived                                           | Reject all (incl. obligations — arrears collected via treasurer-managed flows, not auto-routing)        | Blocked                                                                                                                                                  | Historical only                     | actor + reason (required) |
+| `blacklisted`          | archived                                           | Reject all                                                                                              | Blocked **and** `session_version` bumped → immediate platform-wide session kill for this member if platform-level; membership-level bumps `auth_version` | Flagged for governance              | actor + reason (required) |
+| `archived`             | active _(reinstatement)_                           | Reject all                                                                                              | Blocked                                                                                                                                                  | Soft-deleted                        | actor + timestamp         |
 
 - **Reinstatement** is not a distinct state: it is the audited transition `suspended|archived → active`, recording actor, reason, and timestamp. The membership number, history, and balances are untouched — continuity is the point.
-- **Forbidden transitions:** anything not listed (e.g. `exited → active` — a returning member gets a *new* membership and number; `blacklisted → active` directly — must pass governance review via archived → active with reason).
+- **Forbidden transitions:** anything not listed (e.g. `exited → active` — a returning member gets a _new_ membership and number; `blacklisted → active` directly — must pass governance review via archived → active with reason).
 - Every transition writes the per-status audit columns (existing pattern) **and bumps `auth_version`** (§2.5), so payment eligibility and session validity react within one token lifetime — or immediately on version-checked endpoints.
 - Payment eligibility per state is enforced in **both** the validation hook (§3.2) and inside the allocation transaction (status re-read under lock), so a status change racing a payment can't slip through.
 
 ---
 
-## 5. Centralized Membership Validation *(audit H-1, M-6)*
+## 5. Centralized Membership Validation _(audit H-1, M-6)_
 
 ```ts
 // lib/services/membership-guard.ts
 export async function assertActiveMembership(
-  client: PoolClient, groupId: string, memberId: string,
-  opts?: { allowStatuses?: MemberStatus[] },   // e.g. dividends to 'exited' members during share-out
-): Promise<{ membershipId: string; membershipNo: string }>
+  client: PoolClient,
+  groupId: string,
+  memberId: string,
+  opts?: { allowStatuses?: MemberStatus[] }, // e.g. dividends to 'exited' members during share-out
+): Promise<{ membershipId: string; membershipNo: string }>;
 ```
 
 Mandatory on every financial write path: contributions.create, welfare.recordPoolContribution, loans.apply (guarantor too), shares (replacing the status-blind check), dividends, resolveUnrouted allocate, imports, manual journal attribution, investments, future fines. The returned `membershipId` is what gets written to the row (§6) — validation and attribution are the same act.
 
 ---
 
-## 6. Database Integrity *(Gap 8)*
+## 6. Database Integrity _(Gap 8)_
 
 **(a) One three-column composite FK** — transaction ownership provably bound to exactly one membership row:
 
@@ -433,11 +435,11 @@ A row referencing a membership from another group, or a member not in the row's 
 
 **(e) Ledger attribution:** `journal_entries` gains nullable `group_membership_id` + `member_id` from the source document; callback-posted entries record a designated **system actor** instead of NULL. Batch entries (dividend declarations) leave entry-level fields NULL and rely on per-member source documents.
 
-**(f) Pre-constraint data repair:** rows whose `(group_id, member_id)` has no membership are the audit's cross-group pollution — report, back-date a membership (if historically legitimate) or quarantine, *before* `VALIDATE CONSTRAINT`.
+**(f) Pre-constraint data repair:** rows whose `(group_id, member_id)` has no membership are the audit's cross-group pollution — report, back-date a membership (if historically legitimate) or quarantine, _before_ `VALIDATE CONSTRAINT`.
 
 ---
 
-## 7. Transaction Attribution & Auditability *(Gap 10)*
+## 7. Transaction Attribution & Auditability _(Gap 10)_
 
 The spine gains permanent audit columns:
 
@@ -467,7 +469,7 @@ Every money row therefore permanently answers: who initiated, who approved (doma
 
 ---
 
-## 8. Group Switcher & Member Experience *(audit M-5)*
+## 8. Group Switcher & Member Experience _(audit M-5)_
 
 **API:** `POST /api/v1/auth/switch-group { membershipId | groupCode }` — authenticated by the current refresh token (no password); validates target membership `status='active'` and group not suspended/archived; issues a **new session** bound to the new membership, leaving other sessions untouched; returns the login response shape.
 
@@ -484,79 +486,79 @@ Template variables `{{group_name}} {{membership_no}} {{product}} {{balance}}`; t
 
 ---
 
-## 9. Multi-Group Isolation — Workflow Stress Test *(Gap 6)*
+## 9. Multi-Group Isolation — Workflow Stress Test _(Gap 6)_
 
 Every workflow, checked for cross-membership effects:
 
-| Workflow | Isolation mechanism |
-| --- | --- |
-| STK Push | Request pinned to `membership_id` at initiation; fulfilment reads it back; prompted phone may be third-party without affecting destination |
-| PayBill | Registry → single membership; check digit + validation kill typo cross-posting |
-| Savings / Loans / Shares / Welfare / Investments | Guard (§5) + three-column FK (§6) on every write; product dispatch to owning tables |
-| Fines (future) | Same guard + FK pattern mandated at module creation |
-| Notifications | Rendered from the transaction's membership row — group name + number in every message; a multi-group member always knows which membership fired |
-| Reports / Statements | All queries `ctx.groupId`-scoped (verified in audit); statements are per membership; cross-group portfolio views are explicit, member-initiated queries only |
-| Dashboard metrics | Computed per `groupId` from the session context; no cross-group aggregation exists server-side |
-| Authentication / refresh | Pinned `membershipId` + version epochs (§2) |
-| Switch group | New session; old sessions unaffected; each token immutable |
-| Ledger posting | `journal_entries.group_id` NOT NULL + RLS; posting helpers receive group from the source document, never from ambient state |
-| Treasurer unrouted resolution | Guard on allocate; candidate-group scoping; FK backstop |
-| Group rename / merger / transfer | Immutable prefix + numbers; transfer = exit + join |
-| Shared members across organizations | Membership is group-scoped; orgs aggregate via `organization_group_access` read policies, never own member transactions |
-| Federations / SACCOs | Organization-layer constructs over group-scoped memberships; the transaction layer never merges; `person` (national-id) is the future KYC join point |
-| Concurrent payments to two groups | Independent memberships, numbers, spine rows — no shared state |
+| Workflow                                         | Isolation mechanism                                                                                                                                          |
+| ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| STK Push                                         | Request pinned to `membership_id` at initiation; fulfilment reads it back; prompted phone may be third-party without affecting destination                   |
+| PayBill                                          | Registry → single membership; check digit + validation kill typo cross-posting                                                                               |
+| Savings / Loans / Shares / Welfare / Investments | Guard (§5) + three-column FK (§6) on every write; product dispatch to owning tables                                                                          |
+| Fines (future)                                   | Same guard + FK pattern mandated at module creation                                                                                                          |
+| Notifications                                    | Rendered from the transaction's membership row — group name + number in every message; a multi-group member always knows which membership fired              |
+| Reports / Statements                             | All queries `ctx.groupId`-scoped (verified in audit); statements are per membership; cross-group portfolio views are explicit, member-initiated queries only |
+| Dashboard metrics                                | Computed per `groupId` from the session context; no cross-group aggregation exists server-side                                                               |
+| Authentication / refresh                         | Pinned `membershipId` + version epochs (§2)                                                                                                                  |
+| Switch group                                     | New session; old sessions unaffected; each token immutable                                                                                                   |
+| Ledger posting                                   | `journal_entries.group_id` NOT NULL + RLS; posting helpers receive group from the source document, never from ambient state                                  |
+| Treasurer unrouted resolution                    | Guard on allocate; candidate-group scoping; FK backstop                                                                                                      |
+| Group rename / merger / transfer                 | Immutable prefix + numbers; transfer = exit + join                                                                                                           |
+| Shared members across organizations              | Membership is group-scoped; orgs aggregate via `organization_group_access` read policies, never own member transactions                                      |
+| Federations / SACCOs                             | Organization-layer constructs over group-scoped memberships; the transaction layer never merges; `person` (national-id) is the future KYC join point         |
+| Concurrent payments to two groups                | Independent memberships, numbers, spine rows — no shared state                                                                                               |
 
 **Remaining accepted risks:** sequential-number enumerability (low; §15.4); stale role in an access token ≤ its lifetime on non-version-checked endpoints (§2.5); org attribution derivable rather than denormalised (§2.4).
 
 ---
 
-## 10. Future Integrations *(Gap 15)*
+## 10. Future Integrations _(Gap 15)_
 
 The registry (§3.1) + spine (§3.4) + outbox (§12) are the extension points; **no payment-architecture redesign is needed** for:
 
-| Integration | How it lands |
-| --- | --- |
-| Banking APIs / Open Banking | Bank virtual account numbers = registry rows (`kind='bank_va'`); inbound credits enter the spine like C2B |
-| Visa / Mastercard | Tokenised card refs as registry rows; card payment = spine entry (`channel='card'`); chargebacks = `payment_reallocations` type `charged_back` with card-network evidence in `payment_events.detail` |
-| Airtel Money | New collector adapter → spine; same registry lookup |
-| QR Payments | QR encodes PayBill + Membership Number today; richer QR = registry `kind='qr'` |
-| Standing orders / Recurring | Scheduler emitting `payment_requests` on cadence |
+| Integration                  | How it lands                                                                                                                                                                                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Banking APIs / Open Banking  | Bank virtual account numbers = registry rows (`kind='bank_va'`); inbound credits enter the spine like C2B                                                                                                                                                                                         |
+| Visa / Mastercard            | Tokenised card refs as registry rows; card payment = spine entry (`channel='card'`); chargebacks = `payment_reallocations` type `charged_back` with card-network evidence in `payment_events.detail`                                                                                              |
+| Airtel Money                 | New collector adapter → spine; same registry lookup                                                                                                                                                                                                                                               |
+| QR Payments                  | QR encodes PayBill + Membership Number today; richer QR = registry `kind='qr'`                                                                                                                                                                                                                    |
+| Standing orders / Recurring  | Scheduler emitting `payment_requests` on cadence                                                                                                                                                                                                                                                  |
 | Open Banking / **ISO 20022** | Membership Number maps to `EndToEndId`/structured remittance (`RmtInf/Strd/CdtrRefInf`); spine fields align with pacs.008 semantics (debtor = payer phone/account, creditor ref = membership number, settlement = receipt). An ISO adapter is a translator into the same spine — no schema change |
-| API partners | Partner-scoped aliases (`kind='api_alias'`) + idempotency keys (§13) |
-| Multi-currency | `payments.currency` exists from Phase 1.5; product tables follow when a second currency ships |
-| Member wallets | One more allocation target + registry kind; the spine already separates receipt from allocation |
+| API partners                 | Partner-scoped aliases (`kind='api_alias'`) + idempotency keys (§13)                                                                                                                                                                                                                              |
+| Multi-currency               | `payments.currency` exists from Phase 1.5; product tables follow when a second currency ships                                                                                                                                                                                                     |
+| Member wallets               | One more allocation target + registry kind; the spine already separates receipt from allocation                                                                                                                                                                                                   |
 
 ---
 
 ## Part II — Enterprise Hardening
 
-## 11. Payment Lifecycle State Machine *(Gap 9)*
+## 11. Payment Lifecycle State Machine _(Gap 9)_
 
 Two coordinated machines. **Collection state** (STK request / spine payment):
 
-| State | Entered when | Exits to |
-| --- | --- | --- |
-| `pending` | STK initiated / C2B expected | `processing`, `failed`, `cancelled`, `expired`, `timed_out` |
-| `processing` | Callback received, allocation in flight | `completed`, `failed` |
-| `completed` | Funds confirmed + spine written | terminal for collection; allocation machine takes over |
-| `failed` | Daraja failure code | terminal (fallback SMS; member may retry via PayBill) |
-| `cancelled` | Member cancelled STK (1032) | terminal |
-| `expired` / `timed_out` | No callback; STK-Query reconciliation confirms no charge | terminal |
+| State                   | Entered when                                             | Exits to                                                    |
+| ----------------------- | -------------------------------------------------------- | ----------------------------------------------------------- |
+| `pending`               | STK initiated / C2B expected                             | `processing`, `failed`, `cancelled`, `expired`, `timed_out` |
+| `processing`            | Callback received, allocation in flight                  | `completed`, `failed`                                       |
+| `completed`             | Funds confirmed + spine written                          | terminal for collection; allocation machine takes over      |
+| `failed`                | Daraja failure code                                      | terminal (fallback SMS; member may retry via PayBill)       |
+| `cancelled`             | Member cancelled STK (1032)                              | terminal                                                    |
+| `expired` / `timed_out` | No callback; STK-Query reconciliation confirms no charge | terminal                                                    |
 
 **Allocation state** (spine `allocation_status`): `received → allocated | unrouted`, then `allocated → reallocated | reversed` (corrections), with `refunded` and `charged_back` recorded as reallocation types (outbound leg via B2C/refund rails when applicable). All transitions append `payment_events` rows.
 
 Callback anomalies — defined behaviour for each:
 
-| Anomaly | Behaviour |
-| --- | --- |
-| **Duplicate callback** (same receipt, any path, any count) | Spine `UNIQUE(receipt)` + status latch → no-op; `payment_events: replayed` logged |
-| **Delayed callback** | `pending` rows older than threshold reconciled via STK-Query (existing job); if money moved, reconciliation completes the spine + allocation; a later real callback then no-ops |
+| Anomaly                                                          | Behaviour                                                                                                                                                                                                                                                |
+| ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Duplicate callback** (same receipt, any path, any count)       | Spine `UNIQUE(receipt)` + status latch → no-op; `payment_events: replayed` logged                                                                                                                                                                        |
+| **Delayed callback**                                             | `pending` rows older than threshold reconciled via STK-Query (existing job); if money moved, reconciliation completes the spine + allocation; a later real callback then no-ops                                                                          |
 | **Out-of-order** (failure callback after success, or vice versa) | `completed` is terminal — a late failure for a completed checkout is logged and ignored; a late success for a `failed` checkout is impossible from Daraja, but if received it is treated as a new receipt through validation (reconciliation arbitrates) |
-| **Retry** | Member-initiated retries are new checkouts (duplicate-prompt lock exists); platform never auto-retries STK |
-| **Reversal / Refund** | Contra journals + reallocation record; outbound leg (B2C/M-Pesa reversal API) linked via `payment_events.detail` |
-| **Chargeback** (card rails, future) | Reallocation type `charged_back`; funds movement mirrors refund; evidence retained in event detail |
+| **Retry**                                                        | Member-initiated retries are new checkouts (duplicate-prompt lock exists); platform never auto-retries STK                                                                                                                                               |
+| **Reversal / Refund**                                            | Contra journals + reallocation record; outbound leg (B2C/M-Pesa reversal API) linked via `payment_events.detail`                                                                                                                                         |
+| **Chargeback** (card rails, future)                              | Reallocation type `charged_back`; funds movement mirrors refund; evidence retained in event detail                                                                                                                                                       |
 
-## 12. Event Architecture — Transactional Outbox *(Gap 11)*
+## 12. Event Architecture — Transactional Outbox _(Gap 11)_
 
 **Decision: outbox now, event bus deferred.** Payment side effects (SMS receipt, email, dashboard cache invalidation, credit-score update, webhooks) must not run inside the money transaction, but publishing to an external broker from inside a transaction creates dual-write inconsistency. The standard resolution:
 
@@ -575,40 +577,40 @@ CREATE TABLE event_outbox (
 
 - Written **in the same transaction** as the money change — an event exists iff the change committed.
 - Dispatched by the existing job-queue/pg_cron workers (the SMS trigger engine already consumes business events; it becomes an outbox consumer). At-least-once delivery + idempotent consumers (keyed on `(event_type, aggregate_id)` — the trigger engine already dedupes this way).
-- **A dedicated broker (Kafka/SNS) is deliberately deferred** until there is more than one consuming *service*. The outbox schema is broker-ready: introducing a bus later means pointing a relay at this table — zero producer changes. This is the simplicity/integrity trade the design principles demand.
+- **A dedicated broker (Kafka/SNS) is deliberately deferred** until there is more than one consuming _service_. The outbox schema is broker-ready: introducing a bus later means pointing a relay at this table — zero producer changes. This is the simplicity/integrity trade the design principles demand.
 
-## 13. API Standards *(Gap 12)*
+## 13. API Standards _(Gap 12)_
 
 Mandatory for all payment-affecting endpoints:
 
-| Standard | Specification |
-| --- | --- |
-| **Idempotency** | `Idempotency-Key` header required on every money-moving POST (stk-push, manual contribution, reallocation, B2C). Key + response stored 24h; replay returns the original response, never re-executes |
-| **Optimistic concurrency** | Mutations of stateful rows (requests, memberships) carry the row's `updated_at`/version; stale writes → `409 CONFLICT` |
-| **Versioning** | `/api/v1` retained; breaking changes only via `/api/v2`; additive changes within v1 |
-| **Error envelope** | Existing `{ error: { code, message } }` with a **closed catalogue** of machine-readable codes (`INVALID_ACCOUNT`, `MEMBERSHIP_INACTIVE`, `DUPLICATE_RECEIPT`, `AMOUNT_VARIANCE`, `NO_ACTIVE_GROUP`, `STALE_VERSION`, …) |
-| **Retry safety** | Idempotency keys + spine uniqueness make every documented retry safe; 5xx responses are always retryable, 4xx never |
-| **Pagination** | Existing `page/limit` + totals pattern, mandatory on all list endpoints |
-| **Authorization** | `withRole`/`withOneOf` + version-epoch re-check (§2.5) on sensitive operations |
-| **Validation** | Zod schemas on every input (existing pattern); membership numbers validated with `damm_valid` at the edge |
-| **Backward compatibility** | Legacy identifiers accepted via registry aliases indefinitely; response shapes only extended, never repurposed |
+| Standard                   | Specification                                                                                                                                                                                                           |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Idempotency**            | `Idempotency-Key` header required on every money-moving POST (stk-push, manual contribution, reallocation, B2C). Key + response stored 24h; replay returns the original response, never re-executes                     |
+| **Optimistic concurrency** | Mutations of stateful rows (requests, memberships) carry the row's `updated_at`/version; stale writes → `409 CONFLICT`                                                                                                  |
+| **Versioning**             | `/api/v1` retained; breaking changes only via `/api/v2`; additive changes within v1                                                                                                                                     |
+| **Error envelope**         | Existing `{ error: { code, message } }` with a **closed catalogue** of machine-readable codes (`INVALID_ACCOUNT`, `MEMBERSHIP_INACTIVE`, `DUPLICATE_RECEIPT`, `AMOUNT_VARIANCE`, `NO_ACTIVE_GROUP`, `STALE_VERSION`, …) |
+| **Retry safety**           | Idempotency keys + spine uniqueness make every documented retry safe; 5xx responses are always retryable, 4xx never                                                                                                     |
+| **Pagination**             | Existing `page/limit` + totals pattern, mandatory on all list endpoints                                                                                                                                                 |
+| **Authorization**          | `withRole`/`withOneOf` + version-epoch re-check (§2.5) on sensitive operations                                                                                                                                          |
+| **Validation**             | Zod schemas on every input (existing pattern); membership numbers validated with `damm_valid` at the edge                                                                                                               |
+| **Backward compatibility** | Legacy identifiers accepted via registry aliases indefinitely; response shapes only extended, never repurposed                                                                                                          |
 
-## 14. Operational Resilience *(Gap 13)*
+## 14. Operational Resilience _(Gap 13)_
 
-| Failure | Behaviour | Recovery |
-| --- | --- | --- |
-| **Database unavailable during callback** | **Ack-after-durable-audit:** if the raw-callback audit insert fails, return **non-200** so Safaricom retries (currently the platform acks unconditionally and can lose the callback — this changes). | Safaricom retry → audit lands → DLQ processes |
-| Database unavailable during processing (post-audit) | Audit row persisted, processing marked errored | DLQ replay job (exists) re-runs idempotent handlers |
-| **M-Pesa/Daraja unavailable** | STK initiation fails fast with a clear error; PayBill unaffected (Safaricom-side); B2C queued with backoff | Circuit-break Daraja calls; queued retries |
-| **Redis unavailable** | Refresh falls back to `refresh_tokens` table (exists); STK duplicate-prompt lock degrades — receipt uniqueness still guarantees no double-posting; rate limits degrade to conservative defaults | Self-heals on reconnect |
-| Delayed callback | §11 — STK-Query reconciliation | Existing job |
-| Duplicate callback / retry storm | Idempotent by construction (spine + per-table uniques + idempotency keys); DLQ uses exponential backoff | None needed |
-| Worker/queue failure | Outbox + DLQ rows persist; nothing is lost, only delayed | Workers resume; depth alerting (§16) |
-| Network partition mid-allocation | Single DB transaction — allocation is all-or-nothing; spine `received` state catches the "receipt landed, allocation didn't" case | Orphan monitor + replay |
-| **Clock skew** | All financial timestamps are DB server time (`NOW()`); client/device clocks never touch money; token expiry validated server-side with standard JWT leeway | N/A |
-| Validation endpoint slow/down | Fail-open ACCEPT (§3.2) — payments proceed to confirmation handling | p99 alerting |
+| Failure                                             | Behaviour                                                                                                                                                                                            | Recovery                                            |
+| --------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| **Database unavailable during callback**            | **Ack-after-durable-audit:** if the raw-callback audit insert fails, return **non-200** so Safaricom retries (currently the platform acks unconditionally and can lose the callback — this changes). | Safaricom retry → audit lands → DLQ processes       |
+| Database unavailable during processing (post-audit) | Audit row persisted, processing marked errored                                                                                                                                                       | DLQ replay job (exists) re-runs idempotent handlers |
+| **M-Pesa/Daraja unavailable**                       | STK initiation fails fast with a clear error; PayBill unaffected (Safaricom-side); B2C queued with backoff                                                                                           | Circuit-break Daraja calls; queued retries          |
+| **Redis unavailable**                               | Refresh falls back to `refresh_tokens` table (exists); STK duplicate-prompt lock degrades — receipt uniqueness still guarantees no double-posting; rate limits degrade to conservative defaults      | Self-heals on reconnect                             |
+| Delayed callback                                    | §11 — STK-Query reconciliation                                                                                                                                                                       | Existing job                                        |
+| Duplicate callback / retry storm                    | Idempotent by construction (spine + per-table uniques + idempotency keys); DLQ uses exponential backoff                                                                                              | None needed                                         |
+| Worker/queue failure                                | Outbox + DLQ rows persist; nothing is lost, only delayed                                                                                                                                             | Workers resume; depth alerting (§16)                |
+| Network partition mid-allocation                    | Single DB transaction — allocation is all-or-nothing; spine `received` state catches the "receipt landed, allocation didn't" case                                                                    | Orphan monitor + replay                             |
+| **Clock skew**                                      | All financial timestamps are DB server time (`NOW()`); client/device clocks never touch money; token expiry validated server-side with standard JWT leeway                                           | N/A                                                 |
+| Validation endpoint slow/down                       | Fail-open ACCEPT (§3.2) — payments proceed to confirmation handling                                                                                                                                  | p99 alerting                                        |
 
-## 15. Security Architecture *(Gap 14)*
+## 15. Security Architecture _(Gap 14)_
 
 ### 15.1 Callback integrity (spoofing, tampering, replay)
 
@@ -631,7 +633,7 @@ Mandatory for all payment-affecting endpoints:
 
 - Check digit makes blind membership-number guessing ~10× harder; **rate limiting** on the validation endpoint and `ACC` SMS keyword per MSISDN/IP (Redis, conservative defaults on Redis loss); repeated `unknown_account` rejections from one source alert (§16).
 - Login brute force: existing lockout mechanism retained.
-- Accepted residual: valid-number discovery lets an attacker *donate* to a stranger — no confidentiality or integrity impact.
+- Accepted residual: valid-number discovery lets an attacker _donate_ to a stranger — no confidentiality or integrity impact.
 
 ### 15.5 Insider abuse
 
@@ -643,25 +645,25 @@ Mandatory for all payment-affecting endpoints:
 
 - Daraja credentials, JWT keys, URL tokens in the managed secret store (env/Vercel), never in the repo; rotation procedure documented per secret; JWT key rotation supported via `kid` header with a two-key overlap window.
 
-## 16. Monitoring & Observability *(Gap 17)*
+## 16. Monitoring & Observability _(Gap 17)_
 
-| Metric | Threshold → Alert | Page? |
-| --- | --- | --- |
-| Payment success rate (completed / initiated, 15-min window) | < 98% | Yes |
-| Unrouted payments | > 5/day or any single > KES 10,000 | Business hours |
-| Spine orphans (`received` > 15 min) | > 0 | Yes |
-| Callback processing lag (received → allocated p95) | > 2 min | Yes |
-| C2B validation p99 latency | > 2 s (Safaricom timeout risk) | Yes |
-| Validation fail-open rate | > 1% of validations | Yes |
-| DLQ / outbox depth | > 0 for 10 min | Yes |
-| Duplicate-callback rate | Spike > 3× baseline | Business hours |
-| Ledger posting failures (journal skipped) | > 0 | Yes |
-| Reconciliation diff (nightly) | Any one-sided receipt | Yes |
-| Auth: refresh failures / NO_ACTIVE_GROUP rate | Spike > 3× baseline | Business hours |
-| Switch-group failures | Spike | Business hours |
-| Audit-write failures (`payment_events`) | > 0 (audit failure fails the tx — this alerts on the tx failures) | Yes |
-| Prefix saturation | Any prefix > 80% | Weekly review |
-| Rate-limit triggers (validation/ACC) | Sustained from one source | Business hours |
+| Metric                                                      | Threshold → Alert                                                 | Page?          |
+| ----------------------------------------------------------- | ----------------------------------------------------------------- | -------------- |
+| Payment success rate (completed / initiated, 15-min window) | < 98%                                                             | Yes            |
+| Unrouted payments                                           | > 5/day or any single > KES 10,000                                | Business hours |
+| Spine orphans (`received` > 15 min)                         | > 0                                                               | Yes            |
+| Callback processing lag (received → allocated p95)          | > 2 min                                                           | Yes            |
+| C2B validation p99 latency                                  | > 2 s (Safaricom timeout risk)                                    | Yes            |
+| Validation fail-open rate                                   | > 1% of validations                                               | Yes            |
+| DLQ / outbox depth                                          | > 0 for 10 min                                                    | Yes            |
+| Duplicate-callback rate                                     | Spike > 3× baseline                                               | Business hours |
+| Ledger posting failures (journal skipped)                   | > 0                                                               | Yes            |
+| Reconciliation diff (nightly)                               | Any one-sided receipt                                             | Yes            |
+| Auth: refresh failures / NO_ACTIVE_GROUP rate               | Spike > 3× baseline                                               | Business hours |
+| Switch-group failures                                       | Spike                                                             | Business hours |
+| Audit-write failures (`payment_events`)                     | > 0 (audit failure fails the tx — this alerts on the tx failures) | Yes            |
+| Prefix saturation                                           | Any prefix > 80%                                                  | Weekly review  |
+| Rate-limit triggers (validation/ACC)                        | Sustained from one source                                         | Business hours |
 
 **Dashboards:** (1) Payments Ops — volumes, success rate, states, unrouted queue age; (2) Routing Health — registry hit rates by kind, validation accept/reject breakdown, legacy-grammar usage (drives print-material retirement); (3) Financial Integrity — reconciliation results, reallocation volume, maker-checker queue; (4) Auth Health — refresh outcomes, session lineages, epoch bumps. All metrics tagged `is_test`/`ZZ`-prefix so sandbox traffic never pollutes production signals.
 
@@ -671,57 +673,57 @@ Mandatory for all payment-affecting endpoints:
 
 ## 17. Gap Closure Matrix
 
-| Gap | Closed in | Key change | DB change | Migration impact |
-| --- | --- | --- | --- | --- |
-| 1 Number governance | §1.8 | Ownership/reservation/exhaustion/DR rules | `ZZ` reservation; DR rebuild script | None beyond Phase 1 |
-| 2 Payment-identity governance | §1.1, §3.1 | Single public identity + module sweep + CI template check | — | Phase 1 UI sweep |
-| 3 Routing engine | §3.3 | Deterministic decision table R1–R10 | — | Phase 1 |
-| 4 Membership state machine | §4.1 | Per-state payment/auth/reporting/audit; obligations-only suspension; reinstatement | `auth_version` trigger | Phase 0 (status sweep) + Phase 2 (eligibility rules) |
-| 5 Allocation engine | §3.5 | Decision table A1–A9; expired requests inert; invalid suffix rejected; config-error alarm | Request expiry job | Phase 2 |
-| 6 Multi-group isolation | §9 | Workflow-by-workflow verification incl. notifications/statements/dashboards | — | Continuous (tests) |
-| 7 Auth context | §2.5 | `authVersion` + `sessionVersion` epochs; sensitive-op re-check | 2 columns + triggers | Phase 3 |
-| 8 DB constraints | §6 | Three-column FK; immutability triggers; `UNIQUE(payment_id)`; value CHECKs | As listed | Phase 3 (`NOT VALID`→`VALIDATE`) |
-| 9 Payment lifecycle | §11 | Full state machines; duplicate/delayed/out-of-order/reversal/chargeback behaviour | Spine states | Phase 1.5 |
-| 10 Auditability | §7 | Spine audit columns + append-only `payment_events`; audit failure fails the tx | 2 tables/columns | Phase 1.5 |
-| 11 Events | §12 | Transactional outbox; bus deferred (ADR-17) | `event_outbox` | Phase 1.5 |
-| 12 API design | §13 | Idempotency keys, optimistic locking, error catalogue, versioning | Idempotency store | Phase 1.5–2 |
-| 13 Resilience | §14 | Failure matrix; **ack-after-durable-audit** | — | Phase 0 (ack change) |
-| 14 Security | §15 | URL tokens, refresh rotation + reuse detection, rate limits, maker-checker | Reallocation approver | Phases 1–3 |
-| 15 Future integrations | §10 | ISO 20022/card mapping via registry + spine | — | None |
-| 16 Migration | §19 | Shadow-mode cutover, success/failure criteria, validation queries | — | — |
-| 17 Observability | §16 | Metrics, thresholds, dashboards, paging | — | From Phase 1 |
+| Gap                           | Closed in  | Key change                                                                                | DB change                           | Migration impact                                     |
+| ----------------------------- | ---------- | ----------------------------------------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------- |
+| 1 Number governance           | §1.8       | Ownership/reservation/exhaustion/DR rules                                                 | `ZZ` reservation; DR rebuild script | None beyond Phase 1                                  |
+| 2 Payment-identity governance | §1.1, §3.1 | Single public identity + module sweep + CI template check                                 | —                                   | Phase 1 UI sweep                                     |
+| 3 Routing engine              | §3.3       | Deterministic decision table R1–R10                                                       | —                                   | Phase 1                                              |
+| 4 Membership state machine    | §4.1       | Per-state payment/auth/reporting/audit; obligations-only suspension; reinstatement        | `auth_version` trigger              | Phase 0 (status sweep) + Phase 2 (eligibility rules) |
+| 5 Allocation engine           | §3.5       | Decision table A1–A9; expired requests inert; invalid suffix rejected; config-error alarm | Request expiry job                  | Phase 2                                              |
+| 6 Multi-group isolation       | §9         | Workflow-by-workflow verification incl. notifications/statements/dashboards               | —                                   | Continuous (tests)                                   |
+| 7 Auth context                | §2.5       | `authVersion` + `sessionVersion` epochs; sensitive-op re-check                            | 2 columns + triggers                | Phase 3                                              |
+| 8 DB constraints              | §6         | Three-column FK; immutability triggers; `UNIQUE(payment_id)`; value CHECKs                | As listed                           | Phase 3 (`NOT VALID`→`VALIDATE`)                     |
+| 9 Payment lifecycle           | §11        | Full state machines; duplicate/delayed/out-of-order/reversal/chargeback behaviour         | Spine states                        | Phase 1.5                                            |
+| 10 Auditability               | §7         | Spine audit columns + append-only `payment_events`; audit failure fails the tx            | 2 tables/columns                    | Phase 1.5                                            |
+| 11 Events                     | §12        | Transactional outbox; bus deferred (ADR-17)                                               | `event_outbox`                      | Phase 1.5                                            |
+| 12 API design                 | §13        | Idempotency keys, optimistic locking, error catalogue, versioning                         | Idempotency store                   | Phase 1.5–2                                          |
+| 13 Resilience                 | §14        | Failure matrix; **ack-after-durable-audit**                                               | —                                   | Phase 0 (ack change)                                 |
+| 14 Security                   | §15        | URL tokens, refresh rotation + reuse detection, rate limits, maker-checker                | Reallocation approver               | Phases 1–3                                           |
+| 15 Future integrations        | §10        | ISO 20022/card mapping via registry + spine                                               | —                                   | None                                                 |
+| 16 Migration                  | §19        | Shadow-mode cutover, success/failure criteria, validation queries                         | —                                   | —                                                    |
+| 17 Observability              | §16        | Metrics, thresholds, dashboards, paging                                                   | —                                   | From Phase 1                                         |
 
 ## 18. Architectural Decisions Log (ADR)
 
-| # | Decision | Status | Rationale / supersedes |
-| --- | --- | --- | --- |
-| ADR-1 | Payment account is **membership**-scoped, not member-scoped | Accepted (v1) | Isolation falls out of the identifier |
-| ADR-2 | Fixed 8-char `PP DDDDD C` with Damm check digit | Accepted (v2) | Supersedes variable format; kills typo-pays-a-stranger |
-| ADR-3 | Prefix = immutable branch-code; name only seeds a suggestion | Accepted (v2) | Renames/mergers can never disturb payment identity |
-| ADR-4 | Membership Number is the **only** public payment identifier | Accepted (v2, CI-enforced v3) | Gap 2 |
-| ADR-5 | Display aliases: cosmetic, never routable, absent from registry | Accepted (v2) | — |
-| ADR-6 | Single `payment_accounts` registry as sole routing index | Accepted (v2) | Absorbs legacy + all future kinds |
-| ADR-7 | C2B Validation actively rejects; fail-open on internal error | Accepted (v2) | Ships with Phase 1, never after the short number |
-| ADR-8 | Payment spine + `payment_reallocations` contra-entry corrections | Accepted (v2) | Exactly-once, orphans queryable, chargeback-ready |
-| ADR-9 | One three-column composite FK | Accepted (v2) | Supersedes dual mechanism |
-| ADR-10 | Product resolution: request → suffix → member default → group default; requests optional | Accepted (v2); tables hardened v3 (A1–A9) | Retains member-default tier (explicit product requirement) |
-| ADR-11 | Sessions are independent lineages; switch-group mints a new session | Accepted (v2) | — |
-| ADR-12 | Organization attribution derivable, not denormalised | Accepted (v1, reaffirmed) | Many-to-many schema reality |
-| ADR-13 | `currency` on the spine now | Accepted (v2) | Cheap now, brutal later |
-| ADR-14 | Numbers immutable, never recycled; transfer = exit + join | Accepted (v1, DB-enforced v2) | — |
-| ADR-15 | Partial payments never complete obligations | Accepted (v2) | Fixes pre-existing defect |
-| ADR-16 | Phone is metadata; third-party flagged, never re-routed | Accepted (v1, reaffirmed) | — |
-| ADR-17 | **Transactional outbox now; event bus deferred** until >1 consuming service | Accepted (v3) | Dual-write safety without broker complexity; broker-ready schema |
-| ADR-18 | `authVersion` + `sessionVersion` epochs; sensitive ops re-check | Accepted (v3) | Kills silent drift; two epochs subsume finer-grained version counters |
-| ADR-19 | **Ack-after-durable-audit** for callbacks (non-200 if audit write fails) | Accepted (v3) | Supersedes unconditional 200-ack; Safaricom retry becomes the durability mechanism |
-| ADR-20 | Maker-checker on reallocations above group threshold | Accepted (v3) | Insider-abuse control |
-| ADR-21 | Suspended memberships: obligations-only inbound (loan repayments yes, savings no) | Accepted (v3) | Members can always reduce debt; group controls new exposure |
-| ADR-22 | `Idempotency-Key` mandatory on money-moving POSTs | Accepted (v3) | Retry safety end-to-end |
-| ADR-23 | Shadow-mode routing cutover with quantified success criteria | Accepted (v3) | §19 |
-| ADR-24 | `ZZ` prefix reserved for test/sandbox allocations | Accepted (v3) | Test traffic structurally identifiable |
-| ADR-25 | Refresh-token rotation with reuse detection → lineage revocation | Accepted (v3) | Stolen-token replay dies on first legitimate refresh |
+| #      | Decision                                                                                 | Status                                    | Rationale / supersedes                                                             |
+| ------ | ---------------------------------------------------------------------------------------- | ----------------------------------------- | ---------------------------------------------------------------------------------- |
+| ADR-1  | Payment account is **membership**-scoped, not member-scoped                              | Accepted (v1)                             | Isolation falls out of the identifier                                              |
+| ADR-2  | Fixed 8-char `PP DDDDD C` with Damm check digit                                          | Accepted (v2)                             | Supersedes variable format; kills typo-pays-a-stranger                             |
+| ADR-3  | Prefix = immutable branch-code; name only seeds a suggestion                             | Accepted (v2)                             | Renames/mergers can never disturb payment identity                                 |
+| ADR-4  | Membership Number is the **only** public payment identifier                              | Accepted (v2, CI-enforced v3)             | Gap 2                                                                              |
+| ADR-5  | Display aliases: cosmetic, never routable, absent from registry                          | Accepted (v2)                             | —                                                                                  |
+| ADR-6  | Single `payment_accounts` registry as sole routing index                                 | Accepted (v2)                             | Absorbs legacy + all future kinds                                                  |
+| ADR-7  | C2B Validation actively rejects; fail-open on internal error                             | Accepted (v2)                             | Ships with Phase 1, never after the short number                                   |
+| ADR-8  | Payment spine + `payment_reallocations` contra-entry corrections                         | Accepted (v2)                             | Exactly-once, orphans queryable, chargeback-ready                                  |
+| ADR-9  | One three-column composite FK                                                            | Accepted (v2)                             | Supersedes dual mechanism                                                          |
+| ADR-10 | Product resolution: request → suffix → member default → group default; requests optional | Accepted (v2); tables hardened v3 (A1–A9) | Retains member-default tier (explicit product requirement)                         |
+| ADR-11 | Sessions are independent lineages; switch-group mints a new session                      | Accepted (v2)                             | —                                                                                  |
+| ADR-12 | Organization attribution derivable, not denormalised                                     | Accepted (v1, reaffirmed)                 | Many-to-many schema reality                                                        |
+| ADR-13 | `currency` on the spine now                                                              | Accepted (v2)                             | Cheap now, brutal later                                                            |
+| ADR-14 | Numbers immutable, never recycled; transfer = exit + join                                | Accepted (v1, DB-enforced v2)             | —                                                                                  |
+| ADR-15 | Partial payments never complete obligations                                              | Accepted (v2)                             | Fixes pre-existing defect                                                          |
+| ADR-16 | Phone is metadata; third-party flagged, never re-routed                                  | Accepted (v1, reaffirmed)                 | —                                                                                  |
+| ADR-17 | **Transactional outbox now; event bus deferred** until >1 consuming service              | Accepted (v3)                             | Dual-write safety without broker complexity; broker-ready schema                   |
+| ADR-18 | `authVersion` + `sessionVersion` epochs; sensitive ops re-check                          | Accepted (v3)                             | Kills silent drift; two epochs subsume finer-grained version counters              |
+| ADR-19 | **Ack-after-durable-audit** for callbacks (non-200 if audit write fails)                 | Accepted (v3)                             | Supersedes unconditional 200-ack; Safaricom retry becomes the durability mechanism |
+| ADR-20 | Maker-checker on reallocations above group threshold                                     | Accepted (v3)                             | Insider-abuse control                                                              |
+| ADR-21 | Suspended memberships: obligations-only inbound (loan repayments yes, savings no)        | Accepted (v3)                             | Members can always reduce debt; group controls new exposure                        |
+| ADR-22 | `Idempotency-Key` mandatory on money-moving POSTs                                        | Accepted (v3)                             | Retry safety end-to-end                                                            |
+| ADR-23 | Shadow-mode routing cutover with quantified success criteria                             | Accepted (v3)                             | §19                                                                                |
+| ADR-24 | `ZZ` prefix reserved for test/sandbox allocations                                        | Accepted (v3)                             | Test traffic structurally identifiable                                             |
+| ADR-25 | Refresh-token rotation with reuse detection → lineage revocation                         | Accepted (v3)                             | Stolen-token replay dies on first legitimate refresh                               |
 
-## 19. Roadmap, Migration & Cutover *(Gaps 13, 16)*
+## 19. Roadmap, Migration & Cutover _(Gaps 13, 16)_
 
 **Phase 0 — stop the bleeding. No DB migrations, ship now.**
 
@@ -731,7 +733,7 @@ Mandatory for all payment-affecting endpoints:
 4. Delete group-name BillRef fallback (audit H-4).
 5. Callback ack-after-durable-audit (ADR-19) — a config-flagged behaviour change, no schema.
 
-*Rollback: code revert.*
+_Rollback: code revert._
 
 **Phase 1 — Membership Number + registry + validation (one release, inseparable):**
 
@@ -740,34 +742,34 @@ Mandatory for all payment-affecting endpoints:
 3. Routing via registry; **C2B validation active** + rate limiting; third-party flagging.
 4. UI sweep (only-public-identity) + CI template check; SMS `ACC` keyword; monitoring dashboards live.
 
-*Rollback: additive — stop printing, validation to accept-all via flag; legacy routing unaffected.*
+_Rollback: additive — stop printing, validation to accept-all via flag; legacy routing unaffected._
 
 **Phase 1.5 — payment spine + audit + outbox:**
 
 1. `allocation_status`, `currency`, audit columns, `payment_id` (+ `UNIQUE`) on domain tables, `payment_reallocations`, `payment_events`, `event_outbox`; idempotency-key store; orphan monitor + nightly reconciliation.
 
-*Rollback: additive columns; dispatch works without reading them.*
+_Rollback: additive columns; dispatch works without reading them._
 
 **Phase 2 — product-aware allocation:**
 
 1. `payment_requests` + expiry job; allocation engine A1–A9; suffix hints; per-state payment eligibility (§4.1).
 2. Product dispatch to owning services; `partially_paid` semantics.
 
-*Rollback: dispatch behind a feature flag; flag off restores savings-default.*
+_Rollback: dispatch behind a feature flag; flag off restores savings-default._
 
 **Phase 3 — DB integrity + context hardening:**
 
 1. Pollution audit → repair/quarantine → composite FKs `NOT VALID` → `VALIDATE` → `group_membership_id` NOT NULL; immutability triggers; value-CHECK sweep.
 2. JWT claims (`membershipId`, `membershipNo`, epochs) + proxy + `TenantContext`; sensitive-op version checks; refresh rotation + reuse detection; maker-checker on reallocations; ledger attribution + system actor.
 
-*Rollback: `DROP CONSTRAINT` / claim-check flags; no data loss.*
+_Rollback: `DROP CONSTRAINT` / claim-check flags; no data loss._
 
 **Phase 4 — UX:**
 
 1. switch-group endpoint + sidebar switcher + balance snapshots.
 2. Notification templates; receipt-email fix; retire legacy refs from printed materials.
 
-*Rollback: UI-only.*
+_Rollback: UI-only._
 
 **Cutover strategy (routing):** the registry router runs in **shadow mode** for ≥2 weeks before it takes over — both old and new routers evaluate every inbound payment; the old router's decision executes; divergences are logged and reviewed daily.
 **Success criteria to flip:** ≥ 99.5% decision agreement (divergences explained and in the new router's favour), zero new unrouted regressions, validation p99 < 2s, dashboards green for 7 consecutive days.
@@ -777,38 +779,38 @@ Mandatory for all payment-affecting endpoints:
 
 ## 20. Acceptance Criteria
 
-| Scenario | Required behaviour |
-| --- | --- |
-| Multi-group member's token refreshes | Same membership, group, role (re-read); re-validated, never re-chosen |
-| Role changed by admin | New role at next refresh; sensitive ops see it immediately (epoch check) |
-| Member blacklisted | `session_version`/`auth_version` bump → sessions die at next request/refresh; payments rejected per §4.1 |
-| Typo'd account number (single-digit error / adjacent transposition) | Fails Damm check → rejected at validation; on fail-open, unrouted — never posted |
-| Payment to an exited membership's number | Rejected at validation; on fail-open, unrouted (`membership_inactive`); number never reissued |
-| Suspended member pays loan installment | **Accepted** (obligations-only rule); savings payment from same member rejected |
-| Spouse pays `BG 10253 4` from own phone | Posts to Jane's Bungoma membership; flagged third-party |
-| Spontaneous deposit, no request open | Allocates via member default → group default; never rejected, never parked |
-| Two open requests, one exact amount match | Exact-amount request wins |
-| Two open requests, no amount match | Oldest wins; `amount_variance` tagged |
-| Expired request exists | Ignored entirely (A6) |
-| Invalid suffix (`-X`) | Rejected as malformed (A1); never a guess |
-| Partial loan installment | `partially_paid`, running total; never `completed` short |
-| Overpaid final installment | Excess to next tier; never negative receivable |
-| Welfare payment `BG102534-W` | Welfare table + welfare ledger, not savings |
-| Duplicate callback (any path, any timing) | Spine no-op; `replayed` event logged |
-| Out-of-order failure-after-success | Ignored + logged; `completed` is terminal |
-| Callback arrives while DB is down | Non-200 → Safaricom retries → audited → processed |
-| Payment received, allocation crashes | `received` orphan visible in ≤15 min; DLQ replay completes |
-| Posted to wrong membership/product | Maker-checker reallocation + contra journals; originals immutable; full event chain |
-| Treasurer allocates unrouted receipt to a non-member | Guard rejects; composite FK backstops |
-| Same idempotency key replayed to stk-push | Original response returned; no second prompt |
-| Consumed refresh token replayed | Session lineage revoked |
-| Fabricated callback for unknown checkout/receipt | Writes nothing; URL-token failure drops it earlier |
-| Group renamed / merged / org renamed / platform migrated | Prefix and all numbers unchanged; transfer = exit + join |
-| Alias typed as a PayBill account | Not in registry → rejected (aliases never route) |
-| Legacy `KYT-CONTR-…` ref from an old poster | Registry alias resolves; posts normally |
-| Member removed from group A, active in B | A: rejected/parked; B: unaffected; switcher/refresh list only B |
-| Test payment (sandbox) | `ZZ` prefix + `is_test` — never in production metrics or ledgers |
-| Bank / card / Airtel / QR / ISO 20022 integration added | New registry kind + spine entry path; no routing redesign |
+| Scenario                                                            | Required behaviour                                                                                       |
+| ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Multi-group member's token refreshes                                | Same membership, group, role (re-read); re-validated, never re-chosen                                    |
+| Role changed by admin                                               | New role at next refresh; sensitive ops see it immediately (epoch check)                                 |
+| Member blacklisted                                                  | `session_version`/`auth_version` bump → sessions die at next request/refresh; payments rejected per §4.1 |
+| Typo'd account number (single-digit error / adjacent transposition) | Fails Damm check → rejected at validation; on fail-open, unrouted — never posted                         |
+| Payment to an exited membership's number                            | Rejected at validation; on fail-open, unrouted (`membership_inactive`); number never reissued            |
+| Suspended member pays loan installment                              | **Accepted** (obligations-only rule); savings payment from same member rejected                          |
+| Spouse pays `BG 10253 4` from own phone                             | Posts to Jane's Bungoma membership; flagged third-party                                                  |
+| Spontaneous deposit, no request open                                | Allocates via member default → group default; never rejected, never parked                               |
+| Two open requests, one exact amount match                           | Exact-amount request wins                                                                                |
+| Two open requests, no amount match                                  | Oldest wins; `amount_variance` tagged                                                                    |
+| Expired request exists                                              | Ignored entirely (A6)                                                                                    |
+| Invalid suffix (`-X`)                                               | Rejected as malformed (A1); never a guess                                                                |
+| Partial loan installment                                            | `partially_paid`, running total; never `completed` short                                                 |
+| Overpaid final installment                                          | Excess to next tier; never negative receivable                                                           |
+| Welfare payment `BG102534-W`                                        | Welfare table + welfare ledger, not savings                                                              |
+| Duplicate callback (any path, any timing)                           | Spine no-op; `replayed` event logged                                                                     |
+| Out-of-order failure-after-success                                  | Ignored + logged; `completed` is terminal                                                                |
+| Callback arrives while DB is down                                   | Non-200 → Safaricom retries → audited → processed                                                        |
+| Payment received, allocation crashes                                | `received` orphan visible in ≤15 min; DLQ replay completes                                               |
+| Posted to wrong membership/product                                  | Maker-checker reallocation + contra journals; originals immutable; full event chain                      |
+| Treasurer allocates unrouted receipt to a non-member                | Guard rejects; composite FK backstops                                                                    |
+| Same idempotency key replayed to stk-push                           | Original response returned; no second prompt                                                             |
+| Consumed refresh token replayed                                     | Session lineage revoked                                                                                  |
+| Fabricated callback for unknown checkout/receipt                    | Writes nothing; URL-token failure drops it earlier                                                       |
+| Group renamed / merged / org renamed / platform migrated            | Prefix and all numbers unchanged; transfer = exit + join                                                 |
+| Alias typed as a PayBill account                                    | Not in registry → rejected (aliases never route)                                                         |
+| Legacy `KYT-CONTR-…` ref from an old poster                         | Registry alias resolves; posts normally                                                                  |
+| Member removed from group A, active in B                            | A: rejected/parked; B: unaffected; switcher/refresh list only B                                          |
+| Test payment (sandbox)                                              | `ZZ` prefix + `is_test` — never in production metrics or ledgers                                         |
+| Bank / card / Airtel / QR / ISO 20022 integration added             | New registry kind + spine entry path; no routing redesign                                                |
 
 ## 21. Reviews
 
@@ -820,23 +822,23 @@ Mandatory for all payment-affecting endpoints:
 
 ## 22. Production Readiness Checklist
 
-| # | Item | Gate |
-| --- | --- | --- |
-| 1 | Phase 0 deployed (context pinning, status unification, guards, no name-routing, durable-ack) | Before anything else |
-| 2 | Damm implementation property-tested (all single-digit errors + adjacent transpositions caught) | Phase 1 code review |
-| 3 | C2B validation live, rate-limited, p99 < 2s, fail-open verified by chaos test | Phase 1 launch |
-| 4 | Registry backfill verified: 100% active memberships have valid numbers + registry rows; rebuild script output matches | Phase 1 launch |
-| 5 | UI sweep + CI template check green (no member_code/UUID on payment surfaces) | Phase 1 launch |
-| 6 | Spine + events + outbox live; orphan monitor firing in staging test | Phase 1.5 |
-| 7 | Nightly reconciliation running; one induced diff detected in staging | Phase 1.5 |
-| 8 | Allocation engine A1–A9 covered by integration tests incl. expiry, invalid suffix, config-error | Phase 2 |
-| 9 | `partially_paid` semantics verified against real installment data | Phase 2 |
-| 10 | Pollution repair complete; composite FKs VALIDATEd; zero violations | Phase 3 |
-| 11 | Epoch claims + sensitive-op checks live; blacklist kill-switch tested | Phase 3 |
-| 12 | Refresh rotation + reuse detection tested (replay revokes lineage) | Phase 3 |
-| 13 | Maker-checker flow exercised end-to-end with a real reallocation | Phase 3 |
-| 14 | Shadow-mode cutover criteria met (≥99.5% agreement, 7 green days) | Routing flip |
-| 15 | Dashboards + paging live; on-call runbooks published | Phase 1 onward |
-| 16 | DR drill: registry + counters rebuilt from backup in staging | Before GA |
+| #   | Item                                                                                                                  | Gate                 |
+| --- | --------------------------------------------------------------------------------------------------------------------- | -------------------- |
+| 1   | Phase 0 deployed (context pinning, status unification, guards, no name-routing, durable-ack)                          | Before anything else |
+| 2   | Damm implementation property-tested (all single-digit errors + adjacent transpositions caught)                        | Phase 1 code review  |
+| 3   | C2B validation live, rate-limited, p99 < 2s, fail-open verified by chaos test                                         | Phase 1 launch       |
+| 4   | Registry backfill verified: 100% active memberships have valid numbers + registry rows; rebuild script output matches | Phase 1 launch       |
+| 5   | UI sweep + CI template check green (no member_code/UUID on payment surfaces)                                          | Phase 1 launch       |
+| 6   | Spine + events + outbox live; orphan monitor firing in staging test                                                   | Phase 1.5            |
+| 7   | Nightly reconciliation running; one induced diff detected in staging                                                  | Phase 1.5            |
+| 8   | Allocation engine A1–A9 covered by integration tests incl. expiry, invalid suffix, config-error                       | Phase 2              |
+| 9   | `partially_paid` semantics verified against real installment data                                                     | Phase 2              |
+| 10  | Pollution repair complete; composite FKs VALIDATEd; zero violations                                                   | Phase 3              |
+| 11  | Epoch claims + sensitive-op checks live; blacklist kill-switch tested                                                 | Phase 3              |
+| 12  | Refresh rotation + reuse detection tested (replay revokes lineage)                                                    | Phase 3              |
+| 13  | Maker-checker flow exercised end-to-end with a real reallocation                                                      | Phase 3              |
+| 14  | Shadow-mode cutover criteria met (≥99.5% agreement, 7 green days)                                                     | Routing flip         |
+| 15  | Dashboards + paging live; on-call runbooks published                                                                  | Phase 1 onward       |
+| 16  | DR drill: registry + counters rebuilt from backup in staging                                                          | Before GA            |
 
 **Final verdict: with this v3 specification implemented in the stated order, the architecture eliminates every known source of cross-group contamination, makes incorrect routing and invalid financial records unrepresentable by design, requires no manual reconciliation in normal operation, scales to millions of memberships across thousands of organizations, and keeps the member experience to exactly two things: a Business Number and a Membership Number.**

@@ -20,9 +20,7 @@ export function SiteFooter() {
               aria-label="Kitabu Yetu — home"
             >
               <BrandLogo size={38} alt="" />
-              <span className="font-display text-[1.4rem] tracking-tight text-brand-blue-900">
-                Kitabu&nbsp;Yetu
-              </span>
+              <span className="font-display text-[1.4rem] tracking-tight text-brand-blue-900">Kitabu&nbsp;Yetu</span>
             </Link>
 
             <p className="mt-5 max-w-xs font-display text-xl font-light leading-snug text-brand-blue-900/80">
@@ -32,8 +30,8 @@ export function SiteFooter() {
             </p>
 
             <p className="mt-5 max-w-xs text-sm leading-relaxed text-brand-blue-900/65">
-              Digital tools for vibrant groups and organizations managing people, money
-              and community programs across East Africa.
+              Digital tools for vibrant groups and organizations managing people, money and community programs across
+              East Africa.
             </p>
 
             <div className="mt-7 max-w-xs">
@@ -99,9 +97,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-16 flex flex-col gap-4 border-t border-brand-blue-900/10 pt-8 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-brand-blue-900/65">
-            © {year} Kitabu Yetu. All rights reserved.
-          </p>
+          <p className="text-sm text-brand-blue-900/65">© {year} Kitabu Yetu. All rights reserved.</p>
           <p className="font-mono text-[11px] uppercase tracking-[0.18em] text-brand-blue-900/65">
             Built in Nairobi, for East Africa
           </p>

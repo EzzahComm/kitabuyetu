@@ -59,12 +59,12 @@ export async function GET(req: NextRequest): Promise<NextResponse> {
 
   return NextResponse.json(
     {
-      status:    allOk ? 'ok' : 'degraded',
+      status: allOk ? 'ok' : 'degraded',
       timestamp: new Date().toISOString(),
       checks: { database: db, redis: redisResult },
     },
     {
-      status:  allOk ? 200 : 503,
+      status: allOk ? 200 : 503,
       headers: { 'Cache-Control': 'no-store' },
     },
   );

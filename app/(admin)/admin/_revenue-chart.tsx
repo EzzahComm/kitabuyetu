@@ -1,7 +1,13 @@
 'use client';
 
 import {
-  Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
   type TooltipValueType,
 } from 'recharts';
 import { formatKES } from '@/lib/utils';
@@ -30,7 +36,8 @@ export default function RevenueChart({ data }: { data: { month: string; revenue:
         <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6b7280' }} tickLine={false} axisLine={false} />
         <YAxis
           tick={{ fontSize: 11, fill: '#6b7280' }}
-          tickLine={false} axisLine={false}
+          tickLine={false}
+          axisLine={false}
           tickFormatter={(v: number) => `${(v / 1000).toFixed(0)}k`}
         />
         <Tooltip
@@ -38,10 +45,13 @@ export default function RevenueChart({ data }: { data: { month: string; revenue:
           contentStyle={{ fontSize: 12, borderRadius: 8, border: '1px solid #e5e7eb' }}
         />
         <Area
-          type="monotone" dataKey="revenue"
-          stroke="#2563eb" strokeWidth={2}
+          type="monotone"
+          dataKey="revenue"
+          stroke="#2563eb"
+          strokeWidth={2}
           fill="url(#revGrad)"
-          dot={false} activeDot={{ r: 4, fill: '#2563eb' }}
+          dot={false}
+          activeDot={{ r: 4, fill: '#2563eb' }}
         />
       </AreaChart>
     </ResponsiveContainer>

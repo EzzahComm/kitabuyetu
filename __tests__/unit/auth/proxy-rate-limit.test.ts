@@ -52,10 +52,7 @@ beforeEach(() => {
     lastRequestedKeys.push(key);
     const next = (counters.get(key) ?? 0) + 1;
     counters.set(key, next);
-    return new Response(
-      JSON.stringify([{ result: next }, { result: 1 }]),
-      { status: 200 },
-    );
+    return new Response(JSON.stringify([{ result: next }, { result: 1 }]), { status: 200 });
   });
 });
 
@@ -101,7 +98,7 @@ describe('proxy: rate limiting keyed by user, not shared IP', () => {
     const res = await proxy(bearerReq('/api/v1/members', token));
 
     expect(res.status).toBe(429);
-    const json = await res.json() as { success: boolean; code: string };
+    const json = (await res.json()) as { success: boolean; code: string };
     expect(json.success).toBe(false);
     expect(json.code).toBe('RATE_LIMITED');
     expect(res.headers.get('Retry-After')).toBe('60');

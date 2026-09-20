@@ -1,11 +1,24 @@
 import { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import {
-  FeatureGatedError, MemberCapError, PaymentRequiredError, NotFoundError, ValidationError,
+  FeatureGatedError,
+  MemberCapError,
+  PaymentRequiredError,
+  NotFoundError,
+  ValidationError,
 } from '@/lib/utils/errors';
 import {
-  PLAN_FEATURES, PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, PRODUCT_LABEL, DEFAULT_PRODUCT,
-  BILLING_CYCLE_MONTHS, type PlanType, type SubscriptionProduct, type PlanFeatures, type BillingCycle,
+  PLAN_FEATURES,
+  PLAN_MONTHLY_FEES,
+  PLAN_SMS_ALLOWANCE,
+  PLAN_COPY,
+  PRODUCT_LABEL,
+  DEFAULT_PRODUCT,
+  BILLING_CYCLE_MONTHS,
+  type PlanType,
+  type SubscriptionProduct,
+  type PlanFeatures,
+  type BillingCycle,
 } from '@/types/enums';
 import { logger } from '@/lib/logger';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
@@ -40,11 +53,7 @@ import { clearLowBalanceFlag, clearOrganizationLowBalanceFlag } from './messagin
  * for the groups that already have one — which is all of them today. Runs on
  * the caller's client so it lands in the same commit as the activation.
  */
-async function ensureChartOfAccounts(
-  client: PoolClient,
-  groupId: string,
-  product: SubscriptionProduct,
-): Promise<void> {
+async function ensureChartOfAccounts(client: PoolClient, groupId: string, product: SubscriptionProduct): Promise<void> {
   if (product !== 'kitabu_yetu') return;
   await client.query(`SELECT seed_chart_of_accounts($1)`, [groupId]);
 }
@@ -65,23 +74,28 @@ async function ensureChartOfAccounts(
  * rather than whichever M-Pesa line happened to pay, and best-effort so a
  * failure to confirm can never roll back credits already bought.
  */
-async function sendTopupConfirmation(
-  args: {
-    groupId:      string;
-    paymentId:    string | null;
-    amountKes:    number;
-    creditsAdded: number;
-    newBalance:   string | null;
-  },
-): Promise<void> {
+async function sendTopupConfirmation(args: {
+  groupId: string;
+  paymentId: string | null;
+  amountKes: number;
+  creditsAdded: number;
+  newBalance: string | null;
+}): Promise<void> {
   try {
     // Its OWN connection, deliberately — see addSmsCredits' note. Running this
     // on the caller's transactional client meant a failed lookup poisoned the
     // transaction and rolled the credit back.
-    const { rows: [target] } = await withAdminDb((client) => client.query<{
-      member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
-    }>(
-      `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
+    const {
+      rows: [target],
+    } = await withAdminDb((client) =>
+      client.query<{
+        member_id: string;
+        first_name: string;
+        phone: string;
+        group_name: string;
+        receipt: string | null;
+      }>(
+        `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
               p.mpesa_receipt_number AS receipt
        FROM   groups g
        JOIN   group_members gm ON gm.group_id = g.id AND gm.status = 'active'
@@ -93,35 +107,37 @@ async function sendTopupConfirmation(
                  (gm.role = 'chairperson') DESC,
                  gm.created_at ASC
        LIMIT  1`,
-      [args.groupId, args.paymentId],
-    ));
+        [args.groupId, args.paymentId],
+      ),
+    );
     if (!target) return;
 
     const credits = Math.round(args.creditsAdded);
     const balance = args.newBalance != null ? Math.round(Number(args.newBalance)) : null;
 
     const body =
-      `Dear ${target.first_name}, KES ${args.amountKes.toLocaleString()} of SMS credits `
-      + `has been added to ${target.group_name}. Credits added: ${credits.toLocaleString()}.`
-      + (balance != null ? ` New balance: ${balance.toLocaleString()} messages.` : '')
-      + (target.receipt ? ` Receipt: ${target.receipt}.` : '')
-      + ' Thank you.';
+      `Dear ${target.first_name}, KES ${args.amountKes.toLocaleString()} of SMS credits ` +
+      `has been added to ${target.group_name}. Credits added: ${credits.toLocaleString()}.` +
+      (balance != null ? ` New balance: ${balance.toLocaleString()} messages.` : '') +
+      (target.receipt ? ` Receipt: ${target.receipt}.` : '') +
+      ' Thank you.';
 
     const { notifyMember } = await import('./notifications.service');
     await notifyMember({
-      groupId:  args.groupId,
+      groupId: args.groupId,
       memberId: target.member_id,
-      phone:    target.phone,
+      phone: target.phone,
       body,
-      title:            'SMS credits added',
-      referenceType:    'sms_topup',
-      referenceId:      args.paymentId ?? undefined,
+      title: 'SMS credits added',
+      referenceType: 'sms_topup',
+      referenceId: args.paymentId ?? undefined,
       notificationType: 'sms_topup.credited',
-      billingMode:      'unbilled',
+      billingMode: 'unbilled',
     });
   } catch (err) {
     logger.error('[billing] top-up confirmation failed to send (non-fatal)', {
-      groupId: args.groupId, err: String(err),
+      groupId: args.groupId,
+      err: String(err),
     });
   }
 }
@@ -149,16 +165,14 @@ async function sendTopupConfirmation(
  * Best-effort by design: a failure to CONFIRM a subscription must never roll
  * back the subscription itself.
  */
-async function sendSubscriptionConfirmation(
-  args: {
-    groupId:  string;
-    paymentId: string | null;
-    planType: PlanType;
-    product:  SubscriptionProduct;
-    amount:   number;
-    receipt:  string | null;
-  },
-): Promise<void> {
+async function sendSubscriptionConfirmation(args: {
+  groupId: string;
+  paymentId: string | null;
+  planType: PlanType;
+  product: SubscriptionProduct;
+  amount: number;
+  receipt: string | null;
+}): Promise<void> {
   try {
     // The registered member, not the payer. Prefer whoever initiated the
     // payment; fall back to the group's chairperson so a group whose payment
@@ -172,10 +186,17 @@ async function sendSubscriptionConfirmation(
     // the transaction, and rolled back the credit. A swallowed query error
     // does not un-abort a Postgres transaction, so a best-effort side effect
     // sharing the money transaction's client can still destroy it, silently.
-    const { rows: [target] } = await withAdminDb((client) => client.query<{
-      member_id: string; first_name: string; phone: string; group_name: string; receipt: string | null;
-    }>(
-      `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
+    const {
+      rows: [target],
+    } = await withAdminDb((client) =>
+      client.query<{
+        member_id: string;
+        first_name: string;
+        phone: string;
+        group_name: string;
+        receipt: string | null;
+      }>(
+        `SELECT m.id AS member_id, m.first_name, m.phone, g.name AS group_name,
               p.mpesa_receipt_number AS receipt
        FROM   groups g
        JOIN   group_members gm ON gm.group_id = g.id AND gm.status = 'active'
@@ -186,36 +207,37 @@ async function sendSubscriptionConfirmation(
                  (gm.role = 'chairperson') DESC,
                  gm.created_at ASC
        LIMIT  1`,
-      [args.groupId, args.paymentId],
-    ));
+        [args.groupId, args.paymentId],
+      ),
+    );
     if (!target) return;
 
-    const planLabel = PLAN_COPY[args.product].find((p) => p.type === args.planType)?.label
-      ?? args.planType;
+    const planLabel = PLAN_COPY[args.product].find((p) => p.type === args.planType)?.label ?? args.planType;
     const productLabel = PRODUCT_LABEL[args.product];
     const receipt = args.receipt ?? target.receipt;
 
     const body =
-      `Dear ${target.first_name}, your ${productLabel} ${planLabel} subscription for `
-      + `${target.group_name} is now active. Amount paid: KES ${args.amount.toLocaleString()}.`
-      + (receipt ? ` Receipt: ${receipt}.` : '')
-      + ' Thank you.';
+      `Dear ${target.first_name}, your ${productLabel} ${planLabel} subscription for ` +
+      `${target.group_name} is now active. Amount paid: KES ${args.amount.toLocaleString()}.` +
+      (receipt ? ` Receipt: ${receipt}.` : '') +
+      ' Thank you.';
 
     const { notifyMember } = await import('./notifications.service');
     await notifyMember({
-      groupId:  args.groupId,
+      groupId: args.groupId,
       memberId: target.member_id,
-      phone:    target.phone,
+      phone: target.phone,
       body,
-      title:            'Subscription active',
-      referenceType:    'subscription',
-      referenceId:      args.paymentId ?? undefined,
+      title: 'Subscription active',
+      referenceType: 'subscription',
+      referenceId: args.paymentId ?? undefined,
       notificationType: 'subscription.activated',
-      billingMode:      'unbilled',
+      billingMode: 'unbilled',
     });
   } catch (err) {
     logger.error('[billing] subscription confirmation failed to send (non-fatal)', {
-      groupId: args.groupId, err: String(err),
+      groupId: args.groupId,
+      err: String(err),
     });
   }
 }
@@ -240,9 +262,7 @@ function actorId(userId: string | undefined): string | null {
  * that migration.
  */
 async function hasChartOfAccounts(client: PoolClient, groupId: string): Promise<boolean> {
-  const { rows } = await client.query(
-    `SELECT 1 FROM accounts WHERE group_id = $1 LIMIT 1`, [groupId],
-  );
+  const { rows } = await client.query(`SELECT 1 FROM accounts WHERE group_id = $1 LIMIT 1`, [groupId]);
   return rows.length > 0;
 }
 
@@ -254,7 +274,6 @@ async function hasChartOfAccounts(client: PoolClient, groupId: string): Promise<
  * share an arbitrary pick rather than a lookup.
  */
 export const billingService = {
-
   async getSubscription(
     ctx: TenantContext,
     product: SubscriptionProduct = DEFAULT_PRODUCT,
@@ -271,10 +290,9 @@ export const billingService = {
 
   async getBillingAccount(ctx: TenantContext): Promise<BillingAccount> {
     return withDb(ctx, async (client) => {
-      const { rows } = await client.query<BillingAccount>(
-        `SELECT * FROM billing_accounts WHERE group_id = $1`,
-        [ctx.groupId],
-      );
+      const { rows } = await client.query<BillingAccount>(`SELECT * FROM billing_accounts WHERE group_id = $1`, [
+        ctx.groupId,
+      ]);
       if (!rows[0]) throw new NotFoundError('Billing account');
       return rows[0];
     });
@@ -303,9 +321,9 @@ export const billingService = {
   async activateSubscriptionForPayment(
     client: PoolClient,
     params: {
-      groupId:   string;
-      planType:  PlanType;
-      product:   SubscriptionProduct;
+      groupId: string;
+      planType: PlanType;
+      product: SubscriptionProduct;
       paymentId: string;
       amountPaid: number;
       /** Defaults to 'monthly' — every caller from before this param existed
@@ -316,14 +334,15 @@ export const billingService = {
   ): Promise<Subscription | null> {
     const { groupId, planType, product, paymentId, amountPaid } = params;
     const billingCycle = params.billingCycle ?? 'monthly';
-    const cycleMonths  = BILLING_CYCLE_MONTHS[billingCycle];
+    const cycleMonths = BILLING_CYCLE_MONTHS[billingCycle];
 
     // Serialise every activation attempt for this payment behind one lock, so
     // the check-then-act below cannot interleave with a concurrent replay.
     await client.query(`SELECT id FROM payments WHERE id = $1 FOR UPDATE`, [paymentId]);
 
     const { rows: consumed } = await client.query<{ id: string }>(
-      `SELECT id FROM subscriptions WHERE payment_id = $1`, [paymentId],
+      `SELECT id FROM subscriptions WHERE payment_id = $1`,
+      [paymentId],
     );
     if (consumed[0]) return null;
 
@@ -362,7 +381,7 @@ export const billingService = {
       [groupId, product],
     );
 
-    const smsRate    = await getUnitPrice(0, client);
+    const smsRate = await getUnitPrice(0, client);
     const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
     const { rows } = await client.query<Subscription>(
@@ -379,14 +398,27 @@ export const billingService = {
           monthly_fee, billing_cycle, sms_rate, max_members, sms_allowance_included, payment_id)
        VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + (INTERVAL '1 month' * $4))::date, $5,$6,$7,$8,$9,$10)
        RETURNING *`,
-      [groupId, product, planType, cycleMonths, monthlyRate.toFixed(2), billingCycle,
-       smsRate.toFixed(4), maxMembers, PLAN_SMS_ALLOWANCE[product][planType], paymentId],
+      [
+        groupId,
+        product,
+        planType,
+        cycleMonths,
+        monthlyRate.toFixed(2),
+        billingCycle,
+        smsRate.toFixed(4),
+        maxMembers,
+        PLAN_SMS_ALLOWANCE[product][planType],
+        paymentId,
+      ],
     );
 
     await ensureChartOfAccounts(client, groupId, product);
 
     await sendSubscriptionConfirmation({
-      groupId, paymentId, planType, product,
+      groupId,
+      paymentId,
+      planType,
+      product,
       amount: fee,
       receipt: null,
     });
@@ -421,8 +453,8 @@ export const billingService = {
         [ctx.groupId, product],
       );
 
-      const fee        = PLAN_MONTHLY_FEES[product][planType];
-      const smsRate    = await getUnitPrice(0, client);
+      const fee = PLAN_MONTHLY_FEES[product][planType];
+      const smsRate = await getUnitPrice(0, client);
       const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
       const { rows } = await client.query<Subscription>(
@@ -433,8 +465,15 @@ export const billingService = {
             monthly_fee, sms_rate, max_members, sms_allowance_included)
          VALUES ($1,$2,$3,'active',NOW(), (CURRENT_DATE + INTERVAL '1 month')::date, $4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, product, planType, fee.toFixed(2), smsRate.toFixed(4), maxMembers,
-         PLAN_SMS_ALLOWANCE[product][planType]],
+        [
+          ctx.groupId,
+          product,
+          planType,
+          fee.toFixed(2),
+          smsRate.toFixed(4),
+          maxMembers,
+          PLAN_SMS_ALLOWANCE[product][planType],
+        ],
       );
 
       await ensureChartOfAccounts(client, ctx.groupId, product);
@@ -477,7 +516,7 @@ export const billingService = {
   ): Promise<void> {
     const sub = await this.getSubscription(ctx, product);
     if (!sub) throw new PaymentRequiredError('No active subscription');
-    const plans    = PLAN_FEATURES[product];
+    const plans = PLAN_FEATURES[product];
     const features = plans[sub.plan_type];
     if (!features[feature]) {
       const requiredPlans = (Object.entries(plans) as [PlanType, PlanFeatures][])
@@ -534,14 +573,13 @@ export const billingService = {
     dueInDays = 14,
   ): Promise<Invoice> {
     return withTransaction(ctx, async (client) => {
-      const { rows: ba } = await client.query<{ id: string }>(
-        `SELECT id FROM billing_accounts WHERE group_id = $1`,
-        [ctx.groupId],
-      );
+      const { rows: ba } = await client.query<{ id: string }>(`SELECT id FROM billing_accounts WHERE group_id = $1`, [
+        ctx.groupId,
+      ]);
       if (!ba[0]) throw new NotFoundError('Billing account');
 
-      const subtotal    = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
-      const invoiceNum  = await getNextInvoiceNumber(client);
+      const subtotal = items.reduce((s, i) => s + i.quantity * i.unitPrice, 0);
+      const invoiceNum = await getNextInvoiceNumber(client);
 
       const { rows: inv } = await client.query<Invoice>(
         `INSERT INTO invoices
@@ -557,7 +595,14 @@ export const billingService = {
         await client.query(
           `INSERT INTO invoice_items (group_id, invoice_id, description, quantity, unit_price, total)
            VALUES ($1,$2,$3,$4,$5,$6)`,
-          [ctx.groupId, invoice.id, item.description, item.quantity, item.unitPrice.toFixed(2), (item.quantity * item.unitPrice).toFixed(2)],
+          [
+            ctx.groupId,
+            invoice.id,
+            item.description,
+            item.quantity,
+            item.unitPrice.toFixed(2),
+            (item.quantity * item.unitPrice).toFixed(2),
+          ],
         );
       }
       return invoice;
@@ -572,9 +617,12 @@ export const billingService = {
             mpesa_receipt_number, notes)
          VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8) RETURNING *`,
         [
-          ctx.groupId, data.invoiceId ?? null,
-          data.amount.toFixed(2), data.paymentMethod,
-          data.paymentDate, ctx.userId,
+          ctx.groupId,
+          data.invoiceId ?? null,
+          data.amount.toFixed(2),
+          data.paymentMethod,
+          data.paymentDate,
+          ctx.userId,
           data.mpesaReceiptNumber ?? null,
           data.notes ?? null,
         ],
@@ -603,7 +651,10 @@ export const billingService = {
       // does not.
       if (await hasChartOfAccounts(client, ctx.groupId)) {
         await postTemplatedJournal(
-          client, ctx.groupId, ctx.userId, 'subscription_payment',
+          client,
+          ctx.groupId,
+          ctx.userId,
+          'subscription_payment',
           `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
           { amount: data.amount },
           { reference: rows[0].id },
@@ -641,7 +692,7 @@ export const billingService = {
          WHERE group_id = $1 AND status = 'active'`,
         [ctx.groupId],
       );
-      const rate     = parseFloat(sub[0]?.sms_rate ?? '0.90');
+      const rate = parseFloat(sub[0]?.sms_rate ?? '0.90');
       // Rounded ONCE, here, to the scale the balance column actually stores.
       //
       // sms_credit_ledger.amount is numeric(14,4) while billing_accounts
@@ -660,11 +711,11 @@ export const billingService = {
       // since the ledger shipped — production's single non-consume entry is
       // migration 141's backfill. This is preventive, and it has to land
       // BEFORE any reconciliation alerting or the first real purchase trips it.
-      const credits  = round2(amountKes / rate);
+      const credits = round2(amountKes / rate);
 
-      const { rows: ba } = await client.query<{ id: string }>(
-        `SELECT id FROM billing_accounts WHERE group_id = $1`, [ctx.groupId],
-      );
+      const { rows: ba } = await client.query<{ id: string }>(`SELECT id FROM billing_accounts WHERE group_id = $1`, [
+        ctx.groupId,
+      ]);
 
       // Ledger insert first, and it decides whether the balance moves. A
       // replayed STK callback re-enters here with the same payment_id (the
@@ -705,25 +756,31 @@ export const billingService = {
       // runs with no interactive user and passes the sentinel ctx.userId
       // 'system', which is not a UUID. Recording "no human did this" is also
       // the honest answer.
-      await client.query(
-        `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
-        [
-          'group', ctx.groupId, null, 'purchase',
-          credits.toFixed(4), 0, after[0]?.sms_credits ?? null,
-          'sms_topup', inserted[0].id, paymentId ?? null, actorId(ctx.userId), null,
-        ],
-      );
+      await client.query(`SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`, [
+        'group',
+        ctx.groupId,
+        null,
+        'purchase',
+        credits.toFixed(4),
+        0,
+        after[0]?.sms_credits ?? null,
+        'sms_topup',
+        inserted[0].id,
+        paymentId ?? null,
+        actorId(ctx.userId),
+        null,
+      ]);
 
       // Returned from inside the ON CONFLICT guard, so a replayed callback
       // that credits nothing also confirms nothing — a second "your credits
       // are topped up" for one purchase is exactly as wrong as a second
       // credit. Sent below, after this transaction has committed.
       return {
-        groupId:   ctx.groupId,
+        groupId: ctx.groupId,
         paymentId: paymentId ?? null,
         amountKes,
         creditsAdded: credits,
-        newBalance:   after[0]?.sms_credits ?? null,
+        newBalance: after[0]?.sms_credits ?? null,
       };
     });
 
@@ -772,8 +829,15 @@ export const billingService = {
 /** This org's SMS balance/rate + its most recent top-ups — the GET side. */
 export async function getOrganizationSmsBilling(ctx: TenantContext): Promise<{
   balance: number;
-  rate:    number | null;
-  recent:  { id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string }[];
+  rate: number | null;
+  recent: {
+    id: string;
+    amount_paid: string;
+    credits_added: string;
+    rate_applied: string;
+    notes: string | null;
+    created_at: string;
+  }[];
 }> {
   if (!ctx.organizationId) throw new ValidationError('Organization context is required');
   const organizationId = ctx.organizationId;
@@ -784,7 +848,12 @@ export async function getOrganizationSmsBilling(ctx: TenantContext): Promise<{
       [organizationId],
     );
     const { rows: recent } = await db.query<{
-      id: string; amount_paid: string; credits_added: string; rate_applied: string; notes: string | null; created_at: string;
+      id: string;
+      amount_paid: string;
+      credits_added: string;
+      rate_applied: string;
+      notes: string | null;
+      created_at: string;
     }>(
       `SELECT id, amount_paid, credits_added, rate_applied, notes, created_at
        FROM organization_sms_credits WHERE organization_id = $1
@@ -794,14 +863,15 @@ export async function getOrganizationSmsBilling(ctx: TenantContext): Promise<{
 
     return {
       balance: account[0]?.sms_credits ? Number(account[0].sms_credits) : 0,
-      rate:    account[0]?.sms_rate    ? Number(account[0].sms_rate)    : null,
+      rate: account[0]?.sms_rate ? Number(account[0].sms_rate) : null,
       recent,
     };
   });
 }
 
 async function getOrCreateOrganizationSmsBillingAccount(
-  db: PoolClient, organizationId: string,
+  db: PoolClient,
+  organizationId: string,
 ): Promise<{ id: string; sms_rate: string }> {
   const { rows } = await db.query<{ id: string; sms_rate: string }>(
     `SELECT id, sms_rate FROM organization_billing_accounts WHERE organization_id = $1 FOR UPDATE`,
@@ -830,8 +900,8 @@ async function getOrCreateOrganizationSmsBillingAccount(
  */
 export async function setOrganizationSmsRate(
   organizationId: string,
-  rate:           number,
-  adminId:        string,
+  rate: number,
+  adminId: string,
 ): Promise<{ organizationId: string; rate: number }> {
   if (!(rate > 0)) throw new ValidationError('Rate must be positive');
 
@@ -848,7 +918,8 @@ export async function setOrganizationSmsRate(
       `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, 'organization.sms_rate_update', 'organization', $2, $3::jsonb, $4::jsonb)`,
       [
-        adminId, organizationId,
+        adminId,
+        organizationId,
         JSON.stringify({ sms_rate: before.sms_rate }),
         JSON.stringify({ sms_rate: rows[0].sms_rate }),
       ],
@@ -880,20 +951,20 @@ export async function setOrganizationSmsRate(
  */
 export async function addOrganizationSmsCredits(
   organizationId: string,
-  amountKes:      number,
-  actorUserId:    string | null,
-  opts:           { reference?: string; notes?: string; paymentId?: string | null } = {},
+  amountKes: number,
+  actorUserId: string | null,
+  opts: { reference?: string; notes?: string; paymentId?: string | null } = {},
 ): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number } | null> {
   if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
 
   const result = await withAdminDb(async (db) => {
     const account = await getOrCreateOrganizationSmsBillingAccount(db, organizationId);
-    const rate    = parseFloat(account.sms_rate);
+    const rate = parseFloat(account.sms_rate);
     // Same rounding as the group path above, for the same reason —
     // organization_sms_credits.credits_added and
     // organization_billing_accounts.sms_credits are both 2dp.
     const credits = round2(amountKes / rate);
-    const notes   = opts.notes ?? (opts.reference ? `Top-up — ${opts.reference}` : 'Top-up');
+    const notes = opts.notes ?? (opts.reference ? `Top-up — ${opts.reference}` : 'Top-up');
 
     const { rows: inserted } = await db.query<{ id: string }>(
       `INSERT INTO organization_sms_credits
@@ -901,8 +972,16 @@ export async function addOrganizationSmsCredits(
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
        ON CONFLICT (payment_id) DO NOTHING
        RETURNING id`,
-      [organizationId, account.id, amountKes.toFixed(2), credits.toFixed(4), rate.toFixed(4), actorUserId, notes,
-       opts.paymentId ?? null],
+      [
+        organizationId,
+        account.id,
+        amountKes.toFixed(2),
+        credits.toFixed(4),
+        rate.toFixed(4),
+        actorUserId,
+        notes,
+        opts.paymentId ?? null,
+      ],
     );
     // Replay: this payment already bought these credits. Crediting the balance
     // now would hand them out a second time, and appending a ledger entry
@@ -924,20 +1003,25 @@ export async function addOrganizationSmsCredits(
     // payment_id is threaded through rather than hardcoded NULL: it is the
     // only thing that lets a ledger entry be traced back to the money that
     // caused it, which is the entire point of having the column.
-    await db.query(
-      `SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`,
-      [
-        'organization', null, organizationId, 'purchase',
-        credits.toFixed(4), 0, after[0]?.sms_credits ?? null,
-        opts.paymentId ? 'sms_topup' : 'manual_topup',
-        inserted[0].id, opts.paymentId ?? null, actorId(actorUserId ?? undefined), notes,
-      ],
-    );
+    await db.query(`SELECT sms_ledger_append($1,$2,$3::uuid,$4,$5,$6,$7,$8,$9::uuid,$10::uuid,$11::uuid,$12)`, [
+      'organization',
+      null,
+      organizationId,
+      'purchase',
+      credits.toFixed(4),
+      0,
+      after[0]?.sms_credits ?? null,
+      opts.paymentId ? 'sms_topup' : 'manual_topup',
+      inserted[0].id,
+      opts.paymentId ?? null,
+      actorId(actorUserId ?? undefined),
+      notes,
+    ]);
 
     return {
       creditsAdded: credits,
-      newBalance:   parseFloat(after[0]?.sms_credits ?? '0'),
-      rateApplied:  rate,
+      newBalance: parseFloat(after[0]?.sms_credits ?? '0'),
+      rateApplied: rate,
     };
   });
 
@@ -949,8 +1033,6 @@ export async function addOrganizationSmsCredits(
 }
 
 async function getNextInvoiceNumber(client: PoolClient): Promise<string> {
-  const { rows } = await client.query<{ next_invoice_number: string }>(
-    `SELECT next_invoice_number()`,
-  );
+  const { rows } = await client.query<{ next_invoice_number: string }>(`SELECT next_invoice_number()`);
   return rows[0].next_invoice_number;
 }

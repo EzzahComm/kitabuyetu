@@ -5,10 +5,20 @@ import { withAdminDb } from '@/lib/db';
 import { getOpportunityById, updateOpportunity, type Opportunity } from '@/lib/services/ecosystem.service';
 import { ok, notFound } from '@/lib/utils/response';
 
-type OpportunityUpdates = Partial<Pick<Opportunity,
-  'title' | 'description' | 'category' | 'amount_min' | 'amount_max' | 'terms_summary'
-  | 'eligibility_rules' | 'application_url' | 'featured'
->>;
+type OpportunityUpdates = Partial<
+  Pick<
+    Opportunity,
+    | 'title'
+    | 'description'
+    | 'category'
+    | 'amount_min'
+    | 'amount_max'
+    | 'terms_summary'
+    | 'eligibility_rules'
+    | 'application_url'
+    | 'featured'
+  >
+>;
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
   return withPlatformRole(request, 'super_admin', async () => {
@@ -22,8 +32,15 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   return withPlatformRole(request, 'super_admin', async (ctx) => {
     const body = await request.json();
     const {
-      title, description, category, amount_min, amount_max, terms_summary,
-      eligibility_rules, application_url, featured,
+      title,
+      description,
+      category,
+      amount_min,
+      amount_max,
+      terms_summary,
+      eligibility_rules,
+      application_url,
+      featured,
     } = body;
 
     const updates: OpportunityUpdates = {};

@@ -35,7 +35,9 @@ import { postTemplatedJournal } from './posting-templates.service';
 import type { PolicySource } from './configuration.service';
 import type { LoanChargeType, LoanCharge } from '@/types/db.types';
 import type {
-  ConfigureChargeTypeInput, LoanChargeCalculationType, LoanChargeTriggerEvent,
+  ConfigureChargeTypeInput,
+  LoanChargeCalculationType,
+  LoanChargeTriggerEvent,
 } from '@/lib/validators/loan-charge.schema';
 
 const toDateString = (d: string | Date): string => (typeof d === 'string' ? d : d.toISOString().slice(0, 10));
@@ -43,14 +45,14 @@ const toDateString = (d: string | Date): string => (typeof d === 'string' ? d : 
 // ─── Resolution (cascade read) ───────────────────────────────────────────────
 
 export interface EffectiveChargeType {
-  id:              string;
-  name:            string;
+  id: string;
+  name: string;
   calculationType: LoanChargeCalculationType;
   /** Percentage rate (0-100) or a flat KES amount, per calculationType. */
-  amount:          number;
-  triggerEvent:    LoanChargeTriggerEvent;
-  isActive:        boolean;
-  source:          PolicySource;
+  amount: number;
+  triggerEvent: LoanChargeTriggerEvent;
+  isActive: boolean;
+  source: PolicySource;
 }
 
 /**
@@ -66,13 +68,18 @@ export interface EffectiveChargeType {
  * and by loanChargesService.listChargeTypes (unfiltered, for the config UI).
  */
 export async function getEffectiveChargeTypes(
-  client:       PoolClient,
-  scope:        { organizationId?: string | null; groupId?: string | null },
+  client: PoolClient,
+  scope: { organizationId?: string | null; groupId?: string | null },
   triggerEvent?: LoanChargeTriggerEvent,
 ): Promise<EffectiveChargeType[]> {
   const { rows } = await client.query<{
-    id: string; name: string; calculation_type: LoanChargeCalculationType;
-    amount: string; trigger_event: LoanChargeTriggerEvent; is_active: boolean; specificity: number;
+    id: string;
+    name: string;
+    calculation_type: LoanChargeCalculationType;
+    amount: string;
+    trigger_event: LoanChargeTriggerEvent;
+    is_active: boolean;
+    specificity: number;
   }>(
     `SELECT DISTINCT ON (lower(btrim(name)))
        id, name, calculation_type, amount, trigger_event, is_active,
@@ -93,17 +100,21 @@ export async function getEffectiveChargeTypes(
     [scope.organizationId ?? null, scope.groupId ?? null, triggerEvent ?? null],
   );
   return rows.map((r) => ({
-    id:              r.id,
-    name:            r.name,
+    id: r.id,
+    name: r.name,
     calculationType: r.calculation_type,
-    amount:          parseFloat(r.amount),
-    triggerEvent:    r.trigger_event,
-    isActive:        r.is_active,
-    source:          r.specificity === 2 ? 'group' : r.specificity === 1 ? 'organization' : 'platform',
+    amount: parseFloat(r.amount),
+    triggerEvent: r.trigger_event,
+    isActive: r.is_active,
+    source: r.specificity === 2 ? 'group' : r.specificity === 1 ? 'organization' : 'platform',
   }));
 }
 
-function computeChargeAmount(calculationType: LoanChargeCalculationType, configured: number, principal: number): number {
+function computeChargeAmount(
+  calculationType: LoanChargeCalculationType,
+  configured: number,
+  principal: number,
+): number {
   const raw = calculationType === 'percentage' ? (principal * configured) / 100 : configured;
   return Math.round(raw * 100) / 100;
 }
@@ -127,13 +138,13 @@ function computeChargeAmount(calculationType: LoanChargeCalculationType, configu
  */
 async function applyCharge(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   args: {
-    loanId:           string;
-    chargeType:       EffectiveChargeType;
-    principal:        number;
+    loanId: string;
+    chargeType: EffectiveChargeType;
+    principal: number;
     loanRepaymentId?: string | null;
-    entryDate:        string;
+    entryDate: string;
   },
 ): Promise<LoanCharge | null> {
   const amount = computeChargeAmount(args.chargeType.calculationType, args.chargeType.amount, args.principal);
@@ -165,14 +176,17 @@ async function applyCharge(
   let charge = rows[0];
 
   const jeId = await postTemplatedJournal(
-    client, ctx.groupId, ctx.userId, 'loan_charge',
+    client,
+    ctx.groupId,
+    ctx.userId,
+    'loan_charge',
     `${args.chargeType.name} — loan ${args.loanId}`,
     { amount },
     {
-      reference:         charge.id,
-      memberId:          refRows[0]?.member_id ?? undefined,
+      reference: charge.id,
+      memberId: refRows[0]?.member_id ?? undefined,
       groupMembershipId: refRows[0]?.group_membership_id ?? undefined,
-      entryDate:         args.entryDate,
+      entryDate: args.entryDate,
     },
   );
 
@@ -185,9 +199,12 @@ async function applyCharge(
   }
 
   await writeAuditLog(client, ctx, 'loan_charge.applied', charge.id, undefined, {
-    loan_id: args.loanId, charge_type_id: args.chargeType.id, charge_type_name: args.chargeType.name,
+    loan_id: args.loanId,
+    charge_type_id: args.chargeType.id,
+    charge_type_name: args.chargeType.name,
     trigger: args.loanRepaymentId ? 'on_overdue' : 'on_disburse',
-    amount: charge.amount, journal_entry_id: charge.journal_entry_id,
+    amount: charge.amount,
+    journal_entry_id: charge.journal_entry_id,
   });
 
   return charge;
@@ -202,11 +219,13 @@ async function applyCharge(
  */
 export async function applyDisbursementCharges(
   client: PoolClient,
-  ctx:    TenantContext,
-  loan:   { id: string; principal_amount: string; disbursement_date: Date | string | null },
+  ctx: TenantContext,
+  loan: { id: string; principal_amount: string; disbursement_date: Date | string | null },
 ): Promise<void> {
   const chargeTypes = await getEffectiveChargeTypes(
-    client, { organizationId: ctx.organizationId ?? null, groupId: ctx.groupId }, 'on_disburse',
+    client,
+    { organizationId: ctx.organizationId ?? null, groupId: ctx.groupId },
+    'on_disburse',
   );
   if (chargeTypes.length === 0) return;
 
@@ -226,9 +245,9 @@ export async function applyDisbursementCharges(
  * the automatic mechanism that never existed.
  */
 export async function applyOverdueCharges(
-  client:  PoolClient,
-  ctx:     TenantContext,
-  loan:    { id: string; principal_amount: string },
+  client: PoolClient,
+  ctx: TenantContext,
+  loan: { id: string; principal_amount: string },
   installment: { id: string; due_date: Date | string },
   asOfDate: string,
 ): Promise<void> {
@@ -236,14 +255,20 @@ export async function applyOverdueCharges(
   if (asOfDate <= dueDate) return; // paid on or before the due date — not overdue
 
   const chargeTypes = await getEffectiveChargeTypes(
-    client, { organizationId: ctx.organizationId ?? null, groupId: ctx.groupId }, 'on_overdue',
+    client,
+    { organizationId: ctx.organizationId ?? null, groupId: ctx.groupId },
+    'on_overdue',
   );
   if (chargeTypes.length === 0) return;
 
   const principal = parseFloat(loan.principal_amount);
   for (const chargeType of chargeTypes) {
     await applyCharge(client, ctx, {
-      loanId: loan.id, chargeType, principal, loanRepaymentId: installment.id, entryDate: asOfDate,
+      loanId: loan.id,
+      chargeType,
+      principal,
+      loanRepaymentId: installment.id,
+      entryDate: asOfDate,
     });
   }
 }
@@ -293,7 +318,15 @@ export const loanChargesService = {
         const { rows } = await client.query<LoanChargeType>(
           `INSERT INTO loan_charge_types (group_id, name, calculation_type, amount, trigger_event, is_active, created_by)
            VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
-          [ctx.groupId, input.name, input.calculationType, input.amount.toFixed(4), input.triggerEvent, input.isActive, ctx.userId],
+          [
+            ctx.groupId,
+            input.name,
+            input.calculationType,
+            input.amount.toFixed(4),
+            input.triggerEvent,
+            input.isActive,
+            ctx.userId,
+          ],
         );
         const created = rows[0];
         await writeAuditLog(client, ctx, 'loan_charge_type.create', created.id, undefined, { ...created });
@@ -330,16 +363,20 @@ export const loanChargesService = {
 
       if (prev.journal_entry_id) {
         const { rows: loanRows } = await client.query<{ member_id: string | null; group_membership_id: string | null }>(
-          `SELECT member_id, group_membership_id FROM loans WHERE id = $1`, [prev.loan_id],
+          `SELECT member_id, group_membership_id FROM loans WHERE id = $1`,
+          [prev.loan_id],
         );
         await postTemplatedJournal(
-          client, ctx.groupId, ctx.userId, 'loan_charge',
+          client,
+          ctx.groupId,
+          ctx.userId,
+          'loan_charge',
           `Waived charge reversal — ${chargeId}`,
           { amount: parseFloat(prev.amount) },
           {
             reference: chargeId,
-            invert:    true,
-            memberId:          loanRows[0]?.member_id ?? undefined,
+            invert: true,
+            memberId: loanRows[0]?.member_id ?? undefined,
             groupMembershipId: loanRows[0]?.group_membership_id ?? undefined,
           },
         );
@@ -352,7 +389,14 @@ export const loanChargesService = {
         [ctx.userId, reason, chargeId],
       );
       const updated = rows[0];
-      await writeAuditLog(client, ctx, 'loan_charge.waived', chargeId, { status: prev.status }, { status: updated.status, reason });
+      await writeAuditLog(
+        client,
+        ctx,
+        'loan_charge.waived',
+        chargeId,
+        { status: prev.status },
+        { status: updated.status, reason },
+      );
       return updated;
     });
   },
@@ -360,7 +404,10 @@ export const loanChargesService = {
   /** Every charge ever applied to a loan, most recent first. */
   async listChargesForLoan(ctx: TenantContext, loanId: string): Promise<(LoanCharge & { charge_type_name: string })[]> {
     return withDb(ctx, async (client) => {
-      const { rows: loanRows } = await client.query(`SELECT id FROM loans WHERE id = $1 AND group_id = $2`, [loanId, ctx.groupId]);
+      const { rows: loanRows } = await client.query(`SELECT id FROM loans WHERE id = $1 AND group_id = $2`, [
+        loanId,
+        ctx.groupId,
+      ]);
       if (!loanRows[0]) throw new NotFoundError('Loan', loanId);
 
       const { rows } = await client.query<LoanCharge & { charge_type_name: string }>(
@@ -377,7 +424,7 @@ export const loanChargesService = {
 
 async function writeAuditLog(
   client: PoolClient,
-  ctx:    TenantContext,
+  ctx: TenantContext,
   action: string,
   resourceId: string,
   oldValues?: Record<string, unknown>,

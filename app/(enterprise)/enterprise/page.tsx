@@ -2,9 +2,7 @@
 
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock, AlertCircle,
-} from 'lucide-react';
+import { Users2, PiggyBank, Landmark, Layers, Network, Download, ArrowRight, Clock, AlertCircle } from 'lucide-react';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -25,8 +23,12 @@ import type { OrgCountyAggregationRow } from '@/lib/services/organization-geogra
 interface OrgDashboard {
   /** null when the portfolio aggregate could not be read — NEVER zero-filled (R10). */
   portfolio: {
-    linkedGroups: number; activeMembers: number; totalSavings: string;
-    loanPortfolio: string; activeLoans: number; activePrograms?: number;
+    linkedGroups: number;
+    activeMembers: number;
+    totalSavings: string;
+    loanPortfolio: string;
+    activeLoans: number;
+    activePrograms?: number;
   } | null;
   /** Sections the server could not read, e.g. ['portfolio']. */
   incomplete?: string[];
@@ -43,31 +45,53 @@ function ComingSoon({ title }: { title: string }) {
     <Card className="flex flex-col items-center justify-center gap-2 border-dashed py-10 text-center">
       <Clock className="h-6 w-6 text-muted-foreground/50" />
       <p className="text-sm font-medium text-muted-foreground">{title}</p>
-      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">Coming soon</span>
+      <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+        Coming soon
+      </span>
     </Card>
   );
 }
 
 export default function EnterpriseDashboardPage() {
-  const { data: dash, isLoading: dashLoading, isError: dashError, error: dashErr } = useQuery<OrgDashboard>({
+  const {
+    data: dash,
+    isLoading: dashLoading,
+    isError: dashError,
+    error: dashErr,
+  } = useQuery<OrgDashboard>({
     queryKey: enterpriseKeys.dashboard(),
-    queryFn:  () => adminApi.get('/organization/dashboard'),
+    queryFn: () => adminApi.get('/organization/dashboard'),
   });
-  const { data: healthResponse, isLoading: healthLoading, isError: healthError, error: healthErr } = useQuery({
+  const {
+    data: healthResponse,
+    isLoading: healthLoading,
+    isError: healthError,
+    error: healthErr,
+  } = useQuery({
     queryKey: enterpriseKeys.health(),
-    queryFn:  organizationApi.health,
+    queryFn: organizationApi.health,
   });
-  const { data: groupsPage, isLoading: groupsLoading, isError: groupsError, error: groupsErr } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
+  const {
+    data: groupsPage,
+    isLoading: groupsLoading,
+    isError: groupsError,
+    error: groupsErr,
+  } = useQuery<PaginatedResult<OrganizationGroupSummary>>({
     queryKey: enterpriseKeys.groups(),
-    queryFn:  () => organizationApi.groups(),
+    queryFn: () => organizationApi.groups(),
   });
   // Phase 5 gap analysis — geography, the last missing item on the
   // organization axis. Server returns every county (including zero-coverage
   // ones — a coverage gap is itself signal), so the card below filters to
   // covered counties only and surfaces the ratio as the signal instead.
-  const { data: geoResponse, isLoading: geoLoading, isError: geoError, error: geoErr } = useQuery<{ counties: OrgCountyAggregationRow[] }>({
+  const {
+    data: geoResponse,
+    isLoading: geoLoading,
+    isError: geoError,
+    error: geoErr,
+  } = useQuery<{ counties: OrgCountyAggregationRow[] }>({
     queryKey: ['enterprise', 'geography', 'counties'],
-    queryFn:  organizationApi.geographyCounties,
+    queryFn: organizationApi.geographyCounties,
   });
 
   const p = dash?.portfolio;
@@ -78,8 +102,10 @@ export default function EnterpriseDashboardPage() {
   // organization that genuinely holds nothing, so a coordinator could read a
   // failed query as their groups' money having disappeared.
   const NA = '—';
-  const count = (v: number | undefined, available: boolean = true) => (available && v !== undefined ? v.toLocaleString() : NA);
-  const money = (v: string | undefined, available: boolean = true) => (available && v !== undefined ? fmtCompact(parseFloat(v)) : NA);
+  const count = (v: number | undefined, available: boolean = true) =>
+    available && v !== undefined ? v.toLocaleString() : NA;
+  const money = (v: string | undefined, available: boolean = true) =>
+    available && v !== undefined ? fmtCompact(parseFloat(v)) : NA;
   const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
   // §1.5's middle question is "what needs attention?", so a non-zero risk figure
   // must not render identically to a healthy zero. Same idiom the Top groups
@@ -87,14 +113,16 @@ export default function EnterpriseDashboardPage() {
   // read a number: an unread figure is a dash, and a dash is not a warning.
   const riskTone = (v: number | undefined, severe = false) =>
     h && v !== undefined && v > 0
-      ? (severe ? 'text-red-600 dark:text-red-500' : 'text-amber-600 dark:text-amber-500')
+      ? severe
+        ? 'text-red-600 dark:text-red-500'
+        : 'text-amber-600 dark:text-amber-500'
       : '';
   const topGroups = [...(groupsPage?.items ?? [])]
     .sort((a, b) => parseFloat(b.totalContributions) - parseFloat(a.totalContributions))
     .slice(0, 5)
     .map((g) => ({ ...g, id: g.groupId }));
 
-  const allCounties    = geoResponse?.counties ?? [];
+  const allCounties = geoResponse?.counties ?? [];
   const coveredCounties = allCounties.filter((c) => parseInt(c.group_count, 10) > 0);
   const topCounties = coveredCounties.slice(0, 6).map((c) => ({ ...c, id: c.county_id }));
 
@@ -106,7 +134,9 @@ export default function EnterpriseDashboardPage() {
       <div className="space-y-6">
         <Skeleton className="h-16 w-full" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28 w-full" />)}
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 w-full" />
+          ))}
         </div>
       </div>
     );
@@ -117,7 +147,11 @@ export default function EnterpriseDashboardPage() {
       <PageHeader
         title="Portfolio Overview"
         description="Performance across all your linked groups"
-        actions={<Button variant="outline" size="sm"><Download className="h-4 w-4" /> Export</Button>}
+        actions={
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4" /> Export
+          </Button>
+        }
       />
 
       {dashError && (
@@ -125,8 +159,8 @@ export default function EnterpriseDashboardPage() {
           <AlertCircle size={14} />
           <AlertTitle>Couldn&apos;t load portfolio data</AlertTitle>
           <AlertDescription>
-            Figures are shown as &ldquo;{NA}&rdquo; rather than zero, so nothing below is
-            mistaken for a real balance. {getErrorMessage(dashErr)}
+            Figures are shown as &ldquo;{NA}&rdquo; rather than zero, so nothing below is mistaken for a real balance.{' '}
+            {getErrorMessage(dashErr)}
           </AlertDescription>
         </Alert>
       )}
@@ -139,8 +173,8 @@ export default function EnterpriseDashboardPage() {
           <AlertCircle size={14} />
           <AlertTitle>Some figures are unavailable</AlertTitle>
           <AlertDescription>
-            Couldn&apos;t read: {dash!.incomplete!.join(', ')}. Those figures show
-            &ldquo;{NA}&rdquo; instead of a number — they are not zero. Refresh to retry.
+            Couldn&apos;t read: {dash!.incomplete!.join(', ')}. Those figures show &ldquo;{NA}&rdquo; instead of a
+            number — they are not zero. Refresh to retry.
           </AlertDescription>
         </Alert>
       )}
@@ -160,8 +194,8 @@ export default function EnterpriseDashboardPage() {
           <AlertCircle size={14} />
           <AlertTitle>Risk indicators unavailable</AlertTitle>
           <AlertDescription>
-            Couldn&apos;t read: {healthResponse!.incomplete!.join(', ')}. Those metrics show
-            &ldquo;{NA}&rdquo; instead of a number — they are not zero. Refresh to retry.
+            Couldn&apos;t read: {healthResponse!.incomplete!.join(', ')}. Those metrics show &ldquo;{NA}&rdquo; instead
+            of a number — they are not zero. Refresh to retry.
           </AlertDescription>
         </Alert>
       )}
@@ -185,13 +219,17 @@ export default function EnterpriseDashboardPage() {
         <CardContent>
           {healthLoading ? (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-20 w-full" />
+              ))}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-medium text-muted-foreground">Overdue loans</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>{count(h?.overdueLoans, !!h)}</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.overdueLoans)}`}>
+                  {count(h?.overdueLoans, !!h)}
+                </p>
                 <p className="text-xs text-muted-foreground">{pct(h?.overdueLoanPct)} of active</p>
               </div>
               <div className="flex flex-col gap-1">
@@ -200,12 +238,16 @@ export default function EnterpriseDashboardPage() {
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-medium text-muted-foreground">Groups in arrears</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>{count(h?.groupsInArrears, !!h)}</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.groupsInArrears)}`}>
+                  {count(h?.groupsInArrears, !!h)}
+                </p>
                 <p className="text-xs text-muted-foreground">{pct(h?.groupsInArrearsPct)} of linked</p>
               </div>
               <div className="flex flex-col gap-1">
                 <p className="text-xs font-medium text-muted-foreground">Defaulted loans</p>
-                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>{count(h?.defaultedLoans, !!h)}</p>
+                <p className={`text-2xl font-semibold tabular-nums ${riskTone(h?.defaultedLoans, true)}`}>
+                  {count(h?.defaultedLoans, !!h)}
+                </p>
                 <p className="text-xs text-muted-foreground">{money(h?.defaultedOutstanding, !!h)}</p>
               </div>
               <div className="flex flex-col gap-1">
@@ -244,10 +286,29 @@ export default function EnterpriseDashboardPage() {
               onPageChange={() => {}}
               emptyMessage="No groups linked yet"
               columns={[
-                { key: 'county', header: 'County', render: (c) => <span className="font-medium text-foreground">{c.county_name}</span> },
-                { key: 'groups', header: 'Groups', className: 'text-right', render: (c) => <span className="tabular-nums">{parseInt(c.group_count, 10).toLocaleString()}</span> },
-                { key: 'members', header: 'Members', className: 'hidden sm:table-cell text-right', render: (c) => <span className="tabular-nums">{parseInt(c.member_count, 10).toLocaleString()}</span> },
-                { key: 'contributions', header: 'Contributions', className: 'text-right', render: (c) => <MoneyDisplay amount={parseFloat(c.total_contributions)} size="sm" /> },
+                {
+                  key: 'county',
+                  header: 'County',
+                  render: (c) => <span className="font-medium text-foreground">{c.county_name}</span>,
+                },
+                {
+                  key: 'groups',
+                  header: 'Groups',
+                  className: 'text-right',
+                  render: (c) => <span className="tabular-nums">{parseInt(c.group_count, 10).toLocaleString()}</span>,
+                },
+                {
+                  key: 'members',
+                  header: 'Members',
+                  className: 'hidden sm:table-cell text-right',
+                  render: (c) => <span className="tabular-nums">{parseInt(c.member_count, 10).toLocaleString()}</span>,
+                },
+                {
+                  key: 'contributions',
+                  header: 'Contributions',
+                  className: 'text-right',
+                  render: (c) => <MoneyDisplay amount={parseFloat(c.total_contributions)} size="sm" />,
+                },
               ]}
             />
           </CardContent>
@@ -265,7 +326,9 @@ export default function EnterpriseDashboardPage() {
               <p className="text-xs text-muted-foreground">By total contributions</p>
             </div>
             <Link href="/enterprise/branches">
-              <Button variant="ghost" size="sm" className="text-xs">All branches <ArrowRight size={12} className="ml-1" /></Button>
+              <Button variant="ghost" size="sm" className="text-xs">
+                All branches <ArrowRight size={12} className="ml-1" />
+              </Button>
             </Link>
           </CardHeader>
           <CardContent className="p-0">
@@ -278,7 +341,8 @@ export default function EnterpriseDashboardPage() {
               emptyMessage="No groups yet"
               columns={[
                 {
-                  key: 'group', header: 'Group',
+                  key: 'group',
+                  header: 'Group',
                   render: (g) => (
                     <>
                       <p className="font-medium text-foreground">{g.groupName}</p>
@@ -286,16 +350,33 @@ export default function EnterpriseDashboardPage() {
                     </>
                   ),
                 },
-                { key: 'members', header: 'Members', className: 'text-right', render: (g) => <span className="tabular-nums">{g.activeMemberCount.toLocaleString()}</span> },
-                { key: 'contributions', header: 'Contributions', className: 'text-right', render: (g) => <MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" /> },
                 {
-                  key: 'defaultedLoans', header: 'Defaulted loans', className: 'hidden sm:table-cell text-right',
+                  key: 'members',
+                  header: 'Members',
+                  className: 'text-right',
+                  render: (g) => <span className="tabular-nums">{g.activeMemberCount.toLocaleString()}</span>,
+                },
+                {
+                  key: 'contributions',
+                  header: 'Contributions',
+                  className: 'text-right',
+                  render: (g) => <MoneyDisplay amount={parseFloat(g.totalContributions)} size="sm" />,
+                },
+                {
+                  key: 'defaultedLoans',
+                  header: 'Defaulted loans',
+                  className: 'hidden sm:table-cell text-right',
                   render: (g) => (
-                    <span className={`tabular-nums ${g.defaultedLoanCount > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}`}>{g.defaultedLoanCount}</span>
+                    <span
+                      className={`tabular-nums ${g.defaultedLoanCount > 0 ? 'font-medium text-red-600' : 'text-muted-foreground'}`}
+                    >
+                      {g.defaultedLoanCount}
+                    </span>
                   ),
                 },
                 {
-                  key: 'status', header: 'Status',
+                  key: 'status',
+                  header: 'Status',
                   render: (g) => (
                     <StatusPill
                       status={g.defaultedLoanCount > 0 ? 'review' : 'active'}

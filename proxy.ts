@@ -25,19 +25,19 @@ import { jwtVerify, type JWTPayload } from 'jose';
 // entirely (each session only ever competes with its own requests), so the
 // budget was also raised — it's no longer being split across an unknown
 // number of strangers.
-const RL_LIMIT_IP   = 120; // requests per window, per IP (anonymous surfaces)
+const RL_LIMIT_IP = 120; // requests per window, per IP (anonymous surfaces)
 const RL_LIMIT_USER = 240; // requests per window, per authenticated user
-const RL_WINDOW     = 60;  // window in seconds, both buckets
+const RL_WINDOW = 60; // window in seconds, both buckets
 
 async function checkRateLimit(key: string, limit: number): Promise<boolean> {
   const redisUrl = process.env.REDIS_URL;
   if (!redisUrl) return true;
 
   try {
-    const url        = new URL(redisUrl);
-    const token      = url.password;
-    const base       = `https://${url.hostname}`;
-    const redisKey   = `rl:api:${key}`;
+    const url = new URL(redisUrl);
+    const token = url.password;
+    const base = `https://${url.hostname}`;
+    const redisKey = `rl:api:${key}`;
 
     // INCR + EXPIRE NX in a single atomic pipeline call. EXPIRE NX only
     // sets the TTL when the key has no TTL yet — so subsequent hits within
@@ -46,19 +46,19 @@ async function checkRateLimit(key: string, limit: number): Promise<boolean> {
     // EXPIRE silently failed and the key lived forever without TTL,
     // permanently blocking the caller) is eliminated.
     const res = await fetch(`${base}/pipeline`, {
-      method:  'POST',
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify([
-        ['INCR',   redisKey],
+        ['INCR', redisKey],
         ['EXPIRE', redisKey, String(RL_WINDOW), 'NX'],
       ]),
     });
     if (!res.ok) return true;
 
-    const body = await res.json() as Array<{ result?: number; error?: string }>;
+    const body = (await res.json()) as Array<{ result?: number; error?: string }>;
     const count = body[0]?.result ?? 0;
 
     return count <= limit;
@@ -78,39 +78,33 @@ const ACCESS_SECRET = new TextEncoder().encode(rawSecret);
 // tokens issued by /auth/admin/login (backoffice) carry platformRole.
 // Legacy tokens without `aud` are treated as tenant for backward compat.
 interface KyJwtPayload extends JWTPayload {
-  sub:           string;
-  aud?:          'tenant' | 'backoffice' | string;
+  sub: string;
+  aud?: 'tenant' | 'backoffice' | string;
   // Tenant claims
-  groupId?:      string;
-  role?:         string;
+  groupId?: string;
+  role?: string;
   // Phase D Part 2 — lifecycle gate. Missing = legacy token, treat as 'active'.
-  groupStatus?:  string;
+  groupStatus?: string;
   // Active Membership Context + drift epochs (payment architecture §2.1/§2.5).
   // Missing on tokens issued before Phase 3.2.
-  membershipId?:   string;
-  membershipNo?:   string;
-  authVersion?:    number;
+  membershipId?: string;
+  membershipNo?: string;
+  authVersion?: number;
   sessionVersion?: number;
   // RBAC permission activation — resolved at issue time from
   // group_members.role_id -> roles.permissions. Missing on legacy tokens.
-  permissions?:    string[];
+  permissions?: string[];
   // Backoffice claims
   platformRole?: string;
-  organizationId?:        string;
+  organizationId?: string;
 }
 
 function unauthorized(message: string): NextResponse {
-  return NextResponse.json(
-    { success: false, error: message, code: 'UNAUTHORIZED' },
-    { status: 401 },
-  );
+  return NextResponse.json({ success: false, error: message, code: 'UNAUTHORIZED' }, { status: 401 });
 }
 
 function forbidden(message: string): NextResponse {
-  return NextResponse.json(
-    { success: false, error: message, code: 'FORBIDDEN' },
-    { status: 403 },
-  );
+  return NextResponse.json({ success: false, error: message, code: 'FORBIDDEN' }, { status: 403 });
 }
 
 function rateLimited(): NextResponse {
@@ -125,9 +119,17 @@ function rateLimited(): NextResponse {
 // so a client can never smuggle its own claims to a handler — belt-and-
 // suspenders even though the unauthenticated handlers don't read them.
 const CLAIM_HEADERS = [
-  'x-user-id', 'x-aud', 'x-group-id', 'x-role',
-  'x-group-status', 'x-organization-id', 'x-platform-role',
-  'x-membership-id', 'x-membership-no', 'x-auth-version', 'x-session-version',
+  'x-user-id',
+  'x-aud',
+  'x-group-id',
+  'x-role',
+  'x-group-status',
+  'x-organization-id',
+  'x-platform-role',
+  'x-membership-id',
+  'x-membership-no',
+  'x-auth-version',
+  'x-session-version',
   'x-permissions',
 ] as const;
 
@@ -145,20 +147,16 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/mpesa/callback') ||
     pathname.startsWith('/api/v1/mpesa/b2c') ||
     pathname.startsWith('/api/v1/mpesa/b2b') ||
-    pathname.startsWith('/api/v1/daraja/');   // registration-safe C2B callback paths (registerC2BUrls
-                                               // only ever submits /api/v1/daraja/c2b-{confirm,validate}
-                                               // to Safaricom — /api/v1/mpesa/c2b, deleted, was never
-                                               // reachable by real traffic; docs/audits/optimization-2026-09)
+    pathname.startsWith('/api/v1/daraja/'); // registration-safe C2B callback paths (registerC2BUrls
+  // only ever submits /api/v1/daraja/c2b-{confirm,validate}
+  // to Safaricom — /api/v1/mpesa/c2b, deleted, was never
+  // reachable by real traffic; docs/audits/optimization-2026-09)
 
-  const ip = (
-    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
-    req.headers.get('x-real-ip') ??
-    '0.0.0.0'
-  );
+  const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? '0.0.0.0';
 
   // ── Audience matters only for /api/v1/* and /api/admin/* ───────────────
   // Everything else falls through (static, health, etc.).
-  const isTenantApi     = pathname.startsWith('/api/v1/');
+  const isTenantApi = pathname.startsWith('/api/v1/');
   const isBackofficeApi = pathname.startsWith('/api/admin/');
 
   // These tenant paths are intentionally unauthenticated.
@@ -169,8 +167,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // it used to live) because the rate-limit decision right below also needs
   // to know whether a request is ever going to carry a verified identity.
   const isWebhook =
-    pathname.startsWith('/api/v1/webhooks/') ||         // generic webhooks (WhatsApp Meta)
-    pathname.startsWith('/api/v1/email/webhooks/') ||   // email provider callbacks (Resend, SendGrid)
+    pathname.startsWith('/api/v1/webhooks/') || // generic webhooks (WhatsApp Meta)
+    pathname.startsWith('/api/v1/email/webhooks/') || // email provider callbacks (Resend, SendGrid)
     // QStash-triggered chunked SMS dispatch (closes SMS_MESSAGING_AUDIT_
     // 2026-08.md H3 — docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md
     // Phase 3 item 10). Same "signed payload, no JWT"
@@ -196,8 +194,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const PUBLIC_AUTH_PATHS = new Set([
     '/api/v1/auth/login',
     '/api/v1/auth/register',
-    '/api/v1/auth/refresh',   // verifies its own refresh token from the body
-    '/api/v1/auth/logout',    // ditto
+    '/api/v1/auth/refresh', // verifies its own refresh token from the body
+    '/api/v1/auth/logout', // ditto
     '/api/v1/auth/admin/login',
     '/api/v1/auth/admin/login/verify',
     // §4A email-link verification — the token itself is the proof of
@@ -232,10 +230,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const isAnonymousApiPath =
     isWebhook ||
     !(isTenantApi || isBackofficeApi) || // e.g. /api/health — no session concept at all
-    (isTenantApi && (
-      PUBLIC_AUTH_PATHS.has(pathname) ||
-      pathname.startsWith('/api/v1/jurisdictions/') // public reference data (counties etc.)
-    ));
+    (isTenantApi && (PUBLIC_AUTH_PATHS.has(pathname) || pathname.startsWith('/api/v1/jurisdictions/'))); // public reference data (counties etc.)
 
   // Rate-limit every API route except M-Pesa callbacks (Safaricom retries on
   // non-200). Anonymous surfaces are keyed by IP — same protection this file
@@ -271,12 +266,11 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // PUBLIC_AUTH_PATHS are computed above now (the rate-limit check needs
   // them too); this just applies the same bypass to JWT verification.
   if (
-    isTenantApi && (
-      PUBLIC_AUTH_PATHS.has(pathname) ||
+    isTenantApi &&
+    (PUBLIC_AUTH_PATHS.has(pathname) ||
       pathname.startsWith('/api/v1/jurisdictions/') || // public reference data (counties etc.)
       isMpesaCallback ||
-      isWebhook
-    )
+      isWebhook)
   ) {
     return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
   }
@@ -301,9 +295,9 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   let payload: KyJwtPayload;
   try {
-    const verified = await jwtVerify(token, ACCESS_SECRET, {
+    const verified = (await jwtVerify(token, ACCESS_SECRET, {
       algorithms: ['HS256'],
-    }) as { payload: KyJwtPayload };
+    })) as { payload: KyJwtPayload };
     payload = verified.payload;
   } catch {
     if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
@@ -324,8 +318,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   if (!allowedUser) return rateLimited();
 
   // Default to 'tenant' for legacy tokens that pre-date Phase 1.
-  const aud: 'tenant' | 'backoffice' =
-    payload.aud === 'backoffice' ? 'backoffice' : 'tenant';
+  const aud: 'tenant' | 'backoffice' = payload.aud === 'backoffice' ? 'backoffice' : 'tenant';
 
   // ── Enforce audience match per URL prefix ────────────────────────────
   if (isBackofficeApi && aud !== 'backoffice') {
@@ -348,14 +341,14 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
       return unauthorized('Incomplete tenant token payload');
     }
     requestHeaders.set('x-group-id', payload.groupId);
-    requestHeaders.set('x-role',     payload.role);
+    requestHeaders.set('x-role', payload.role);
     const groupStatus = payload.groupStatus ?? 'active';
     requestHeaders.set('x-group-status', groupStatus);
     if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
     // Active Membership Context (§2.1) + epochs (§2.5) — absent on legacy tokens.
-    if (payload.membershipId)         requestHeaders.set('x-membership-id',   payload.membershipId);
-    if (payload.membershipNo)         requestHeaders.set('x-membership-no',   payload.membershipNo);
-    if (payload.authVersion != null)  requestHeaders.set('x-auth-version',    String(payload.authVersion));
+    if (payload.membershipId) requestHeaders.set('x-membership-id', payload.membershipId);
+    if (payload.membershipNo) requestHeaders.set('x-membership-no', payload.membershipNo);
+    if (payload.authVersion != null) requestHeaders.set('x-auth-version', String(payload.authVersion));
     if (payload.sessionVersion != null) requestHeaders.set('x-session-version', String(payload.sessionVersion));
     // Comma-joined, not JSON: permission strings are always `[a-z_.]+` (never
     // contain commas), matching the existing plain-string header convention
@@ -373,15 +366,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // was entirely dead code and every pending_verification group was
     // permanently locked out with no way to ever complete verification.
     if (groupStatus === 'pending_verification') {
-      const allowedPending =
-        pathname === '/api/v1/auth/verify/start' ||
-        pathname === '/api/v1/auth/verify/complete';
+      const allowedPending = pathname === '/api/v1/auth/verify/start' || pathname === '/api/v1/auth/verify/complete';
       if (!allowedPending) {
         return NextResponse.json(
           {
             success: false,
-            error:   'Group not verified yet — complete verification at /verify-group',
-            code:    'PENDING_VERIFICATION',
+            error: 'Group not verified yet — complete verification at /verify-group',
+            code: 'PENDING_VERIFICATION',
           },
           { status: 403 },
         );

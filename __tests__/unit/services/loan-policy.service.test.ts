@@ -13,12 +13,12 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 jest.mock('@/lib/services/configuration.service', () => ({
-  resolvePolicy:         jest.fn(),
+  resolvePolicy: jest.fn(),
   resolvePolicyDetailed: jest.fn(),
-  setPolicy:             jest.fn(),
+  setPolicy: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -33,11 +33,11 @@ beforeEach(() => {
 const ctx = { groupId: 'g1', userId: 'user-1', role: 'chairperson', organizationId: 'org-1' };
 
 const VALID_LADDER: TierThreshold[] = [
-  { tier: 'excellent', min: 85, loanMultiplier: 10   },
-  { tier: 'good',      min: 70, loanMultiplier: 5    },
-  { tier: 'fair',      min: 55, loanMultiplier: 3    },
-  { tier: 'poor',      min: 40, loanMultiplier: 1    },
-  { tier: 'high_risk', min: 0,  loanMultiplier: 0.5  },
+  { tier: 'excellent', min: 85, loanMultiplier: 10 },
+  { tier: 'good', min: 70, loanMultiplier: 5 },
+  { tier: 'fair', min: 55, loanMultiplier: 3 },
+  { tier: 'poor', min: 40, loanMultiplier: 1 },
+  { tier: 'high_risk', min: 0, loanMultiplier: 0.5 },
 ];
 
 describe('getEffectiveTierThresholds', () => {
@@ -45,7 +45,13 @@ describe('getEffectiveTierThresholds', () => {
     (resolvePolicy as jest.Mock).mockResolvedValueOnce(VALID_LADDER);
     const result = await getEffectiveTierThresholds(mockClient as never, { groupId: 'g1' });
     expect(result).toEqual(VALID_LADDER);
-    expect(resolvePolicy).toHaveBeenCalledWith(mockClient, 'loan', 'tier_thresholds', { groupId: 'g1' }, expect.any(Array));
+    expect(resolvePolicy).toHaveBeenCalledWith(
+      mockClient,
+      'loan',
+      'tier_thresholds',
+      { groupId: 'g1' },
+      expect.any(Array),
+    );
   });
 });
 
@@ -81,7 +87,14 @@ describe('loanPolicyService.setGroupOverride', () => {
 
   it('accepts a valid ladder and writes it at group scope', async () => {
     await loanPolicyService.setGroupOverride(ctx, VALID_LADDER);
-    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'loan', 'tier_thresholds', { groupId: 'g1' }, VALID_LADDER, 'user-1');
+    expect(setPolicy).toHaveBeenCalledWith(
+      mockClient,
+      'loan',
+      'tier_thresholds',
+      { groupId: 'g1' },
+      VALID_LADDER,
+      'user-1',
+    );
   });
 });
 
@@ -104,44 +117,45 @@ describe('loanPolicyService.setPlatformDefault', () => {
  */
 describe('loanPolicyService.setGroupTermsOverride — term options', () => {
   const VALID_TERMS = {
-    interestRate: 10, interestMethod: 'flat' as const,
-    maxTermMonths: 12, loanMultiplier: 3, termOptions: [1, 3, 6, 12],
+    interestRate: 10,
+    interestMethod: 'flat' as const,
+    maxTermMonths: 12,
+    loanMultiplier: 3,
+    termOptions: [1, 3, 6, 12],
   };
 
   it('accepts fixed durations within the ceiling', async () => {
     await loanPolicyService.setGroupTermsOverride(ctx as never, VALID_TERMS);
-    expect(setPolicy).toHaveBeenCalledWith(
-      mockClient, 'loan', 'terms', { groupId: 'g1' }, VALID_TERMS, 'user-1',
-    );
+    expect(setPolicy).toHaveBeenCalledWith(mockClient, 'loan', 'terms', { groupId: 'g1' }, VALID_TERMS, 'user-1');
   });
 
   it('rejects an option longer than maxTermMonths', async () => {
     // The contradiction that matters: offering 18 months under a 12-month cap.
-    await expect(loanPolicyService.setGroupTermsOverride(
-      ctx as never, { ...VALID_TERMS, termOptions: [1, 3, 18] },
-    )).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      loanPolicyService.setGroupTermsOverride(ctx as never, { ...VALID_TERMS, termOptions: [1, 3, 18] }),
+    ).rejects.toBeInstanceOf(ValidationError);
     expect(setPolicy).not.toHaveBeenCalled();
   });
 
   it('rejects a repeated term', async () => {
-    await expect(loanPolicyService.setGroupTermsOverride(
-      ctx as never, { ...VALID_TERMS, termOptions: [3, 3, 6] },
-    )).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      loanPolicyService.setGroupTermsOverride(ctx as never, { ...VALID_TERMS, termOptions: [3, 3, 6] }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('rejects a zero or fractional term', async () => {
-    await expect(loanPolicyService.setGroupTermsOverride(
-      ctx as never, { ...VALID_TERMS, termOptions: [0, 6] },
-    )).rejects.toBeInstanceOf(ValidationError);
-    await expect(loanPolicyService.setGroupTermsOverride(
-      ctx as never, { ...VALID_TERMS, termOptions: [1.5, 6] },
-    )).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      loanPolicyService.setGroupTermsOverride(ctx as never, { ...VALID_TERMS, termOptions: [0, 6] }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      loanPolicyService.setGroupTermsOverride(ctx as never, { ...VALID_TERMS, termOptions: [1.5, 6] }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('rejects an empty list, which would offer nothing at all', async () => {
-    await expect(loanPolicyService.setGroupTermsOverride(
-      ctx as never, { ...VALID_TERMS, termOptions: [] },
-    )).rejects.toBeInstanceOf(ValidationError);
+    await expect(
+      loanPolicyService.setGroupTermsOverride(ctx as never, { ...VALID_TERMS, termOptions: [] }),
+    ).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('accepts terms with no options at all — any term up to the maximum', async () => {

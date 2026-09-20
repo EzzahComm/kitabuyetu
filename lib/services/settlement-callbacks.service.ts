@@ -28,17 +28,17 @@ import { notifyDisbursementCallback } from '@/lib/queue/qstash';
 // mpesa-b2c.service.ts's handleB2CResult (see its own WatchdogNotifyInfo
 // comment for the full rationale).
 interface WatchdogNotifyInfo {
-  rowId:     string;
+  rowId: string;
   eventData: { status: 'failed' | 'completed'; failureReason?: string; receipt?: string | null };
 }
 
 interface DarajaResult {
   Result?: {
-    ResultCode?:               number;
-    ResultDesc?:               string;
+    ResultCode?: number;
+    ResultDesc?: string;
     OriginatorConversationID?: string;
-    ConversationID?:           string;
-    ResultParameters?:         { ResultParameter?: { Key: string; Value: unknown }[] };
+    ConversationID?: string;
+    ResultParameters?: { ResultParameter?: { Key: string; Value: unknown }[] };
   };
 }
 
@@ -47,10 +47,10 @@ function parseResult(body: Record<string, unknown>) {
   if (!r?.OriginatorConversationID) return null;
   const get = (k: string) => r.ResultParameters?.ResultParameter?.find((p) => p.Key === k)?.Value;
   return {
-    origId:  r.OriginatorConversationID,
+    origId: r.OriginatorConversationID,
     success: r.ResultCode === 0,
-    desc:    r.ResultDesc ?? '',
-    code:    r.ResultCode,
+    desc: r.ResultDesc ?? '',
+    code: r.ResultCode,
     receipt: (get('TransactionReceipt') as string | undefined) ?? null,
   };
 }
@@ -61,19 +61,14 @@ function parseResult(body: Record<string, unknown>) {
  * UPDATE would be blocked by accounts_update's is_system guard.
  */
 async function releaseCashReservation(db: PoolClient, groupId: string, amount: string): Promise<void> {
-  const { rows } = await db.query<{ id: string }>(
-    `SELECT * FROM lock_group_cash_account($1, '1001')`, [groupId],
-  );
+  const { rows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [groupId]);
   if (rows[0]) {
     await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [rows[0].id, `-${amount}`]);
   }
 }
 
 /** Settlement sweep (B2B) result callback. */
-export async function handleSettlementB2BResult(
-  body: Record<string, unknown>,
-  callerIp: string,
-): Promise<void> {
+export async function handleSettlementB2BResult(body: Record<string, unknown>, callerIp: string): Promise<void> {
   assertSafaricomIp(callerIp);
   const parsed = parseResult(body);
   if (!parsed) return;
@@ -81,7 +76,9 @@ export async function handleSettlementB2BResult(
 
   const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string;
+      id: string;
+      group_id: string;
+      amount: string;
     }>(
       `SELECT id, group_id, amount FROM settlement_requests
        WHERE  originator_conversation_id = $1 AND status = 'processing'
@@ -125,22 +122,23 @@ export async function handleSettlementB2BResult(
     }
 
     const amount = parseFloat(row.amount);
-    const fee    = await computeB2BCharge(db, amount);
+    const fee = await computeB2BCharge(db, amount);
 
     const jeId = await postSettlementSweepJournal(db, {
-      groupId:      row.group_id,
+      groupId: row.group_id,
       settlementId: row.id,
       amount,
       fee,
-      entryDate:    new Date(),
-      reference:    parsed.receipt ?? parsed.origId,
-      createdBy:    null,
+      entryDate: new Date(),
+      reference: parsed.receipt ?? parsed.origId,
+      createdBy: null,
     });
     if (!jeId) {
       // The money already moved — a missing chart account is a reconciliation
       // gap to surface, never a reason to mark the settlement failed.
       logger.error('[settlements] sweep completed but GL posting was skipped', {
-        settlementId: row.id, groupId: row.group_id,
+        settlementId: row.id,
+        groupId: row.group_id,
       });
     }
 
@@ -180,10 +178,7 @@ export async function handleSettlementB2BResult(
  * from both the B2B and B2C routes (a given payment's
  * originator_conversation_id only ever matches one of them).
  */
-export async function handleVendorPaymentResult(
-  body: Record<string, unknown>,
-  callerIp: string,
-): Promise<void> {
+export async function handleVendorPaymentResult(body: Record<string, unknown>, callerIp: string): Promise<void> {
   assertSafaricomIp(callerIp);
   const parsed = parseResult(body);
   if (!parsed) return;
@@ -191,8 +186,12 @@ export async function handleVendorPaymentResult(
 
   const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; channel: 'b2c' | 'b2b';
-      expense_account_code: string; payee_name: string;
+      id: string;
+      group_id: string;
+      amount: string;
+      channel: 'b2c' | 'b2b';
+      expense_account_code: string;
+      payee_name: string;
     }>(
       `SELECT id, group_id, amount, channel, expense_account_code, payee_name
        FROM   vendor_payments
@@ -237,23 +236,23 @@ export async function handleVendorPaymentResult(
     }
 
     const amount = parseFloat(row.amount);
-    const fee    = row.channel === 'b2b'
-      ? await computeB2BCharge(db, amount)
-      : await computeB2CCharge(db, amount);
+    const fee = row.channel === 'b2b' ? await computeB2BCharge(db, amount) : await computeB2CCharge(db, amount);
 
     const jeId = await postVendorPaymentJournal(db, {
-      groupId:            row.group_id,
-      vendorPaymentId:    row.id,
+      groupId: row.group_id,
+      vendorPaymentId: row.id,
       amount,
       fee,
       expenseAccountCode: row.expense_account_code,
-      entryDate:          new Date(),
-      reference:          parsed.receipt ?? parsed.origId,
-      createdBy:          null,
+      entryDate: new Date(),
+      reference: parsed.receipt ?? parsed.origId,
+      createdBy: null,
     });
     if (!jeId) {
       logger.error('[vendor-payments] payment completed but GL posting was skipped', {
-        vendorPaymentId: row.id, groupId: row.group_id, expenseAccountCode: row.expense_account_code,
+        vendorPaymentId: row.id,
+        groupId: row.group_id,
+        expenseAccountCode: row.expense_account_code,
       });
     }
 

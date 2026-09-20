@@ -12,21 +12,20 @@ import { recordApproval } from './settlement-approvals.service';
 import type { CreateGroupBankAccountInput } from '@/lib/validators/group-bank-accounts.schema';
 
 export interface GroupBankAccountRow {
-  id:             string;
-  group_id:       string;
-  bank_name:      string;
-  shortcode:      string;
+  id: string;
+  group_id: string;
+  bank_name: string;
+  shortcode: string;
   account_number: string;
-  label:          string | null;
-  status:         'pending_approval' | 'active' | 'rejected' | 'disabled';
-  created_by:     string | null;
-  created_at:     Date;
-  activated_at:   Date | null;
-  notes:          string | null;
+  label: string | null;
+  status: 'pending_approval' | 'active' | 'rejected' | 'disabled';
+  created_by: string | null;
+  created_at: Date;
+  activated_at: Date | null;
+  notes: string | null;
 }
 
 export const groupBankAccountsService = {
-
   async create(ctx: TenantContext, input: CreateGroupBankAccountInput): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
@@ -34,8 +33,15 @@ export const groupBankAccountsService = {
            (group_id, bank_name, shortcode, account_number, label, notes, created_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7)
          RETURNING *`,
-        [ctx.groupId, input.bankName, input.shortcode, input.accountNumber,
-         input.label ?? null, input.notes ?? null, ctx.userId],
+        [
+          ctx.groupId,
+          input.bankName,
+          input.shortcode,
+          input.accountNumber,
+          input.label ?? null,
+          input.notes ?? null,
+          ctx.userId,
+        ],
       );
       const account = rows[0];
 
@@ -77,8 +83,10 @@ export const groupBankAccountsService = {
       const prev = rows[0];
 
       await recordApproval(db, ctx, {
-        subjectType: 'bank_account', subjectId: id,
-        initiatedBy: prev.created_by ?? '', decision: 'approved',
+        subjectType: 'bank_account',
+        subjectId: id,
+        initiatedBy: prev.created_by ?? '',
+        decision: 'approved',
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(
@@ -121,8 +129,11 @@ export const groupBankAccountsService = {
       const prev = rows[0];
 
       await recordApproval(db, ctx, {
-        subjectType: 'bank_account', subjectId: id,
-        initiatedBy: prev.created_by ?? '', decision: 'rejected', reason,
+        subjectType: 'bank_account',
+        subjectId: id,
+        initiatedBy: prev.created_by ?? '',
+        decision: 'rejected',
+        reason,
       });
 
       const { rows: updated } = await db.query<GroupBankAccountRow>(

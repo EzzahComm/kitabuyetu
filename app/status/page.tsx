@@ -40,16 +40,19 @@ export const metadata: Metadata = {
 const CACHE_TTL_MS = 60_000;
 
 type CheckState = 'operational' | 'down';
-interface ServiceStatus { label: string; state: CheckState }
-interface StatusSnapshot { services: ServiceStatus[]; checkedAt: number }
+interface ServiceStatus {
+  label: string;
+  state: CheckState;
+}
+interface StatusSnapshot {
+  services: ServiceStatus[];
+  checkedAt: number;
+}
 
 let _cache: StatusSnapshot | null = null;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return Promise.race([
-    promise,
-    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
-  ]);
+  return Promise.race([promise, new Promise<T>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))]);
 }
 
 async function checkDatabase(): Promise<CheckState> {
@@ -117,23 +120,18 @@ async function getStatus(): Promise<StatusSnapshot> {
     return _cache;
   }
 
-  const [db, cache, mpesa, sms] = await Promise.all([
-    checkDatabase(),
-    checkRedis(),
-    checkMpesa(),
-    checkSms(),
-  ]);
+  const [db, cache, mpesa, sms] = await Promise.all([checkDatabase(), checkRedis(), checkMpesa(), checkSms()]);
 
   // The API and the web app itself share the database's fate — neither can
   // serve a real request without it, so there is no separate probe for them.
   const snapshot: StatusSnapshot = {
     checkedAt: Date.now(),
     services: [
-      { label: 'Web application',                       state: 'operational' },
+      { label: 'Web application', state: 'operational' },
       { label: 'M-Pesa collections (STK Push, PayBill)', state: mpesa },
-      { label: 'M-Pesa disbursements (B2C)',             state: mpesa },
-      { label: 'SMS notifications',                      state: sms },
-      { label: 'API',                                    state: db === 'operational' && cache === 'operational' ? 'operational' : 'down' },
+      { label: 'M-Pesa disbursements (B2C)', state: mpesa },
+      { label: 'SMS notifications', state: sms },
+      { label: 'API', state: db === 'operational' && cache === 'operational' ? 'operational' : 'down' },
     ],
   };
   _cache = snapshot;
@@ -145,10 +143,7 @@ export default async function StatusPage() {
   const allOperational = services.every((s) => s.state === 'operational');
 
   return (
-    <PageShell
-      title="System status"
-      description="Current status of Kitabu Yetu's core services."
-    >
+    <PageShell title="System status" description="Current status of Kitabu Yetu's core services.">
       {allOperational ? (
         <Alert className="mb-8">
           <CheckCircle2 size={14} />
@@ -182,9 +177,8 @@ export default async function StatusPage() {
         ))}
       </ul>
       <p className="mt-8 text-sm text-slate-500">
-        Checked live against the database, cache and M-Pesa connectivity as of{' '}
-        {new Date(checkedAt).toUTCString()}. If something looks wrong on your end that
-        isn&apos;t reflected here, please <a href="/support">contact support</a>.
+        Checked live against the database, cache and M-Pesa connectivity as of {new Date(checkedAt).toUTCString()}. If
+        something looks wrong on your end that isn&apos;t reflected here, please <a href="/support">contact support</a>.
       </p>
     </PageShell>
   );

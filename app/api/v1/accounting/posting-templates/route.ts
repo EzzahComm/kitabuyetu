@@ -23,7 +23,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const input = SetPostingTemplateSchema.parse(await req.json());
     await postingTemplatesService.setGroupOverride(ctx, input.event, input.lines);
     return ok(await postingTemplatesService.getGroupTemplates(ctx));

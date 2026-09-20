@@ -4,9 +4,12 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { getPartnerById, updatePartner, type Partner } from '@/lib/services/ecosystem.service';
 import { ok, notFound } from '@/lib/utils/response';
 
-type PartnerUpdates = Partial<Pick<Partner,
-  'name' | 'type' | 'description' | 'logo_url' | 'website_url' | 'contact_email' | 'contact_phone' | 'is_active'
->>;
+type PartnerUpdates = Partial<
+  Pick<
+    Partner,
+    'name' | 'type' | 'description' | 'logo_url' | 'website_url' | 'contact_email' | 'contact_phone' | 'is_active'
+  >
+>;
 
 export async function GET(request: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
   return withPlatformRole(request, 'super_admin', async () => {

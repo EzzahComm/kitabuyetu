@@ -26,9 +26,7 @@ interface PageHeaderProps {
  * typography hierarchy identical across admin, backoffice, enterprise, group,
  * and member views.
  */
-export function PageHeader({
-  title, description, breadcrumbs, actions, children, className,
-}: PageHeaderProps) {
+export function PageHeader({ title, description, breadcrumbs, actions, children, className }: PageHeaderProps) {
   return (
     <div className={cn('space-y-4', className)}>
       {breadcrumbs && breadcrumbs.length > 0 && (
@@ -43,7 +41,10 @@ export function PageHeader({
                       {c.label}
                     </Link>
                   ) : (
-                    <span className={cn(last && 'font-medium text-foreground')} aria-current={last ? 'page' : undefined}>
+                    <span
+                      className={cn(last && 'font-medium text-foreground')}
+                      aria-current={last ? 'page' : undefined}
+                    >
                       {c.label}
                     </span>
                   )}

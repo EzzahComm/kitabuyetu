@@ -13,9 +13,9 @@ describe('welcome SMS template', () => {
 
   /** What members.service.ts actually puts on the member.registered payload. */
   const vars = {
-    first_name:    'Benedict',
-    last_name:     'Wanyama',
-    group_name:    'Ndengelwa Community Water Project',
+    first_name: 'Benedict',
+    last_name: 'Wanyama',
+    group_name: 'Ndengelwa Community Water Project',
     membership_no: 'NC000078',
   };
 

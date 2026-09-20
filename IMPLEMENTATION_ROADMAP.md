@@ -3,13 +3,14 @@
 **Project:** Kitabu Yetu UI/UX Platform  
 **Current State:** Nextly template (landing page foundation with responsive nav improvements)  
 **Target Outcome:** Modern SaaS platform for community groups with public website + application shells  
-**Timeline:** Phase-based, backward-compatible for integration with main kitabuyetu Vercel project  
+**Timeline:** Phase-based, backward-compatible for integration with main kitabuyetu Vercel project
 
 ---
 
 ## CURRENT STATE ASSESSMENT
 
 ### ✅ What's Working
+
 - Next.js 14 with React 18 foundation
 - Nextly template visual language (landing pages)
 - Tailwind CSS configured
@@ -19,6 +20,7 @@
 - Existing Vercel deployment capability
 
 ### ⚠️ What Needs Work
+
 - **Icon system:** Using Heroicons → need to migrate to **Tabler icons** (per master prompt)
 - **Color tokens:** No semantic color system → need Tailwind config overhaul
 - **Component library:** No reusable UI components for SaaS dashboard
@@ -43,16 +45,20 @@
 #### Tasks
 
 ##### 1.1 Update package.json
+
 ```bash
 npm install @tabler/icons-react @tabler/react chart.js recharts next-themes axios
 ```
+
 - **@tabler/icons-react** — SVG icons (replace Heroicons)
 - **recharts** — For financial dashboards (charts, data viz)
 - **next-themes** — Dark mode switching
 - **@tabler/react** — Optional: Tabler React components (review for compatibility)
 
 ##### 1.2 Configure Tailwind Design Tokens
+
 Update `tailwind.config.js`:
+
 ```
 ✓ Extend colors with semantic palette (primary, accent, success, error, etc.)
 ✓ Define spacing scale (xs, sm, md, base, lg, xl, 2xl, 3xl, 4xl, 5xl)
@@ -63,7 +69,9 @@ Update `tailwind.config.js`:
 ```
 
 ##### 1.3 Create Base Component Library
+
 Build `/components/ui/` with:
+
 - **Button.tsx** — Primary, secondary, outline, ghost, loading, disabled states
 - **Input.tsx** — Text, email, number, date, select, textarea with error states
 - **Card.tsx** — Content card, action card, data card variants
@@ -80,6 +88,7 @@ Build `/components/ui/` with:
 **Key rule:** All components use semantic color tokens (no hardcoded hex)
 
 ##### 1.4 Implement Dark Mode
+
 - Install & configure `next-themes`
 - Create `/styles/dark.css` with dark mode overrides
 - Use CSS custom properties for theme switching
@@ -87,6 +96,7 @@ Build `/components/ui/` with:
 - Document color token mappings
 
 ##### 1.5 Document Design System
+
 - [x] Design System document (created: KITABU_YETU_DESIGN_SYSTEM.md)
 - Create `/design/COMPONENT_INDEX.md` with component usage guide
 - Create `/design/ACCESSIBILITY_GUIDE.md` with WCAG 2.1 AA checklist
@@ -103,6 +113,7 @@ Build `/components/ui/` with:
 #### Tasks
 
 ##### 2.1 Homepage Refresh
+
 - [x] Migrate Heroicons → Tabler icons
 - [ ] Review hero section messaging ("Digitizing group administration")
 - [ ] Update value propositions aligned with 4 product pillars
@@ -113,13 +124,16 @@ Build `/components/ui/` with:
 - [ ] Dark mode implementation
 
 ##### 2.2 Create Product Pages
+
 Build dedicated landing pages for:
+
 - **Bookkeeper** — Financial management, member register, loans, welfare
 - **Chama Reminder** — SMS campaigns, communication templates
 - **Fundraise / Changi$ha** — Fundraising campaigns, donor management
 - **Enterprise** — Multi-group portfolio, program management, analytics
 
 **Template per page:**
+
 - Hero section
 - Problem statement
 - Solution overview
@@ -129,17 +143,20 @@ Build dedicated landing pages for:
 - CTA
 
 ##### 2.3 Ecosystem Page
+
 - Showcase future partner categories (lenders, insurers, trainers, donors)
 - Explain how groups will access ecosystem
 - Position as growth opportunity for community groups
 
 ##### 2.4 Pricing Page
+
 - Display subscription tiers (if available)
 - Feature breakdown by product
 - FAQ section
 - CTA for demo/free trial
 
 ##### 2.5 Navigation Enhancements
+
 - Update header navigation structure for product pages
 - Add breadcrumbs on sub-pages
 - Implement mega menu for products dropdown (optional)
@@ -156,7 +173,9 @@ Build dedicated landing pages for:
 #### Tasks
 
 ##### 3.1 Dashboard Layout Architecture
+
 Build `/app/dashboard/` structure:
+
 ```
 /dashboard
   layout.tsx           # Sidebar + TopBar + main content
@@ -179,26 +198,27 @@ Build `/app/dashboard/` structure:
 ```
 
 ##### 3.2 Navigation Components
+
 - **Sidebar Navigation** (desktop, 250px)
   - Logo
   - Navigation sections (Overview, Group Management, Finance, Communications, etc.)
   - Collapsible menu items
   - Active state highlight
   - User profile dropdown
-  
 - **Top Bar** (desktop + mobile)
   - Breadcrumb or page title
   - Search bar
   - Notification bell
   - User menu (settings, logout)
-  
 - **Mobile Bottom Tab Bar**
   - 5 main navigation items max
   - Labels + icons
   - Active state indicator
 
 ##### 3.3 Dashboard Pages (Shells)
+
 Create empty placeholder pages for:
+
 - `/dashboard` — Overview, KPI cards, charts, quick actions
 - `/dashboard/members` — Member list, search, add member
 - `/dashboard/contributions` — Contribution tracking
@@ -210,6 +230,7 @@ Create empty placeholder pages for:
 - `/dashboard/settings` — Profile, organization, billing
 
 **Each page should include:**
+
 - Page title + breadcrumb
 - Relevant KPI cards
 - Data table or chart (placeholder)
@@ -217,12 +238,14 @@ Create empty placeholder pages for:
 - Empty state handling
 
 ##### 3.4 Authentication Pages
+
 - `/auth/signup` — Multi-step onboarding
 - `/auth/signin` — Email/password login
 - `/auth/forgot-password` — Password reset
 - `/auth/verify-email` — Email verification
 
 ##### 3.5 Responsive Testing & Polish
+
 - Test mobile (375px) — verify sidebar becomes drawer, nav becomes bottom tabs
 - Test tablet (768px) — verify 2-column layout
 - Test desktop (1440px) — verify full sidebar + content
@@ -242,6 +265,7 @@ Create empty placeholder pages for:
 #### Tasks (High-Level)
 
 ##### 4.1 Bookkeeper Module
+
 - Members register (list, add, edit, delete)
 - Contributions tracking (types, amounts, history)
 - Loans management (products, applications, repayment)
@@ -250,6 +274,7 @@ Create empty placeholder pages for:
 - Member statements
 
 ##### 4.2 Chama Reminder Module
+
 - SMS campaign builder
 - Message templates with variables
 - Bulk messaging interface
@@ -257,6 +282,7 @@ Create empty placeholder pages for:
 - Opt-out management
 
 ##### 4.3 Fundraise Module
+
 - Campaign creation wizard
 - Campaign pages (public view)
 - Donor management
@@ -264,6 +290,7 @@ Create empty placeholder pages for:
 - Campaign analytics
 
 ##### 4.4 Enterprise Module
+
 - Portfolio dashboard (multi-group overview)
 - Program management
 - Drill-down navigation (Org → Program → Group → Member)
@@ -281,6 +308,7 @@ Create empty placeholder pages for:
 #### Tasks
 
 ##### 5.1 Accessibility Audit
+
 ```
 Run axe DevTools and address:
 ✓ Color contrast (4.5:1 for normal text)
@@ -293,6 +321,7 @@ Run axe DevTools and address:
 ```
 
 ##### 5.2 Performance Optimization
+
 ```
 Core Web Vitals:
 ✓ LCP (Largest Contentful Paint) < 2.5s
@@ -317,6 +346,7 @@ Caching:
 ```
 
 ##### 5.3 Cross-Browser Testing
+
 - Chrome (latest)
 - Firefox (latest)
 - Safari (iOS + macOS)
@@ -324,6 +354,7 @@ Caching:
 - Samsung Internet (Android)
 
 ##### 5.4 Mobile Testing
+
 - iPhone SE (375px)
 - iPhone 12 (390px)
 - iPhone 14 Pro Max (430px)
@@ -331,6 +362,7 @@ Caching:
 - Landscape orientation
 
 ##### 5.5 Visual QA
+
 - [ ] No emoji icons (all SVG)
 - [ ] Consistent spacing (8px increments)
 - [ ] Consistent shadows (4 levels)
@@ -343,6 +375,7 @@ Caching:
 - [ ] Loading states shown
 
 ##### 5.6 Documentation & Handoff
+
 - [ ] Component library documentation
 - [ ] Design system finalized
 - [ ] Accessibility checklist
@@ -357,17 +390,20 @@ Caching:
 ### Priority 1: Foundation Setup (This Session)
 
 **1. Update package.json and install dependencies**
+
 ```bash
 npm install @tabler/icons-react recharts next-themes
 ```
 
 **2. Update tailwind.config.js**
+
 - Add semantic color palette
 - Add spacing scale
 - Add typography configuration
 - Configure dark mode
 
 **3. Create `/components/ui/` directory with base components**
+
 - Button
 - Input
 - Card
@@ -377,10 +413,12 @@ npm install @tabler/icons-react recharts next-themes
 - Badge
 
 **4. Implement next-themes dark mode**
+
 - Add ThemeProvider to layout
 - Create theme toggle component
 
 **5. Create Tabler icon integration**
+
 - Replace Heroicons imports with @tabler/icons-react
 - Update icon usage across project
 - Verify visual consistency
@@ -397,6 +435,7 @@ npm install @tabler/icons-react recharts next-themes
 ## GIT WORKFLOW
 
 ### Branch Strategy
+
 ```
 Main: main
 Working: feature/kitabu-design-system
@@ -410,11 +449,13 @@ Sub-branches:
 ```
 
 ### Commit Convention
+
 ```
 Co-Authored-By: Claude Haiku 4.5 <noreply@anthropic.com>
 ```
 
 ### PR Strategy
+
 - Each phase = one feature branch
 - Each task = one commit (logical grouping)
 - Description explains design decisions
@@ -449,30 +490,35 @@ Should align with:
 ## SUCCESS METRICS
 
 ### Phase 1 (Design System)
+
 - ✓ Design tokens documented and in use
 - ✓ 10+ base components built and styled
 - ✓ Dark mode working in development
 - ✓ No hardcoded colors in components
 
 ### Phase 2 (Public Website)
+
 - ✓ All 5 main pages (Home, 4 product pages) responsive
 - ✓ Navigation updates complete
 - ✓ Images optimized (WebP, lazy load)
 - ✓ Lighthouse score ≥90 (Performance, Accessibility)
 
 ### Phase 3 (SaaS Shells)
+
 - ✓ Dashboard layout responsive (375px, 768px, 1440px)
 - ✓ Navigation sidebar + mobile bottom tabs working
 - ✓ 8+ shell pages created and navigable
 - ✓ Touch targets ≥44px verified
 
 ### Phase 4 (Product Pages)
+
 - ✓ Bookkeeper module functional (members, contributions, loans)
 - ✓ Chama Reminder SMS interface working
 - ✓ Fundraise campaigns creatable
 - ✓ Enterprise portfolio dashboard displaying data
 
 ### Phase 5 (Polish)
+
 - ✓ WCAG 2.1 AA compliance (axe audit pass)
 - ✓ Core Web Vitals all green (LCP, INP, CLS)
 - ✓ Tested on 5+ browsers

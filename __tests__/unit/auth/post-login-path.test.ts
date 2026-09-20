@@ -32,9 +32,11 @@ describe('postLoginPath', () => {
       // A Kitabu Yetu customer with an add-on. The reminder portal is reachable
       // from there, and demoting a full customer to the lighter product would
       // be a downgrade, not a convenience.
-      expect(postLoginPath('chairperson', {
-        products: ['kitabu_yetu', 'chama_reminder'],
-      })).toBe('/dashboard');
+      expect(
+        postLoginPath('chairperson', {
+          products: ['kitabu_yetu', 'chama_reminder'],
+        }),
+      ).toBe('/dashboard');
     });
 
     it('keeps a Kitabu-Yetu-only group on the dashboard', () => {
@@ -52,24 +54,33 @@ describe('postLoginPath', () => {
     it('routes an unpaid Chama Reminder signup by signupProduct', () => {
       // The case products CANNOT answer: since migration 139 a brand-new group
       // holds no subscription at all.
-      expect(postLoginPath('chairperson', {
-        products: [], signupProduct: 'chama_reminder',
-      })).toBe('/reminder');
+      expect(
+        postLoginPath('chairperson', {
+          products: [],
+          signupProduct: 'chama_reminder',
+        }),
+      ).toBe('/reminder');
     });
 
     it('routes an unpaid Kitabu Yetu signup to the dashboard', () => {
-      expect(postLoginPath('chairperson', {
-        products: [], signupProduct: 'kitabu_yetu',
-      })).toBe('/dashboard');
+      expect(
+        postLoginPath('chairperson', {
+          products: [],
+          signupProduct: 'kitabu_yetu',
+        }),
+      ).toBe('/dashboard');
     });
 
     it('ignores signupProduct once the group actually holds Kitabu Yetu', () => {
       // Signed up for Chama Reminder, then bought Kitabu Yetu. What it PAYS for
       // outranks what it once registered for — otherwise a converted customer
       // would be stuck in the lighter portal forever.
-      expect(postLoginPath('chairperson', {
-        products: ['kitabu_yetu'], signupProduct: 'chama_reminder',
-      })).toBe('/dashboard');
+      expect(
+        postLoginPath('chairperson', {
+          products: ['kitabu_yetu'],
+          signupProduct: 'chama_reminder',
+        }),
+      ).toBe('/dashboard');
     });
 
     it('falls back to the dashboard when nothing is known', () => {

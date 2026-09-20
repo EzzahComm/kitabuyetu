@@ -3,7 +3,10 @@ import { MoreHorizontal, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { ProgressRing } from '@/components/member/progress-ring';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatKES, formatDate } from '@/lib/utils';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
@@ -39,16 +42,25 @@ export function SavingsGoalCard({ goal, onLogProgress, onEdit, onDelete }: Savin
           <p className="truncate font-semibold text-foreground">{goal.name}</p>
         </div>
         <p className="money mt-0.5 text-sm text-muted-foreground">
-          {formatKES(goal.savedAmount)} <span className="text-muted-foreground/60">of</span> {formatKES(goal.targetAmount)}
+          {formatKES(goal.savedAmount)} <span className="text-muted-foreground/60">of</span>{' '}
+          {formatKES(goal.targetAmount)}
         </p>
         <p className="mt-1 text-xs font-medium text-brand-600">
-          {done ? '🎉 Goal reached!' : `${formatKES(remaining)} to go · by ${goal.deadline ? formatDate(goal.deadline) : 'Ongoing'}`}
+          {done
+            ? '🎉 Goal reached!'
+            : `${formatKES(remaining)} to go · by ${goal.deadline ? formatDate(goal.deadline) : 'Ongoing'}`}
         </p>
       </div>
       {hasActions && (
         <div className="flex shrink-0 items-center gap-1">
           {onLogProgress && !done && (
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => onLogProgress(goal)} aria-label="Add progress">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8"
+              onClick={() => onLogProgress(goal)}
+              aria-label="Add progress"
+            >
               <PlusCircle size={16} />
             </Button>
           )}

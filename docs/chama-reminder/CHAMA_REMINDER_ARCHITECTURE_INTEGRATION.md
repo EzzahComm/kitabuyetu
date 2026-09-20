@@ -8,19 +8,19 @@ No code has been written yet. This is the audit the prompt's own §44/§45 asks 
 
 **Most of what the prompt asks to reuse genuinely exists and is reusable as described.** RBAC/permissions, the reminder-deduplication engine, the SMS provider/billing/opt-out stack, the tenant model, and the portal/design-system pattern are all real, production-proven, and match the prompt's assumptions closely. **The two things the prompt treats as "already there to build on" that are NOT there are the most consequential**: there is no multi-product entitlement concept, and subscription activation is not actually payment-gated today (for either product). Both are real gaps, not oversights in this analysis — and both need a decision before anything else in the prompt can be built faithfully.
 
-| Area | Verdict |
-|---|---|
-| Tenant model (`groups`) | ✅ Reuse as-is |
-| RBAC / permission strings | ✅ Reuse as-is — additive only |
-| Reminder dedup (`reminder_dispatch_log`) | ✅ Reuse as-is — already load-bearing for 2 reminder types |
-| SMS send/bill/opt-out/template pipeline | ✅ Reuse as-is (this session shipped several fixes to it) |
-| Portal/design system | ✅ Reuse as-is — new portal is config, not new infra |
-| API middleware conventions | ✅ Reuse as-is |
-| Birthday automation | 🟡 Half-built, inert — real but scoped follow-up, not new territory |
-| Bulk/scheduled template rendering | 🟡 Real gap, contained fix |
-| Multi-product entitlement model | ❌ Does not exist — genuine new design |
-| Payment-gated subscription activation | ❌ Does not exist for **any** product today — genuine new design |
-| Lightweight/product-scoped registration | ❌ Does not exist — `register_group()` always seeds full Kitabu Yetu |
+| Area                                     | Verdict                                                              |
+| ---------------------------------------- | -------------------------------------------------------------------- |
+| Tenant model (`groups`)                  | ✅ Reuse as-is                                                       |
+| RBAC / permission strings                | ✅ Reuse as-is — additive only                                       |
+| Reminder dedup (`reminder_dispatch_log`) | ✅ Reuse as-is — already load-bearing for 2 reminder types           |
+| SMS send/bill/opt-out/template pipeline  | ✅ Reuse as-is (this session shipped several fixes to it)            |
+| Portal/design system                     | ✅ Reuse as-is — new portal is config, not new infra                 |
+| API middleware conventions               | ✅ Reuse as-is                                                       |
+| Birthday automation                      | 🟡 Half-built, inert — real but scoped follow-up, not new territory  |
+| Bulk/scheduled template rendering        | 🟡 Real gap, contained fix                                           |
+| Multi-product entitlement model          | ❌ Does not exist — genuine new design                               |
+| Payment-gated subscription activation    | ❌ Does not exist for **any** product today — genuine new design     |
+| Lightweight/product-scoped registration  | ❌ Does not exist — `register_group()` always seeds full Kitabu Yetu |
 
 ---
 
@@ -36,7 +36,7 @@ No code has been written yet. This is the audit the prompt's own §44/§45 asks 
 
 - `subscriptions.plan_type` is a **closed enum**: `'starter' | 'growth' | 'enterprise'` (`20260101000000_001_init_enums.sql:7-11`), never altered since. There is no room in it for "Chama Reminder Basic/Standard/Plus/Pro/Enterprise" without either polluting the same enum with a second product's tiers or building something new.
 - A group has **exactly one active subscription**, enforced by a partial unique index (`...005_billing.sql:57-59`). The prompt's §29 model ("one organization, multiple products, each with its own plan") is structurally impossible against the current schema as-is.
-- `feature_flags` (`20260101000025_025_admin_backoffice_tables.sql:92-103` + service at `lib/services/feature-flags.service.ts`) is the closest existing thing to "entitlements," and it is **not sufficient**: `isFeatureEnabled()` returns a plain `boolean`. Its `applies_to='group'`/`conditions.group_ids` targeting mechanism is directly reusable for "which groups have Chama Reminder enabled," but there is no plumbing anywhere that reads a *numeric* value out of `conditions` (an included-SMS count, a member cap) — every consumer treats it as on/off. Of the 11 seeded flags, 8 gate features that were never built at all (`bulk_sms`, `advanced_analytics`, etc.) — this table has a track record of being aspirational, not load-bearing.
+- `feature_flags` (`20260101000025_025_admin_backoffice_tables.sql:92-103` + service at `lib/services/feature-flags.service.ts`) is the closest existing thing to "entitlements," and it is **not sufficient**: `isFeatureEnabled()` returns a plain `boolean`. Its `applies_to='group'`/`conditions.group_ids` targeting mechanism is directly reusable for "which groups have Chama Reminder enabled," but there is no plumbing anywhere that reads a _numeric_ value out of `conditions` (an included-SMS count, a member cap) — every consumer treats it as on/off. Of the 11 seeded flags, 8 gate features that were never built at all (`bulk_sms`, `advanced_analytics`, etc.) — this table has a track record of being aspirational, not load-bearing.
 - `max_members` enforcement (the prompt's §24 requirement) **does technically exist**: `billingService.assertMemberCap()` (`lib/services/billing.service.ts:95-109`) is correctly wired into `members.service.ts:118`'s `create()`. But it is **dead in practice** — `PLAN_FEATURES` (`types/enums.ts:27-69`) sets `maxMembers: null` (unlimited) on all three existing plans, by explicit design ("ALL features unlocked on ALL plans... If feature gating is reintroduced later, this is the single place to edit"). Nothing today ever writes a non-null `max_members`. The enforcement code is correct and just needs real config to become live — not new infrastructure.
 - `register_group()` (current body: `20260807000000_124_sms_bundled_allowance.sql:347-550`) has **no product parameter at all** — every new group gets the full Kitabu Yetu starter subscription, chart of accounts, and GL seeding unconditionally. There is no "sign up for just Chama Reminder" path today.
 
@@ -44,11 +44,11 @@ No code has been written yet. This is the audit the prompt's own §44/§45 asks 
 
 ## 3. Billing & payment activation — a bigger gap than expected, affects both products
 
-The prompt is emphatic (§5, §6, §44) that a subscription must never activate before payment is *confirmed*. Checked what actually happens today:
+The prompt is emphatic (§5, §6, §44) that a subscription must never activate before payment is _confirmed_. Checked what actually happens today:
 
 - `billingService.upgradePlan()` (`lib/services/billing.service.ts:58-80`) **immediately** sets `status='active'` on a new plan — no payment check of any kind. The only gate is the `billing.manage` permission (granted solely to `chairperson`, `20260606140000_077_role_permissions.sql:38`). A chairperson can self-upgrade their group's plan with one API call and zero money changing hands.
 - `recordPayment()` (`billing.service.ts:157-195`) is a fully separate, manual, admin-typed action (payment method + date + optional receipt number, inserted as `status='completed'`) with **no linkage back to `upgradePlan()`**.
-- M-Pesa STK does accept `purpose: 'subscription'` (`lib/validators/mpesa.schema.ts:20`, bill-ref parsing in `lib/utils/mpesa-bill-ref.ts:30,56`), but **no code path anywhere consumes it to actually change `subscriptions`** — confirmed by the callback's own comment: *"Other purposes (registration, subscription, sms_topup) are handled by the existing billing pipeline via the payments/invoices update above — no domain action needed here"* (`lib/services/mpesa-stk.service.ts:398-400`). Only `sms_topup` has real domain-specific fulfillment logic in the callback (`app/api/v1/mpesa/callback/route.ts:88-113`).
+- M-Pesa STK does accept `purpose: 'subscription'` (`lib/validators/mpesa.schema.ts:20`, bill-ref parsing in `lib/utils/mpesa-bill-ref.ts:30,56`), but **no code path anywhere consumes it to actually change `subscriptions`** — confirmed by the callback's own comment: _"Other purposes (registration, subscription, sms_topup) are handled by the existing billing pipeline via the payments/invoices update above — no domain action needed here"_ (`lib/services/mpesa-stk.service.ts:398-400`). Only `sms_topup` has real domain-specific fulfillment logic in the callback (`app/api/v1/mpesa/callback/route.ts:88-113`).
 - A dormant `platform_billing` table (`20260605121330_066b_platform_billing_table.sql:19-37`, looks like a periodic billing ledger) has **zero TypeScript references anywhere** — dead, not a hidden implementation of any of this.
 
 **Kitabu Yetu itself does not have the payment-gated subscription activation the prompt assumes exists as a baseline.** This is the single most consequential finding in this report — see Decision B in §5.
@@ -69,7 +69,7 @@ Adding new permission strings (`chama_reminder.sms.send`, `chama_reminder.templa
 
 Given the prompt's own explicit instruction (§30: reuse `subscriptions`, don't duplicate) and its §29 multi-product-per-organization model, the grounded options were:
 
-1. **Add a `product` column to `subscriptions`, loosen the one-active-subscription-per-group constraint to one-per-`(group, product)`.** `plan_type` keeps its existing 3 values *within* Kitabu Yetu; Chama Reminder gets its own small `plan_type`-equivalent (or reuses a differently-scoped enum). Closest to the prompt's own architecture, but touches a constraint every existing billing code path assumes is "one row."
+1. **Add a `product` column to `subscriptions`, loosen the one-active-subscription-per-group constraint to one-per-`(group, product)`.** `plan_type` keeps its existing 3 values _within_ Kitabu Yetu; Chama Reminder gets its own small `plan_type`-equivalent (or reuses a differently-scoped enum). Closest to the prompt's own architecture, but touches a constraint every existing billing code path assumes is "one row."
 2. A parallel `chama_reminder_subscriptions` table — fully isolated, but exactly the duplication §30 says not to do.
 3. Extend `feature_flags` with numeric config — reuses the most infrastructure, but a weak foundation (8 of 11 seeded flags gate features never built).
 
@@ -84,7 +84,7 @@ Since §3 found this doesn't exist for Kitabu Yetu either, two paths:
 
 > **DECIDED: option 1 (platform-wide).** Fixing it once fixes it for both products, and avoids the platform ending up with two inconsistent activation philosophies.
 
-### Decision C — how does a brand-new organization sign up for *just* Chama Reminder?
+### Decision C — how does a brand-new organization sign up for _just_ Chama Reminder?
 
 `register_group()` always seeds the full Kitabu Yetu stack today (16-account chart of accounts, GL, starter subscription).
 
@@ -104,7 +104,8 @@ Since §3 found this doesn't exist for Kitabu Yetu either, two paths:
 Send/bill/reserve/settle, per-group opt-out (confirmed genuinely per-group, not global), the credit-reservation and bundled-allowance model, `clientSmsId`-based bulk-response alignment, and job-retry idempotency were all directly worked on and hardened in this session (`docs/audits/SMS_MESSAGING_AUDIT_2026-08.md`, `docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md`). Chama Reminder should call `smsService`/`notifyMember` exactly like every existing feature — there is no reason for it to touch `textsms.service.ts` or the provider layer directly.
 
 **Two real, unrelated-to-Chama-Reminder gaps this session's work did not touch, worth fixing as shared platform work regardless of Chama Reminder**:
-- **Birthday SMS is half-built, not absent.** `TEMPLATE_KEYS.BIRTHDAY` template exists, `sms_group_settings.auto_send_birthday BOOLEAN` exists, `sms_schedules.schedule_type` enum already includes `'birthday'`/`'loan_due'` — but `sms-scheduler.service.ts`'s own header comment says outright: *"The 'birthday' and 'loan_due' types are intentionally NOT processed here... left for a dedicated follow-up."* Its query filters to `schedule_type IN ('one_time','daily','weekly','monthly')` only. A birthday-SMS job is finishing a stubbed feature, not new territory — and `members.date_of_birth` already exists (present since the very first schema migration), masked to admin/chairperson-only PII by `applyMemberMask()`. Note: `sendBirthdayEmails()` (the *email* equivalent, `lib/services/member-email.service.ts:71-98`) is flagged elsewhere in this codebase's own audit trail (`docs/audits/PRODUCTION_SCHEMA_DRIFT_AUDIT.md:111`) as **"failing now"** — worth a real fix pass before treating it as a working reference implementation to copy.
+
+- **Birthday SMS is half-built, not absent.** `TEMPLATE_KEYS.BIRTHDAY` template exists, `sms_group_settings.auto_send_birthday BOOLEAN` exists, `sms_schedules.schedule_type` enum already includes `'birthday'`/`'loan_due'` — but `sms-scheduler.service.ts`'s own header comment says outright: _"The 'birthday' and 'loan_due' types are intentionally NOT processed here... left for a dedicated follow-up."_ Its query filters to `schedule_type IN ('one_time','daily','weekly','monthly')` only. A birthday-SMS job is finishing a stubbed feature, not new territory — and `members.date_of_birth` already exists (present since the very first schema migration), masked to admin/chairperson-only PII by `applyMemberMask()`. Note: `sendBirthdayEmails()` (the _email_ equivalent, `lib/services/member-email.service.ts:71-98`) is flagged elsewhere in this codebase's own audit trail (`docs/audits/PRODUCTION_SCHEMA_DRIFT_AUDIT.md:111`) as **"failing now"** — worth a real fix pass before treating it as a working reference implementation to copy.
 - **Bulk/scheduled sends don't render `{{variable}}` templates.** `renderTemplate()` (`lib/sms/templates.ts:10-15`) is a fully generic `{{anything}}` substitution engine, correctly used by `sendTemplated()` for single/few-recipient sends — but `sms-scheduler.service.ts:84` passes the raw template body straight into the bulk-send job with no rendering call. A personalized birthday message (`{{first_name}}`) or meeting reminder (`{{meeting_date}}`) sent via the bulk/schedule path today would go out with the literal, unresolved placeholder text. Group-level constants (`group_name`) could be pre-rendered before enqueue with no difficulty since the scheduler already has `group_id` in scope; per-recipient variables (`first_name`) need rendering to move into the per-recipient loop inside `handleSmsBulkSend`.
 
 ### Admin/reporting pattern — reuse as-is
@@ -130,6 +131,7 @@ Ordered so early phases are pure shared-platform fixes that pay off regardless o
 **Phase 0 — Decisions.** Resolve A, B, C above before any schema work.
 
 **Phase 1 — Shared-platform fixes (product-agnostic, safe to ship regardless of Phase 0's outcome).**
+
 - Finish birthday SMS: wire `sms_schedules.schedule_type = 'birthday'` processing into the scheduler, using `reminder_dispatch_log` for dedup (stage = the birthday year, so it can't re-fire twice in one year even across job retries) rather than the currently-inert `auto_send_birthday` boolean alone. **Shipped, PR #44.**
 - Fix `sendBirthdayEmails()` — it's currently broken; don't let a new SMS variant inherit the same bug blind.
 - Render templates in the bulk/scheduled send path (group-level vars pre-rendered before enqueue; per-recipient vars rendered inside `handleSmsBulkSend`'s loop). **Shipped, PR #44.**

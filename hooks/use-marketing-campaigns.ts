@@ -8,13 +8,13 @@ const CAMPAIGNS_BASE = '/marketing/campaigns';
 const keys = {
   audiences: ['marketing', 'audiences'] as const,
   campaigns: ['marketing', 'campaigns'] as const,
-  campaign:  (id: string) => ['marketing', 'campaigns', id] as const,
+  campaign: (id: string) => ['marketing', 'campaigns', id] as const,
 };
 
 export function useAudiences() {
   return useQuery({
     queryKey: keys.audiences,
-    queryFn:  () => api.get<Audience[]>(AUDIENCES_BASE),
+    queryFn: () => api.get<Audience[]>(AUDIENCES_BASE),
   });
 }
 
@@ -29,7 +29,7 @@ export function useCreateAudience() {
 export function useCampaigns() {
   return useQuery({
     queryKey: keys.campaigns,
-    queryFn:  () => api.get<Campaign[]>(CAMPAIGNS_BASE),
+    queryFn: () => api.get<Campaign[]>(CAMPAIGNS_BASE),
     refetchInterval: (query) => {
       const data = query.state.data as Campaign[] | undefined;
       return data?.some((c) => c.status === 'sending') ? 4000 : false;
@@ -40,9 +40,9 @@ export function useCampaigns() {
 export function useCampaign(id: string) {
   return useQuery({
     queryKey: keys.campaign(id),
-    queryFn:  () => api.get<Campaign>(`${CAMPAIGNS_BASE}/${id}`),
-    enabled:  !!id,
-    refetchInterval: (query) => (query.state.data as Campaign | undefined)?.status === 'sending' ? 4000 : false,
+    queryFn: () => api.get<Campaign>(`${CAMPAIGNS_BASE}/${id}`),
+    enabled: !!id,
+    refetchInterval: (query) => ((query.state.data as Campaign | undefined)?.status === 'sending' ? 4000 : false),
   });
 }
 

@@ -50,9 +50,9 @@ describe('sendBulkSmsChunked partial failure', () => {
       .mockImplementationOnce((_u, body) => Promise.resolve(acceptedResponse(body)) as never)
       .mockImplementationOnce(() => Promise.reject(new Error('provider 500')) as never);
 
-    const res = await sendBulkSmsChunked(items(150));   // 100 + 50
+    const res = await sendBulkSmsChunked(items(150)); // 100 + 50
 
-    expect(res.sent).toBe(100);        // chunk 0 preserved, not discarded
+    expect(res.sent).toBe(100); // chunk 0 preserved, not discarded
     expect(res.failed).toBe(50);
     expect(res.responses).toHaveLength(150);
   });

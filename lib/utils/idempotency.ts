@@ -21,17 +21,17 @@ import { redis } from '@/lib/redis';
 import { logger } from '@/lib/logger';
 
 const TTL_SECONDS = 24 * 60 * 60;
-const PREFIX      = process.env.REDIS_PREFIX ?? 'ky:';
+const PREFIX = process.env.REDIS_PREFIX ?? 'ky:';
 
 interface StoredResponse {
   status: number;
-  body:   string;
+  body: string;
 }
 
 export async function withIdempotencyKey(
-  req:     NextRequest,
-  userId:  string,
-  route:   string,
+  req: NextRequest,
+  userId: string,
+  route: string,
   execute: () => Promise<Response>,
 ): Promise<Response> {
   const key = req.headers.get('idempotency-key');
@@ -44,7 +44,7 @@ export async function withIdempotencyKey(
     if (cached) {
       const stored = (typeof cached === 'string' ? JSON.parse(cached) : cached) as StoredResponse;
       return new Response(stored.body, {
-        status:  stored.status,
+        status: stored.status,
         headers: { 'Content-Type': 'application/json', 'Idempotent-Replay': 'true' },
       });
     }

@@ -18,7 +18,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Read as values, not as the object: useEntitlements returns a fresh object
   // each render, so depending on it directly would re-run the effect endlessly.
   const entitlementsLoading = entitlements.isLoading;
-  const reminderOnly        = entitlements.reminderOnly;
+  const reminderOnly = entitlements.reminderOnly;
 
   // A backoffice (staff) session must never render the tenant dashboard —
   // otherwise a super-admin who follows a stray link lands in the consumer
@@ -28,8 +28,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     configureApiClient({
-      getToken:       () => accessToken,
-      onUnauthorized: () => { logout(); router.push('/login'); },
+      getToken: () => accessToken,
+      onUnauthorized: () => {
+        logout();
+        router.push('/login');
+      },
       // 402: the group's subscription lapsed or was never paid for. Billing is
       // outside the lock precisely so this redirect lands somewhere usable —
       // the user can pick a plan and pay from there. Never redirect while
@@ -42,8 +45,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (isLoading) return;
-    if (!user) { router.push('/login'); return; }
-    if (isBackoffice) { router.replace('/admin'); return; }
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    if (isBackoffice) {
+      router.replace('/admin');
+      return;
+    }
     // Every feature route 403s server-side for a pending_verification group
     // (proxy.ts) — redirect client-side too so the user sees the
     // verification flow instead of a page full of failed requests.
@@ -76,9 +85,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex flex-1 flex-col overflow-hidden">
         <TopBar onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
-          {children}
-        </main>
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">{children}</main>
       </div>
       <CommandPalette />
     </div>

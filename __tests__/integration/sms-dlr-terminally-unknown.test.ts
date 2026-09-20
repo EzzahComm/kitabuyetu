@@ -41,7 +41,8 @@ async function seedSent(groupId: string, msgId: string, sentAtSql: string | null
 
 async function rowFor(msgId: string) {
   const [row] = await rawQuery<{ status: string; dlr_abandoned_at: Date | null }>(
-    `SELECT status, dlr_abandoned_at FROM sms_usage_logs WHERE provider_msg_id = $1`, [msgId],
+    `SELECT status, dlr_abandoned_at FROM sms_usage_logs WHERE provider_msg_id = $1`,
+    [msgId],
   );
   return row;
 }
@@ -54,8 +55,12 @@ describe('terminally-unknown DLR outcomes', () => {
     ({ groupId } = await createTestGroup('chairperson'));
     mockGetDeliveryReport.mockReset();
     mockGetDeliveryReport.mockResolvedValue({
-      messageId: 'x', status: 'DeliveredToTerminal', statusCode: 32,
-      phone: '254700000001', networkId: '1', raw: {},
+      messageId: 'x',
+      status: 'DeliveredToTerminal',
+      statusCode: 32,
+      phone: '254700000001',
+      networkId: '1',
+      raw: {},
     });
   });
 

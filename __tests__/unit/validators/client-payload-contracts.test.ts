@@ -21,7 +21,10 @@ import { CreateJournalSchema, SetPostingTemplateSchema } from '@/lib/validators/
 import { StkPushSchema } from '@/lib/validators/mpesa.schema';
 import { ReviewWelfareRequestSchema } from '@/lib/services/welfare.service';
 import {
-  ApplyLoanSchema, RejectLoanSchema, DisburseLoanSchema, RecordRepaymentSchema,
+  ApplyLoanSchema,
+  RejectLoanSchema,
+  DisburseLoanSchema,
+  RecordRepaymentSchema,
 } from '@/lib/validators/loan.schema';
 import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
 import { BulkSmsSchema } from '@/lib/validators/sms.schema';
@@ -30,7 +33,7 @@ describe('client payload contracts', () => {
   describe('accounting: POST /accounting/journals', () => {
     // Mirrors what (dashboard)/accounting/page.tsx#handleSubmitJournal builds.
     const payload = {
-      entryDate:   '2026-08-04',
+      entryDate: '2026-08-04',
       description: 'Bank charges for July',
       lines: [
         { accountId: '11111111-1111-4111-8111-111111111111', debit: 500, credit: 0, description: null },
@@ -61,13 +64,13 @@ describe('client payload contracts', () => {
   describe('mpesa: POST /mpesa/stk-push', () => {
     // Mirrors (dashboard)/billing/page.tsx#handleMpesaPay.
     const subscription = {
-      phone:            '0712345678',
-      amount:           300,
+      phone: '0712345678',
+      amount: 300,
       accountReference: 'SUBSCRIPT',
-      description:      'Growth plan',
-      purpose:          'subscription' as const,
-      planType:         'growth' as const,
-      product:          'kitabu_yetu' as const,
+      description: 'Growth plan',
+      purpose: 'subscription' as const,
+      planType: 'growth' as const,
+      product: 'kitabu_yetu' as const,
     };
 
     it('accepts the billing page subscription payload', () => {
@@ -84,30 +87,46 @@ describe('client payload contracts', () => {
     });
 
     it('rejects buying the negotiated enterprise tier through self-serve STK', () => {
-      expect(StkPushSchema.safeParse({
-        ...subscription, planType: 'enterprise',
-      }).success).toBe(false);
+      expect(
+        StkPushSchema.safeParse({
+          ...subscription,
+          planType: 'enterprise',
+        }).success,
+      ).toBe(false);
     });
 
     it('does not require a plan for non-subscription purposes', () => {
-      expect(StkPushSchema.safeParse({
-        phone: '0712345678', amount: 500,
-        accountReference: 'SMSTOPUP', description: 'SMS credits top-up',
-        purpose: 'sms_topup',
-      }).success).toBe(true);
+      expect(
+        StkPushSchema.safeParse({
+          phone: '0712345678',
+          amount: 500,
+          accountReference: 'SMSTOPUP',
+          description: 'SMS credits top-up',
+          purpose: 'sms_topup',
+        }).success,
+      ).toBe(true);
     });
 
     it('accepts the contribution payload from StkPromptDialog', () => {
-      expect(StkPushSchema.safeParse({
-        phone: '0712345678', amount: 100,
-        accountReference: 'CONTRIB', description: 'Contribution', purpose: 'contribution',
-      }).success).toBe(true);
+      expect(
+        StkPushSchema.safeParse({
+          phone: '0712345678',
+          amount: 100,
+          accountReference: 'CONTRIB',
+          description: 'Contribution',
+          purpose: 'contribution',
+        }).success,
+      ).toBe(true);
     });
 
     it('rejects the shape that shipped: no accountReference/description, free-text purpose', () => {
-      expect(StkPushSchema.safeParse({
-        phone: '0712345678', amount: 2500, purpose: 'Growth plan subscription',
-      }).success).toBe(false);
+      expect(
+        StkPushSchema.safeParse({
+          phone: '0712345678',
+          amount: 2500,
+          purpose: 'Growth plan subscription',
+        }).success,
+      ).toBe(false);
     });
 
     it('rejects a description longer than the 20-char M-Pesa limit', () => {
@@ -131,22 +150,36 @@ describe('client payload contracts', () => {
 
   describe('loans: the loan detail/list page payloads', () => {
     it('accepts an application with loanTermMonths (the form used to send termMonths)', () => {
-      expect(ApplyLoanSchema.safeParse({
-        principalAmount: 50000, interestRate: 10, loanTermMonths: 12, purpose: 'School fees',
-      }).success).toBe(true);
+      expect(
+        ApplyLoanSchema.safeParse({
+          principalAmount: 50000,
+          interestRate: 10,
+          loanTermMonths: 12,
+          purpose: 'School fees',
+        }).success,
+      ).toBe(true);
     });
 
     it('rejects the termMonths spelling that shipped', () => {
-      expect(ApplyLoanSchema.safeParse({
-        principalAmount: 50000, interestRate: 10, termMonths: 12, purpose: 'School fees',
-      }).success).toBe(false);
+      expect(
+        ApplyLoanSchema.safeParse({
+          principalAmount: 50000,
+          interestRate: 10,
+          termMonths: 12,
+          purpose: 'School fees',
+        }).success,
+      ).toBe(false);
     });
 
     it('accepts memberId so an officer can apply on behalf of a member', () => {
-      expect(ApplyLoanSchema.safeParse({
-        memberId: '33333333-3333-4333-8333-333333333333',
-        principalAmount: 50000, interestRate: 10, loanTermMonths: 12,
-      }).success).toBe(true);
+      expect(
+        ApplyLoanSchema.safeParse({
+          memberId: '33333333-3333-4333-8333-333333333333',
+          principalAmount: 50000,
+          interestRate: 10,
+          loanTermMonths: 12,
+        }).success,
+      ).toBe(true);
     });
 
     it('rejects a reject with no reason — what the Reject button used to send', () => {
@@ -156,25 +189,39 @@ describe('client payload contracts', () => {
 
     it('rejects a disburse with no date/method — what the Mark disbursed button used to send', () => {
       expect(DisburseLoanSchema.safeParse({}).success).toBe(false);
-      expect(DisburseLoanSchema.safeParse({
-        disbursementDate: '2026-08-04', paymentMethod: 'cash', mpesaReceiptNumber: null,
-      }).success).toBe(true);
+      expect(
+        DisburseLoanSchema.safeParse({
+          disbursementDate: '2026-08-04',
+          paymentMethod: 'cash',
+          mpesaReceiptNumber: null,
+        }).success,
+      ).toBe(true);
     });
 
     it('accepts the rebuilt repayment payload and rejects the old {amount, reference} one', () => {
-      expect(RecordRepaymentSchema.safeParse({
-        installmentNumber: 1, amountPaid: 5000, paymentDate: '2026-08-04',
-        paymentMethod: 'mpesa', mpesaReceiptNumber: null, penaltyAmount: 0,
-      }).success).toBe(true);
-      expect(RecordRepaymentSchema.safeParse({
-        amount: 5000, paymentMethod: 'mpesa', reference: 'ABC123',
-      }).success).toBe(false);
+      expect(
+        RecordRepaymentSchema.safeParse({
+          installmentNumber: 1,
+          amountPaid: 5000,
+          paymentDate: '2026-08-04',
+          paymentMethod: 'mpesa',
+          mpesaReceiptNumber: null,
+          penaltyAmount: 0,
+        }).success,
+      ).toBe(true);
+      expect(
+        RecordRepaymentSchema.safeParse({
+          amount: 5000,
+          paymentMethod: 'mpesa',
+          reference: 'ABC123',
+        }).success,
+      ).toBe(false);
     });
   });
 
   describe('accounting: posting-template overrides', () => {
     const lines = [
-      { accountCode: '1001', side: 'debit'  as const, amount: 'amount' },
+      { accountCode: '1001', side: 'debit' as const, amount: 'amount' },
       { accountCode: '3001', side: 'credit' as const, amount: 'amount' },
     ];
 
@@ -192,19 +239,27 @@ describe('client payload contracts', () => {
 
   describe('auth: change password', () => {
     it('accepts what the settings form now sends', () => {
-      expect(ChangePasswordSchema.safeParse({
-        currentPassword: 'oldpass', newPassword: 'NewPass123',
-      }).success).toBe(true);
+      expect(
+        ChangePasswordSchema.safeParse({
+          currentPassword: 'oldpass',
+          newPassword: 'NewPass123',
+        }).success,
+      ).toBe(true);
     });
 
     it('rejects the shape the settings form used to send to PATCH /members/[id]', () => {
-      expect(ChangePasswordSchema.safeParse({
-        currentPassword: 'oldpass', password: 'NewPass123',
-      }).success).toBe(false);
+      expect(
+        ChangePasswordSchema.safeParse({
+          currentPassword: 'oldpass',
+          password: 'NewPass123',
+        }).success,
+      ).toBe(false);
     });
 
     it('enforces the uppercase + digit rules', () => {
-      expect(ChangePasswordSchema.safeParse({ currentPassword: 'x', newPassword: 'alllowercase1' }).success).toBe(false);
+      expect(ChangePasswordSchema.safeParse({ currentPassword: 'x', newPassword: 'alllowercase1' }).success).toBe(
+        false,
+      );
       expect(ChangePasswordSchema.safeParse({ currentPassword: 'x', newPassword: 'NoDigitsHere' }).success).toBe(false);
     });
   });
@@ -232,9 +287,13 @@ describe('client payload contracts', () => {
     });
 
     it('rejects both at once — the server would have to guess which one wins', () => {
-      expect(BulkSmsSchema.safeParse({
-        phones: ['254712345678'], recipientType: 'all_members', message,
-      }).success).toBe(false);
+      expect(
+        BulkSmsSchema.safeParse({
+          phones: ['254712345678'],
+          recipientType: 'all_members',
+          message,
+        }).success,
+      ).toBe(false);
     });
 
     it('rejects neither, which would silently address nobody', () => {

@@ -38,7 +38,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     const result = verifySvixSignature(
       raw,
       {
-        svixId:        req.headers.get('svix-id'),
+        svixId: req.headers.get('svix-id'),
         svixTimestamp: req.headers.get('svix-timestamp'),
         svixSignature: req.headers.get('svix-signature'),
       },

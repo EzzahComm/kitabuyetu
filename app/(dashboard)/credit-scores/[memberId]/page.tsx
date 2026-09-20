@@ -30,64 +30,79 @@ interface ComponentScore {
   raw: Record<string, unknown>;
 }
 interface CreditScore {
-  id: string; member_id: string;
+  id: string;
+  member_id: string;
   computed_at: string;
-  financial_score: string; social_score: string; overall_score: string;
+  financial_score: string;
+  social_score: string;
+  overall_score: string;
   components: Record<string, ComponentScore>;
   reliability_tier: Tier;
   loan_eligibility_limit: string;
-  member_first_name: string; member_last_name: string; member_phone: string;
+  member_first_name: string;
+  member_last_name: string;
+  member_phone: string;
 }
 
 // Same reliability-tier → tone mapping as the credit-scores list page and
 // the risk analytics page, for consistency across all three.
 const TIER_TONE: Record<Tier, Tone> = {
-  excellent: 'positive', good: 'positive', fair: 'warning', poor: 'negative', high_risk: 'negative',
+  excellent: 'positive',
+  good: 'positive',
+  fair: 'warning',
+  poor: 'negative',
+  high_risk: 'negative',
 };
 const TIER_LABEL: Record<Tier, string> = {
-  excellent: 'Excellent', good: 'Good', fair: 'Fair', poor: 'Poor', high_risk: 'High risk',
+  excellent: 'Excellent',
+  good: 'Good',
+  fair: 'Fair',
+  poor: 'Poor',
+  high_risk: 'High risk',
 };
 const COMPONENT_LABEL: Record<string, string> = {
   // Financial (E6 Part 1)
   contribution_consistency: 'Contribution consistency',
-  loan_repayment:           'Loan repayment timeliness',
-  savings_growth:           'Savings growth',
-  share_ownership:          'Share ownership',
-  dividend_participation:   'Dividend participation',
+  loan_repayment: 'Loan repayment timeliness',
+  savings_growth: 'Savings growth',
+  share_ownership: 'Share ownership',
+  dividend_participation: 'Dividend participation',
   // Social (E6.2)
-  meeting_attendance:       'Meeting attendance',
-  welfare_participation:    'Welfare participation',
-  leadership_role:          'Leadership role',
+  meeting_attendance: 'Meeting attendance',
+  welfare_participation: 'Welfare participation',
+  leadership_role: 'Leadership role',
 };
 const COMPONENT_HINT: Record<string, string> = {
   contribution_consistency: '% of last 12 months with at least one completed contribution',
-  loan_repayment:           '% of repayments paid on or before due date · defaults cap at 30',
-  savings_growth:           'Last 12 months total vs prior 12 months · ratio × 50',
-  share_ownership:          'Percentile rank of shares held among shareholders',
-  dividend_participation:   'Received at least one paid dividend in last 12 months',
-  meeting_attendance:       '% of meetings attended in last 12 months (excused excluded)',
-  welfare_participation:    'Contributed to welfare pool in last 12 months · 100/40 binary',
-  leadership_role:          'Officer role (admin/treasurer/secretary) = 100, member = 50',
+  loan_repayment: '% of repayments paid on or before due date · defaults cap at 30',
+  savings_growth: 'Last 12 months total vs prior 12 months · ratio × 50',
+  share_ownership: 'Percentile rank of shares held among shareholders',
+  dividend_participation: 'Received at least one paid dividend in last 12 months',
+  meeting_attendance: '% of meetings attended in last 12 months (excused excluded)',
+  welfare_participation: 'Contributed to welfare pool in last 12 months · 100/40 binary',
+  leadership_role: 'Officer role (admin/treasurer/secretary) = 100, member = 50',
 };
 
 const fmtMoney = (v: string | number | null | undefined) =>
-  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(Number(v ?? 0));
+  new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(
+    Number(v ?? 0),
+  );
 
 export default function CreditScoreDetailPage() {
   const params = useParams<{ memberId: string }>();
-  const id     = params.memberId;
-  const qc     = useQueryClient();
+  const id = params.memberId;
+  const qc = useQueryClient();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
 
   const latestQ = useQuery<CreditScore>({
     queryKey: ['credit-score', id, 'latest'],
-    queryFn:  () => api.get<CreditScore>(`/credit-scores/${id}`),
-    retry:    false,
+    queryFn: () => api.get<CreditScore>(`/credit-scores/${id}`),
+    retry: false,
   });
   const historyQ = useQuery<{ items: CreditScore[] }>({
     queryKey: ['credit-score', id, 'history'],
-    queryFn:  () => api.get<{ items: CreditScore[] }>(`/credit-scores/${id}/history?limit=24`),
+    queryFn: () => api.get<{ items: CreditScore[] }>(`/credit-scores/${id}/history?limit=24`),
   });
 
   const recompute = async () => {
@@ -102,7 +117,11 @@ export default function CreditScoreDetailPage() {
         qc.invalidateQueries({ queryKey: ['credit-scores', 'list'] }),
       ]);
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Recompute failed', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Recompute failed',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setBusy(false);
     }
@@ -116,7 +135,9 @@ export default function CreditScoreDetailPage() {
       <div className="space-y-6">
         <Skeleton className="h-9 w-64" />
         <div className="grid gap-3 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 w-full" />
+          ))}
         </div>
         <Skeleton className="h-64 w-full" />
       </div>
@@ -127,7 +148,7 @@ export default function CreditScoreDetailPage() {
   // service's NotFoundError (404). Any other failure (403, 500, network) is a
   // real error and must not masquerade as a business state with a
   // "Recompute now" call to action that will fail the same way.
-  const notFound  = latestQ.error instanceof ApiError && latestQ.error.status === 404;
+  const notFound = latestQ.error instanceof ApiError && latestQ.error.status === 404;
   const noScoreYet = latestQ.isError && notFound;
   const loadFailed = latestQ.isError && !notFound;
 
@@ -139,7 +160,11 @@ export default function CreditScoreDetailPage() {
         </Link>
         <PageHeader
           className="flex-1"
-          title={!noScoreYet && latestQ.data ? `${latestQ.data.member_first_name} ${latestQ.data.member_last_name}` : 'Member credit score'}
+          title={
+            !noScoreYet && latestQ.data
+              ? `${latestQ.data.member_first_name} ${latestQ.data.member_last_name}`
+              : 'Member credit score'
+          }
           description={!noScoreYet && latestQ.data ? latestQ.data.member_phone : undefined}
           actions={
             <Button disabled={busy} onClick={recompute}>
@@ -180,7 +205,8 @@ export default function CreditScoreDetailPage() {
             <Activity className="h-10 w-10 text-muted-foreground" />
             <p className="font-medium">No score on record yet</p>
             <p className="max-w-md text-sm text-muted-foreground">
-              Click <strong>Recompute now</strong> above to score this member based on their contribution, loan, share, and dividend history.
+              Click <strong>Recompute now</strong> above to score this member based on their contribution, loan, share,
+              and dividend history.
             </p>
           </CardContent>
         </Card>
@@ -197,14 +223,20 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
-        <StatCard title="Overall score"    value={Number(latest.overall_score).toFixed(0)} description="/ 100" />
-        <StatCard title="Financial"        value={Number(latest.financial_score).toFixed(0)} description="/ 100" />
-        <StatCard title="Social"           value={Number(latest.social_score).toFixed(0)} description="placeholder (E6.2)" />
-        <StatCard title="Loan eligibility" value={fmtMoney(latest.loan_eligibility_limit)} description={`based on ${TIER_LABEL[latest.reliability_tier].toLowerCase()} tier`} />
+        <StatCard title="Overall score" value={Number(latest.overall_score).toFixed(0)} description="/ 100" />
+        <StatCard title="Financial" value={Number(latest.financial_score).toFixed(0)} description="/ 100" />
+        <StatCard title="Social" value={Number(latest.social_score).toFixed(0)} description="placeholder (E6.2)" />
+        <StatCard
+          title="Loan eligibility"
+          value={fmtMoney(latest.loan_eligibility_limit)}
+          description={`based on ${TIER_LABEL[latest.reliability_tier].toLowerCase()} tier`}
+        />
       </div>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Component breakdown</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Component breakdown</CardTitle>
+        </CardHeader>
         <CardContent className="space-y-3">
           {componentEntries.map(([key, c]) => (
             <div key={key}>
@@ -227,7 +259,9 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
 
       {history.length > 1 && (
         <Card>
-          <CardHeader><CardTitle className="text-base">Score history</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle className="text-base">Score history</CardTitle>
+          </CardHeader>
           <CardContent>
             <div className="h-64 w-full">
               <ScoreHistoryChart history={history} />
@@ -246,7 +280,16 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
 
 function ScoreBar({ value }: { value: number }) {
   const v = Math.max(0, Math.min(100, value));
-  const tone = v >= 85 ? 'bg-green-500' : v >= 70 ? 'bg-blue-500' : v >= 55 ? 'bg-amber-500' : v >= 40 ? 'bg-orange-500' : 'bg-red-500';
+  const tone =
+    v >= 85
+      ? 'bg-green-500'
+      : v >= 70
+        ? 'bg-blue-500'
+        : v >= 55
+          ? 'bg-amber-500'
+          : v >= 40
+            ? 'bg-orange-500'
+            : 'bg-red-500';
   return (
     <div className="mt-2 h-2 w-full rounded-full bg-muted">
       <div className={`h-2 rounded-full transition-all ${tone}`} style={{ width: `${v}%` }} />
@@ -269,10 +312,10 @@ function RawMetrics({ raw }: { raw: Record<string, unknown> }) {
 }
 function formatRawValue(v: unknown): string {
   if (typeof v === 'number') {
-    if (Math.abs(v) >= 1000)        return v.toLocaleString();
-    if (Number.isInteger(v))        return v.toString();
+    if (Math.abs(v) >= 1000) return v.toLocaleString();
+    if (Number.isInteger(v)) return v.toString();
     return v.toFixed(2);
   }
-  if (v === null)                    return '—';
+  if (v === null) return '—';
   return String(v);
 }

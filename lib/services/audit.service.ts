@@ -24,17 +24,17 @@ import { withAdminDb, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 export interface OrgReadAudit {
-  ctx:           TenantContext;
+  ctx: TenantContext;
   /** Dotted action, matching the existing convention, e.g. 'portfolio.report.generate'. */
-  action:        string;
+  action: string;
   /** 'organization' | 'group' | 'funding_program' | … */
-  resourceType:  string;
+  resourceType: string;
   /** The specific thing read, when there is one. */
-  resourceId?:   string | null;
+  resourceId?: string | null;
   /** Set when the read targets one group, so it is visible on the group axis too. */
-  groupId?:      string | null;
-  ipAddress?:    string | null;
-  userAgent?:    string | null;
+  groupId?: string | null;
+  ipAddress?: string | null;
+  userAgent?: string | null;
   /**
    * Repeats by the same actor, on the same action and resource, inside this
    * window collapse into the row already there. Postgres interval literal.
@@ -95,14 +95,17 @@ export async function recordOrgRead(a: OrgReadAudit): Promise<void> {
     });
   } catch (err) {
     logger.error('[audit] failed to record organization read', {
-      action: a.action, organizationId, err: String(err),
+      action: a.action,
+      organizationId,
+      err: String(err),
     });
   }
 }
 
 /** Pulls the client address and agent off a request, for the fields above. */
 export function auditRequestMeta(req: { headers: { get(name: string): string | null } }): {
-  ipAddress: string | null; userAgent: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
 } {
   const fwd = req.headers.get('x-forwarded-for');
   return {

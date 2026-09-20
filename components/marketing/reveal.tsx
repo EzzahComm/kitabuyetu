@@ -9,10 +9,10 @@ import { cn } from '@/lib/utils';
 type RevealTag = 'div' | 'li' | 'section' | 'article' | 'figure' | 'p' | 'span';
 
 interface RevealProps {
-  children:   ReactNode;
-  as?:        RevealTag;
+  children: ReactNode;
+  as?: RevealTag;
   /** Stagger within a group, in milliseconds. */
-  delay?:     number;
+  delay?: number;
   className?: string;
 }
 

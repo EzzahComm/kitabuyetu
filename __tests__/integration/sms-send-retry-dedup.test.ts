@@ -27,8 +27,13 @@ jest.mock('@/lib/services/textsms.service', () => ({
 
 function accepted(mobile: string): SmsResponse {
   return {
-    responseCode: 200, responseDescription: 'Success', mobile,
-    messageId: 'msg-1', networkId: '1', success: true, clientSmsId: 1,
+    responseCode: 200,
+    responseDescription: 'Success',
+    mobile,
+    messageId: 'msg-1',
+    networkId: '1',
+    success: true,
+    clientSmsId: 1,
   };
 }
 
@@ -67,7 +72,8 @@ describe('send() retry dedup (G7)', () => {
 
     const [afterFirst] = await rawQuery<{ n: string; charged: string }>(
       `SELECT count(*) AS n, COALESCE(SUM(credits_deducted),0) AS charged
-         FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+         FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
 
     // The trigger engine's own retry: same phones, same event id.
@@ -80,7 +86,8 @@ describe('send() retry dedup (G7)', () => {
 
     const [afterRetry] = await rawQuery<{ n: string; charged: string }>(
       `SELECT count(*) AS n, COALESCE(SUM(credits_deducted),0) AS charged
-         FROM sms_usage_logs WHERE group_id=$1`, [groupId],
+         FROM sms_usage_logs WHERE group_id=$1`,
+      [groupId],
     );
     expect(afterRetry.n).toBe(afterFirst.n);
     expect(Number(afterRetry.charged)).toBe(Number(afterFirst.charged));
@@ -159,9 +166,9 @@ describe('send() retry dedup (G7)', () => {
     await smsService.send(ctx, PHONE, 'hello');
 
     expect(mockSendSingleSms).toHaveBeenCalledTimes(2);
-    const [{ n }] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [groupId],
-    );
+    const [{ n }] = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM sms_usage_logs WHERE group_id=$1`, [
+      groupId,
+    ]);
     expect(n).toBe('2');
   });
 });

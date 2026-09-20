@@ -15,7 +15,11 @@
  * mock.
  */
 import {
-  getUnitPrice, listActiveTiers, listActivePackages, getProviderCost, marginFor,
+  getUnitPrice,
+  listActiveTiers,
+  listActivePackages,
+  getProviderCost,
+  marginFor,
 } from '@/lib/services/sms-pricing.service';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
@@ -84,9 +88,7 @@ describe('SMS pricing engine', () => {
 
     it('ships packages inactive until there is a flow to sell them', async () => {
       expect(await listActivePackages()).toHaveLength(0);
-      const [row] = await rawQuery<{ count: string }>(
-        `SELECT count(*)::text AS count FROM sms_packages`,
-      );
+      const [row] = await rawQuery<{ count: string }>(`SELECT count(*)::text AS count FROM sms_packages`);
       expect(Number(row.count)).toBe(5);
     });
   });
@@ -100,13 +102,13 @@ describe('SMS pricing engine', () => {
     });
 
     it.each([
-      [1,       0.9],
-      [5000,    0.9],
-      [5001,    0.8],
-      [10_000,  0.8],
-      [10_001,  0.7],
-      [50_000,  0.7],
-      [50_001,  0.6],
+      [1, 0.9],
+      [5000, 0.9],
+      [5001, 0.8],
+      [10_000, 0.8],
+      [10_001, 0.7],
+      [50_000, 0.7],
+      [50_001, 0.6],
       [100_000, 0.6],
       [100_001, 0.5],
       [999_999, 0.5],

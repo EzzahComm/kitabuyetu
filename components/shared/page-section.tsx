@@ -23,11 +23,7 @@ export function PageSection({
   const isCardLayout = title || description || action;
 
   if (!isCardLayout) {
-    return (
-      <div className={`space-y-3 ${className || ''}`}>
-        {children}
-      </div>
-    );
+    return <div className={`space-y-3 ${className || ''}`}>{children}</div>;
   }
 
   return (
@@ -69,9 +65,5 @@ export function FormActions({
     between: 'justify-between',
   }[align];
 
-  return (
-    <div className={`flex gap-3 ${alignClass} pt-6 border-t ${className || ''}`}>
-      {children}
-    </div>
-  );
+  return <div className={`flex gap-3 ${alignClass} pt-6 border-t ${className || ''}`}>{children}</div>;
 }

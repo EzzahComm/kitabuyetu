@@ -115,14 +115,14 @@ export function ImpactDashboard({ organizationId }: ImpactDashboardProps) {
                           />
                         </div>
                         <div className="flex justify-between text-xs text-gray-500">
-                          <span>{progress}% of {metric.target_value} target</span>
+                          <span>
+                            {progress}% of {metric.target_value} target
+                          </span>
                         </div>
                       </>
                     )}
 
-                    {metric.metric_type && (
-                      <p className="text-xs text-gray-500 mt-1">Type: {metric.metric_type}</p>
-                    )}
+                    {metric.metric_type && <p className="text-xs text-gray-500 mt-1">Type: {metric.metric_type}</p>}
                   </div>
                 );
               })}

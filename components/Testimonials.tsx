@@ -1,33 +1,30 @@
-import React from "react";
-import { Container } from "@/components/Container";
+import React from 'react';
+import { Container } from '@/components/Container';
 
 const testimonials = [
   {
-    quote:
-      "Kitabu Yetu has been a game changer for accountability and transparency in our group.",
-    mark: "game changer",
-    name: "Ezra Wekesa",
-    title: "Coordinator, Munyali Ukulima Self Help Group",
+    quote: 'Kitabu Yetu has been a game changer for accountability and transparency in our group.',
+    mark: 'game changer',
+    name: 'Ezra Wekesa',
+    title: 'Coordinator, Munyali Ukulima Self Help Group',
   },
   {
-    quote:
-      "It has made mobilizing our members much easier and managing the group more efficient.",
-    mark: "much easier",
-    name: "Bernard Kisaka",
-    title: "Musikoma Home Owners Welfare Association",
+    quote: 'It has made mobilizing our members much easier and managing the group more efficient.',
+    mark: 'much easier',
+    name: 'Bernard Kisaka',
+    title: 'Musikoma Home Owners Welfare Association',
   },
   {
-    quote: "Manually updating contributions is a thing of the past.",
-    mark: "a thing of the past",
-    name: "Britney Mideva",
-    title: "Treasurer, The Fionas",
+    quote: 'Manually updating contributions is a thing of the past.',
+    mark: 'a thing of the past',
+    name: 'Britney Mideva',
+    title: 'Treasurer, The Fionas',
   },
   {
-    quote:
-      "Meeting attendance has improved and timely contributions are becoming the norm.",
-    mark: "becoming the norm",
-    name: "Joseph Bienda",
-    title: "Chairperson, Capital Point Chama",
+    quote: 'Meeting attendance has improved and timely contributions are becoming the norm.',
+    mark: 'becoming the norm',
+    name: 'Joseph Bienda',
+    title: 'Chairperson, Capital Point Chama',
   },
 ];
 
@@ -69,9 +66,7 @@ function Card({ item, ariaHidden }: { item: Item; ariaHidden?: boolean }) {
       aria-hidden={ariaHidden}
       className="flex flex-col justify-between flex-shrink-0 w-80 p-10 bg-gray-100 sm:w-96 rounded-2xl dark:bg-trueGray-800"
     >
-      <blockquote className="text-xl leading-normal">
-        {quoteWithMark(item.quote, item.mark)}
-      </blockquote>
+      <blockquote className="text-xl leading-normal">{quoteWithMark(item.quote, item.mark)}</blockquote>
       <figcaption>
         <Avatar name={item.name} title={item.title} />
       </figcaption>
@@ -99,9 +94,9 @@ interface AvatarProps {
 
 function Avatar(props: Readonly<AvatarProps>) {
   const initials = props.name
-    .split(" ")
+    .split(' ')
     .map((word) => word[0])
-    .join("")
+    .join('')
     .slice(0, 2)
     .toUpperCase();
 
@@ -112,9 +107,7 @@ function Avatar(props: Readonly<AvatarProps>) {
       </div>
       <div>
         <div className="text-lg font-medium">{props.name}</div>
-        <div className="text-sm text-gray-600 dark:text-gray-400">
-          {props.title}
-        </div>
+        <div className="text-sm text-gray-600 dark:text-gray-400">{props.title}</div>
       </div>
     </div>
   );

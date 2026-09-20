@@ -97,29 +97,38 @@ describe('CreateProgramSchema — repayable products', () => {
 describe('CreateProgramSchema — reserved but unimplemented options', () => {
   it.each([
     ['capitalModel pass_through', { capitalModel: 'pass_through' as const }],
-    ['lossBearer organization',   { lossBearer: 'organization' as const, sharedLossRatio: undefined }],
-    ['lossBearer shared',         { lossBearer: 'shared' as const, sharedLossRatio: 0.5 }],
+    ['lossBearer organization', { lossBearer: 'organization' as const, sharedLossRatio: undefined }],
+    ['lossBearer shared', { lossBearer: 'shared' as const, sharedLossRatio: 0.5 }],
     ['memberVisibility identified', { memberVisibility: 'identified' as const }],
-    ['memberVisibility aggregate',  { memberVisibility: 'aggregate' as const }],
+    ['memberVisibility aggregate', { memberVisibility: 'aggregate' as const }],
   ])('rejects %s with an explicit message rather than half-working', (_label, extra) => {
     expect(CreateProgramSchema.safeParse({ ...grant, ...extra }).success).toBe(false);
   });
 
   it('accepts the implemented defaults explicitly', () => {
-    expect(CreateProgramSchema.safeParse({
-      ...grant, capitalModel: 'liability', lossBearer: 'group', memberVisibility: 'pseudonymous',
-    }).success).toBe(true);
+    expect(
+      CreateProgramSchema.safeParse({
+        ...grant,
+        capitalModel: 'liability',
+        lossBearer: 'group',
+        memberVisibility: 'pseudonymous',
+      }).success,
+    ).toBe(true);
   });
 });
 
 describe('CreateProgramSchema — shared ratios', () => {
   it("requires revenueShareRatio when revenueOwner is 'shared'", () => {
     expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'shared' }).success).toBe(false);
-    expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'shared', revenueShareRatio: 0.3 }).success).toBe(true);
+    expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'shared', revenueShareRatio: 0.3 }).success).toBe(
+      true,
+    );
   });
 
   it("rejects revenueShareRatio when revenueOwner is not 'shared'", () => {
-    expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'organization', revenueShareRatio: 0.3 }).success).toBe(false);
+    expect(
+      CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'organization', revenueShareRatio: 0.3 }).success,
+    ).toBe(false);
   });
 });
 
@@ -138,12 +147,18 @@ describe('RepaymentWaterfallSchema', () => {
 
   it('requires each revenue_split to sum to exactly 1.0', () => {
     const base = { order: ['interest', 'principal'] };
-    expect(RepaymentWaterfallSchema.safeParse({
-      ...base, revenue_split: { interest: { organization: 1, group: 0 } },
-    }).success).toBe(true);
-    expect(RepaymentWaterfallSchema.safeParse({
-      ...base, revenue_split: { interest: { organization: 0.5, group: 0.4 } },
-    }).success).toBe(false);
+    expect(
+      RepaymentWaterfallSchema.safeParse({
+        ...base,
+        revenue_split: { interest: { organization: 1, group: 0 } },
+      }).success,
+    ).toBe(true);
+    expect(
+      RepaymentWaterfallSchema.safeParse({
+        ...base,
+        revenue_split: { interest: { organization: 0.5, group: 0.4 } },
+      }).success,
+    ).toBe(false);
   });
 });
 

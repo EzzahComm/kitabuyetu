@@ -9,12 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger,
-} from '@/components/ui/dialog';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
 import { useContacts, useCreateContact } from '@/hooks/use-crm';
 import { useToast } from '@/hooks/use-toast';
@@ -23,12 +19,26 @@ import { useHasPermission } from '@/lib/auth/use-permission';
 import type { ContactType } from '@/lib/services/crm.service';
 
 const CONTACT_TYPES: ContactType[] = [
-  'donor', 'lender', 'insurer', 'trainer', 'service_provider',
-  'professional', 'partner_rep', 'lead', 'media', 'government', 'other',
+  'donor',
+  'lender',
+  'insurer',
+  'trainer',
+  'service_provider',
+  'professional',
+  'partner_rep',
+  'lead',
+  'media',
+  'government',
+  'other',
 ];
 
 const EMPTY_FORM = {
-  contact_type: 'lead' as ContactType, name: '', email: '', phone: '', notes: '', marketing_opt_in: false,
+  contact_type: 'lead' as ContactType,
+  name: '',
+  email: '',
+  phone: '',
+  notes: '',
+  marketing_opt_in: false,
 };
 
 export default function CrmContactsPage() {
@@ -69,65 +79,93 @@ export default function CrmContactsPage() {
               <Button variant="outline">View pipeline</Button>
             </Link>
             {canManage && (
-            <Dialog open={open} onOpenChange={setOpen}>
-              <DialogTrigger asChild>
-                <Button>Add contact</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add contact</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-3">
-                  <div className="space-y-1.5">
-                    <Label htmlFor="name">Name *</Label>
-                    <Input id="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="contact_type">Type *</Label>
-                    <Select value={form.contact_type} onValueChange={(v) => setForm((f) => ({ ...f, contact_type: v as ContactType }))}>
-                      <SelectTrigger id="contact_type"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CONTACT_TYPES.map((t) => (
-                          <SelectItem key={t} value={t}>{t.replace('_', ' ')}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+              <Dialog open={open} onOpenChange={setOpen}>
+                <DialogTrigger asChild>
+                  <Button>Add contact</Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add contact</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label htmlFor="email">Email</Label>
-                      <Input id="email" type="email" value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+                      <Label htmlFor="name">Name *</Label>
+                      <Input
+                        id="name"
+                        value={form.name}
+                        onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                      />
                     </div>
                     <div className="space-y-1.5">
-                      <Label htmlFor="phone">Phone</Label>
-                      <Input id="phone" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+                      <Label htmlFor="contact_type">Type *</Label>
+                      <Select
+                        value={form.contact_type}
+                        onValueChange={(v) => setForm((f) => ({ ...f, contact_type: v as ContactType }))}
+                      >
+                        <SelectTrigger id="contact_type">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONTACT_TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {t.replace('_', ' ')}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="email">Email</Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={form.email}
+                          onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="phone">Phone</Label>
+                        <Input
+                          id="phone"
+                          value={form.phone}
+                          onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        rows={3}
+                        value={form.notes}
+                        onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                      />
+                    </div>
+                    <div className="flex items-start gap-3 rounded-md border p-3">
+                      <Switch
+                        id="marketing_opt_in"
+                        checked={form.marketing_opt_in}
+                        onCheckedChange={(v) => setForm((f) => ({ ...f, marketing_opt_in: v }))}
+                      />
+                      <div className="space-y-0.5">
+                        <Label htmlFor="marketing_opt_in" className="font-normal">
+                          This contact has agreed to receive marketing communications
+                        </Label>
+                        <p className="text-xs text-muted-foreground">
+                          Leave unchecked unless they&rsquo;ve explicitly consented — a contact can&rsquo;t be targeted
+                          by any campaign until this is on.
+                        </p>
+                      </div>
                     </div>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea id="notes" rows={3} value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} />
-                  </div>
-                  <div className="flex items-start gap-3 rounded-md border p-3">
-                    <Switch
-                      id="marketing_opt_in"
-                      checked={form.marketing_opt_in}
-                      onCheckedChange={(v) => setForm((f) => ({ ...f, marketing_opt_in: v }))}
-                    />
-                    <div className="space-y-0.5">
-                      <Label htmlFor="marketing_opt_in" className="font-normal">This contact has agreed to receive marketing communications</Label>
-                      <p className="text-xs text-muted-foreground">
-                        Leave unchecked unless they&rsquo;ve explicitly consented — a contact can&rsquo;t be targeted by any campaign until this is on.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={onCreate} disabled={!form.name.trim() || createContact.isPending}>
-                    {createContact.isPending ? 'Creating…' : 'Create contact'}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button onClick={onCreate} disabled={!form.name.trim() || createContact.isPending}>
+                      {createContact.isPending ? 'Creating…' : 'Create contact'}
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
             )}
           </div>
         }

@@ -69,7 +69,7 @@ export async function startPasswordReset(phone: string): Promise<void> {
   // contradicting this function's own "always resolves without error" contract
   // and leaking account existence.
   await sendServiceSms({
-    phone:    normalized,
+    phone: normalized,
     memberId: member.id,
     notificationType: 'auth_password_reset',
     body: `Your Kitabu Yetu password reset code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes. If you did not request this, ignore this SMS.`,
@@ -83,7 +83,10 @@ export async function resetPasswordWithOtp(phone: string, otp: string, newPasswo
 
   await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; reset_otp_hash: string | null; reset_otp_expires_at: Date | null; reset_otp_attempts: number;
+      id: string;
+      reset_otp_hash: string | null;
+      reset_otp_expires_at: Date | null;
+      reset_otp_attempts: number;
     }>(
       `SELECT id, reset_otp_hash, reset_otp_expires_at, reset_otp_attempts
        FROM public.members WHERE phone = $1 AND is_active = true`,
@@ -98,10 +101,9 @@ export async function resetPasswordWithOtp(phone: string, otp: string, newPasswo
 
     if (member.reset_otp_hash !== otpHash) {
       const newAttempts = member.reset_otp_attempts + 1;
-      await db.query(
-        `UPDATE public.members SET reset_otp_attempts = reset_otp_attempts + 1 WHERE id = $1`,
-        [member.id],
-      );
+      await db.query(`UPDATE public.members SET reset_otp_attempts = reset_otp_attempts + 1 WHERE id = $1`, [
+        member.id,
+      ]);
 
       // Record audit log for failed OTP attempt
       await db.query(
@@ -120,10 +122,12 @@ export async function resetPasswordWithOtp(phone: string, otp: string, newPasswo
     }
 
     const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS);
-    const oldSessionVersion = (await db.query<{ session_version: number }>(
-      `SELECT session_version FROM public.members WHERE id = $1`,
-      [member.id],
-    )).rows[0]?.session_version ?? 0;
+    const oldSessionVersion =
+      (
+        await db.query<{ session_version: number }>(`SELECT session_version FROM public.members WHERE id = $1`, [
+          member.id,
+        ])
+      ).rows[0]?.session_version ?? 0;
 
     await db.query(
       `UPDATE public.members

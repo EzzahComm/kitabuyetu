@@ -21,18 +21,29 @@ import { resetDatabase } from './helpers/cleanup';
 import { assignGroupToOrganization } from '@/lib/services/admin-organizations.service';
 
 interface Health {
-  linkedGroups: number; activeLoans: number;
-  overdueLoans: number; overdueOutstanding: string; overdueLoanPct: number | null;
-  groupsInArrears: number; groupsInArrearsPct: number | null;
-  defaultedLoans: number; defaultedOutstanding: string;
-  inactiveMembers: number; newMembers30d: number;
+  linkedGroups: number;
+  activeLoans: number;
+  overdueLoans: number;
+  overdueOutstanding: string;
+  overdueLoanPct: number | null;
+  groupsInArrears: number;
+  groupsInArrearsPct: number | null;
+  defaultedLoans: number;
+  defaultedOutstanding: string;
+  inactiveMembers: number;
+  newMembers30d: number;
 }
-interface Body { health: Health | null; incomplete: string[] }
+interface Body {
+  health: Health | null;
+  incomplete: string[];
+}
 
 const call = (userId: string, organizationId: string) =>
-  healthGet(buildRequest('/api/admin/organization/health', {
-    headers: backofficeHeaders({ userId, platformRole: 'organization_coordinator', organizationId }),
-  }));
+  healthGet(
+    buildRequest('/api/admin/organization/health', {
+      headers: backofficeHeaders({ userId, platformRole: 'organization_coordinator', organizationId }),
+    }),
+  );
 
 const PRINCIPAL = 50_000;
 
@@ -78,8 +89,12 @@ async function addOverdueLoan(groupId: string, memberId: string, outstanding: nu
 }
 
 describe('Portfolio health indicators', () => {
-  beforeAll(async () => { await resetDatabase(); });
-  afterAll(async ()  => { await resetDatabase(); });
+  beforeAll(async () => {
+    await resetDatabase();
+  });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   it('detects arrears without inflating them by member count', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
@@ -92,13 +107,13 @@ describe('Portfolio health indicators', () => {
 
     const res = await call(coordinatorId, organizationId);
     expect(res.status).toBe(200);
-    const { data } = await res.json() as { data: Body };
+    const { data } = (await res.json()) as { data: Body };
 
     expect(data.incomplete).toEqual([]);
     expect(data.health).not.toBeNull();
     const h = data.health!;
 
-    expect(h.overdueLoans).toBe(1);              // not 3
+    expect(h.overdueLoans).toBe(1); // not 3
     expect(h.activeLoans).toBe(1);
     expect(parseFloat(h.overdueOutstanding)).toBe(40_000);
     expect(h.groupsInArrears).toBe(1);
@@ -110,7 +125,7 @@ describe('Portfolio health indicators', () => {
   it('reports an empty denominator as null, never as 0%', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
 
-    const { data } = await (await call(coordinatorId, organizationId)).json() as { data: Body };
+    const { data } = (await (await call(coordinatorId, organizationId)).json()) as { data: Body };
 
     // Nothing failed, so the section is present with genuine zeros...
     expect(data.incomplete).toEqual([]);
@@ -130,7 +145,7 @@ describe('Portfolio health indicators', () => {
     await assignGroupToOrganization(a.organizationId, groupId, a.coordinatorId, 'read');
     await addOverdueLoan(groupId, officerId, 25_000);
 
-    const { data } = await (await call(b.coordinatorId, b.organizationId)).json() as { data: Body };
+    const { data } = (await (await call(b.coordinatorId, b.organizationId)).json()) as { data: Body };
 
     expect(data.health).not.toBeNull();
     expect(data.health!.overdueLoans).toBe(0);
@@ -144,12 +159,12 @@ describe('Portfolio health indicators', () => {
     const secondId = await addGroupOfficer(groupId, officerId, 'treasurer');
     await assignGroupToOrganization(organizationId, groupId, coordinatorId, 'read');
 
-    await rawQuery(
-      `UPDATE group_members SET is_active = false WHERE group_id = $1 AND member_id = $2`,
-      [groupId, secondId],
-    );
+    await rawQuery(`UPDATE group_members SET is_active = false WHERE group_id = $1 AND member_id = $2`, [
+      groupId,
+      secondId,
+    ]);
 
-    const { data } = await (await call(coordinatorId, organizationId)).json() as { data: Body };
+    const { data } = (await (await call(coordinatorId, organizationId)).json()) as { data: Body };
     const h = data.health!;
 
     expect(h.inactiveMembers).toBe(1);

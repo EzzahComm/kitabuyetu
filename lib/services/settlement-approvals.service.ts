@@ -22,15 +22,15 @@ import type { TenantContext } from '@/lib/db';
 import { ForbiddenError } from '@/lib/utils/errors';
 
 export type SettlementSubjectType = 'bank_account' | 'settlement' | 'vendor_payment';
-export type SettlementDecision    = 'approved' | 'rejected';
+export type SettlementDecision = 'approved' | 'rejected';
 
 export interface RecordApprovalInput {
   subjectType: SettlementSubjectType;
-  subjectId:   string;
+  subjectId: string;
   /** The row's own creator/requester — checked against ctx.userId. */
   initiatedBy: string;
-  decision:    SettlementDecision;
-  reason?:     string;
+  decision: SettlementDecision;
+  reason?: string;
 }
 
 /**
@@ -40,11 +40,7 @@ export interface RecordApprovalInput {
  * `SELECT ... FOR UPDATE WHERE status = 'pending_approval'` claim, so the
  * two checks (row still pending, decision recorded) are atomic together.
  */
-export async function recordApproval(
-  db:   PoolClient,
-  ctx:  TenantContext,
-  args: RecordApprovalInput,
-): Promise<void> {
+export async function recordApproval(db: PoolClient, ctx: TenantContext, args: RecordApprovalInput): Promise<void> {
   if (args.initiatedBy === ctx.userId) {
     throw new ForbiddenError(
       `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,

@@ -28,7 +28,9 @@ describe('Organization subscription plans', () => {
     await resetDatabase();
     ({ organizationId, coordinatorId } = await createTestOrganization());
   });
-  afterAll(async () => { await resetDatabase(); });
+  afterAll(async () => {
+    await resetDatabase();
+  });
 
   describe('assignment', () => {
     it('snapshots the static Growth definition onto the row', async () => {
@@ -53,8 +55,9 @@ describe('Organization subscription plans', () => {
     });
 
     it('rejects premium_plus with no custom terms — "custom, including pricing" was explicit', async () => {
-      await expect(assignOrganizationPlan(organizationId, 'premium_plus', coordinatorId))
-        .rejects.toThrow(/monthly fee/i);
+      await expect(assignOrganizationPlan(organizationId, 'premium_plus', coordinatorId)).rejects.toThrow(
+        /monthly fee/i,
+      );
     });
 
     it('premium_plus snapshots exactly the hand-entered terms, defaults white-label true', async () => {
@@ -73,7 +76,8 @@ describe('Organization subscription plans', () => {
       await assignOrganizationPlan(organizationId, 'growth', coordinatorId);
 
       const [row] = await rawQuery<{ status: string; monthly_fee: string }>(
-        `SELECT status, monthly_fee FROM organization_subscriptions WHERE id = $1`, [first.id],
+        `SELECT status, monthly_fee FROM organization_subscriptions WHERE id = $1`,
+        [first.id],
       );
       expect(row.status).toBe('cancelled');
       expect(Number(row.monthly_fee)).toBe(2999); // untouched — still Starter's fee at the time
@@ -100,7 +104,8 @@ describe('Organization subscription plans', () => {
       await assignOrganizationPlan(organizationId, 'growth', coordinatorId); // 500 allowance
 
       const [account] = await rawQuery<{ sms_credits: string }>(
-        `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+        `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+        [organizationId],
       );
       expect(Number(account.sms_credits)).toBe(500);
 
@@ -116,7 +121,8 @@ describe('Organization subscription plans', () => {
     it('Starter grants no allowance at all (0 included)', async () => {
       await assignOrganizationPlan(organizationId, 'starter', coordinatorId);
       const [account] = await rawQuery<{ sms_credits: string }>(
-        `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`, [organizationId],
+        `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+        [organizationId],
       );
       // No row at all is also a valid "never granted anything" outcome.
       expect(Number(account?.sms_credits ?? 0)).toBe(0);
@@ -135,8 +141,9 @@ describe('Organization subscription plans', () => {
       // Re-granting the SAME link must never count as a second slot.
       await expect(assignGroupToOrganization(organizationId, a.groupId, coordinatorId)).resolves.toBeDefined();
 
-      await expect(assignGroupToOrganization(organizationId, b.groupId, coordinatorId))
-        .rejects.toThrow(/maximum of 1 linked groups/i);
+      await expect(assignGroupToOrganization(organizationId, b.groupId, coordinatorId)).rejects.toThrow(
+        /maximum of 1 linked groups/i,
+      );
     });
 
     it('a null cap (e.g. Premium) never blocks', async () => {
@@ -152,15 +159,18 @@ describe('Organization subscription plans', () => {
       // (see fixtures.ts) so the rest of the integration suite, which
       // predates plans existing at all, doesn't regress. Cancel it directly
       // to simulate the true "no plan ever assigned" state this test targets.
-      await rawQuery(`UPDATE organization_subscriptions SET status = 'cancelled' WHERE organization_id = $1`, [organizationId]);
+      await rawQuery(`UPDATE organization_subscriptions SET status = 'cancelled' WHERE organization_id = $1`, [
+        organizationId,
+      ]);
 
       const groups = await Promise.all(Array.from({ length: 5 }, () => createTestGroup()));
       for (const g of groups) {
         await assignGroupToOrganization(organizationId, g.groupId, coordinatorId);
       }
       const sixth = await createTestGroup();
-      await expect(assignGroupToOrganization(organizationId, sixth.groupId, coordinatorId))
-        .rejects.toThrow(/maximum of 5 linked groups/i);
+      await expect(assignGroupToOrganization(organizationId, sixth.groupId, coordinatorId)).rejects.toThrow(
+        /maximum of 5 linked groups/i,
+      );
     });
   });
 
@@ -170,11 +180,21 @@ describe('Organization subscription plans', () => {
         custom: { monthlyFee: 10000, maxStaff: 1 },
       });
       await addOrgStaff(organizationId, {
-        phone: '254700111001', firstName: 'A', lastName: 'One', orgRole: 'staff', invitedBy: coordinatorId,
+        phone: '254700111001',
+        firstName: 'A',
+        lastName: 'One',
+        orgRole: 'staff',
+        invitedBy: coordinatorId,
       });
-      await expect(addOrgStaff(organizationId, {
-        phone: '254700111002', firstName: 'B', lastName: 'Two', orgRole: 'staff', invitedBy: coordinatorId,
-      })).rejects.toThrow(/maximum of 1 staff seats/i);
+      await expect(
+        addOrgStaff(organizationId, {
+          phone: '254700111002',
+          firstName: 'B',
+          lastName: 'Two',
+          orgRole: 'staff',
+          invitedBy: coordinatorId,
+        }),
+      ).rejects.toThrow(/maximum of 1 staff seats/i);
     });
   });
 
@@ -187,7 +207,10 @@ describe('Organization subscription plans', () => {
       });
       await organizationFinanceService.createProgram(ctxFor(coordinatorId, organizationId), grantInput);
       await expect(
-        organizationFinanceService.createProgram(ctxFor(coordinatorId, organizationId), { ...grantInput, name: 'Second Grant' }),
+        organizationFinanceService.createProgram(ctxFor(coordinatorId, organizationId), {
+          ...grantInput,
+          name: 'Second Grant',
+        }),
       ).rejects.toThrow(/maximum of 1 active funding programs/i);
     });
   });
@@ -195,12 +218,14 @@ describe('Organization subscription plans', () => {
   describe('feature gates', () => {
     it('Starter cannot reach advanced reports; Growth can', async () => {
       await assignOrganizationPlan(organizationId, 'starter', coordinatorId);
-      await expect(organizationFinanceService.programBudgetReport(ctxFor(coordinatorId, organizationId)))
-        .rejects.toThrow(/Advanced reports.*requires the Growth plan/i);
+      await expect(
+        organizationFinanceService.programBudgetReport(ctxFor(coordinatorId, organizationId)),
+      ).rejects.toThrow(/Advanced reports.*requires the Growth plan/i);
 
       await assignOrganizationPlan(organizationId, 'growth', coordinatorId);
-      await expect(organizationFinanceService.programBudgetReport(ctxFor(coordinatorId, organizationId)))
-        .resolves.toBeDefined();
+      await expect(
+        organizationFinanceService.programBudgetReport(ctxFor(coordinatorId, organizationId)),
+      ).resolves.toBeDefined();
     });
 
     it('only Premium+ can set white-label branding — Premium itself cannot', async () => {

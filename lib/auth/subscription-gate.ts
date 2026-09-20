@@ -125,7 +125,7 @@ export function requiredEntitlement(path: string): RouteEntitlement {
 }
 
 interface CacheEntry {
-  products:  ReadonlySet<SubscriptionProduct>;
+  products: ReadonlySet<SubscriptionProduct>;
   expiresAt: number;
 }
 
@@ -230,10 +230,7 @@ async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProd
  * This cannot move to proxy.ts — that runs on the edge runtime with no `pg` —
  * which is why it hangs off withAuth instead.
  */
-export async function assertSubscriptionActive(
-  req:  NextRequest,
-  auth: AuthContext,
-): Promise<void> {
+export async function assertSubscriptionActive(req: NextRequest, auth: AuthContext): Promise<void> {
   const required = requiredEntitlement(req.nextUrl.pathname);
   if (required === 'open') return;
   if (EXEMPT_ROLES.includes(auth.role)) return;
@@ -250,9 +247,7 @@ export async function assertSubscriptionActive(
   if (products.size > 0) remember(auth.groupId, products);
 
   if (products.size === 0) {
-    throw new PaymentRequiredError(
-      'This group has no active subscription. Choose a plan and pay to restore access.',
-    );
+    throw new PaymentRequiredError('This group has no active subscription. Choose a plan and pay to restore access.');
   }
   if (!satisfies(products)) {
     throw new ProductNotEntitledError(required as SubscriptionProduct);

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'accounting.manage', async (auth) => {
-    const ctx   = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
+    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const input = SetApprovalPolicySchema.parse(await req.json());
     await approvalPolicyService.setGroupOverride(ctx, input.key, input.threshold);
     return ok(await approvalPolicyService.getGroupPolicies(ctx));

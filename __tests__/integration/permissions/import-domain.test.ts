@@ -39,11 +39,11 @@ describe('Import domain permission gates (4-way role split)', () => {
   beforeAll(async () => {
     await resetDatabase();
     const { groupId: gId, officerId: founderId } = await createTestGroup('chairperson');
-    groupId  = gId;
+    groupId = gId;
     memberId = await addGroupOfficer(gId, founderId, 'member');
-    memberPerms      = await permissionsFor('member');
-    secretaryPerms   = await permissionsFor('secretary');
-    treasurerPerms   = await permissionsFor('treasurer');
+    memberPerms = await permissionsFor('member');
+    secretaryPerms = await permissionsFor('secretary');
+    treasurerPerms = await permissionsFor('treasurer');
     chairpersonPerms = await permissionsFor('chairperson');
   });
 
@@ -54,32 +54,44 @@ describe('Import domain permission gates (4-way role split)', () => {
   it('import.start: secretary is denied, treasurer CAN start a legacy contribution import', async () => {
     const csv = 'member_phone,amount,contribution_date,payment_method\n2547123456,1000,2026-01-01,cash\n';
 
-    const denied = await importPost(buildRequest('/api/v1/import?type=contributions', {
-      method: 'POST', body: csvFormData(csv, 'contributions.csv'),
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const denied = await importPost(
+      buildRequest('/api/v1/import?type=contributions', {
+        method: 'POST',
+        body: csvFormData(csv, 'contributions.csv'),
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await importPost(buildRequest('/api/v1/import?type=contributions', {
-      method: 'POST', body: csvFormData(csv, 'contributions.csv'),
-      headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
-    }));
+    const allowed = await importPost(
+      buildRequest('/api/v1/import?type=contributions', {
+        method: 'POST',
+        body: csvFormData(csv, 'contributions.csv'),
+        headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
+      }),
+    );
     expect(allowed.status).not.toBe(403);
   });
 
   it('import.preview: member is denied, secretary CAN preview a members import', async () => {
     const csv = 'phone,first_name,last_name\n+254712345678,Jane,Doe\n';
 
-    const denied = await previewPost(buildRequest('/api/v1/import/preview?type=members', {
-      method: 'POST', body: csvFormData(csv, 'members.csv'),
-      headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
-    }));
+    const denied = await previewPost(
+      buildRequest('/api/v1/import/preview?type=members', {
+        method: 'POST',
+        body: csvFormData(csv, 'members.csv'),
+        headers: authHeaders({ userId: memberId, groupId, role: 'member', permissions: memberPerms }),
+      }),
+    );
     expect(denied.status).toBe(403);
 
-    const allowed = await previewPost(buildRequest('/api/v1/import/preview?type=members', {
-      method: 'POST', body: csvFormData(csv, 'members.csv'),
-      headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
-    }));
+    const allowed = await previewPost(
+      buildRequest('/api/v1/import/preview?type=members', {
+        method: 'POST',
+        body: csvFormData(csv, 'members.csv'),
+        headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
+      }),
+    );
     expect(allowed.status).toBe(201);
   });
 
@@ -117,7 +129,8 @@ describe('Import domain permission gates (4-way role split)', () => {
   it('import.rollback: secretary is denied (only chairperson may roll back), chairperson passes the gate', async () => {
     const denied = await rollbackPost(
       buildRequest(`/api/v1/import/${FAKE_JOB_ID}/rollback`, {
-        method: 'POST', body: {},
+        method: 'POST',
+        body: {},
         headers: authHeaders({ userId: memberId, groupId, role: 'secretary', permissions: secretaryPerms }),
       }),
       { params: Promise.resolve({ jobId: FAKE_JOB_ID }) },
@@ -126,7 +139,8 @@ describe('Import domain permission gates (4-way role split)', () => {
 
     const passesGate = await rollbackPost(
       buildRequest(`/api/v1/import/${FAKE_JOB_ID}/rollback`, {
-        method: 'POST', body: {},
+        method: 'POST',
+        body: {},
         headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
       }),
       { params: Promise.resolve({ jobId: FAKE_JOB_ID }) },

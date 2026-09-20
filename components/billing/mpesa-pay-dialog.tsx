@@ -22,9 +22,11 @@ export function MpesaPayDialog({ checkout }: { checkout: StkCheckout }) {
         <div className="space-y-4">
           {checkout.polling ? (
             <div className="flex flex-col items-center gap-3 py-6">
-              <Loader2 className="animate-spin h-8 w-8 text-brand-500"/>
+              <Loader2 className="animate-spin h-8 w-8 text-brand-500" />
               <p className="text-sm text-center text-muted-foreground">
-                Check your phone for the M-Pesa prompt.<br/>Waiting for payment confirmation…
+                Check your phone for the M-Pesa prompt.
+                <br />
+                Waiting for payment confirmation…
               </p>
             </div>
           ) : (
@@ -38,15 +40,9 @@ export function MpesaPayDialog({ checkout }: { checkout: StkCheckout }) {
                 />
               </div>
               <p className="text-sm text-muted-foreground">
-                You will receive an M-Pesa prompt to pay{' '}
-                <strong>KES {checkout.amount?.toLocaleString()}</strong>
+                You will receive an M-Pesa prompt to pay <strong>KES {checkout.amount?.toLocaleString()}</strong>
               </p>
-              <Button
-                className="w-full"
-                onClick={checkout.pay}
-                loading={checkout.isSending}
-                disabled={!checkout.phone}
-              >
+              <Button className="w-full" onClick={checkout.pay} loading={checkout.isSending} disabled={!checkout.phone}>
                 Send M-Pesa prompt
               </Button>
             </>

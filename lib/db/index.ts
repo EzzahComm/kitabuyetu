@@ -35,8 +35,10 @@ function isSupabaseHost(dsn: string | undefined): boolean {
   try {
     const host = new URL(dsn).hostname.toLowerCase();
     return (
-      host === 'supabase.com' || host.endsWith('.supabase.com') ||
-      host === 'supabase.co'  || host.endsWith('.supabase.co')
+      host === 'supabase.com' ||
+      host.endsWith('.supabase.com') ||
+      host === 'supabase.co' ||
+      host.endsWith('.supabase.co')
     );
   } catch {
     return false;
@@ -63,8 +65,8 @@ function buildPool(connectionString: string | undefined): Pool {
 
   const newPool = new Pool({
     connectionString,
-    max:                     env.DB_POOL_MAX,
-    idleTimeoutMillis:       10_000,
+    max: env.DB_POOL_MAX,
+    idleTimeoutMillis: 10_000,
     connectionTimeoutMillis: 8_000,
     ssl: isSupabase
       ? { rejectUnauthorized: false }
@@ -117,20 +119,18 @@ if (!globalWithPool._kyTenantPool) {
     if (env.NODE_ENV === 'production' && !isBuildTime) {
       throw new Error(
         'TENANT_DATABASE_URL is REQUIRED in production. ' +
-        'Missing this env var causes RLS to be silently bypassed, ' +
-        'creating a critical security vulnerability. ' +
-        'Set TENANT_DATABASE_URL to the PostgreSQL connection string for the app_tenant role.'
+          'Missing this env var causes RLS to be silently bypassed, ' +
+          'creating a critical security vulnerability. ' +
+          'Set TENANT_DATABASE_URL to the PostgreSQL connection string for the app_tenant role.',
       );
     }
     // In development (or at build time), allow fallback to admin pool, but log a warning
     logger.warn(
       '[db] TENANT_DATABASE_URL not set — using admin pool for tenant traffic. ' +
-      'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.'
+        'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.',
     );
   }
-  globalWithPool._kyTenantPool = env.TENANT_DATABASE_URL
-    ? buildPool(env.TENANT_DATABASE_URL)
-    : globalWithPool._kyPool;
+  globalWithPool._kyTenantPool = env.TENANT_DATABASE_URL ? buildPool(env.TENANT_DATABASE_URL) : globalWithPool._kyPool;
 }
 
 export const pool = globalWithPool._kyPool;
@@ -141,7 +141,7 @@ export const tenantPool = globalWithPool._kyTenantPool;
 // SET LOCAL persists across all queries in the same transaction block.
 // ------------------------------------------------------------------
 export interface TenantContext {
-  userId:  string;
+  userId: string;
   /**
    * Required, and deliberately kept required: every group-scoped service
    * relies on it being a real id. The ONE caller without a group is the
@@ -153,8 +153,8 @@ export interface TenantContext {
    * nothing under that tree reads `groupId`.
    */
   groupId: string;
-  role:    string;
-  organizationId?:  string;
+  role: string;
+  organizationId?: string;
 }
 
 async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<void> {
@@ -184,10 +184,7 @@ async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<
  * Run a read-only operation inside an implicit transaction so SET LOCAL works.
  * Automatically releases the client on completion or error.
  */
-export async function withDb<T>(
-  ctx: TenantContext,
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function withDb<T>(ctx: TenantContext, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await tenantPool.connect();
   try {
     await client.query('BEGIN');
@@ -207,10 +204,7 @@ export async function withDb<T>(
  * Run a write operation inside an explicit transaction.
  * On any error the transaction is rolled back before re-throwing.
  */
-export async function withTransaction<T>(
-  ctx: TenantContext,
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function withTransaction<T>(ctx: TenantContext, fn: (client: PoolClient) => Promise<T>): Promise<T> {
   return withDb(ctx, fn);
 }
 
@@ -219,9 +213,7 @@ export async function withTransaction<T>(
  * RLS is bypassed when using a role that has BYPASSRLS or when the app DB role has
  * been granted BYPASSRLS in production. Used only by admin endpoints.
  */
-export async function withAdminDb<T>(
-  fn: (client: PoolClient) => Promise<T>,
-): Promise<T> {
+export async function withAdminDb<T>(fn: (client: PoolClient) => Promise<T>): Promise<T> {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

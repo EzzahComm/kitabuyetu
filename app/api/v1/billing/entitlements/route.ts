@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAuth } from '@/lib/auth/middleware';
 import { withDb, type TenantContext } from '@/lib/db';
@@ -46,13 +46,12 @@ export async function GET(req: NextRequest): Promise<Response> {
            ORDER BY product`,
           [auth.groupId],
         ),
-        db.query<{ signup_product: SubscriptionProduct }>(
-          `SELECT signup_product FROM groups WHERE id = $1`,
-          [auth.groupId],
-        ),
+        db.query<{ signup_product: SubscriptionProduct }>(`SELECT signup_product FROM groups WHERE id = $1`, [
+          auth.groupId,
+        ]),
       ]);
       return {
-        products:      subs.rows.map((r) => r.product),
+        products: subs.rows.map((r) => r.product),
         signupProduct: group.rows[0]?.signup_product ?? 'kitabu_yetu',
       };
     });

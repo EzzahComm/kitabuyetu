@@ -12,9 +12,9 @@ import type { AdminPlatformRole } from '@/lib/auth/middleware';
 const Schema = z.object({ organizationId: z.string().uuid() });
 
 interface TargetRow {
-  first_name:    string;
-  last_name:     string;
-  email:         string | null;
+  first_name: string;
+  last_name: string;
+  email: string | null;
   platform_role: string;
 }
 
@@ -57,8 +57,8 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
 
       const accessToken = signBackofficeAccessToken({
-        sub:          auth.userId,
-        aud:          'backoffice',
+        sub: auth.userId,
+        aud: 'backoffice',
         platformRole: target.platform_role as AdminPlatformRole,
         organizationId: input.organizationId,
       });
@@ -78,10 +78,10 @@ export async function POST(req: NextRequest): Promise<Response> {
         refreshToken,
         audience: 'backoffice',
         member: {
-          id:           auth.userId,
-          firstName:    target.first_name,
-          lastName:     target.last_name,
-          email:        target.email ?? '',
+          id: auth.userId,
+          firstName: target.first_name,
+          lastName: target.last_name,
+          email: target.email ?? '',
           platformRole: target.platform_role as AdminPlatformRole,
           organizationId: input.organizationId,
         },

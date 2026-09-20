@@ -1,4 +1,4 @@
-export const dynamic = 'force-dynamic'
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { ZodError } from 'zod';
 import bcrypt from 'bcryptjs';
@@ -13,7 +13,7 @@ import { logger } from '@/lib/logger';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
-const BCRYPT_ROUNDS    = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 const REGISTRATION_FEE = parseInt(process.env.REGISTRATION_FEE_KES ?? '300', 10);
 
 type Stage =
@@ -27,20 +27,20 @@ type Stage =
   | 'persist_refresh_token';
 
 interface RegisterGroupResult {
-  success:        true;
-  group_id:       string;
-  group_code:     string;
-  group_name:     string;
-  group_status:   string;     // Phase D Part 2 — always 'pending_verification' now
-  member_id:      string;
-  member_code:    string;
-  person_id:      string;
-  platform_role:  string;
-  creator_role:   string;     // officer position chosen at signup
-  group_role:     string;     // group_members.role derived from creator_role
-                              // (chairperson→chairperson, secretary→secretary,
-                              // treasurer→treasurer). All three can onboard
-                              // members per ROLES.canManageMembers.
+  success: true;
+  group_id: string;
+  group_code: string;
+  group_name: string;
+  group_status: string; // Phase D Part 2 — always 'pending_verification' now
+  member_id: string;
+  member_code: string;
+  person_id: string;
+  platform_role: string;
+  creator_role: string; // officer position chosen at signup
+  group_role: string; // group_members.role derived from creator_role
+  // (chairperson→chairperson, secretary→secretary,
+  // treasurer→treasurer). All three can onboard
+  // members per ROLES.canManageMembers.
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -63,28 +63,28 @@ export async function POST(req: NextRequest): Promise<Response> {
     //    failure the whole transaction rolls back.
     stage = 'open_db_transaction';
     const rpcPayload = {
-      groupName:        input.groupName,
-      groupType:        input.groupType,
-      firstName:        input.firstName,
-      lastName:         input.lastName,
+      groupName: input.groupName,
+      groupType: input.groupType,
+      firstName: input.firstName,
+      lastName: input.lastName,
       phone,
       email,
       passwordHash,
-      creatorRole:      input.creatorRole,
-      countyId:         input.countyId,
-      subCountyText:    input.subCountyText ?? '',
-      wardText:         input.wardText ?? '',
-      villageEstate:    input.villageEstate ?? '',
+      creatorRole: input.creatorRole,
+      countyId: input.countyId,
+      subCountyText: input.subCountyText ?? '',
+      wardText: input.wardText ?? '',
+      villageEstate: input.villageEstate ?? '',
       primaryObjective: input.primaryObjective ?? '',
       meetingFrequency: input.meetingFrequency ?? '',
-      meetingDay:       input.meetingDay ?? '',
-      meetingTime:      input.meetingTime ?? '',
-      nationalId:       input.nationalId ?? '',
-      dateOfBirth:      input.dateOfBirth ?? '',
-      gender:           input.gender ?? '',
+      meetingDay: input.meetingDay ?? '',
+      meetingTime: input.meetingTime ?? '',
+      nationalId: input.nationalId ?? '',
+      dateOfBirth: input.dateOfBirth ?? '',
+      gender: input.gender ?? '',
       // Migration 140 — decides whether register_group seeds a chart of
       // accounts. Nothing else in the RPC branches on it.
-      product:          input.product,
+      product: input.product,
     };
 
     stage = 'call_register_group_rpc';
@@ -108,10 +108,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     // creator_role so a treasurer / secretary gets their role-appropriate JWT
     // instead of being elevated to chairperson.
     const accessToken = signAccessToken({
-      sub:         result.member_id,
-      groupId:     result.group_id,
-      role:        result.group_role as MemberRole,
-      personId:    result.person_id,
+      sub: result.member_id,
+      groupId: result.group_id,
+      role: result.group_role as MemberRole,
+      personId: result.person_id,
       groupStatus: result.group_status,
     });
     // Pin the new group to the refresh token (audit C-1) — registration's
@@ -130,8 +130,7 @@ export async function POST(req: NextRequest): Promise<Response> {
            VALUES ($1, $2, NOW() + make_interval(secs => $3::int), $4, gen_random_uuid(),
                    (SELECT gm.id FROM group_members gm
                     WHERE gm.group_id = $5 AND gm.member_id = $1))`,
-          [result.member_id, rtHash, refreshTtlSeconds(),
-           req.headers.get('x-forwarded-for') ?? null, result.group_id],
+          [result.member_id, rtHash, refreshTtlSeconds(), req.headers.get('x-forwarded-for') ?? null, result.group_id],
         ),
       );
       await storeRefreshToken(rtHash, result.member_id, refreshTtlSeconds());
@@ -142,55 +141,62 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const response: LoginResponse & {
       registrationFee: number;
-      groupCode:       string;
-      memberCode:      string;
-      membershipNo?:   string;
-      groupStatus:     string;
-      signupProduct:   SubscriptionProduct;
+      groupCode: string;
+      memberCode: string;
+      membershipNo?: string;
+      groupStatus: string;
+      signupProduct: SubscriptionProduct;
     } = {
       accessToken,
       refreshToken,
       member: {
-        id:           result.member_id,
-        firstName:    input.firstName,
-        lastName:     input.lastName,
+        id: result.member_id,
+        firstName: input.firstName,
+        lastName: input.lastName,
         phone,
         email,
         platformRole: result.platform_role as PlatformRole,
-        groupRole:    result.group_role as MemberRole,
-        groupId:      result.group_id,
-        groupName:    result.group_name,
-        groupCode:    result.group_code,
-        memberCode:   result.member_code,
+        groupRole: result.group_role as MemberRole,
+        groupId: result.group_id,
+        groupName: result.group_name,
+        groupCode: result.group_code,
+        memberCode: result.member_code,
         membershipNo: membershipNo ?? undefined,
-        personId:     result.person_id,
-        officerRole:  result.creator_role,
-        groupStatus:  result.group_status,
+        personId: result.person_id,
+        officerRole: result.creator_role,
+        groupStatus: result.group_status,
       },
       registrationFee: REGISTRATION_FEE,
-      groupCode:       result.group_code,
-      memberCode:      result.member_code,
-      membershipNo:    membershipNo ?? undefined,
-      groupStatus:     result.group_status,
+      groupCode: result.group_code,
+      memberCode: result.member_code,
+      membershipNo: membershipNo ?? undefined,
+      groupStatus: result.group_status,
       // Echoed back so the client knows which portal to send the new group to.
       // It holds no subscription yet (migration 139), so this is the ONLY thing
       // distinguishing a standalone Chama Reminder signup from an unpaid
       // Kitabu Yetu one.
-      signupProduct:   input.product,
+      signupProduct: input.product,
     };
 
     return created(response);
   } catch (err) {
-    const e = err as { code?: string; message?: string; detail?: string; hint?: string; constraint?: string; stack?: string };
+    const e = err as {
+      code?: string;
+      message?: string;
+      detail?: string;
+      hint?: string;
+      constraint?: string;
+      stack?: string;
+    };
 
     logger.error('[register] failed', {
       stage,
-      pg_code:    e?.code,
-      message:    e?.message,
-      detail:     e?.detail,
-      hint:       e?.hint,
+      pg_code: e?.code,
+      message: e?.message,
+      detail: e?.detail,
+      hint: e?.hint,
       constraint: e?.constraint,
-      stack:      e?.stack,
+      stack: e?.stack,
     });
 
     // Known typed errors → standard envelopes
@@ -220,10 +226,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     // server-side log above (OPTIMIZATION_CLEANUP_AUDIT.md Medium #22) — the
     // client response stays generic rather than exposing internal pipeline
     // step names.
-    return errorResponse(
-      'Registration failed. Please try again or contact support.',
-      'REGISTRATION_FAILED',
-      500,
-    );
+    return errorResponse('Registration failed. Please try again or contact support.', 'REGISTRATION_FAILED', 500);
   }
 }

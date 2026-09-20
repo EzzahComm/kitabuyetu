@@ -46,15 +46,16 @@ async function createPayment(groupId: string, amount: number): Promise<string> {
 
 async function creditBalance(groupId: string): Promise<number> {
   const [row] = await rawQuery<{ sms_credits: string }>(
-    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`, [groupId],
+    `SELECT sms_credits FROM billing_accounts WHERE group_id = $1`,
+    [groupId],
   );
   return Number(row.sms_credits);
 }
 
 async function ledgerCount(paymentId: string): Promise<number> {
-  const [row] = await rawQuery<{ n: string }>(
-    `SELECT count(*) AS n FROM sms_credits WHERE payment_id = $1`, [paymentId],
-  );
+  const [row] = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM sms_credits WHERE payment_id = $1`, [
+    paymentId,
+  ]);
   return Number(row.n);
 }
 
@@ -117,7 +118,7 @@ describe('SMS top-up crediting', () => {
   });
 
   it('credits distinct payments independently', async () => {
-    const first  = await createPayment(groupId, 100);
+    const first = await createPayment(groupId, 100);
     const second = await createPayment(groupId, 200);
 
     await billingService.addSmsCredits(ctx, 100, first);

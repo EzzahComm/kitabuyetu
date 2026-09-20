@@ -3,87 +3,114 @@
 import { use, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
-  Landmark, Users, Layers, Wallet, TrendingUp,
-  MoreHorizontal, PlayCircle, XCircle, Plus, Trash2, Phone, Mail, Info, UserCog, RotateCw, Ban, Sparkles,
+  Landmark,
+  Users,
+  Layers,
+  Wallet,
+  TrendingUp,
+  MoreHorizontal,
+  PlayCircle,
+  XCircle,
+  Plus,
+  Trash2,
+  Phone,
+  Mail,
+  Info,
+  UserCog,
+  RotateCw,
+  Ban,
+  Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
-import {
-  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
-  useAdminOrganization, useUpdateOrganizationStatus,
-  useAssignGroupToOrg, useRevokeGroupFromOrg,
-  useOrgStaff, useAddOrgStaff, useInviteOrgStaff, useChangeOrgStaffRole, useRemoveOrgStaff,
-  useOrgInvitations, useResendOrgInvitation, useCancelOrgInvitation,
-  useOrganizationPlan, useAssignOrganizationPlan,
+  useAdminOrganization,
+  useUpdateOrganizationStatus,
+  useAssignGroupToOrg,
+  useRevokeGroupFromOrg,
+  useOrgStaff,
+  useAddOrgStaff,
+  useInviteOrgStaff,
+  useChangeOrgStaffRole,
+  useRemoveOrgStaff,
+  useOrgInvitations,
+  useResendOrgInvitation,
+  useCancelOrgInvitation,
+  useOrganizationPlan,
+  useAssignOrganizationPlan,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
 interface AssignedGroupRow {
-  group_id:            string;
-  access_level:        string;
-  granted_at:          string;
-  group_name:          string;
-  group_code:          string;
-  group_type:          string;
-  onboarding_status:   string;
-  member_count:        string;
+  group_id: string;
+  access_level: string;
+  granted_at: string;
+  group_name: string;
+  group_code: string;
+  group_type: string;
+  onboarding_status: string;
+  member_count: string;
   total_contributions: string;
 }
 
 interface AssignableGroupRow {
-  id:         string;
-  name:       string;
+  id: string;
+  name: string;
   group_code: string;
   group_type: string;
 }
 
 interface OrgWalletRow {
-  currency:          string;
+  currency: string;
   available_balance: string;
   committed_balance: string;
-  total_deposited:   string;
-  total_disbursed:   string;
-  total_returned:    string;
+  total_deposited: string;
+  total_disbursed: string;
+  total_returned: string;
 }
 
 const TYPE_LABEL: Record<string, string> = {
-  bank: 'Bank', sacco: 'SACCO', foundation: 'Foundation', ngo: 'NGO',
-  government: 'Government', cooperative: 'Cooperative', faith_based: 'Faith-based', other: 'Other',
+  bank: 'Bank',
+  sacco: 'SACCO',
+  foundation: 'Foundation',
+  ngo: 'NGO',
+  government: 'Government',
+  cooperative: 'Cooperative',
+  faith_based: 'Faith-based',
+  other: 'Other',
 };
 
-export default function OrganizationDetailPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default function OrganizationDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
 
   const { data: org, isLoading } = useAdminOrganization(id);
   const updateStatus = useUpdateOrganizationStatus();
-  const assignGroup  = useAssignGroupToOrg();
-  const revokeGroup  = useRevokeGroupFromOrg();
+  const assignGroup = useAssignGroupToOrg();
+  const revokeGroup = useRevokeGroupFromOrg();
 
   const { data: staff, isLoading: staffLoading } = useOrgStaff(id);
-  const addStaff        = useAddOrgStaff();
-  const inviteStaff      = useInviteOrgStaff();
+  const addStaff = useAddOrgStaff();
+  const inviteStaff = useInviteOrgStaff();
   const changeStaffRole = useChangeOrgStaffRole();
-  const removeStaff    = useRemoveOrgStaff();
+  const removeStaff = useRemoveOrgStaff();
 
   const { data: invitations, isLoading: invitationsLoading } = useOrgInvitations(id);
   const resendInvitation = useResendOrgInvitation();
@@ -93,25 +120,25 @@ export default function OrganizationDetailPage({
   const assignPlan = useAssignOrganizationPlan();
   const [planDialogOpen, setPlanDialogOpen] = useState(false);
   const [planType, setPlanType] = useState<'starter' | 'growth' | 'premium' | 'premium_plus'>('starter');
-  const [customFee, setCustomFee]           = useState('');
-  const [customGroups, setCustomGroups]     = useState('');
-  const [customStaff, setCustomStaff]       = useState('');
+  const [customFee, setCustomFee] = useState('');
+  const [customGroups, setCustomGroups] = useState('');
+  const [customStaff, setCustomStaff] = useState('');
   const [customPrograms, setCustomPrograms] = useState('');
-  const [customSms, setCustomSms]           = useState('');
-  const [customSupport, setCustomSupport]   = useState<'standard' | 'priority' | 'priority_plus'>('priority_plus');
+  const [customSms, setCustomSms] = useState('');
+  const [customSupport, setCustomSupport] = useState<'standard' | 'priority' | 'priority_plus'>('priority_plus');
 
-  const [assignOpen, setAssignOpen]   = useState(false);
-  const [pickGroup, setPickGroup]     = useState('');
+  const [assignOpen, setAssignOpen] = useState(false);
+  const [pickGroup, setPickGroup] = useState('');
   const [accessLevel, setAccessLevel] = useState<'read' | 'report'>('read');
-  const [revoking, setRevoking]       = useState<{ groupId: string; name: string } | null>(null);
+  const [revoking, setRevoking] = useState<{ groupId: string; name: string } | null>(null);
 
   const [addStaffOpen, setAddStaffOpen] = useState(false);
-  const [staffMode, setStaffMode]       = useState<'direct' | 'invite'>('direct');
-  const [staffPhone, setStaffPhone]     = useState('');
-  const [staffEmail, setStaffEmail]     = useState('');
-  const [staffFirst, setStaffFirst]     = useState('');
-  const [staffLast, setStaffLast]       = useState('');
-  const [staffRole, setStaffRole]       = useState<'lead' | 'staff'>('staff');
+  const [staffMode, setStaffMode] = useState<'direct' | 'invite'>('direct');
+  const [staffPhone, setStaffPhone] = useState('');
+  const [staffEmail, setStaffEmail] = useState('');
+  const [staffFirst, setStaffFirst] = useState('');
+  const [staffLast, setStaffLast] = useState('');
+  const [staffRole, setStaffRole] = useState<'lead' | 'staff'>('staff');
   const [removingStaff, setRemovingStaff] = useState<{ memberId: string; name: string } | null>(null);
 
   if (isLoading) {
@@ -119,7 +146,9 @@ export default function OrganizationDetailPage({
       <div className="space-y-5">
         <Skeleton className="h-8 w-64" />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
         </div>
         <Skeleton className="h-48 rounded-xl" />
       </div>
@@ -130,23 +159,30 @@ export default function OrganizationDetailPage({
     return (
       <div className="text-center py-20">
         <p className="text-sm text-muted-foreground">Organization not found</p>
-        <Button variant="link" className="mt-2" onClick={() => router.push('/admin/organizations')}>← Back to organizations</Button>
+        <Button variant="link" className="mt-2" onClick={() => router.push('/admin/organizations')}>
+          ← Back to organizations
+        </Button>
       </div>
     );
   }
 
-  const assigned:   AssignedGroupRow[]   = org.assignedGroups ?? [];
+  const assigned: AssignedGroupRow[] = org.assignedGroups ?? [];
   const assignable: AssignableGroupRow[] = org.assignableGroups ?? [];
-  const wallets:    OrgWalletRow[]       = org.wallets ?? [];
+  const wallets: OrgWalletRow[] = org.wallets ?? [];
   const walletKES = wallets.find((w) => w.currency === 'KES');
   const memberReach = assigned.reduce((s, g) => s + parseInt(g.member_count ?? '0', 10), 0);
 
   const doAssign = async () => {
-    if (!pickGroup) { toast({ variant: 'destructive', title: 'Pick a group to assign' }); return; }
+    if (!pickGroup) {
+      toast({ variant: 'destructive', title: 'Pick a group to assign' });
+      return;
+    }
     try {
       await assignGroup.mutateAsync({ orgId: id, groupId: pickGroup, accessLevel });
       toast({ title: 'Group assigned' });
-      setAssignOpen(false); setPickGroup(''); setAccessLevel('read');
+      setAssignOpen(false);
+      setPickGroup('');
+      setAccessLevel('read');
     } catch (e) {
       toast({ variant: 'destructive', title: 'Assign failed', description: getErrorMessage(e) });
     }
@@ -173,7 +209,11 @@ export default function OrganizationDetailPage({
   };
 
   const resetStaffForm = () => {
-    setStaffPhone(''); setStaffEmail(''); setStaffFirst(''); setStaffLast(''); setStaffRole('staff');
+    setStaffPhone('');
+    setStaffEmail('');
+    setStaffFirst('');
+    setStaffLast('');
+    setStaffRole('staff');
   };
 
   const doAddStaff = async () => {
@@ -183,10 +223,15 @@ export default function OrganizationDetailPage({
     }
     try {
       await addStaff.mutateAsync({
-        orgId: id, phone: staffPhone, firstName: staffFirst, lastName: staffLast, orgRole: staffRole,
+        orgId: id,
+        phone: staffPhone,
+        firstName: staffFirst,
+        lastName: staffLast,
+        orgRole: staffRole,
       });
       toast({ title: 'Staff added' });
-      setAddStaffOpen(false); resetStaffForm();
+      setAddStaffOpen(false);
+      resetStaffForm();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Add staff failed', description: getErrorMessage(e) });
     }
@@ -199,10 +244,19 @@ export default function OrganizationDetailPage({
     }
     try {
       await inviteStaff.mutateAsync({
-        orgId: id, email: staffEmail, phone: staffPhone, firstName: staffFirst, lastName: staffLast, orgRole: staffRole,
+        orgId: id,
+        email: staffEmail,
+        phone: staffPhone,
+        firstName: staffFirst,
+        lastName: staffLast,
+        orgRole: staffRole,
       });
-      toast({ title: 'Invitation sent', description: `${staffFirst} will get an email to finish setting up their account.` });
-      setAddStaffOpen(false); resetStaffForm();
+      toast({
+        title: 'Invitation sent',
+        description: `${staffFirst} will get an email to finish setting up their account.`,
+      });
+      setAddStaffOpen(false);
+      resetStaffForm();
     } catch (e) {
       toast({ variant: 'destructive', title: 'Invite failed', description: getErrorMessage(e) });
     }
@@ -252,7 +306,9 @@ export default function OrganizationDetailPage({
     setCustomFee(current?.is_custom ? current.monthly_fee : '');
     setCustomGroups(current?.is_custom && current.max_linked_groups != null ? String(current.max_linked_groups) : '');
     setCustomStaff(current?.is_custom && current.max_staff != null ? String(current.max_staff) : '');
-    setCustomPrograms(current?.is_custom && current.max_funding_programs != null ? String(current.max_funding_programs) : '');
+    setCustomPrograms(
+      current?.is_custom && current.max_funding_programs != null ? String(current.max_funding_programs) : '',
+    );
     setCustomSms(current?.is_custom ? current.sms_allowance_included : '');
     setCustomSupport((current?.support_tier as typeof customSupport) ?? 'priority_plus');
     setPlanDialogOpen(true);
@@ -267,14 +323,17 @@ export default function OrganizationDetailPage({
       await assignPlan.mutateAsync({
         organizationId: id,
         planType,
-        custom: planType === 'premium_plus' ? {
-          monthlyFee:           parseFloat(customFee),
-          maxLinkedGroups:      customGroups   ? parseInt(customGroups, 10)   : null,
-          maxStaff:             customStaff    ? parseInt(customStaff, 10)    : null,
-          maxFundingPrograms:   customPrograms ? parseInt(customPrograms, 10) : null,
-          smsAllowanceIncluded: customSms      ? parseFloat(customSms)        : undefined,
-          supportTier:          customSupport,
-        } : undefined,
+        custom:
+          planType === 'premium_plus'
+            ? {
+                monthlyFee: parseFloat(customFee),
+                maxLinkedGroups: customGroups ? parseInt(customGroups, 10) : null,
+                maxStaff: customStaff ? parseInt(customStaff, 10) : null,
+                maxFundingPrograms: customPrograms ? parseInt(customPrograms, 10) : null,
+                smsAllowanceIncluded: customSms ? parseFloat(customSms) : undefined,
+                supportTier: customSupport,
+              }
+            : undefined,
       });
       toast({ title: 'Plan updated' });
       setPlanDialogOpen(false);
@@ -289,14 +348,13 @@ export default function OrganizationDetailPage({
       <PageHeader
         title={org.name}
         description={`${org.county || 'No county set'}${org.registration_number ? ` · ${org.registration_number}` : ''}`}
-        breadcrumbs={[
-          { label: 'Organizations', href: '/admin/organizations' },
-          { label: org.name },
-        ]}
+        breadcrumbs={[{ label: 'Organizations', href: '/admin/organizations' }, { label: org.name }]}
         actions={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5">Actions <MoreHorizontal size={14} /></Button>
+              <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                Actions <MoreHorizontal size={14} />
+              </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               {org.is_active ? (
@@ -324,8 +382,18 @@ export default function OrganizationDetailPage({
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <StatCard title="Groups Overseen" value={assigned.length} icon={Layers} iconClass="bg-blue-50" />
         <StatCard title="Member Reach" value={memberReach.toLocaleString()} icon={Users} iconClass="bg-purple-50" />
-        <StatCard title="Wallet (KES)" value={formatKES(walletKES?.available_balance ?? 0)} icon={Wallet} iconClass="bg-green-50" />
-        <StatCard title="Total Disbursed" value={formatKES(walletKES?.total_disbursed ?? 0)} icon={TrendingUp} iconClass="bg-amber-50" />
+        <StatCard
+          title="Wallet (KES)"
+          value={formatKES(walletKES?.available_balance ?? 0)}
+          icon={Wallet}
+          iconClass="bg-green-50"
+        />
+        <StatCard
+          title="Total Disbursed"
+          value={formatKES(walletKES?.total_disbursed ?? 0)}
+          icon={TrendingUp}
+          iconClass="bg-amber-50"
+        />
       </div>
 
       {/* Plan — never self-serve; only assigned/changed here. */}
@@ -336,9 +404,11 @@ export default function OrganizationDetailPage({
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan</p>
               <p className="text-lg font-semibold text-foreground capitalize">
-                {planLoading ? '—' : planData?.subscription
-                  ? `${planData.subscription.plan_type.replace('_', '+')} · ${formatKES(planData.subscription.monthly_fee)}/mo`
-                  : 'No plan assigned'}
+                {planLoading
+                  ? '—'
+                  : planData?.subscription
+                    ? `${planData.subscription.plan_type.replace('_', '+')} · ${formatKES(planData.subscription.monthly_fee)}/mo`
+                    : 'No plan assigned'}
               </p>
             </div>
           </div>
@@ -362,8 +432,13 @@ export default function OrganizationDetailPage({
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Layers size={14} className="text-blue-500" /> Groups Overseen ({assigned.length})
             </CardTitle>
-            <Button size="sm" variant="outline" className="h-7 text-xs"
-              onClick={() => setAssignOpen(true)} disabled={assignable.length === 0}>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 text-xs"
+              onClick={() => setAssignOpen(true)}
+              disabled={assignable.length === 0}
+            >
               <Plus size={13} className="mr-1" /> Assign group
             </Button>
           </CardHeader>
@@ -380,13 +455,19 @@ export default function OrganizationDetailPage({
                       <p className="text-sm font-medium text-foreground truncate">{g.group_name}</p>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{g.group_code}</span>
-                        {' · '}{parseInt(g.member_count ?? '0').toLocaleString()} members
-                        {' · '}{formatKES(g.total_contributions)} contributions
+                        {' · '}
+                        {parseInt(g.member_count ?? '0').toLocaleString()} members
+                        {' · '}
+                        {formatKES(g.total_contributions)} contributions
                         <span className="ml-1 uppercase text-[10px] text-muted-foreground">({g.access_level})</span>
                       </p>
                     </div>
-                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-red-500 hover:text-red-600 shrink-0"
-                      onClick={() => setRevoking({ groupId: g.group_id, name: g.group_name })}>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="h-7 w-7 p-0 text-red-500 hover:text-red-600 shrink-0"
+                      onClick={() => setRevoking({ groupId: g.group_id, name: g.group_name })}
+                    >
                       <Trash2 size={13} />
                     </Button>
                   </div>
@@ -420,10 +501,18 @@ export default function OrganizationDetailPage({
                 </p>
               ) : (
                 staff.map((s) => (
-                  <div key={s.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2">
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2"
+                  >
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{s.firstName} {s.lastName}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">{s.phone}{s.email ? ` · ${s.email}` : ''}</p>
+                      <p className="truncate font-medium text-foreground">
+                        {s.firstName} {s.lastName}
+                      </p>
+                      <p className="truncate text-[11px] text-muted-foreground">
+                        {s.phone}
+                        {s.email ? ` · ${s.email}` : ''}
+                      </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
                       <button
@@ -434,8 +523,12 @@ export default function OrganizationDetailPage({
                       >
                         {s.orgRole}
                       </button>
-                      <Button size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
-                        onClick={() => setRemovingStaff({ memberId: s.memberId, name: `${s.firstName} ${s.lastName}` })}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                        onClick={() => setRemovingStaff({ memberId: s.memberId, name: `${s.firstName} ${s.lastName}` })}
+                      >
                         <Trash2 size={12} />
                       </Button>
                     </div>
@@ -444,9 +537,8 @@ export default function OrganizationDetailPage({
               )}
               <p className="flex items-start gap-1.5 rounded-md bg-muted px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
                 <Info size={12} className="mt-0.5 shrink-0" />
-                Staff sign in and manage this organization (wallet, programs,
-                disbursements) through the separate Kitabu Enterprise portal —
-                same organization, a different sign-in.
+                Staff sign in and manage this organization (wallet, programs, disbursements) through the separate Kitabu
+                Enterprise portal — same organization, a different sign-in.
               </p>
             </CardContent>
           </Card>
@@ -469,15 +561,22 @@ export default function OrganizationDetailPage({
                     <Skeleton className="h-16 w-full" />
                   ) : (
                     pending.map((inv) => (
-                      <div key={inv.id} className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2">
+                      <div
+                        key={inv.id}
+                        className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2"
+                      >
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-foreground">{inv.firstName} {inv.lastName}</p>
+                          <p className="truncate font-medium text-foreground">
+                            {inv.firstName} {inv.lastName}
+                          </p>
                           <p className="truncate text-[11px] text-muted-foreground">{inv.email}</p>
                         </div>
                         <div className="flex shrink-0 items-center gap-1.5">
                           <StatusPill status={inv.status} size="sm" />
                           <Button
-                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-muted-foreground hover:text-foreground"
                             title="Resend invitation"
                             disabled={resendInvitation.isPending}
                             onClick={() => doResendInvitation(inv.id)}
@@ -485,7 +584,9 @@ export default function OrganizationDetailPage({
                             <RotateCw size={12} />
                           </Button>
                           <Button
-                            size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 w-6 p-0 text-red-500 hover:text-red-600"
                             title="Cancel invitation"
                             disabled={cancelInvitation.isPending}
                             onClick={() => doCancelInvitation(inv.id)}
@@ -510,12 +611,18 @@ export default function OrganizationDetailPage({
             </CardHeader>
             <CardContent className="space-y-3 text-xs">
               {org.phone && (
-                <a href={`tel:${org.phone}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
+                <a
+                  href={`tel:${org.phone}`}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-blue-600"
+                >
                   <Phone size={12} /> {org.phone}
                 </a>
               )}
               {org.email && (
-                <a href={`mailto:${org.email}`} className="flex items-center gap-2 text-muted-foreground hover:text-blue-600">
+                <a
+                  href={`mailto:${org.email}`}
+                  className="flex items-center gap-2 text-muted-foreground hover:text-blue-600"
+                >
                   <Mail size={12} /> {org.email}
                 </a>
               )}
@@ -543,9 +650,19 @@ export default function OrganizationDetailPage({
       </div>
 
       {/* Add staff dialog */}
-      <Dialog open={addStaffOpen} onOpenChange={(o) => { if (!o) { setAddStaffOpen(false); resetStaffForm(); } }}>
+      <Dialog
+        open={addStaffOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAddStaffOpen(false);
+            resetStaffForm();
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Add staff</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Add staff</DialogTitle>
+          </DialogHeader>
           <Tabs value={staffMode} onValueChange={(v) => setStaffMode(v as 'direct' | 'invite')}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="direct">Add directly</TabsTrigger>
@@ -554,7 +671,8 @@ export default function OrganizationDetailPage({
 
             <TabsContent value="direct" className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Creates the account immediately with a temporary password. Best for someone who&apos;s already a known member.
+                Creates the account immediately with a temporary password. Best for someone who&apos;s already a known
+                member.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -582,8 +700,12 @@ export default function OrganizationDetailPage({
                 </select>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
-                <Button onClick={doAddStaff} loading={addStaff.isPending}>Add staff</Button>
+                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={doAddStaff} loading={addStaff.isPending}>
+                  Add staff
+                </Button>
               </DialogFooter>
             </TabsContent>
 
@@ -603,7 +725,12 @@ export default function OrganizationDetailPage({
               </div>
               <div className="space-y-1">
                 <Label>Email</Label>
-                <Input type="email" value={staffEmail} onChange={(e) => setStaffEmail(e.target.value)} placeholder="name@example.com" />
+                <Input
+                  type="email"
+                  value={staffEmail}
+                  onChange={(e) => setStaffEmail(e.target.value)}
+                  placeholder="name@example.com"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Phone</Label>
@@ -621,8 +748,12 @@ export default function OrganizationDetailPage({
                 </select>
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>Cancel</Button>
-                <Button onClick={doInviteStaff} loading={inviteStaff.isPending}>Send invite</Button>
+                <Button variant="outline" onClick={() => setAddStaffOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={doInviteStaff} loading={inviteStaff.isPending}>
+                  Send invite
+                </Button>
               </DialogFooter>
             </TabsContent>
           </Tabs>
@@ -632,21 +763,38 @@ export default function OrganizationDetailPage({
       {/* Remove staff confirm */}
       <Dialog open={!!removingStaff} onOpenChange={() => setRemovingStaff(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Remove staff</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Remove staff</DialogTitle>
+          </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            Remove <strong>{removingStaff?.name}</strong> from {org.name}? They will lose access to this organization&apos;s portal.
+            Remove <strong>{removingStaff?.name}</strong> from {org.name}? They will lose access to this
+            organization&apos;s portal.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRemovingStaff(null)}>Cancel</Button>
-            <Button className="bg-red-600 hover:bg-red-700" onClick={doRemoveStaff} loading={removeStaff.isPending}>Remove</Button>
+            <Button variant="outline" onClick={() => setRemovingStaff(null)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={doRemoveStaff} loading={removeStaff.isPending}>
+              Remove
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
       {/* Assign group dialog */}
-      <Dialog open={assignOpen} onOpenChange={(o) => { if (!o) { setAssignOpen(false); setPickGroup(''); } }}>
+      <Dialog
+        open={assignOpen}
+        onOpenChange={(o) => {
+          if (!o) {
+            setAssignOpen(false);
+            setPickGroup('');
+          }
+        }}
+      >
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Assign a group</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Assign a group</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1">
               <Label>Group</Label>
@@ -657,7 +805,9 @@ export default function OrganizationDetailPage({
               >
                 <option value="">Select a group…</option>
                 {assignable.map((g) => (
-                  <option key={g.id} value={g.id}>{g.name} — {g.group_code}</option>
+                  <option key={g.id} value={g.id}>
+                    {g.name} — {g.group_code}
+                  </option>
                 ))}
               </select>
             </div>
@@ -674,8 +824,18 @@ export default function OrganizationDetailPage({
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => { setAssignOpen(false); setPickGroup(''); }}>Cancel</Button>
-            <Button onClick={doAssign} loading={assignGroup.isPending}>Assign</Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setAssignOpen(false);
+                setPickGroup('');
+              }}
+            >
+              Cancel
+            </Button>
+            <Button onClick={doAssign} loading={assignGroup.isPending}>
+              Assign
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -683,13 +843,19 @@ export default function OrganizationDetailPage({
       {/* Revoke confirm */}
       <Dialog open={!!revoking} onOpenChange={() => setRevoking(null)}>
         <DialogContent className="max-w-sm">
-          <DialogHeader><DialogTitle>Unassign group</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Unassign group</DialogTitle>
+          </DialogHeader>
           <p className="text-sm text-muted-foreground">
             Remove <strong>{revoking?.name}</strong> from {org.name}? The organization will stop overseeing this group.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRevoking(null)}>Cancel</Button>
-            <Button className="bg-red-600 hover:bg-red-700" onClick={doRevoke} loading={revokeGroup.isPending}>Unassign</Button>
+            <Button variant="outline" onClick={() => setRevoking(null)}>
+              Cancel
+            </Button>
+            <Button className="bg-red-600 hover:bg-red-700" onClick={doRevoke} loading={revokeGroup.isPending}>
+              Unassign
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -697,16 +863,31 @@ export default function OrganizationDetailPage({
       {/* Assign / change plan */}
       <Dialog open={planDialogOpen} onOpenChange={setPlanDialogOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
-          <DialogHeader><DialogTitle>{planData?.subscription ? 'Change plan' : 'Assign plan'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{planData?.subscription ? 'Change plan' : 'Assign plan'}</DialogTitle>
+          </DialogHeader>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {([
-              { value: 'starter' as const,      label: 'Starter',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.starter)}/mo` },
-              { value: 'growth' as const,       label: 'Growth',   fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.growth)}/mo` },
-              { value: 'premium' as const,      label: 'Premium',  fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.premium)}/mo` },
+            {[
+              {
+                value: 'starter' as const,
+                label: 'Starter',
+                fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.starter)}/mo`,
+              },
+              {
+                value: 'growth' as const,
+                label: 'Growth',
+                fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.growth)}/mo`,
+              },
+              {
+                value: 'premium' as const,
+                label: 'Premium',
+                fee: `${formatKES(ORGANIZATION_PLAN_MONTHLY_FEES.premium)}/mo`,
+              },
               { value: 'premium_plus' as const, label: 'Premium+', fee: 'Custom' },
-            ]).map((p) => (
+            ].map((p) => (
               <button
-                key={p.value} type="button"
+                key={p.value}
+                type="button"
                 onClick={() => setPlanType(p.value)}
                 className={`rounded-md border px-3 py-2 text-left text-sm transition-colors ${
                   planType === p.value ? 'border-primary bg-primary/5' : 'border-input hover:bg-muted/40'
@@ -724,8 +905,16 @@ export default function OrganizationDetailPage({
                 Negotiated per contract — every term below is entered by hand. Blank limits mean unlimited.
               </p>
               <div className="space-y-1">
-                <Label>Monthly fee (KES) <span className="text-red-500">*</span></Label>
-                <Input type="number" min={0} value={customFee} onChange={(e) => setCustomFee(e.target.value)} placeholder="e.g. 15000" />
+                <Label>
+                  Monthly fee (KES) <span className="text-red-500">*</span>
+                </Label>
+                <Input
+                  type="number"
+                  min={0}
+                  value={customFee}
+                  onChange={(e) => setCustomFee(e.target.value)}
+                  placeholder="e.g. 15000"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Support tier</Label>
@@ -741,30 +930,58 @@ export default function OrganizationDetailPage({
               </div>
               <div className="space-y-1">
                 <Label>Max linked groups</Label>
-                <Input type="number" min={1} value={customGroups} onChange={(e) => setCustomGroups(e.target.value)} placeholder="Unlimited" />
+                <Input
+                  type="number"
+                  min={1}
+                  value={customGroups}
+                  onChange={(e) => setCustomGroups(e.target.value)}
+                  placeholder="Unlimited"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Max staff seats</Label>
-                <Input type="number" min={1} value={customStaff} onChange={(e) => setCustomStaff(e.target.value)} placeholder="Unlimited" />
+                <Input
+                  type="number"
+                  min={1}
+                  value={customStaff}
+                  onChange={(e) => setCustomStaff(e.target.value)}
+                  placeholder="Unlimited"
+                />
               </div>
               <div className="space-y-1">
                 <Label>Max funding programs</Label>
-                <Input type="number" min={1} value={customPrograms} onChange={(e) => setCustomPrograms(e.target.value)} placeholder="Unlimited" />
+                <Input
+                  type="number"
+                  min={1}
+                  value={customPrograms}
+                  onChange={(e) => setCustomPrograms(e.target.value)}
+                  placeholder="Unlimited"
+                />
               </div>
               <div className="space-y-1">
                 <Label>SMS allowance/month</Label>
-                <Input type="number" min={0} value={customSms} onChange={(e) => setCustomSms(e.target.value)} placeholder="0" />
+                <Input
+                  type="number"
+                  min={0}
+                  value={customSms}
+                  onChange={(e) => setCustomSms(e.target.value)}
+                  placeholder="0"
+                />
               </div>
             </div>
           )}
 
           <p className="text-xs text-muted-foreground">
-            Changing the plan cancels the current one and starts a new one immediately — past usage keeps whatever
-            terms were in force when it happened.
+            Changing the plan cancels the current one and starts a new one immediately — past usage keeps whatever terms
+            were in force when it happened.
           </p>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>Cancel</Button>
-            <Button onClick={submitPlan} loading={assignPlan.isPending}>Save plan</Button>
+            <Button variant="outline" onClick={() => setPlanDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={submitPlan} loading={assignPlan.isPending}>
+              Save plan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

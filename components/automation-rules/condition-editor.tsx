@@ -13,14 +13,14 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@
  * stores `{}`, which evaluateCondition() treats as "always matches".
  */
 const OPS = [
-  { value: 'eq',       label: 'equals' },
-  { value: 'neq',      label: 'does not equal' },
-  { value: 'gt',       label: 'is greater than' },
-  { value: 'gte',      label: 'is at least' },
-  { value: 'lt',       label: 'is less than' },
-  { value: 'lte',      label: 'is at most' },
+  { value: 'eq', label: 'equals' },
+  { value: 'neq', label: 'does not equal' },
+  { value: 'gt', label: 'is greater than' },
+  { value: 'gte', label: 'is at least' },
+  { value: 'lt', label: 'is less than' },
+  { value: 'lte', label: 'is at most' },
   { value: 'contains', label: 'contains' },
-  { value: 'exists',   label: 'is present' },
+  { value: 'exists', label: 'is present' },
 ] as const;
 
 export interface ConditionValue {
@@ -58,7 +58,11 @@ export function ConditionEditor({ value, onChange }: Props) {
     <div className="space-y-2 rounded-md border p-3">
       <div className="flex items-center justify-between">
         <Label htmlFor="condition_enabled">Only fire when a condition matches</Label>
-        <Switch id="condition_enabled" checked={value.enabled} onCheckedChange={(enabled) => onChange({ ...value, enabled })} />
+        <Switch
+          id="condition_enabled"
+          checked={value.enabled}
+          onCheckedChange={(enabled) => onChange({ ...value, enabled })}
+        />
       </div>
       {!value.enabled ? (
         <p className="text-xs text-muted-foreground">Off — this rule fires on every {'{event}'}, no extra check.</p>
@@ -70,9 +74,15 @@ export function ConditionEditor({ value, onChange }: Props) {
             onChange={(e) => onChange({ ...value, field: e.target.value })}
           />
           <Select value={value.op} onValueChange={(op) => onChange({ ...value, op })}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
             <SelectContent>
-              {OPS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+              {OPS.map((o) => (
+                <SelectItem key={o.value} value={o.value}>
+                  {o.label}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {value.op !== 'exists' && (

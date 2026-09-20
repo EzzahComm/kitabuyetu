@@ -23,12 +23,14 @@ export type FineSchedule = Record<string, number>;
 // Kept identical to migration 088's seed (the retired
 // group_constitutions.fine_schedule column default).
 const DEFAULT_FINE_SCHEDULE: FineSchedule = {
-  late_attendance: 50, absence: 100, misconduct: 200,
+  late_attendance: 50,
+  absence: 100,
+  misconduct: 200,
 };
 
 export interface EffectiveFineSchedule {
   schedule: FineSchedule;
-  source:   PolicySource;
+  source: PolicySource;
 }
 
 function validateSchedule(schedule: FineSchedule): void {
@@ -47,7 +49,11 @@ export const finePolicyService = {
   async getGroupSchedule(ctx: TenantContext): Promise<EffectiveFineSchedule> {
     return withDb(ctx, async (client) => {
       const resolved = await resolvePolicyDetailed<FineSchedule>(
-        client, DOMAIN, POLICY_KEY, { groupId: ctx.groupId }, DEFAULT_FINE_SCHEDULE,
+        client,
+        DOMAIN,
+        POLICY_KEY,
+        { groupId: ctx.groupId },
+        DEFAULT_FINE_SCHEDULE,
       );
       return { schedule: resolved.value, source: resolved.source };
     });

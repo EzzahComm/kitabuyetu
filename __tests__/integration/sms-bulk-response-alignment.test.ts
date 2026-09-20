@@ -43,7 +43,9 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
   );
 }
 
-async function logsFor(groupId: string): Promise<{ recipient_phone: string; status: string; provider_msg_id: string | null; billing_state: string }[]> {
+async function logsFor(
+  groupId: string,
+): Promise<{ recipient_phone: string; status: string; provider_msg_id: string | null; billing_state: string }[]> {
   return rawQuery(
     `SELECT recipient_phone, status, provider_msg_id, billing_state
      FROM sms_usage_logs WHERE group_id = $1 ORDER BY recipient_phone`,
@@ -68,11 +70,36 @@ describe('bulk SMS response alignment (H6)', () => {
     // wrong match is unmistakable.
     mockSendBulkSmsChunked.mockResolvedValue({
       responses: [
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[2], messageId: 'msg-for-3', networkId: '1', success: true, clientSmsId: 3 },
-        { responseCode: 1003, responseDescription: 'Invalid Mobile Number', mobile: phones[0], messageId: '', networkId: '', success: false, clientSmsId: 1 },
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[1], messageId: 'msg-for-2', networkId: '1', success: true, clientSmsId: 2 },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[2],
+          messageId: 'msg-for-3',
+          networkId: '1',
+          success: true,
+          clientSmsId: 3,
+        },
+        {
+          responseCode: 1003,
+          responseDescription: 'Invalid Mobile Number',
+          mobile: phones[0],
+          messageId: '',
+          networkId: '',
+          success: false,
+          clientSmsId: 1,
+        },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[1],
+          messageId: 'msg-for-2',
+          networkId: '1',
+          success: true,
+          clientSmsId: 2,
+        },
       ],
-      sent: 2, failed: 1,
+      sent: 2,
+      failed: 1,
     });
 
     await smsService.sendBulkCampaign({ groupId, phones, message: 'test', sentBy: 'test' });
@@ -108,10 +135,27 @@ describe('bulk SMS response alignment (H6)', () => {
     // recipient 2's log row via positional indexing.
     mockSendBulkSmsChunked.mockResolvedValue({
       responses: [
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[0], messageId: 'msg-1', networkId: '1', success: true, clientSmsId: 1 },
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[2], messageId: 'msg-3', networkId: '1', success: true, clientSmsId: 3 },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[0],
+          messageId: 'msg-1',
+          networkId: '1',
+          success: true,
+          clientSmsId: 1,
+        },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[2],
+          messageId: 'msg-3',
+          networkId: '1',
+          success: true,
+          clientSmsId: 3,
+        },
       ],
-      sent: 2, failed: 0,
+      sent: 2,
+      failed: 0,
     });
 
     await smsService.sendBulkCampaign({ groupId, phones, message: 'test', sentBy: 'test' });
@@ -145,10 +189,25 @@ describe('bulk SMS response alignment (H6)', () => {
     // alignBulkResponses falls back to the exact pre-H6 positional behaviour.
     mockSendBulkSmsChunked.mockResolvedValue({
       responses: [
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[0], messageId: 'msg-a', networkId: '1', success: true },
-        { responseCode: 200, responseDescription: 'Success', mobile: phones[1], messageId: 'msg-b', networkId: '1', success: true },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[0],
+          messageId: 'msg-a',
+          networkId: '1',
+          success: true,
+        },
+        {
+          responseCode: 200,
+          responseDescription: 'Success',
+          mobile: phones[1],
+          messageId: 'msg-b',
+          networkId: '1',
+          success: true,
+        },
       ],
-      sent: 2, failed: 0,
+      sent: 2,
+      failed: 0,
     });
 
     await smsService.sendBulkCampaign({ groupId, phones, message: 'test', sentBy: 'test' });

@@ -18,9 +18,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import {
-  ArrowLeft, CheckCircle, Ban, TrendingUp, Coins, Landmark, CalendarClock, Receipt,
-} from 'lucide-react';
+import { ArrowLeft, CheckCircle, Ban, TrendingUp, Coins, Landmark, CalendarClock, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/shared/page-header';
@@ -32,9 +30,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
-  useInvestment, useUpdateInvestment, useRecordInvestmentReturn,
+  useInvestment,
+  useUpdateInvestment,
+  useRecordInvestmentReturn,
   useRecordInvestmentExpense,
-  type InvestmentReturnRow, type InvestmentExpenseRow,
+  type InvestmentReturnRow,
+  type InvestmentExpenseRow,
 } from '@/hooks/use-investments';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
@@ -44,43 +45,68 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const typeLabels: Record<string, string> = {
-  real_estate: 'Real Estate', shares: 'Shares', bonds: 'Bonds',
-  fixed_deposit: 'Fixed Deposit', business: 'Business', land: 'Land',
-  treasury_bills: 'Treasury Bills', money_market: 'Money Market', other: 'Other',
+  real_estate: 'Real Estate',
+  shares: 'Shares',
+  bonds: 'Bonds',
+  fixed_deposit: 'Fixed Deposit',
+  business: 'Business',
+  land: 'Land',
+  treasury_bills: 'Treasury Bills',
+  money_market: 'Money Market',
+  other: 'Other',
 };
 
 // Mirrors RecordReturnSchema. `coupon` is deliberately absent — it is not a
 // member of the public.return_type enum and posting it fails at INSERT.
 const returnSchema = z.object({
-  returnType:    z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
-  amount:        z.coerce.number().positive(),
-  returnDate:    z.string().min(1, 'Date required'),
+  returnType: z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
+  amount: z.coerce.number().positive(),
+  returnDate: z.string().min(1, 'Date required'),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 type ReturnForm = z.infer<typeof returnSchema>;
 
 const returnTypeLabels: Record<ReturnForm['returnType'], string> = {
-  dividend: 'Dividend', interest: 'Interest', capital_gain: 'Capital gain',
-  rental_income: 'Rental income', other: 'Other',
+  dividend: 'Dividend',
+  interest: 'Interest',
+  capital_gain: 'Capital gain',
+  rental_income: 'Rental income',
+  other: 'Other',
 };
 
 // Mirrors RecordExpenseSchema, which mirrors public.expense_type (migration
 // 156). Same lockstep rule as returns above: a value here that the enum does
 // not hold passes validation and then fails at INSERT.
 const expenseSchema = z.object({
-  expenseType:   z.enum(['inputs', 'labour', 'maintenance', 'transport', 'utilities', 'fees', 'tax', 'insurance', 'other']),
-  amount:        z.coerce.number().positive(),
-  expenseDate:   z.string().min(1, 'Date required'),
+  expenseType: z.enum([
+    'inputs',
+    'labour',
+    'maintenance',
+    'transport',
+    'utilities',
+    'fees',
+    'tax',
+    'insurance',
+    'other',
+  ]),
+  amount: z.coerce.number().positive(),
+  expenseDate: z.string().min(1, 'Date required'),
   receiptNumber: z.string().optional(),
-  notes:         z.string().optional(),
+  notes: z.string().optional(),
 });
 type ExpenseForm = z.infer<typeof expenseSchema>;
 
 const expenseTypeLabels: Record<ExpenseForm['expenseType'], string> = {
-  inputs: 'Inputs (feed, seed, stock)', labour: 'Labour', maintenance: 'Maintenance',
-  transport: 'Transport', utilities: 'Utilities', fees: 'Fees', tax: 'Tax',
-  insurance: 'Insurance', other: 'Other',
+  inputs: 'Inputs (feed, seed, stock)',
+  labour: 'Labour',
+  maintenance: 'Maintenance',
+  transport: 'Transport',
+  utilities: 'Utilities',
+  fees: 'Fees',
+  tax: 'Tax',
+  insurance: 'Insurance',
+  other: 'Other',
 };
 
 export default function InvestmentDetailPage() {
@@ -89,19 +115,19 @@ export default function InvestmentDetailPage() {
 
   const { data: inv, isLoading, isError, error } = useInvestment(id);
   const updateInvestment = useUpdateInvestment(id);
-  const recordReturn     = useRecordInvestmentReturn(id);
-  const recordExpense    = useRecordInvestmentExpense(id);
-  const canManage        = useHasPermission('investments.manage');
+  const recordReturn = useRecordInvestmentReturn(id);
+  const recordExpense = useRecordInvestmentExpense(id);
+  const canManage = useHasPermission('investments.manage');
 
-  const [approveOpen, setApproveOpen]     = useState(false);
-  const [cancelOpen, setCancelOpen]       = useState(false);
-  const [maturedOpen, setMaturedOpen]     = useState(false);
-  const [revalueOpen, setRevalueOpen]     = useState(false);
+  const [approveOpen, setApproveOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [maturedOpen, setMaturedOpen] = useState(false);
+  const [revalueOpen, setRevalueOpen] = useState(false);
   const [revalueAmount, setRevalueAmount] = useState('');
   const [liquidateOpen, setLiquidateOpen] = useState(false);
   const [liquidateAmount, setLiquidateAmount] = useState('');
-  const [returnOpen, setReturnOpen]       = useState(false);
-  const [expenseOpen, setExpenseOpen]     = useState(false);
+  const [returnOpen, setReturnOpen] = useState(false);
+  const [expenseOpen, setExpenseOpen] = useState(false);
 
   const returnForm = useForm<ReturnForm>({
     resolver: zodResolver(returnSchema),
@@ -136,11 +162,11 @@ export default function InvestmentDetailPage() {
   const onRecordReturn = async (values: ReturnForm) => {
     try {
       await recordReturn.mutateAsync({
-        returnType:    values.returnType,
-        amount:        values.amount,
-        returnDate:    values.returnDate,
+        returnType: values.returnType,
+        amount: values.amount,
+        returnDate: values.returnDate,
         receiptNumber: values.receiptNumber?.trim() || undefined,
-        notes:         values.notes?.trim() || undefined,
+        notes: values.notes?.trim() || undefined,
       });
       toast({ title: 'Return recorded' });
       setReturnOpen(false);
@@ -156,11 +182,11 @@ export default function InvestmentDetailPage() {
   const onRecordExpense = async (values: ExpenseForm) => {
     try {
       await recordExpense.mutateAsync({
-        expenseType:   values.expenseType,
-        amount:        values.amount,
-        expenseDate:   values.expenseDate,
+        expenseType: values.expenseType,
+        amount: values.amount,
+        expenseDate: values.expenseDate,
         receiptNumber: values.receiptNumber?.trim() || undefined,
-        notes:         values.notes?.trim() || undefined,
+        notes: values.notes?.trim() || undefined,
       });
       toast({ title: 'Expense recorded' });
       setExpenseOpen(false);
@@ -174,21 +200,27 @@ export default function InvestmentDetailPage() {
   };
 
   if (isLoading) {
-    return <div className="space-y-4">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}</div>;
+    return (
+      <div className="space-y-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-24 w-full" />
+        ))}
+      </div>
+    );
   }
   if (isError) return <p className="text-destructive">{getErrorMessage(error)}</p>;
-  if (!inv)    return <p className="text-muted-foreground">Investment not found</p>;
+  if (!inv) return <p className="text-muted-foreground">Investment not found</p>;
 
-  const returns   = inv.returns ?? [];
-  const expenses  = inv.expenses ?? [];
-  const revalued  = inv.current_value !== null;
+  const returns = inv.returns ?? [];
+  const expenses = inv.expenses ?? [];
+  const revalued = inv.current_value !== null;
   // Server-computed (investments.service.ts's getById), matching list()'s
   // own correlated subqueries, rather than re-reducing the returns/expenses
   // arrays above for the same numbers list() already computes in SQL
   // (docs/audits/optimization-2026-09).
-  const totalReturns  = Number(inv.total_returns ?? 0);
+  const totalReturns = Number(inv.total_returns ?? 0);
   const totalExpenses = Number(inv.total_expenses ?? 0);
-  const netReturn     = totalReturns - totalExpenses;
+  const netReturn = totalReturns - totalExpenses;
   // Carried at cost until someone records a revaluation, which is exactly how
   // the portfolio summary values it.
   const carryingValue = revalued ? Number(inv.current_value) : Number(inv.principal_amount);
@@ -196,54 +228,76 @@ export default function InvestmentDetailPage() {
 
   const returnColumns = [
     {
-      key: 'return_date', header: 'Date',
+      key: 'return_date',
+      header: 'Date',
       render: (r: InvestmentReturnRow) => <span className="text-sm">{formatDate(r.return_date)}</span>,
     },
     {
-      key: 'return_type', header: 'Type',
+      key: 'return_type',
+      header: 'Type',
       render: (r: InvestmentReturnRow) => (
         <span className="text-sm">{returnTypeLabels[r.return_type as ReturnForm['returnType']] ?? r.return_type}</span>
       ),
     },
     {
-      key: 'amount', header: 'Amount',
-      render: (r: InvestmentReturnRow) => <span className="font-semibold text-sm text-blue-600">{formatKES(r.amount)}</span>,
+      key: 'amount',
+      header: 'Amount',
+      render: (r: InvestmentReturnRow) => (
+        <span className="font-semibold text-sm text-blue-600">{formatKES(r.amount)}</span>
+      ),
     },
     {
-      key: 'receipt_number', header: 'Receipt',
-      render: (r: InvestmentReturnRow) => r.receipt_number
-        ? <span className="text-sm">{r.receipt_number}</span>
-        : <span className="text-muted-foreground text-sm">—</span>,
+      key: 'receipt_number',
+      header: 'Receipt',
+      render: (r: InvestmentReturnRow) =>
+        r.receipt_number ? (
+          <span className="text-sm">{r.receipt_number}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
     },
     {
-      key: 'recorded_by_name', header: 'Recorded by',
+      key: 'recorded_by_name',
+      header: 'Recorded by',
       render: (r: InvestmentReturnRow) => <span className="text-xs">{r.recorded_by_name}</span>,
     },
   ];
 
   const expenseColumns = [
     {
-      key: 'expense_date', header: 'Date',
+      key: 'expense_date',
+      header: 'Date',
       render: (e: InvestmentExpenseRow) => <span className="text-sm">{formatDate(e.expense_date)}</span>,
     },
     {
-      key: 'expense_type', header: 'Type',
+      key: 'expense_type',
+      header: 'Type',
       render: (e: InvestmentExpenseRow) => (
-        <span className="text-sm">{expenseTypeLabels[e.expense_type as ExpenseForm['expenseType']] ?? e.expense_type}</span>
+        <span className="text-sm">
+          {expenseTypeLabels[e.expense_type as ExpenseForm['expenseType']] ?? e.expense_type}
+        </span>
       ),
     },
     {
-      key: 'amount', header: 'Amount',
-      render: (e: InvestmentExpenseRow) => <span className="font-semibold text-sm text-amber-700">{formatKES(e.amount)}</span>,
+      key: 'amount',
+      header: 'Amount',
+      render: (e: InvestmentExpenseRow) => (
+        <span className="font-semibold text-sm text-amber-700">{formatKES(e.amount)}</span>
+      ),
     },
     {
-      key: 'receipt_number', header: 'Receipt',
-      render: (e: InvestmentExpenseRow) => e.receipt_number
-        ? <span className="text-sm">{e.receipt_number}</span>
-        : <span className="text-muted-foreground text-sm">—</span>,
+      key: 'receipt_number',
+      header: 'Receipt',
+      render: (e: InvestmentExpenseRow) =>
+        e.receipt_number ? (
+          <span className="text-sm">{e.receipt_number}</span>
+        ) : (
+          <span className="text-muted-foreground text-sm">—</span>
+        ),
     },
     {
-      key: 'recorded_by_name', header: 'Recorded by',
+      key: 'recorded_by_name',
+      header: 'Recorded by',
       render: (e: InvestmentExpenseRow) => <span className="text-xs">{e.recorded_by_name}</span>,
     },
   ];
@@ -252,7 +306,9 @@ export default function InvestmentDetailPage() {
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-start gap-3">
         <Button variant="ghost" size="icon" aria-label="Back to investments" asChild className="mt-1">
-          <Link href="/investments"><ArrowLeft size={18} /></Link>
+          <Link href="/investments">
+            <ArrowLeft size={18} />
+          </Link>
         </Button>
         <PageHeader
           className="flex-1"
@@ -263,38 +319,40 @@ export default function InvestmentDetailPage() {
       </div>
 
       <div className="grid sm:grid-cols-2 gap-4">
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Principal</p>
-          <p className="font-bold text-xl">{formatKES(inv.principal_amount)}</p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Principal</p>
+            <p className="font-bold text-xl">{formatKES(inv.principal_amount)}</p>
+          </CardContent>
+        </Card>
 
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">
-            {revalued ? 'Current value' : 'Carrying value'}
-          </p>
-          <p className="font-bold text-xl">{formatKES(carryingValue)}</p>
-          {!revalued && (
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">{revalued ? 'Current value' : 'Carrying value'}</p>
+            <p className="font-bold text-xl">{formatKES(carryingValue)}</p>
+            {!revalued && <p className="text-xs text-muted-foreground">At cost — no revaluation recorded yet</p>}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Returns earned</p>
+            <p className="font-bold text-xl text-blue-600">{formatKES(totalReturns)}</p>
             <p className="text-xs text-muted-foreground">
-              At cost — no revaluation recorded yet
+              {returns.length === 0 ? 'None recorded' : `${returns.length} recorded`}
             </p>
-          )}
-        </CardContent></Card>
+          </CardContent>
+        </Card>
 
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Returns earned</p>
-          <p className="font-bold text-xl text-blue-600">{formatKES(totalReturns)}</p>
-          <p className="text-xs text-muted-foreground">
-            {returns.length === 0 ? 'None recorded' : `${returns.length} recorded`}
-          </p>
-        </CardContent></Card>
-
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Running costs</p>
-          <p className="font-bold text-xl text-amber-700">{formatKES(totalExpenses)}</p>
-          <p className="text-xs text-muted-foreground">
-            {expenses.length === 0 ? 'None recorded' : `${expenses.length} recorded`}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Running costs</p>
+            <p className="font-bold text-xl text-amber-700">{formatKES(totalExpenses)}</p>
+            <p className="text-xs text-muted-foreground">
+              {expenses.length === 0 ? 'None recorded' : `${expenses.length} recorded`}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Net is only meaningful once at least one side has been recorded.
@@ -302,25 +360,33 @@ export default function InvestmentDetailPage() {
           nobody has entered anything for, which looks like a real answer to
           a question that has not been asked yet. */}
       {(returns.length > 0 || expenses.length > 0) && (
-        <Card><CardContent className="p-4 space-y-1">
-          <p className="text-sm text-muted-foreground">Net of running costs</p>
-          <p className={`font-bold text-xl ${netReturn < 0 ? 'text-destructive' : 'text-green-700'}`}>
-            {formatKES(netReturn)}
-          </p>
-          <p className="text-xs text-muted-foreground">
-            {formatKES(totalReturns)} earned less {formatKES(totalExpenses)} spent
-            {netReturn < 0 && ' — this activity is running at a loss'}
-          </p>
-        </CardContent></Card>
+        <Card>
+          <CardContent className="p-4 space-y-1">
+            <p className="text-sm text-muted-foreground">Net of running costs</p>
+            <p className={`font-bold text-xl ${netReturn < 0 ? 'text-destructive' : 'text-green-700'}`}>
+              {formatKES(netReturn)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {formatKES(totalReturns)} earned less {formatKES(totalExpenses)} spent
+              {netReturn < 0 && ' — this activity is running at a loss'}
+            </p>
+          </CardContent>
+        </Card>
       )}
 
-      <Card><CardContent className="p-4 space-y-1">
-        <p className="text-sm text-muted-foreground">Expected rate</p>
-        <p className="font-semibold">
-          {inv.expected_return_rate ? `${inv.expected_return_rate}%` : <span className="text-muted-foreground">Not set</span>}
-        </p>
-        {inv.custodian && <p className="text-xs text-muted-foreground">Held with {inv.custodian}</p>}
-      </CardContent></Card>
+      <Card>
+        <CardContent className="p-4 space-y-1">
+          <p className="text-sm text-muted-foreground">Expected rate</p>
+          <p className="font-semibold">
+            {inv.expected_return_rate ? (
+              `${inv.expected_return_rate}%`
+            ) : (
+              <span className="text-muted-foreground">Not set</span>
+            )}
+          </p>
+          {inv.custodian && <p className="text-xs text-muted-foreground">Held with {inv.custodian}</p>}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardContent className="p-4 grid sm:grid-cols-2 gap-x-6 gap-y-3 text-sm">
@@ -332,9 +398,7 @@ export default function InvestmentDetailPage() {
           <div className="flex items-center gap-2">
             <CalendarClock size={15} className="text-muted-foreground shrink-0" />
             <span className="text-muted-foreground">Matures</span>
-            <span className="ml-auto font-medium">
-              {inv.maturity_date ? formatDate(inv.maturity_date) : '—'}
-            </span>
+            <span className="ml-auto font-medium">{inv.maturity_date ? formatDate(inv.maturity_date) : '—'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Landmark size={15} className="text-muted-foreground shrink-0" />
@@ -355,9 +419,7 @@ export default function InvestmentDetailPage() {
               <span className="ml-auto font-medium">{formatKES(inv.liquidation_value)}</span>
             </div>
           )}
-          {inv.notes && (
-            <p className="sm:col-span-2 text-muted-foreground border-t pt-3">{inv.notes}</p>
-          )}
+          {inv.notes && <p className="sm:col-span-2 text-muted-foreground border-t pt-3">{inv.notes}</p>}
         </CardContent>
       </Card>
 
@@ -375,7 +437,12 @@ export default function InvestmentDetailPage() {
           )}
           {(inv.status === 'active' || inv.status === 'matured') && (
             <>
-              <Button onClick={() => { setRevalueAmount(String(Math.round(carryingValue))); setRevalueOpen(true); }}>
+              <Button
+                onClick={() => {
+                  setRevalueAmount(String(Math.round(carryingValue)));
+                  setRevalueOpen(true);
+                }}
+              >
                 <TrendingUp size={16} className="mr-2" /> Update value
               </Button>
               <Button variant="outline" onClick={() => setReturnOpen(true)}>
@@ -391,7 +458,10 @@ export default function InvestmentDetailPage() {
               )}
               <Button
                 variant="outline"
-                onClick={() => { setLiquidateAmount(String(Math.round(carryingValue))); setLiquidateOpen(true); }}
+                onClick={() => {
+                  setLiquidateAmount(String(Math.round(carryingValue)));
+                  setLiquidateOpen(true);
+                }}
               >
                 Liquidate
               </Button>
@@ -401,7 +471,9 @@ export default function InvestmentDetailPage() {
       )}
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Returns</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Returns</CardTitle>
+        </CardHeader>
         <CardContent>
           <PaginatedTable
             data={singlePage(returns)}
@@ -419,7 +491,9 @@ export default function InvestmentDetailPage() {
       </Card>
 
       <Card>
-        <CardHeader><CardTitle className="text-base">Running costs</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle className="text-base">Running costs</CardTitle>
+        </CardHeader>
         <CardContent>
           <PaginatedTable
             data={singlePage(expenses)}
@@ -467,7 +541,9 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={revalueOpen} onOpenChange={setRevalueOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Update current value</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Update current value</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
               What is this holding worth today? This is what the portfolio total uses.
@@ -482,21 +558,19 @@ export default function InvestmentDetailPage() {
                 value={revalueAmount}
                 onChange={(e) => setRevalueAmount(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
-                Cost was {formatKES(inv.principal_amount)}.
-              </p>
+              <p className="text-xs text-muted-foreground">Cost was {formatKES(inv.principal_amount)}.</p>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setRevalueOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setRevalueOpen(false)}>
+              Cancel
+            </Button>
             <Button
               loading={updateInvestment.isPending}
               disabled={!(Number(revalueAmount) > 0)}
-              onClick={() => runUpdate(
-                { currentValue: Number(revalueAmount) },
-                'Value updated',
-                () => setRevalueOpen(false),
-              )}
+              onClick={() =>
+                runUpdate({ currentValue: Number(revalueAmount) }, 'Value updated', () => setRevalueOpen(false))
+              }
             >
               Save value
             </Button>
@@ -506,11 +580,13 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={liquidateOpen} onOpenChange={setLiquidateOpen}>
         <DialogContent className="max-w-md">
-          <DialogHeader><DialogTitle>Liquidate this investment</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Liquidate this investment</DialogTitle>
+          </DialogHeader>
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Record what the group actually received on exit. The holding leaves the
-              active portfolio and is carried at this figure.
+              Record what the group actually received on exit. The holding leaves the active portfolio and is carried at
+              this figure.
             </p>
             <div className="space-y-1">
               <Label htmlFor="liquidate-amount">Amount received (KES)</Label>
@@ -525,15 +601,19 @@ export default function InvestmentDetailPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setLiquidateOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setLiquidateOpen(false)}>
+              Cancel
+            </Button>
             <Button
               loading={updateInvestment.isPending}
               disabled={!(Number(liquidateAmount) > 0)}
-              onClick={() => runUpdate(
-                { status: 'liquidated', liquidationValue: Number(liquidateAmount) },
-                'Investment liquidated',
-                () => setLiquidateOpen(false),
-              )}
+              onClick={() =>
+                runUpdate(
+                  { status: 'liquidated', liquidationValue: Number(liquidateAmount) },
+                  'Investment liquidated',
+                  () => setLiquidateOpen(false),
+                )
+              }
             >
               Liquidate
             </Button>
@@ -543,7 +623,9 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={returnOpen} onOpenChange={setReturnOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Record a return</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Record a return</DialogTitle>
+          </DialogHeader>
           <form onSubmit={returnForm.handleSubmit(onRecordReturn)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -554,7 +636,9 @@ export default function InvestmentDetailPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   {(Object.keys(returnTypeLabels) as ReturnForm['returnType'][]).map((v) => (
-                    <option key={v} value={v}>{returnTypeLabels[v]}</option>
+                    <option key={v} value={v}>
+                      {returnTypeLabels[v]}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -582,8 +666,12 @@ export default function InvestmentDetailPage() {
               <Input id="return-notes" placeholder="Optional" {...returnForm.register('notes')} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setReturnOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={returnForm.formState.isSubmitting}>Record return</Button>
+              <Button type="button" variant="outline" onClick={() => setReturnOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={returnForm.formState.isSubmitting}>
+                Record return
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -591,7 +679,9 @@ export default function InvestmentDetailPage() {
 
       <Dialog open={expenseOpen} onOpenChange={setExpenseOpen}>
         <DialogContent className="max-w-lg">
-          <DialogHeader><DialogTitle>Record an expense</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>Record an expense</DialogTitle>
+          </DialogHeader>
           <form onSubmit={expenseForm.handleSubmit(onRecordExpense)} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="space-y-1">
@@ -602,7 +692,9 @@ export default function InvestmentDetailPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   {(Object.keys(expenseTypeLabels) as ExpenseForm['expenseType'][]).map((v) => (
-                    <option key={v} value={v}>{expenseTypeLabels[v]}</option>
+                    <option key={v} value={v}>
+                      {expenseTypeLabels[v]}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -630,8 +722,12 @@ export default function InvestmentDetailPage() {
               <Input id="expense-notes" placeholder="Optional" {...expenseForm.register('notes')} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setExpenseOpen(false)}>Cancel</Button>
-              <Button type="submit" loading={expenseForm.formState.isSubmitting}>Record expense</Button>
+              <Button type="button" variant="outline" onClick={() => setExpenseOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={expenseForm.formState.isSubmitting}>
+                Record expense
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

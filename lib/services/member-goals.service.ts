@@ -8,29 +8,44 @@
  */
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError } from '@/lib/utils/errors';
-import type { CreateMemberGoalInput, UpdateMemberGoalInput, LogGoalProgressInput } from '@/lib/validators/member-goal.schema';
+import type {
+  CreateMemberGoalInput,
+  UpdateMemberGoalInput,
+  LogGoalProgressInput,
+} from '@/lib/validators/member-goal.schema';
 
 export interface MemberGoal {
-  id:           string;
-  name:         string;
-  emoji:        string;
+  id: string;
+  name: string;
+  emoji: string;
   targetAmount: number;
-  savedAmount:  number;
-  deadline:     string | null;
-  status:       'active' | 'achieved' | 'archived';
-  createdAt:    Date;
+  savedAmount: number;
+  deadline: string | null;
+  status: 'active' | 'achieved' | 'archived';
+  createdAt: Date;
 }
 
 interface GoalRow {
-  id: string; name: string; emoji: string; target_amount: string; saved_amount: string;
-  deadline: string | null; status: 'active' | 'achieved' | 'archived'; created_at: Date;
+  id: string;
+  name: string;
+  emoji: string;
+  target_amount: string;
+  saved_amount: string;
+  deadline: string | null;
+  status: 'active' | 'achieved' | 'archived';
+  created_at: Date;
 }
 
 function mapRow(r: GoalRow): MemberGoal {
   return {
-    id: r.id, name: r.name, emoji: r.emoji,
-    targetAmount: parseFloat(r.target_amount), savedAmount: parseFloat(r.saved_amount),
-    deadline: r.deadline, status: r.status, createdAt: r.created_at,
+    id: r.id,
+    name: r.name,
+    emoji: r.emoji,
+    targetAmount: parseFloat(r.target_amount),
+    savedAmount: parseFloat(r.saved_amount),
+    deadline: r.deadline,
+    status: r.status,
+    createdAt: r.created_at,
   };
 }
 
@@ -97,8 +112,15 @@ export async function updateGoal(ctx: TenantContext, id: string, input: UpdateMe
        WHERE id = $1 AND group_id = $9 AND member_id = $2
        RETURNING *`,
       [
-        id, ctx.userId, input.name ?? null, input.emoji ?? null, input.targetAmount ?? null,
-        'deadline' in input, input.deadline ?? null, input.status ?? null, ctx.groupId,
+        id,
+        ctx.userId,
+        input.name ?? null,
+        input.emoji ?? null,
+        input.targetAmount ?? null,
+        'deadline' in input,
+        input.deadline ?? null,
+        input.status ?? null,
+        ctx.groupId,
       ],
     );
     if (!rows[0]) throw new NotFoundError('Goal', id);

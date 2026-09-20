@@ -31,7 +31,7 @@ export default function BrandingPage() {
 
   const { data, isLoading } = useQuery({
     queryKey: enterpriseKeys.branding(),
-    queryFn:  () => organizationApi.branding(),
+    queryFn: () => organizationApi.branding(),
   });
 
   const [logoUrl, setLogoUrl] = useState('');
@@ -66,7 +66,11 @@ export default function BrandingPage() {
       toast({ title: 'Branding updated' });
       await qc.invalidateQueries({ queryKey: enterpriseKeys.branding() });
     } catch (err) {
-      toast({ variant: 'destructive', title: 'Could not save branding', description: err instanceof ApiError ? err.message : '' });
+      toast({
+        variant: 'destructive',
+        title: 'Could not save branding',
+        description: err instanceof ApiError ? err.message : '',
+      });
     } finally {
       setSaving(false);
     }
@@ -85,7 +89,9 @@ export default function BrandingPage() {
       ) : (
         <Card className="max-w-xl">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base"><Palette size={16} /> Logo &amp; color</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Palette size={16} /> Logo &amp; color
+            </CardTitle>
             <CardDescription>Logo must be a hosted image URL — there&apos;s no upload here yet.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
@@ -125,7 +131,14 @@ export default function BrandingPage() {
               <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Preview</p>
               <div className="flex items-center gap-2.5">
                 {logoUrl && logoValid ? (
-                  <Image src={logoUrl} alt="Logo preview" width={28} height={28} className="rounded-md object-contain" unoptimized />
+                  <Image
+                    src={logoUrl}
+                    alt="Logo preview"
+                    width={28}
+                    height={28}
+                    className="rounded-md object-contain"
+                    unoptimized
+                  />
                 ) : (
                   <span
                     className="flex h-7 w-7 items-center justify-center rounded-md text-sm font-bold text-white"

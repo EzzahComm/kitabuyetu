@@ -15,10 +15,7 @@ import { ok } from '@/lib/utils/response';
  * organization.programs.manage).
  */
 
-export async function PATCH(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.programs.manage', async (auth) => {
     const { id } = await params;
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
@@ -27,10 +24,7 @@ export async function PATCH(
   });
 }
 
-export async function POST(
-  req: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-): Promise<Response> {
+export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'capital.product.manage', async (auth) => {
     const { id } = await params;
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };

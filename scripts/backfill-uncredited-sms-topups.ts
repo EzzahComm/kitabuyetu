@@ -65,7 +65,7 @@ async function main() {
   for (const t of pending) {
     console.log(
       `  payment=${t.payment_id} group=${t.group_id} ` +
-      `KES ${t.amount} receipt=${t.mpesa_receipt_number ?? '(none)'} paid=${t.payment_date}`,
+        `KES ${t.amount} receipt=${t.mpesa_receipt_number ?? '(none)'} paid=${t.payment_date}`,
     );
   }
 
@@ -82,12 +82,12 @@ async function main() {
   }
 
   const remaining = await findUncredited();
-  console.log(
-    `\nDone. ${pending.length} credited; ${remaining.length} still uncredited.`,
-  );
+  console.log(`\nDone. ${pending.length} credited; ${remaining.length} still uncredited.`);
 }
 
-main().then(() => process.exit(0)).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+main()
+  .then(() => process.exit(0))
+  .catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });

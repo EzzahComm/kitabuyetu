@@ -61,17 +61,24 @@ describe('POST /api/v1/auth/create-group', () => {
       [firstGroupId, officerId],
     );
 
-    const res = await createGroupPost(buildRequest('/api/v1/auth/create-group', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId: firstGroupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: {
-        product: 'chama_reminder',
-        groupName: 'Reminder Offshoot',
-        groupType: 'chama',
-        creatorRole: 'chairperson',
-        countyId: county,
-      },
-    }));
+    const res = await createGroupPost(
+      buildRequest('/api/v1/auth/create-group', {
+        method: 'POST',
+        headers: authHeaders({
+          userId: officerId,
+          groupId: firstGroupId,
+          role: 'chairperson',
+          permissions: chairpersonPerms,
+        }),
+        body: {
+          product: 'chama_reminder',
+          groupName: 'Reminder Offshoot',
+          groupType: 'chama',
+          creatorRole: 'chairperson',
+          countyId: county,
+        },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();
@@ -83,9 +90,9 @@ describe('POST /api/v1/auth/create-group', () => {
     expect(body.data.member.phone).toBeTruthy();
 
     // No new members or person row — the entire point.
-    const [memberCount] = await rawQuery<{ count: string }>(
-      `SELECT count(*) AS count FROM members WHERE id = $1`, [officerId],
-    );
+    const [memberCount] = await rawQuery<{ count: string }>(`SELECT count(*) AS count FROM members WHERE id = $1`, [
+      officerId,
+    ]);
     expect(memberCount.count).toBe('1');
 
     const [newMembership] = await rawQuery<{ person_id: string; role: string; status: string }>(
@@ -103,14 +110,15 @@ describe('POST /api/v1/auth/create-group', () => {
     expect(officer.role).toBe('chairperson');
 
     const [billing] = await rawQuery<{ count: string }>(
-      `SELECT count(*) AS count FROM billing_accounts WHERE group_id = $1`, [newGroupId],
+      `SELECT count(*) AS count FROM billing_accounts WHERE group_id = $1`,
+      [newGroupId],
     );
     expect(billing.count).toBe('1');
 
     // chama_reminder gets no chart of accounts (migration 140's convention).
-    const [accounts] = await rawQuery<{ count: string }>(
-      `SELECT count(*) AS count FROM accounts WHERE group_id = $1`, [newGroupId],
-    );
+    const [accounts] = await rawQuery<{ count: string }>(`SELECT count(*) AS count FROM accounts WHERE group_id = $1`, [
+      newGroupId,
+    ]);
     expect(accounts.count).toBe('0');
 
     // The original group and membership are completely untouched.
@@ -127,26 +135,33 @@ describe('POST /api/v1/auth/create-group', () => {
     const treasurerPerms = await permissionsFor('treasurer');
     const county = await countyId();
 
-    const res = await createGroupPost(buildRequest('/api/v1/auth/create-group', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId: firstGroupId, role: 'treasurer', permissions: treasurerPerms }),
-      body: {
-        product: 'kitabu_yetu',
-        groupName: 'Full Books Group',
-        groupType: 'sacco',
-        creatorRole: 'treasurer',
-        countyId: county,
-      },
-    }));
+    const res = await createGroupPost(
+      buildRequest('/api/v1/auth/create-group', {
+        method: 'POST',
+        headers: authHeaders({
+          userId: officerId,
+          groupId: firstGroupId,
+          role: 'treasurer',
+          permissions: treasurerPerms,
+        }),
+        body: {
+          product: 'kitabu_yetu',
+          groupName: 'Full Books Group',
+          groupType: 'sacco',
+          creatorRole: 'treasurer',
+          countyId: county,
+        },
+      }),
+    );
 
     expect(res.status).toBe(201);
     const body = await res.json();
     const newGroupId = body.data.member.groupId;
     expect(body.data.signupProduct).toBe('kitabu_yetu');
 
-    const [accounts] = await rawQuery<{ count: string }>(
-      `SELECT count(*) AS count FROM accounts WHERE group_id = $1`, [newGroupId],
-    );
+    const [accounts] = await rawQuery<{ count: string }>(`SELECT count(*) AS count FROM accounts WHERE group_id = $1`, [
+      newGroupId,
+    ]);
     expect(Number(accounts.count)).toBeGreaterThan(0);
   });
 
@@ -157,21 +172,28 @@ describe('POST /api/v1/auth/create-group', () => {
     const county = await countyId();
 
     const payload = {
-      product: 'kitabu_yetu', groupName: 'Duplicate Name Test', groupType: 'chama',
-      creatorRole: 'chairperson', countyId: county,
+      product: 'kitabu_yetu',
+      groupName: 'Duplicate Name Test',
+      groupType: 'chama',
+      creatorRole: 'chairperson',
+      countyId: county,
     };
-    const first = await createGroupPost(buildRequest('/api/v1/auth/create-group', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: payload,
-    }));
+    const first = await createGroupPost(
+      buildRequest('/api/v1/auth/create-group', {
+        method: 'POST',
+        headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+        body: payload,
+      }),
+    );
     expect(first.status).toBe(201);
 
-    const second = await createGroupPost(buildRequest('/api/v1/auth/create-group', {
-      method: 'POST',
-      headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
-      body: payload,
-    }));
+    const second = await createGroupPost(
+      buildRequest('/api/v1/auth/create-group', {
+        method: 'POST',
+        headers: authHeaders({ userId: officerId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
+        body: payload,
+      }),
+    );
     expect(second.status).toBeGreaterThanOrEqual(400);
     expect(second.status).toBeLessThan(500);
   });

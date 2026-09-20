@@ -33,27 +33,27 @@ export type BillRefKind =
   | 'unknown';
 
 export interface RoutingDecision {
-  kind:        BillRefKind;
+  kind: BillRefKind;
   /** Normalised, uppercased, dash-delimited form. Useful for logging. */
-  normalised:  string;
+  normalised: string;
   /** Group code (`KY1234567`) when the prefix encodes one. */
-  groupCode:   string | null;
+  groupCode: string | null;
   /** Member code suffix (`MEM12345` or `KY12345`) when the prefix encodes one. */
-  memberCode:  string | null;
+  memberCode: string | null;
   /** Loan / investment / share UUID or short-id suffix. */
-  entityId:    string | null;
+  entityId: string | null;
   /** Invoice number for `INV-YYYY-NNNNNN`. */
   invoiceNumber: string | null;
   /** The raw input as received. */
-  raw:         string;
+  raw: string;
 }
 
 const KNOWN_PREFIXES: Record<string, BillRefKind> = {
   CONTR: 'contribution',
-  LOAN:  'loan_repayment',
-  WELF:  'welfare',
-  INV:   'investment',
-  SUB:   'subscription',
+  LOAN: 'loan_repayment',
+  WELF: 'welfare',
+  INV: 'investment',
+  SUB: 'subscription',
   SHARE: 'share',
 };
 
@@ -61,9 +61,9 @@ const KNOWN_PREFIXES: Record<string, BillRefKind> = {
  * Canonical group-code shape (per migration 030): `KY` + 7 digits.
  * Used to disambiguate a token as a group code vs. a member/loan id.
  */
-const GROUP_CODE_RE  = /^KY[0-9]{7}$/;
-const INVOICE_RE     = /^INV-\d{4}-\d{4,8}$/;
-const UUID_RE        = /^[0-9A-F]{8}-?[0-9A-F]{4}-?[0-9A-F]{4}-?[0-9A-F]{4}-?[0-9A-F]{12}$/;
+const GROUP_CODE_RE = /^KY[0-9]{7}$/;
+const INVOICE_RE = /^INV-\d{4}-\d{4,8}$/;
+const UUID_RE = /^[0-9A-F]{8}-?[0-9A-F]{4}-?[0-9A-F]{4}-?[0-9A-F]{4}-?[0-9A-F]{12}$/;
 
 export function parseBillRefNumber(input: string | null | undefined): RoutingDecision {
   const raw = (input ?? '').toString();
@@ -148,22 +148,24 @@ export function isSandboxTestRef(input: string | null | undefined): boolean {
 // ─── Internal helpers ────────────────────────────────────────────────────────
 
 function normalise(s: string): string {
-  return s
-    .trim()
-    .toUpperCase()
-    // Common separators a member might enter
-    .replace(/[\s_/.]+/g, '-')
-    // Collapse runs of dashes
-    .replace(/-{2,}/g, '-')
-    // Strip the single leading/trailing dash left by the collapse above.
-    // Not `/^-+|-+$/` (CodeQL js/polynomial-redos, GHSA alert #6): that
-    // unanchored-at-the-end `-+$` is the textbook quadratic-backtracking
-    // shape on attacker-reachable input (this parses the Daraja C2B
-    // BillRefNumber). The collapse already guarantees at most one dash
-    // survives at each end, so a plain non-quantified anchor is both
-    // correct and has no ambiguity for the regex engine to backtrack on.
-    .replace(/^-/, '')
-    .replace(/-$/, '');
+  return (
+    s
+      .trim()
+      .toUpperCase()
+      // Common separators a member might enter
+      .replace(/[\s_/.]+/g, '-')
+      // Collapse runs of dashes
+      .replace(/-{2,}/g, '-')
+      // Strip the single leading/trailing dash left by the collapse above.
+      // Not `/^-+|-+$/` (CodeQL js/polynomial-redos, GHSA alert #6): that
+      // unanchored-at-the-end `-+$` is the textbook quadratic-backtracking
+      // shape on attacker-reachable input (this parses the Daraja C2B
+      // BillRefNumber). The collapse already guarantees at most one dash
+      // survives at each end, so a plain non-quantified anchor is both
+      // correct and has no ambiguity for the regex engine to backtrack on.
+      .replace(/^-/, '')
+      .replace(/-$/, '')
+  );
 }
 
 function decision(
@@ -172,11 +174,11 @@ function decision(
 ): RoutingDecision {
   return {
     kind,
-    normalised:    parts.normalised,
-    raw:           parts.raw,
-    groupCode:     parts.groupCode     ?? null,
-    memberCode:    parts.memberCode    ?? null,
-    entityId:      parts.entityId      ?? null,
+    normalised: parts.normalised,
+    raw: parts.raw,
+    groupCode: parts.groupCode ?? null,
+    memberCode: parts.memberCode ?? null,
+    entityId: parts.entityId ?? null,
     invoiceNumber: parts.invoiceNumber ?? null,
   };
 }

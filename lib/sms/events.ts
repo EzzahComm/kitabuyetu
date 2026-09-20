@@ -13,26 +13,26 @@
 
 export const SMS_EVENTS = {
   // Payments & reconciliation
-  PAYMENT_RECEIVED:        'payment.received',
-  MPESA_RECONCILED:        'mpesa.reconciled',
-  MPESA_RECONCILE_FAILED:  'mpesa.reconciliation_failed',
+  PAYMENT_RECEIVED: 'payment.received',
+  MPESA_RECONCILED: 'mpesa.reconciled',
+  MPESA_RECONCILE_FAILED: 'mpesa.reconciliation_failed',
 
   // Contributions
-  CONTRIBUTION_RECORDED:   'contribution.recorded',
-  CONTRIBUTION_DUE:        'contribution.due',
-  CONTRIBUTION_OVERDUE:    'contribution.overdue',
+  CONTRIBUTION_RECORDED: 'contribution.recorded',
+  CONTRIBUTION_DUE: 'contribution.due',
+  CONTRIBUTION_OVERDUE: 'contribution.overdue',
 
   // Loans
-  LOAN_APPROVED:           'loan.approved',
-  LOAN_DECLINED:           'loan.declined',
-  LOAN_DISBURSED:          'loan.disbursed',
-  LOAN_REPAYMENT_DUE:      'loan.repayment_due',
-  LOAN_OVERDUE:            'loan.overdue',
+  LOAN_APPROVED: 'loan.approved',
+  LOAN_DECLINED: 'loan.declined',
+  LOAN_DISBURSED: 'loan.disbursed',
+  LOAN_REPAYMENT_DUE: 'loan.repayment_due',
+  LOAN_OVERDUE: 'loan.overdue',
 
   // Membership & governance
-  MEMBER_REGISTERED:       'member.registered',
-  MEETING_SCHEDULED:       'meeting.scheduled',
-  APPROVAL_REQUESTED:      'approval.requested',
+  MEMBER_REGISTERED: 'member.registered',
+  MEETING_SCHEDULED: 'meeting.scheduled',
+  APPROVAL_REQUESTED: 'approval.requested',
 } as const;
 
 export type SmsEventType = (typeof SMS_EVENTS)[keyof typeof SMS_EVENTS];
@@ -53,11 +53,11 @@ export type EventPayload = Record<string, string | number | boolean | null | und
 export interface BusinessEvent {
   eventType: SmsEventType;
   /** Originating business row id — the idempotency key. Must be a UUID. */
-  eventId:   string;
-  groupId:   string;
-  payload:   EventPayload;
+  eventId: string;
+  groupId: string;
+  payload: EventPayload;
   /** Member who caused the event, if any. Null for system/callback-driven events. */
-  actorId?:  string | null;
+  actorId?: string | null;
 }
 
 /**
@@ -75,11 +75,11 @@ export type TargetableRole = (typeof TARGETABLE_ROLES)[number];
  */
 export type RecipientSpec =
   /** A phone number carried on the event itself (e.g. the M-Pesa payer). */
-  | { type: 'event_phone';    field: string }
+  | { type: 'event_phone'; field: string }
   /** A member id on the event; we look up their phone. */
-  | { type: 'event_member';   field: string }
+  | { type: 'event_member'; field: string }
   /** Every officer in the group holding one of these group roles. */
-  | { type: 'roles';          roles: string[] }
+  | { type: 'roles'; roles: string[] }
   | { type: 'all_members' }
   | { type: 'active_members' };
 

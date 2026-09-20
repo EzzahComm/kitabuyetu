@@ -1,8 +1,8 @@
-import React from "react";
-import Link from "next/link";
-import { Container } from "@/components/Container";
-import { IconCheck } from "@tabler/icons-react";
-import { signUpUrl } from "@/lib/app-links";
+import React from 'react';
+import Link from 'next/link';
+import { Container } from '@/components/Container';
+import { IconCheck } from '@tabler/icons-react';
+import { signUpUrl } from '@/lib/app-links';
 
 interface Plan {
   name: string;
@@ -27,13 +27,11 @@ interface PricingProduct {
 const PlanCard = ({ plan }: { plan: Plan }) => (
   <div
     className={`flex flex-col p-7 bg-gray-50 rounded-2xl dark:bg-trueGray-800 ${
-      plan.featured ? "ring-2 ring-indigo-600" : ""
+      plan.featured ? 'ring-2 ring-indigo-600' : ''
     }`}
   >
     <div className="flex items-center justify-between">
-      <h4 className="text-xl font-medium text-gray-800 dark:text-gray-200">
-        {plan.name}
-      </h4>
+      <h4 className="text-xl font-medium text-gray-800 dark:text-gray-200">{plan.name}</h4>
       {plan.featured && (
         <span className="px-3 py-1 text-xs font-bold tracking-wider text-indigo-600 uppercase bg-indigo-100 rounded-full dark:bg-trueGray-700">
           Most popular
@@ -42,14 +40,8 @@ const PlanCard = ({ plan }: { plan: Plan }) => (
     </div>
 
     <div className="mt-5">
-      <span className="text-3xl font-bold text-gray-800 dark:text-white">
-        {plan.price}
-      </span>
-      {plan.period && (
-        <span className="ml-1 text-gray-500 dark:text-gray-400">
-          {plan.period}
-        </span>
-      )}
+      <span className="text-3xl font-bold text-gray-800 dark:text-white">{plan.price}</span>
+      {plan.period && <span className="ml-1 text-gray-500 dark:text-gray-400">{plan.period}</span>}
     </div>
 
     <p className="mt-2 text-gray-500 dark:text-gray-400">{plan.allowance}</p>
@@ -70,8 +62,8 @@ const PlanCard = ({ plan }: { plan: Plan }) => (
         href={plan.ctaHref}
         className={`inline-block w-full px-6 py-3 text-lg font-medium text-center rounded-md ${
           plan.featured
-            ? "text-white bg-indigo-600"
-            : "text-indigo-600 bg-white border border-indigo-600 dark:bg-trueGray-800 dark:text-indigo-400 dark:border-indigo-400"
+            ? 'text-white bg-indigo-600'
+            : 'text-indigo-600 bg-white border border-indigo-600 dark:bg-trueGray-800 dark:text-indigo-400 dark:border-indigo-400'
         }`}
       >
         {plan.cta}
@@ -84,9 +76,8 @@ export const Pricing = () => {
   return (
     <Container className="mb-20">
       <p className="max-w-2xl mx-auto mb-12 text-center text-gray-500 dark:text-gray-400">
-        Every plan includes a monthly SMS allowance, renewed at the start of
-        each billing cycle. Once your included messages are used up you can buy
-        more at any time — sending never stops, you simply top up.
+        Every plan includes a monthly SMS allowance, renewed at the start of each billing cycle. Once your included
+        messages are used up you can buy more at any time — sending never stops, you simply top up.
       </p>
 
       {pricingdata.map((item) => (
@@ -95,9 +86,7 @@ export const Pricing = () => {
             <h3 className="text-2xl font-bold leading-snug tracking-tight text-gray-800 lg:text-3xl dark:text-white">
               {item.product}
             </h3>
-            <p className="mt-3 text-lg leading-normal text-gray-500 dark:text-gray-300">
-              {item.desc}
-            </p>
+            <p className="mt-3 text-lg leading-normal text-gray-500 dark:text-gray-300">{item.desc}</p>
           </div>
 
           <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-4">
@@ -113,113 +102,88 @@ export const Pricing = () => {
 
 const pricingdata: PricingProduct[] = [
   {
-    product: "Kitabu Yetu",
-    anchor: "kitabu-yetu",
-    desc: "The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation, member records and reporting — with SMS included.",
+    product: 'Kitabu Yetu',
+    anchor: 'kitabu-yetu',
+    desc: 'The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation, member records and reporting — with SMS included.',
     plans: [
       {
-        name: "Starter",
-        price: "KES 150",
-        period: "/month",
-        allowance: "100 SMS included every month",
-        cta: "Get Started with Bookkeeper",
-        ctaHref: signUpUrl("kitabu_yetu"),
-        features: ["Basic reporting", "M-Pesa integration", "SMS included"],
+        name: 'Starter',
+        price: 'KES 150',
+        period: '/month',
+        allowance: '100 SMS included every month',
+        cta: 'Get Started with Bookkeeper',
+        ctaHref: signUpUrl('kitabu_yetu'),
+        features: ['Basic reporting', 'M-Pesa integration', 'SMS included'],
       },
       {
-        name: "Growth",
-        price: "KES 300",
-        period: "/month",
-        allowance: "200 SMS included every month",
+        name: 'Growth',
+        price: 'KES 300',
+        period: '/month',
+        allowance: '200 SMS included every month',
         featured: true,
-        cta: "Get Started with Bookkeeper",
-        ctaHref: signUpUrl("kitabu_yetu"),
-        features: [
-          "All Starter features",
-          "Advanced reports",
-          "Accounting module",
-        ],
+        cta: 'Get Started with Bookkeeper',
+        ctaHref: signUpUrl('kitabu_yetu'),
+        features: ['All Starter features', 'Advanced reports', 'Accounting module'],
       },
       {
-        name: "Premium",
-        price: "KES 500",
-        period: "/month",
-        allowance: "300 SMS included every month",
-        cta: "Get Started with Bookkeeper",
-        ctaHref: signUpUrl("kitabu_yetu"),
-        features: [
-          "All Growth features",
-          "Priority support",
-          "Higher SMS allowance",
-        ],
+        name: 'Premium',
+        price: 'KES 500',
+        period: '/month',
+        allowance: '300 SMS included every month',
+        cta: 'Get Started with Bookkeeper',
+        ctaHref: signUpUrl('kitabu_yetu'),
+        features: ['All Growth features', 'Priority support', 'Higher SMS allowance'],
       },
       {
-        name: "Enterprise",
-        price: "By agreement",
-        allowance: "Negotiated SMS allowance",
-        cta: "Contact Us",
-        ctaHref: "/contact",
-        features: [
-          "All Premium features",
-          "Enterprise portal",
-          "API access",
-          "Dedicated support",
-        ],
+        name: 'Enterprise',
+        price: 'By agreement',
+        allowance: 'Negotiated SMS allowance',
+        cta: 'Contact Us',
+        ctaHref: '/contact',
+        features: ['All Premium features', 'Enterprise portal', 'API access', 'Dedicated support'],
       },
     ],
   },
   {
-    product: "Chama Reminder",
-    anchor: "chama-reminder",
-    desc: "Just the messaging. Keep your member list, send contribution reminders, birthday greetings and group announcements by SMS — no ledger, no accounting to set up. Start here and move to Kitabu Yetu whenever your group is ready; your members come with you.",
+    product: 'Chama Reminder',
+    anchor: 'chama-reminder',
+    desc: 'Just the messaging. Keep your member list, send contribution reminders, birthday greetings and group announcements by SMS — no ledger, no accounting to set up. Start here and move to Kitabu Yetu whenever your group is ready; your members come with you.',
     plans: [
       {
-        name: "Starter",
-        price: "KES 100",
-        period: "/month",
-        allowance: "100 SMS included every month",
-        cta: "Get Started with Chama Reminder",
-        ctaHref: signUpUrl("chama_reminder"),
-        features: ["Member list & SMS", "Birthday greetings", "SMS included"],
+        name: 'Starter',
+        price: 'KES 100',
+        period: '/month',
+        allowance: '100 SMS included every month',
+        cta: 'Get Started with Chama Reminder',
+        ctaHref: signUpUrl('chama_reminder'),
+        features: ['Member list & SMS', 'Birthday greetings', 'SMS included'],
       },
       {
-        name: "Growth",
-        price: "KES 250",
-        period: "/month",
-        allowance: "200 SMS included every month",
+        name: 'Growth',
+        price: 'KES 250',
+        period: '/month',
+        allowance: '200 SMS included every month',
         featured: true,
-        cta: "Get Started with Chama Reminder",
-        ctaHref: signUpUrl("chama_reminder"),
-        features: [
-          "All Starter features",
-          "Scheduled campaigns",
-          "Message templates",
-        ],
+        cta: 'Get Started with Chama Reminder',
+        ctaHref: signUpUrl('chama_reminder'),
+        features: ['All Starter features', 'Scheduled campaigns', 'Message templates'],
       },
       {
-        name: "Premium",
-        price: "KES 400",
-        period: "/month",
-        allowance: "300 SMS included every month",
-        cta: "Get Started with Chama Reminder",
-        ctaHref: signUpUrl("chama_reminder"),
-        features: [
-          "All Growth features",
-          "Higher SMS allowance",
-          "Priority support",
-        ],
+        name: 'Premium',
+        price: 'KES 400',
+        period: '/month',
+        allowance: '300 SMS included every month',
+        cta: 'Get Started with Chama Reminder',
+        ctaHref: signUpUrl('chama_reminder'),
+        features: ['All Growth features', 'Higher SMS allowance', 'Priority support'],
       },
       {
-        name: "Enterprise",
-        price: "By agreement",
-        allowance: "Negotiated SMS allowance",
-        cta: "Contact Us",
-        ctaHref: "/contact",
-        features: [
-          "All Premium features",
-          "Custom sender ID",
-          "Dedicated support",
-        ],
+        name: 'Enterprise',
+        price: 'By agreement',
+        allowance: 'Negotiated SMS allowance',
+        cta: 'Contact Us',
+        ctaHref: '/contact',
+        features: ['All Premium features', 'Custom sender ID', 'Dedicated support'],
       },
     ],
   },

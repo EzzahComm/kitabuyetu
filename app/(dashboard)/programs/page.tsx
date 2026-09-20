@@ -15,16 +15,15 @@ export const metadata: Metadata = {
 
 async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }) {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const orgId = user?.user_metadata?.org_id || '';
   if (!orgId) return <div>Not authorized</div>;
   const tab = searchParams.tab || 'active';
 
   // Fetch programs
-  const query = supabase
-    .from('programs')
-    .select('*')
-    .eq('organization_id', orgId);
+  const query = supabase.from('programs').select('*').eq('organization_id', orgId);
 
   if (tab !== 'all') {
     query.eq('status', tab);
@@ -56,10 +55,7 @@ async function ProgramsPage({ searchParams }: { searchParams: { tab?: string } }
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {programsList.map((program: ProgramProgress) => (
                   <div key={program.id}>
-                    <ProgramProgressCard
-                      program={program}
-                      showCta={false}
-                    />
+                    <ProgramProgressCard program={program} showCta={false} />
                     <Link
                       href={`/programs/${program.id}`}
                       className="block mt-2 text-sm text-blue-600 hover:text-blue-700 font-medium"

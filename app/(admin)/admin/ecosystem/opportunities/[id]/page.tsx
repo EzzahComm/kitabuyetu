@@ -13,14 +13,20 @@ import { Badge } from '@/components/ui/badge';
 import { PageHeader } from '@/components/shared/page-header';
 import { EligibilityRulesEditor } from '@/components/ecosystem/eligibility-rules-editor';
 import {
-  useOpportunity, useUpdateOpportunity, usePublishOpportunity, useCloseOpportunity,
+  useOpportunity,
+  useUpdateOpportunity,
+  usePublishOpportunity,
+  useCloseOpportunity,
 } from '@/hooks/use-admin-ecosystem';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import type { EligibilityRule, Opportunity } from '@/lib/services/ecosystem.service';
 
 const STATUS_VARIANT: Record<Opportunity['status'], 'default' | 'secondary' | 'outline' | 'destructive'> = {
-  draft: 'outline', published: 'default', closed: 'secondary', archived: 'destructive',
+  draft: 'outline',
+  published: 'default',
+  closed: 'secondary',
+  archived: 'destructive',
 };
 
 export default function AdminOpportunityDetailPage() {
@@ -33,7 +39,13 @@ export default function AdminOpportunityDetailPage() {
 
   const [seededId, setSeededId] = useState<string | null>(null);
   const [form, setForm] = useState({
-    title: '', description: '', category: '', amount_min: '', amount_max: '', terms_summary: '', application_url: '',
+    title: '',
+    description: '',
+    category: '',
+    amount_min: '',
+    amount_max: '',
+    terms_summary: '',
+    application_url: '',
   });
   const [rules, setRules] = useState<EligibilityRule[]>([]);
   // Seeded during render (not a useEffect) the moment the opportunity first
@@ -94,7 +106,10 @@ export default function AdminOpportunityDetailPage() {
 
   return (
     <div className="space-y-5">
-      <Link href="/admin/ecosystem/opportunities" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+      <Link
+        href="/admin/ecosystem/opportunities"
+        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
         <ArrowLeft className="h-4 w-4" /> All opportunities
       </Link>
 
@@ -105,10 +120,14 @@ export default function AdminOpportunityDetailPage() {
           <div className="flex items-center gap-2">
             <Badge variant={STATUS_VARIANT[opportunity.status]}>{opportunity.status}</Badge>
             {opportunity.status === 'draft' && (
-              <Button size="sm" onClick={onPublish} disabled={publish.isPending}>Publish</Button>
+              <Button size="sm" onClick={onPublish} disabled={publish.isPending}>
+                Publish
+              </Button>
             )}
             {opportunity.status === 'published' && (
-              <Button size="sm" variant="outline" onClick={onClose} disabled={close.isPending}>Close</Button>
+              <Button size="sm" variant="outline" onClick={onClose} disabled={close.isPending}>
+                Close
+              </Button>
             )}
           </div>
         }
@@ -122,31 +141,60 @@ export default function AdminOpportunityDetailPage() {
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="description">Description</Label>
-            <Textarea id="description" rows={3} value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} />
+            <Textarea
+              id="description"
+              rows={3}
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="category">Category</Label>
-              <Input id="category" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} />
+              <Input
+                id="category"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="application_url">External application URL</Label>
-              <Input id="application_url" value={form.application_url} onChange={(e) => setForm((f) => ({ ...f, application_url: e.target.value }))} placeholder="Leave blank for the in-app form" />
+              <Input
+                id="application_url"
+                value={form.application_url}
+                onChange={(e) => setForm((f) => ({ ...f, application_url: e.target.value }))}
+                placeholder="Leave blank for the in-app form"
+              />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="amount_min">Min amount (KES)</Label>
-              <Input id="amount_min" type="number" value={form.amount_min} onChange={(e) => setForm((f) => ({ ...f, amount_min: e.target.value }))} />
+              <Input
+                id="amount_min"
+                type="number"
+                value={form.amount_min}
+                onChange={(e) => setForm((f) => ({ ...f, amount_min: e.target.value }))}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="amount_max">Max amount (KES)</Label>
-              <Input id="amount_max" type="number" value={form.amount_max} onChange={(e) => setForm((f) => ({ ...f, amount_max: e.target.value }))} />
+              <Input
+                id="amount_max"
+                type="number"
+                value={form.amount_max}
+                onChange={(e) => setForm((f) => ({ ...f, amount_max: e.target.value }))}
+              />
             </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="terms_summary">Terms summary</Label>
-            <Textarea id="terms_summary" rows={2} value={form.terms_summary} onChange={(e) => setForm((f) => ({ ...f, terms_summary: e.target.value }))} />
+            <Textarea
+              id="terms_summary"
+              rows={2}
+              value={form.terms_summary}
+              onChange={(e) => setForm((f) => ({ ...f, terms_summary: e.target.value }))}
+            />
           </div>
 
           <EligibilityRulesEditor value={rules} onChange={setRules} />

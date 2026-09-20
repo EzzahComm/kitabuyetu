@@ -31,10 +31,13 @@ export function normalizePhone(raw: string): string {
   const digits = raw.replace(/\D/g, '');
 
   const subscriber =
-    digits.startsWith('254') && digits.length === 12 ? digits.slice(3)
-    : digits.startsWith('0')  && digits.length === 10 ? digits.slice(1)
-    : digits.length === 9                             ? digits
-    : null;
+    digits.startsWith('254') && digits.length === 12
+      ? digits.slice(3)
+      : digits.startsWith('0') && digits.length === 10
+        ? digits.slice(1)
+        : digits.length === 9
+          ? digits
+          : null;
 
   if (subscriber !== null && KE_MOBILE_PREFIX.test(subscriber)) {
     return '254' + subscriber;

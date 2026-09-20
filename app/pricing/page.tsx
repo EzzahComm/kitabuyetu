@@ -8,7 +8,11 @@ import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
 import {
-  PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL,
+  PLAN_MONTHLY_FEES,
+  PLAN_SMS_ALLOWANCE,
+  PLAN_COPY,
+  SELF_SERVE_PLANS,
+  PRODUCT_LABEL,
   type SubscriptionProduct,
 } from '@/types/enums';
 
@@ -91,19 +95,12 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                   >
                     KES {fee.toLocaleString()}
                   </span>
-                  <span
-                    className={cn(
-                      'ml-2 text-sm',
-                      featured ? 'text-brand-blue-100/70' : 'text-brand-blue-900/60',
-                    )}
-                  >
+                  <span className={cn('ml-2 text-sm', featured ? 'text-brand-blue-100/70' : 'text-brand-blue-900/60')}>
                     /month
                   </span>
                 </>
               ) : (
-                <span className="font-display text-3xl font-normal text-brand-blue-900">
-                  By agreement
-                </span>
+                <span className="font-display text-3xl font-normal text-brand-blue-900">By agreement</span>
               )}
             </p>
 
@@ -118,13 +115,13 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                   aria-hidden="true"
                   className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                 />
-                <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
+                <span
+                  className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}
+                >
                   {isSelfServe ? (
                     <>
-                      <strong className="font-semibold">
-                        {PLAN_SMS_ALLOWANCE[product][plan.type]} SMS
-                      </strong>{' '}
-                      included every month
+                      <strong className="font-semibold">{PLAN_SMS_ALLOWANCE[product][plan.type]} SMS</strong> included
+                      every month
                     </>
                   ) : (
                     'Negotiated SMS allowance'
@@ -137,7 +134,9 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
                     aria-hidden="true"
                     className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
                   />
-                  <span className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}>
+                  <span
+                    className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}
+                  >
                     {feature}
                   </span>
                 </li>
@@ -163,14 +162,38 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
 }
 
 const FAQS: [string, string][] = [
-  ['Is M-Pesa included?', 'Yes. Every Kitabu Yetu plan includes the full Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.'],
-  ['Can I bring my existing records?', 'Yes. Every plan supports bulk CSV import for members and historical contributions.'],
-  ['How is our data kept private?', "Data is stored on encrypted servers, and each group's records are isolated at the database level. One group can never read another's."],
-  ['Can we change plan later?', 'Yes. Pay for a different plan by M-Pesa at any time and it activates immediately. There is no lock-in period.'],
-  ['What if we use up our SMS?', 'Nothing stops. Each plan includes a set number of messages per billing cycle, and the allowance resets at the start of each new cycle. Once it is used up you buy top-up credits from your billing page; purchased credits are used after the included allowance.'],
-  ['Which product should we start with?', 'If you only need to reach members — contribution reminders, meeting notices, birthdays — Chama Reminder is enough. Choose Kitabu Yetu when you also need to record and reconcile the money.'],
-  ['Can we move from Chama Reminder to Kitabu Yetu?', 'Yes. Buy a Kitabu Yetu plan from your subscription page and your chart of accounts is set up then. Your group, members and message history carry over unchanged.'],
-  ['Is there a free plan?', 'No. Every plan is paid, starting at the Starter price above, and is bought self-service by M-Pesa.'],
+  [
+    'Is M-Pesa included?',
+    'Yes. Every Kitabu Yetu plan includes the full Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+  ],
+  [
+    'Can I bring my existing records?',
+    'Yes. Every plan supports bulk CSV import for members and historical contributions.',
+  ],
+  [
+    'How is our data kept private?',
+    "Data is stored on encrypted servers, and each group's records are isolated at the database level. One group can never read another's.",
+  ],
+  [
+    'Can we change plan later?',
+    'Yes. Pay for a different plan by M-Pesa at any time and it activates immediately. There is no lock-in period.',
+  ],
+  [
+    'What if we use up our SMS?',
+    'Nothing stops. Each plan includes a set number of messages per billing cycle, and the allowance resets at the start of each new cycle. Once it is used up you buy top-up credits from your billing page; purchased credits are used after the included allowance.',
+  ],
+  [
+    'Which product should we start with?',
+    'If you only need to reach members — contribution reminders, meeting notices, birthdays — Chama Reminder is enough. Choose Kitabu Yetu when you also need to record and reconcile the money.',
+  ],
+  [
+    'Can we move from Chama Reminder to Kitabu Yetu?',
+    'Yes. Buy a Kitabu Yetu plan from your subscription page and your chart of accounts is set up then. Your group, members and message history carry over unchanged.',
+  ],
+  [
+    'Is there a free plan?',
+    'No. Every plan is paid, starting at the Starter price above, and is bought self-service by M-Pesa.',
+  ],
 ];
 
 export default function PricingPage() {
@@ -182,17 +205,14 @@ export default function PricingPage() {
         <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
-                Pricing
-              </p>
+              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Pricing</p>
               <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                One price a month, for{' '}
-                <em className="italic font-normal text-brand-600">the whole group</em>.
+                One price a month, for <em className="italic font-normal text-brand-600">the whole group</em>.
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
                 Two products, one bill. Take the full book with{' '}
-                <span className="font-medium text-brand-blue-900">{PRODUCT_LABEL.kitabu_yetu}</span>,
-                or SMS reminders on their own with{' '}
+                <span className="font-medium text-brand-blue-900">{PRODUCT_LABEL.kitabu_yetu}</span>, or SMS reminders
+                on their own with{' '}
                 <Link href="#chama-reminder" className="font-medium text-brand-700 hover:underline">
                   {PRODUCT_LABEL.chama_reminder}
                 </Link>
@@ -207,8 +227,7 @@ export default function PricingPage() {
               allowance is a monthly grant, not a cap, and running out means
               buying more rather than being cut off. */}
           <p className="mb-14 rounded-2xl border border-brand-blue-900/10 bg-white px-6 py-5 text-[0.9375rem] leading-relaxed text-brand-blue-900/70">
-            Every plan includes a monthly SMS allowance, renewed at the start of each
-            billing cycle.{' '}
+            Every plan includes a monthly SMS allowance, renewed at the start of each billing cycle.{' '}
             <strong className="font-semibold text-brand-blue-900">
               Once your included messages are used up you can buy more at any time
             </strong>{' '}
@@ -221,9 +240,8 @@ export default function PricingPage() {
                 {PRODUCT_LABEL.kitabu_yetu}
               </h2>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                The full book: double-entry accounting, contributions, loans, M-Pesa
-                collection and reconciliation, member records and reporting — with SMS
-                included.
+                The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation,
+                member records and reporting — with SMS included.
               </p>
             </div>
             <PlanGrid product="kitabu_yetu" />
@@ -236,11 +254,9 @@ export default function PricingPage() {
                 {PRODUCT_LABEL.chama_reminder}
               </h2>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                Just the messaging. Keep your member list, send contribution reminders,
-                birthday greetings and group announcements by SMS — no ledger, no
-                accounting to set up. Start here and move to{' '}
-                {PRODUCT_LABEL.kitabu_yetu} whenever your group is ready; your members
-                come with you.
+                Just the messaging. Keep your member list, send contribution reminders, birthday greetings and group
+                announcements by SMS — no ledger, no accounting to set up. Start here and move to{' '}
+                {PRODUCT_LABEL.kitabu_yetu} whenever your group is ready; your members come with you.
               </p>
             </div>
             <PlanGrid product="chama_reminder" />
@@ -254,9 +270,9 @@ export default function PricingPage() {
                 Enterprise
               </h2>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                For organizations managing many groups at once — portfolio dashboards,
-                multi-group reporting and programme management. Priced by agreement,
-                based on the number of groups and members under your organization.
+                For organizations managing many groups at once — portfolio dashboards, multi-group reporting and
+                programme management. Priced by agreement, based on the number of groups and members under your
+                organization.
               </p>
             </div>
             <div className="mt-8 flex flex-col items-start gap-5 rounded-2xl bg-brand-blue-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between">
@@ -283,15 +299,14 @@ export default function PricingPage() {
                 Changi$ha
               </h2>
               <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                Fundraising for community projects and causes, built on the same
-                platform identity as the rest of Kitabu Yetu.
+                Fundraising for community projects and causes, built on the same platform identity as the rest of Kitabu
+                Yetu.
               </p>
             </div>
             <div className="mt-8 rounded-2xl border border-dashed border-brand-blue-900/15 bg-white px-6 py-6">
               <p className="text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                <span className="font-semibold text-brand-blue-900">Coming soon.</span>{' '}
-                Changi$ha is not yet open for self-serve campaigns — there is nothing
-                to buy here today.{' '}
+                <span className="font-semibold text-brand-blue-900">Coming soon.</span> Changi$ha is not yet open for
+                self-serve campaigns — there is nothing to buy here today.{' '}
                 <Link href={ROUTES.fundraise} className="font-medium text-brand-700 hover:underline">
                   See what&apos;s planned
                 </Link>
@@ -308,9 +323,7 @@ export default function PricingPage() {
               {FAQS.map(([question, answer]) => (
                 <div key={question} className="border-t border-brand-blue-900/10 pt-6">
                   <dt className="text-base font-semibold text-brand-blue-900">{question}</dt>
-                  <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                    {answer}
-                  </dd>
+                  <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{answer}</dd>
                 </div>
               ))}
             </dl>

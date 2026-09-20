@@ -18,22 +18,24 @@ export function maskNationalId(id: string | null): string | null {
 }
 
 /** Apply PII masking based on the caller's role. */
-export function applyMemberMask<T extends {
-  phone: string;
-  email: string | null;
-  national_id: string | null;
-  date_of_birth: Date | null;
-  address: string | null;
-}>(member: T, role: string): T {
+export function applyMemberMask<
+  T extends {
+    phone: string;
+    email: string | null;
+    national_id: string | null;
+    date_of_birth: Date | null;
+    address: string | null;
+  },
+>(member: T, role: string): T {
   const privileged = ['super_admin', 'chairperson', 'treasurer'].includes(role);
-  const adminOnly  = ['super_admin', 'chairperson'].includes(role);
+  const adminOnly = ['super_admin', 'chairperson'].includes(role);
 
   return {
     ...member,
-    phone:         privileged ? member.phone        : maskPhone(member.phone)!,
-    email:         privileged ? member.email        : maskEmail(member.email),
-    national_id:   adminOnly  ? member.national_id  : maskNationalId(member.national_id),
-    date_of_birth: adminOnly  ? member.date_of_birth : null,
-    address:       adminOnly  ? member.address       : null,
+    phone: privileged ? member.phone : maskPhone(member.phone)!,
+    email: privileged ? member.email : maskEmail(member.email),
+    national_id: adminOnly ? member.national_id : maskNationalId(member.national_id),
+    date_of_birth: adminOnly ? member.date_of_birth : null,
+    address: adminOnly ? member.address : null,
   };
 }

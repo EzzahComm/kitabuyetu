@@ -4,9 +4,9 @@ import { reportError } from './observability/error-sink';
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
 interface LogEntry {
-  level:   LogLevel;
+  level: LogLevel;
   message: string;
-  ts:      string;
+  ts: string;
   [key: string]: unknown;
 }
 
@@ -84,7 +84,7 @@ function emit(level: LogLevel, args: unknown[]): void {
     const [first, ...rest] = args;
     const entry: LogEntry = {
       level,
-      ts:      new Date().toISOString(),
+      ts: new Date().toISOString(),
       message: typeof first === 'string' ? first : JSON.stringify(sanitize(first)),
     };
     // Merge additional context objects into the log entry
@@ -129,19 +129,17 @@ function emit(level: LogLevel, args: unknown[]): void {
       // production is one where the reporting itself is never exercised
       // before it matters. Sanitized on the same terms — `safe`, not `args`.
       const [head, ...tail] = safe;
-      reportError(
-        typeof head === 'string' ? head : JSON.stringify(head),
-        { detail: tail },
-      );
-    }
-    else if (level === 'warn')  console.warn(prefix, ...safe);
-    else                        console.log(prefix, ...safe);
+      reportError(typeof head === 'string' ? head : JSON.stringify(head), { detail: tail });
+    } else if (level === 'warn') console.warn(prefix, ...safe);
+    else console.log(prefix, ...safe);
   }
 }
 
 export const logger = {
-  debug: (...args: unknown[]): void => { if (!isProd()) emit('debug', args); },
-  info:  (...args: unknown[]): void => emit('info',  args),
-  warn:  (...args: unknown[]): void => emit('warn',  args),
+  debug: (...args: unknown[]): void => {
+    if (!isProd()) emit('debug', args);
+  },
+  info: (...args: unknown[]): void => emit('info', args),
+  warn: (...args: unknown[]): void => emit('warn', args),
   error: (...args: unknown[]): void => emit('error', args),
 };

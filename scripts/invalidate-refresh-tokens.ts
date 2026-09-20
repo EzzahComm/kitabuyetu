@@ -33,10 +33,12 @@ async function main(): Promise<void> {
   const commit = process.argv.includes('--commit');
 
   const live = await withAdminDb((db) =>
-    db.query<{ count: string }>(
-      `SELECT COUNT(*) AS count FROM refresh_tokens
+    db
+      .query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM refresh_tokens
        WHERE revoked_at IS NULL AND expires_at > NOW()`,
-    ).then((r) => parseInt(r.rows[0].count, 10)),
+      )
+      .then((r) => parseInt(r.rows[0].count, 10)),
   );
 
   if (!commit) {
@@ -51,10 +53,12 @@ async function main(): Promise<void> {
   const purged = await revokeAllRefreshTokens();
 
   const stamped = await withAdminDb((db) =>
-    db.query(
-      `UPDATE refresh_tokens SET revoked_at = NOW()
+    db
+      .query(
+        `UPDATE refresh_tokens SET revoked_at = NOW()
        WHERE revoked_at IS NULL AND expires_at > NOW()`,
-    ).then((r) => r.rowCount ?? 0),
+      )
+      .then((r) => r.rowCount ?? 0),
   );
 
   console.log(`Revoked ${purged} Redis refresh tokens; stamped ${stamped} refresh_tokens rows.`);

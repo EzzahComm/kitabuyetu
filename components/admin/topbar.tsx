@@ -3,11 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useSyncExternalStore } from 'react';
 import { useTheme } from 'next-themes';
-import {
-  Bell, Menu, ChevronDown,
-  CircleCheck, CircleAlert, Activity,
-  LogOut, Settings, Sun, Moon,
-} from 'lucide-react';
+import { Bell, Menu, ChevronDown, CircleCheck, CircleAlert, Activity, LogOut, Settings, Sun, Moon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
@@ -44,7 +40,9 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   );
 
   const handleLogout = async () => {
-    try { await authApi.logout(refreshToken ?? undefined); } catch {}
+    try {
+      await authApi.logout(refreshToken ?? undefined);
+    } catch {}
     logout();
   };
 
@@ -60,24 +58,21 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
       </button>
 
       {/* Global search — opens the ⌘K command palette */}
-      <SearchTrigger
-        variant="admin"
-        onOpen={openCommandPalette}
-        placeholder="Search organizations, users, tickets…"
-      />
+      <SearchTrigger variant="admin" onOpen={openCommandPalette} placeholder="Search organizations, users, tickets…" />
 
       <div className="flex items-center gap-2 ml-auto">
         {/* System status pill */}
-        <div className={cn(
-          'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
-          STATUS.ok
-            ? 'bg-green-50 text-green-700 border-green-200'
-            : 'bg-red-50 text-red-700 border-red-200',
-        )}>
-          {STATUS.ok
-            ? <CircleCheck size={12} className="text-green-500" />
-            : <CircleAlert size={12} className="text-red-500" />
-          }
+        <div
+          className={cn(
+            'hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border',
+            STATUS.ok ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200',
+          )}
+        >
+          {STATUS.ok ? (
+            <CircleCheck size={12} className="text-green-500" />
+          ) : (
+            <CircleAlert size={12} className="text-red-500" />
+          )}
           {STATUS.label}
         </div>
 
@@ -92,10 +87,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
         </button>
 
         {/* Notifications */}
-        <button
-          type="button"
-          className="relative p-1.5 rounded-md text-muted-foreground hover:bg-accent"
-        >
+        <button type="button" className="relative p-1.5 rounded-md text-muted-foreground hover:bg-accent">
           <Bell size={17} />
           <span className="absolute top-1 right-1 w-1.5 h-1.5 bg-red-500 rounded-full" />
         </button>
@@ -119,7 +111,8 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
             >
               <div className="w-7 h-7 rounded-full bg-blue-600 flex items-center justify-center">
                 <span className="text-[11px] font-bold text-white">
-                  {user?.firstName?.[0]}{user?.lastName?.[0]}
+                  {user?.firstName?.[0]}
+                  {user?.lastName?.[0]}
                 </span>
               </div>
               <div className="hidden sm:block text-left">

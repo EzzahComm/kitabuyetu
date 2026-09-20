@@ -4,9 +4,7 @@ import * as React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,7 +25,12 @@ interface GoalProgressDialogProps {
 
 /** Logs a manual progress entry toward a savings goal — personal tracking, not a real transaction. */
 export function GoalProgressDialog({ open, onOpenChange, goal, onSubmit }: GoalProgressDialogProps) {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors, isSubmitting },
+  } = useForm<FormValues>({
     resolver: zodResolver(schema),
   });
 
@@ -40,7 +43,9 @@ export function GoalProgressDialog({ open, onOpenChange, goal, onSubmit }: GoalP
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
-        <DialogHeader><DialogTitle>Add progress{goal ? ` — ${goal.name}` : ''}</DialogTitle></DialogHeader>
+        <DialogHeader>
+          <DialogTitle>Add progress{goal ? ` — ${goal.name}` : ''}</DialogTitle>
+        </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="space-y-3">
           <div className="space-y-1">
             <Label htmlFor="amount">Amount (KES)</Label>
@@ -48,8 +53,12 @@ export function GoalProgressDialog({ open, onOpenChange, goal, onSubmit }: GoalP
             {errors.amount && <p className="text-xs text-destructive">{errors.amount.message}</p>}
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit" loading={isSubmitting}>Add</Button>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              Add
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

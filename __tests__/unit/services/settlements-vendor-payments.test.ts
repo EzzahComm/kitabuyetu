@@ -19,7 +19,7 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
-const mockQuery  = jest.fn();
+const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
@@ -29,7 +29,7 @@ beforeEach(() => {
   (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
 });
 
-const maker  = { groupId: 'grp-1', userId: 'officer-1', role: 'treasurer' };
+const maker = { groupId: 'grp-1', userId: 'officer-1', role: 'treasurer' };
 const checker = { groupId: 'grp-1', userId: 'officer-2', role: 'treasurer' };
 
 // ─── Bank accounts ───────────────────────────────────────────────────────
@@ -38,15 +38,14 @@ describe('groupBankAccountsService', () => {
   it('activation by the creator is blocked (maker-checker)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'ba-1', created_by: 'officer-1', status: 'pending_approval' }] });
 
-    await expect(groupBankAccountsService.activate(maker, 'ba-1'))
-      .rejects.toBeInstanceOf(ForbiddenError);
+    await expect(groupBankAccountsService.activate(maker, 'ba-1')).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('activation by a second officer succeeds and records the decision', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'ba-1', created_by: 'officer-1', status: 'pending_approval' }] }) // claim
-      .mockResolvedValueOnce({ rows: [] })                                                                   // recordApproval insert
-      .mockResolvedValueOnce({ rows: [{ id: 'ba-1', status: 'active' }] });                                  // update
+      .mockResolvedValueOnce({ rows: [] }) // recordApproval insert
+      .mockResolvedValueOnce({ rows: [{ id: 'ba-1', status: 'active' }] }); // update
 
     const res = await groupBankAccountsService.activate(checker, 'ba-1');
     expect(res.status).toBe('active');
@@ -60,8 +59,7 @@ describe('groupBankAccountsService', () => {
 
   it('a non-pending account cannot be activated', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(groupBankAccountsService.activate(checker, 'ba-1'))
-      .rejects.toBeInstanceOf(NotFoundError);
+    await expect(groupBankAccountsService.activate(checker, 'ba-1')).rejects.toBeInstanceOf(NotFoundError);
   });
 });
 
@@ -80,11 +78,10 @@ describe('settlementsService.initiate', () => {
 
   it('refuses a bank account that is not active', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [] })                                          // no existing row
+      .mockResolvedValueOnce({ rows: [] }) // no existing row
       .mockResolvedValueOnce({ rows: [{ id: 'ba-1', status: 'pending_approval' }] }); // bank not active
 
-    await expect(settlementsService.initiate(maker, input))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(settlementsService.initiate(maker, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('refuses when the reserved amount would exceed available balance', async () => {
@@ -94,8 +91,7 @@ describe('settlementsService.initiate', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '6000.00', reserved_amount: '2000.00' }] });
 
     // available = 4000, requested 5000
-    await expect(settlementsService.initiate(maker, input))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(settlementsService.initiate(maker, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
   it('reserves the funds before the row is even approved', async () => {
@@ -103,7 +99,7 @@ describe('settlementsService.initiate', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'ba-1', status: 'active' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
-      .mockResolvedValueOnce({ rows: [] })                                     // adjust_account_reserved_amount
+      .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
       .mockResolvedValueOnce({ rows: [{ id: 'set-1', status: 'pending_approval' }] });
 
     const res = await settlementsService.initiate(maker, input);
@@ -115,8 +111,7 @@ describe('settlementsService.initiate', () => {
   });
 
   it('rejects a non-positive amount before touching the DB', async () => {
-    await expect(settlementsService.initiate(maker, { ...input, amount: 0 }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(settlementsService.initiate(maker, { ...input, amount: 0 })).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
   });
 });
@@ -125,9 +120,9 @@ describe('settlementsService.reject', () => {
   it('releases the reservation with a negative delta', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'set-1', requested_by: 'officer-1', amount: '5000.00' }] })
-      .mockResolvedValueOnce({ rows: [] })                          // recordApproval
-      .mockResolvedValueOnce({ rows: [{ id: 'acct-1' }] })          // lock cash account
-      .mockResolvedValueOnce({ rows: [] })                          // adjust (release)
+      .mockResolvedValueOnce({ rows: [] }) // recordApproval
+      .mockResolvedValueOnce({ rows: [{ id: 'acct-1' }] }) // lock cash account
+      .mockResolvedValueOnce({ rows: [] }) // adjust (release)
       .mockResolvedValueOnce({ rows: [{ id: 'set-1', status: 'rejected' }] });
 
     await settlementsService.reject(checker, 'set-1', 'wrong account');
@@ -140,8 +135,7 @@ describe('settlementsService.reject', () => {
   it('the requester cannot reject their own settlement', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'set-1', requested_by: 'officer-1', amount: '5000.00' }] });
 
-    await expect(settlementsService.reject(maker, 'set-1', 'changed my mind'))
-      .rejects.toBeInstanceOf(ForbiddenError);
+    await expect(settlementsService.reject(maker, 'set-1', 'changed my mind')).rejects.toBeInstanceOf(ForbiddenError);
   });
 });
 
@@ -149,33 +143,43 @@ describe('settlementsService.reject', () => {
 
 describe('vendorPaymentsService.initiate', () => {
   const b2c = {
-    channel: 'b2c' as const, payeeName: 'Acme', payeePhone: '254712345678',
-    amount: 1000, idempotencyKey: 'vk-1',
+    channel: 'b2c' as const,
+    payeeName: 'Acme',
+    payeePhone: '254712345678',
+    amount: 1000,
+    idempotencyKey: 'vk-1',
   };
   const b2b = {
-    channel: 'b2b' as const, payeeName: 'Acme', payeeShortcode: '247247',
-    payeeAccount: 'ACC-9', amount: 1000, idempotencyKey: 'vk-2',
+    channel: 'b2b' as const,
+    payeeName: 'Acme',
+    payeeShortcode: '247247',
+    payeeAccount: 'ACC-9',
+    amount: 1000,
+    idempotencyKey: 'vk-2',
   };
 
   it('requires a phone for the b2c channel', async () => {
-    await expect(vendorPaymentsService.initiate(maker, { ...b2c, payeePhone: undefined }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(vendorPaymentsService.initiate(maker, { ...b2c, payeePhone: undefined })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('requires a shortcode and account for the b2b channel', async () => {
-    await expect(vendorPaymentsService.initiate(maker, { ...b2b, payeeAccount: undefined }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(vendorPaymentsService.initiate(maker, { ...b2b, payeeAccount: undefined })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
   it('rejects an expense account missing from the group chart AT CREATION TIME', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [] })  // no existing idempotency row
+      .mockResolvedValueOnce({ rows: [] }) // no existing idempotency row
       .mockResolvedValueOnce({ rows: [] }); // account lookup → not found
 
-    await expect(vendorPaymentsService.initiate(maker, { ...b2c, expenseAccountCode: '9999' }))
-      .rejects.toBeInstanceOf(ValidationError);
+    await expect(vendorPaymentsService.initiate(maker, { ...b2c, expenseAccountCode: '9999' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
 
     // Must fail BEFORE any funds are reserved.
     const calls = mockQuery.mock.calls.map((c) => String(c[0]));
@@ -207,8 +211,7 @@ describe('vendorPaymentsService.reject', () => {
   it('the requester cannot reject their own payment', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'vp-1', requested_by: 'officer-1', amount: '1000.00' }] });
 
-    await expect(vendorPaymentsService.reject(maker, 'vp-1', 'not needed'))
-      .rejects.toBeInstanceOf(ForbiddenError);
+    await expect(vendorPaymentsService.reject(maker, 'vp-1', 'not needed')).rejects.toBeInstanceOf(ForbiddenError);
   });
 
   it('releases the reservation on rejection', async () => {

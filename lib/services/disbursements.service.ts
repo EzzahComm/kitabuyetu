@@ -25,39 +25,39 @@ import { getEffectiveThreshold } from './approval-policy.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 
 export interface InitiateDisbursementInput {
-  loanId?:         string;
-  phone:           string;
-  amount:          number;
-  commandId?:      'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
-  occasion:        string;
-  idempotencyKey:  string;
+  loanId?: string;
+  phone: string;
+  amount: number;
+  commandId?: 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
+  occasion: string;
+  idempotencyKey: string;
 }
 
 export interface DisbursementRow {
-  id:                string;
-  group_id:          string;
-  loan_id:           string | null;
-  cash_account_id:   string;
-  phone:             string;
-  amount:            string;
-  status:            string;
+  id: string;
+  group_id: string;
+  loan_id: string | null;
+  cash_account_id: string;
+  phone: string;
+  amount: string;
+  status: string;
   requires_approval: boolean;
-  initiated_by:       string;
-  approved_by:        string | null;
+  initiated_by: string;
+  approved_by: string | null;
   mpesa_receipt_number: string | null;
-  failure_reason:     string | null;
-  created_at:         Date;
+  failure_reason: string | null;
+  created_at: Date;
 }
 
 export const disbursementsService = {
-
   /**
    * Validates + reserves funds + either dispatches immediately (single
    * control, under threshold) or parks pending_approval (funds stay
    * reserved while awaiting a second officer). Returns the row either way.
    */
   async initiateDisbursement(
-    ctx: TenantContext, input: InitiateDisbursementInput,
+    ctx: TenantContext,
+    input: InitiateDisbursementInput,
   ): Promise<DisbursementRow & { needsApproval: boolean }> {
     if (!(input.amount > 0)) throw new ValidationError('Amount must be positive');
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
@@ -82,9 +82,7 @@ export const disbursementsService = {
         );
         if (!loanRows[0]) throw new NotFoundError('Loan', input.loanId);
         if (loanRows[0].status !== 'approved') {
-          throw new ValidationError(
-            `Only approved loans can be disbursed (current status: ${loanRows[0].status})`,
-          );
+          throw new ValidationError(`Only approved loans can be disbursed (current status: ${loanRows[0].status})`);
         }
       }
 
@@ -104,9 +102,7 @@ export const disbursementsService = {
       const cashAccountId = acctRows[0].id;
       const available = parseFloat(acctRows[0].balance) - parseFloat(acctRows[0].reserved_amount);
       if (input.amount > available) {
-        throw new ValidationError(
-          `Insufficient available balance (KES ${available.toFixed(2)} available)`,
-        );
+        throw new ValidationError(`Insufficient available balance (KES ${available.toFixed(2)} available)`);
       }
 
       // Maker-checker threshold (C3).
@@ -118,10 +114,7 @@ export const disbursementsService = {
       // request can't also pass the balance check against the same cash.
       // adjust_account_reserved_amount() (migration 100, SECURITY DEFINER) —
       // see the lock above for why a direct UPDATE needs it too.
-      await db.query(
-        `SELECT adjust_account_reserved_amount($1, $2)`,
-        [cashAccountId, input.amount.toFixed(2)],
-      );
+      await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [cashAccountId, input.amount.toFixed(2)]);
 
       const { rows: inserted } = await db.query<DisbursementRow>(
         `INSERT INTO disbursement_requests
@@ -130,10 +123,17 @@ export const disbursementsService = {
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
          RETURNING *`,
         [
-          input.idempotencyKey, ctx.groupId, input.loanId ?? null, cashAccountId,
-          input.phone, input.amount.toFixed(2), input.commandId ?? 'BusinessPayment',
-          input.occasion, requiresApproval ? 'pending_approval' : 'approved',
-          requiresApproval, ctx.userId,
+          input.idempotencyKey,
+          ctx.groupId,
+          input.loanId ?? null,
+          cashAccountId,
+          input.phone,
+          input.amount.toFixed(2),
+          input.commandId ?? 'BusinessPayment',
+          input.occasion,
+          requiresApproval ? 'pending_approval' : 'approved',
+          requiresApproval,
+          ctx.userId,
         ],
       );
       const disbursement = inserted[0];
@@ -278,12 +278,18 @@ export const disbursementsService = {
       const conds: string[] = ['dr.group_id = $1'];
       const vals: unknown[] = [ctx.groupId];
       let i = 2;
-      if (params.status) { conds.push(`dr.status = $${i++}`); vals.push(params.status); }
-      const where  = conds.join(' AND ');
+      if (params.status) {
+        conds.push(`dr.status = $${i++}`);
+        vals.push(params.status);
+      }
+      const where = conds.join(' AND ');
       const offset = (params.page - 1) * params.limit;
 
-      const { rows: [{ count }] } = await db.query<{ count: string }>(
-        `SELECT COUNT(*) AS count FROM disbursement_requests dr WHERE ${where}`, vals,
+      const {
+        rows: [{ count }],
+      } = await db.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM disbursement_requests dr WHERE ${where}`,
+        vals,
       );
       const { rows } = await db.query(
         `SELECT dr.*, l.principal_amount, m.first_name || ' ' || m.last_name AS borrower_name,
@@ -300,8 +306,11 @@ export const disbursementsService = {
         [...vals, params.limit, offset],
       );
       return {
-        items: rows, total: parseInt(count, 10), page: params.page,
-        pageSize: params.limit, totalPages: Math.ceil(parseInt(count, 10) / params.limit),
+        items: rows,
+        total: parseInt(count, 10),
+        page: params.page,
+        pageSize: params.limit,
+        totalPages: Math.ceil(parseInt(count, 10) / params.limit),
       };
     });
   },
@@ -332,7 +341,10 @@ export async function findStuckDisbursements(): Promise<{
 }> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; amount: string; age_minutes: number;
+      id: string;
+      group_id: string;
+      amount: string;
+      age_minutes: number;
     }>(
       `SELECT id, group_id, amount,
               EXTRACT(EPOCH FROM (NOW() - dispatched_at)) / 60 AS age_minutes
@@ -344,12 +356,15 @@ export async function findStuckDisbursements(): Promise<{
        LIMIT  20`,
     );
     const samples = rows.map((r) => ({
-      id: r.id, groupId: r.group_id, amount: r.amount,
+      id: r.id,
+      groupId: r.group_id,
+      amount: r.amount,
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
       logger.error('[disbursements] stuck B2C payouts — no result callback received', {
-        count: samples.length, samples: samples.slice(0, 5),
+        count: samples.length,
+        samples: samples.slice(0, 5),
       });
     }
     return { count: samples.length, samples };
@@ -368,8 +383,15 @@ export async function findStuckDisbursements(): Promise<{
 async function dispatchDisbursement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
-      id: string; group_id: string; loan_id: string | null; phone: string; amount: string;
-      command_id: string; occasion: string; initiated_by: string; cash_account_id: string;
+      id: string;
+      group_id: string;
+      loan_id: string | null;
+      phone: string;
+      amount: string;
+      command_id: string;
+      occasion: string;
+      initiated_by: string;
+      cash_account_id: string;
     }>(
       `UPDATE disbursement_requests
        SET    status = 'dispatched', dispatched_at = NOW()
@@ -385,12 +407,12 @@ async function dispatchDisbursement(id: string): Promise<void> {
   try {
     const { initiateB2C } = await import('./mpesa.service');
     await initiateB2C({
-      phone:       claimed.phone,
-      amount:      parseFloat(claimed.amount),
-      occasion:    claimed.occasion,
-      commandId:   claimed.command_id as 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment',
-      groupId:     claimed.group_id,
-      loanId:      claimed.loan_id ?? undefined,
+      phone: claimed.phone,
+      amount: parseFloat(claimed.amount),
+      occasion: claimed.occasion,
+      commandId: claimed.command_id as 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment',
+      groupId: claimed.group_id,
+      loanId: claimed.loan_id ?? undefined,
       disbursedBy: claimed.initiated_by,
       disbursementRequestId: claimed.id,
     });
@@ -422,14 +444,15 @@ async function dispatchDisbursement(id: string): Promise<void> {
     // The Daraja POST never landed — release the hold and mark failed so the
     // treasurer can see it and retry with a fresh idempotency key.
     logger.error('[disbursements] dispatch failed before Daraja accepted the request', {
-      disbursementId: id, err: String(err),
+      disbursementId: id,
+      err: String(err),
     });
     const failureReason = `Dispatch error: ${String(err).slice(0, 500)}`;
     await withAdminDb(async (db) => {
-      await db.query(
-        `UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`,
-        [claimed.amount, claimed.cash_account_id],
-      );
+      await db.query(`UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`, [
+        claimed.amount,
+        claimed.cash_account_id,
+      ]);
       await db.query(
         `UPDATE disbursement_requests
          SET    status = 'failed', failure_reason = $2

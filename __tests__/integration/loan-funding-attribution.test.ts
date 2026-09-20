@@ -31,33 +31,43 @@ describe('loan funding attribution', () => {
 
     await rawQuery(
       `INSERT INTO organization_members (organization_id, member_id, org_role, status)
-       VALUES ($1,$2,'lead','active') ON CONFLICT DO NOTHING`, [orgId, approverId],
+       VALUES ($1,$2,'lead','active') ON CONFLICT DO NOTHING`,
+      [orgId, approverId],
     );
     await rawQuery(
       `INSERT INTO organization_group_access (organization_id, group_id, access_level, granted_by, is_active)
-       VALUES ($1,$2,'read',$3,true) ON CONFLICT DO NOTHING`, [orgId, groupId, coordId],
+       VALUES ($1,$2,'read',$3,true) ON CONFLICT DO NOTHING`,
+      [orgId, groupId, coordId],
     );
 
     // The real shape: a 1.5M fund, 1M allocated in cash for on-lending.
     const orgCtx = {
-      userId: coordId, groupId: null, role: 'organization_coordinator', organizationId: orgId,
+      userId: coordId,
+      groupId: null,
+      role: 'organization_coordinator',
+      organizationId: orgId,
     } as unknown as TenantContext;
     const approverCtx = { ...orgCtx, userId: approverId } as TenantContext;
 
     const fund = await organizationFinanceService.createProgram(orgCtx, {
-      name: 'Seed Capital', programType: 'seed_capital', budget: 1_500_000,
+      name: 'Seed Capital',
+      programType: 'seed_capital',
+      budget: 1_500_000,
     });
     await organizationFinanceService.deposit(orgCtx, { amount: 1_500_000, source: 'Cash' });
     const disb = await organizationFinanceService.disburse(orgCtx, {
-      groupId, amount: 1_000_000, disbursementType: 'seed_capital',
-      fundingProgramId: fund.id, purpose: 'On-lending to members',
+      groupId,
+      amount: 1_000_000,
+      disbursementType: 'seed_capital',
+      fundingProgramId: fund.id,
+      purpose: 'On-lending to members',
     });
     if (disb.status === 'pending_approval') {
       await organizationFinanceService.approveDisbursement(approverCtx, disb.id);
     }
 
     const sources = await listForGroup(groupCtx());
-    internalSourceId   = sources.find((s) => s.sourceType === 'internal_savings')!.id;
+    internalSourceId = sources.find((s) => s.sourceType === 'internal_savings')!.id;
     allocationSourceId = sources.find((s) => s.sourceType === 'organization_allocation')!.id;
   });
 
@@ -82,7 +92,10 @@ describe('loan funding attribution', () => {
     const borrowerId = await addGroupOfficer(groupId, officerId, 'member');
 
     const loan = await loansService.apply(groupCtx(), {
-      memberId: borrowerId, principalAmount: principal, interestRate: 10, loanTermMonths: 6,
+      memberId: borrowerId,
+      principalAmount: principal,
+      interestRate: 10,
+      loanTermMonths: 6,
     } as never);
     await loansService.approve(groupCtx(), loan.id, {} as never);
     return loan.id;
@@ -119,7 +132,7 @@ describe('loan funding attribution', () => {
       ...disburseArgs,
       fundingPlan: [
         { fundingSourceId: allocationSourceId, amount: 60_000 },
-        { fundingSourceId: internalSourceId,   amount: 40_000 },
+        { fundingSourceId: internalSourceId, amount: 40_000 },
       ],
     } as never);
 
@@ -163,16 +176,14 @@ describe('loan funding attribution', () => {
 
       // Deleting a split from a disbursed loan breaks the sum — the deferred
       // constraint trigger must reject it at commit.
-      await expect(
-        rawQuery(`DELETE FROM loan_funding_splits WHERE loan_id = $1`, [loanId]),
-      ).rejects.toThrow();
+      await expect(rawQuery(`DELETE FROM loan_funding_splits WHERE loan_id = $1`, [loanId])).rejects.toThrow();
     });
 
     it('allows an approved (not yet disbursed) loan to have no splits at all', async () => {
       const loanId = await approvedLoan(25_000);
-      const rows = await rawQuery<{ n: string }>(
-        `SELECT count(*) AS n FROM loan_funding_splits WHERE loan_id = $1`, [loanId],
-      );
+      const rows = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM loan_funding_splits WHERE loan_id = $1`, [
+        loanId,
+      ]);
       expect(Number(rows[0].n)).toBe(0); // money is not out of the door yet
     });
   });

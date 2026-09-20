@@ -51,10 +51,25 @@ describe('admin dashboard payload builders', () => {
   it('builds a monitoring dashboard payload from recent transactions and sms usage', () => {
     const payload = buildMonitoringDashboardPayload({
       services: [
-        { id: 'stk', name: 'STK Push', group: 'M-Pesa / Daraja', status: 'degraded', latency: 1480, success: 94.1, note: 'Elevated timeouts' },
+        {
+          id: 'stk',
+          name: 'STK Push',
+          group: 'M-Pesa / Daraja',
+          status: 'degraded',
+          latency: 1480,
+          success: 94.1,
+          note: 'Elevated timeouts',
+        },
       ],
       hourlyVolume: [{ hour: '12:00', count: 8, value: 180000 }],
-      smsUsage: { sentToday: 8200, delivered: 8000, failed: 200, pending: 0, creditsRemaining: 5000, creditsTotal: 10000 },
+      smsUsage: {
+        sentToday: 8200,
+        delivered: 8000,
+        failed: 200,
+        pending: 0,
+        creditsRemaining: 5000,
+        creditsTotal: 10000,
+      },
       transactions: [
         {
           id: 'txn-1',
