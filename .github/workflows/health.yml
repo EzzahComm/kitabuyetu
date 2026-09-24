@@ -1,0 +1,79 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# Kitabu Yetu — Weekly Codebase Health
+#
+# The MEASURE half of the continuous-optimization loop (docs/health/README.md).
+# Runs the unit suite with coverage, builds the production bundle, and compares
+# accuracy / efficiency / security / hygiene metrics against the committed
+# baseline (docs/health/baseline.json). Results land in the run summary and as
+# a downloadable `health-report` artifact.
+#
+# REPORT-ONLY by design: this never blocks a merge. The CI/CD workflow is the
+# gate; this is the trend line. The weekly optimize Routine (Claude Code) reads
+# the same report to pick its next target.
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: Health
+
+on:
+  schedule:
+    # Sunday 23:00 UTC = Monday 02:00 Nairobi — fresh numbers ahead of the
+    # Monday Dependabot batch and the weekly optimize run.
+    - cron: '0 23 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: health
+  cancel-in-progress: true
+
+jobs:
+  report:
+    name: Health Report
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      # Single source of truth for build-time placeholder env: read ci.yml's
+      # top-level `env:` block instead of duplicating 25 vars that would drift.
+      # yq ships on GitHub's ubuntu runners.
+      - name: Load build env from ci.yml
+        run: |
+          command -v yq >/dev/null || { echo "::error::yq not found on runner"; exit 1; }
+          yq '.env | to_entries | .[] | .key + "=" + (.value | tostring)' .github/workflows/ci.yml >> "$GITHUB_ENV"
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      # --include=dev: NODE_ENV=production (from ci.yml) would otherwise drop
+      # jest/typescript/next's build tooling. Same reason as in ci.yml.
+      - name: Install dependencies
+        run: npm ci --include=dev
+
+      # Coverage threshold is disabled for this run only: the job measures,
+      # it doesn't gate. A failing TEST still fails the step.
+      - name: Test with coverage
+        run: npm run test:coverage:summary
+
+      - name: Build (next build)
+        run: npm run build
+
+      - name: Health report vs baseline
+        run: |
+          npm run health
+          cat .health/report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: health-report
+          path: .health/
+          retention-days: 90

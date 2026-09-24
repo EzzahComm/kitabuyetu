@@ -16,6 +16,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:coverage:summary": "jest --ci --coverage --coverageReporters=json-summary --coverageReporters=text-summary --coverageThreshold={}",
+    "health": "node scripts/health/report.mjs --baseline docs/health/baseline.json",
     "test:ci": "jest --ci --forceExit",
     "test:integration": "jest --config jest.integration.config.ts --runInBand --forceExit",
     "test:integration:app-tenant": "jest --config jest.integration.app-tenant.config.ts --runInBand --forceExit",
