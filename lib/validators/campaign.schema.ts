@@ -15,7 +15,7 @@ export const RejectCampaignSchema = z.object({
 });
 
 /** Server-side cap regardless of what the client sends — see
- *  app/api/v1/campaigns/[slug]/donate/route.ts's own note on why a public,
+ *  app/api/v1/campaigns/[id]/donate/route.ts's own note on why a public,
  *  unauthenticated endpoint that can trigger a real STK push needs one. */
 export const MAX_DONATION_AMOUNT = 250_000;
 
