@@ -6,10 +6,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/enterprise-solutions',
-  title: 'Enterprise',
+  title: 'Multi-Group Management for Institutions & NGOs',
   description:
-    'Kitabu Yetu for institutions managing multiple groups, branches or programs — ' +
-    'portfolio oversight, programs, funding and disbursements, without flattening any group’s own book.',
+    'Kitabu Yetu for SACCOs, NGOs and institutions running many groups or programs: portfolio oversight, funding and disbursements, each group keeping its own book.',
 });
 
 /**

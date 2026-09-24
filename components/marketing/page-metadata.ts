@@ -2,6 +2,11 @@ import type { Metadata } from 'next';
 
 export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
 
+/** The homepage's search title and description. The root layout's openGraph/twitter reuse them: `/` is the only indexable page that inherits those. */
+export const HOME_TITLE = 'Kitabu Yetu — Chama Management App for Kenya with M-Pesa';
+export const HOME_DESCRIPTION =
+  'Run your chama, welfare group or table banking group on Kitabu Yetu: M-Pesa contributions, loans, SMS reminders and records every member can trust.';
+
 /** The branded 1200×630 card from app/opengraph-image.tsx, which Next.js only attaches to `/` on its own. */
 export const OG_FALLBACK_IMAGE = `${SITE_URL}/opengraph-image`;
 

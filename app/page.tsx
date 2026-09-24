@@ -24,15 +24,18 @@ import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { fraunces } from '@/components/marketing/fraunces-font';
 import { JsonLd } from '@/components/marketing/json-ld';
-import { SITE_URL } from '@/components/marketing/page-metadata';
+import { HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from '@/components/marketing/page-metadata';
 import { CONTACT } from '@/components/marketing/routes';
 import { signUpUrl } from '@/lib/app-links';
 
 import benefitOneImg from '../public/img/benefit-one.jpg';
 import benefitTwoImg from '../public/img/benefit-two.jpg';
 
-// Canonical only: a page-level openGraph would replace the og:image app/opengraph-image.tsx attaches here.
+// No page-level openGraph/twitter: they would replace the og:image app/opengraph-image.tsx attaches here.
+// Social title/description for `/` come from the root layout; every other indexable page sets its own.
 export const metadata: Metadata = {
+  title: { absolute: HOME_TITLE },
+  description: HOME_DESCRIPTION,
   alternates: { canonical: `${SITE_URL}/` },
 };
 

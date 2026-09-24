@@ -8,8 +8,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/resources',
-  title: 'Resources',
-  description: 'Guides, case studies and updates on running chamas, VSLAs and community organizations well.',
+  title: 'Chama Guides, Tips & Case Studies',
+  description:
+    'Practical guides on running a chama, table banking group or welfare association in Kenya: contributions, loans, record keeping, rules and more.',
 });
 
 const CATEGORY_LABEL: Record<PostCategory, string> = {

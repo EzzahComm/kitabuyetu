@@ -38,10 +38,9 @@ import {
 
 export const metadata: Metadata = marketingMetadata({
   path: '/pricing',
-  title: 'Pricing',
+  title: 'Chama App Pricing — One Price per Group',
   description:
-    'Kitabu Yetu pricing: one monthly price for the whole group, not per member. ' +
-    'Full bookkeeping with M-Pesa, or SMS reminders on their own with Chama Reminder.',
+    'One monthly price for the whole group, not per member, paid by M-Pesa. See Kitabu Yetu plans for chamas, welfare groups and SMS reminders.',
 });
 
 /** Where a "buy this" click goes. Kitabu Yetu is the default product, so it

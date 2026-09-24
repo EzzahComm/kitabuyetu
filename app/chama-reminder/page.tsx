@@ -26,9 +26,9 @@ import benefitImg from '../../public/img/chama-reminder.jpg';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
-  title: 'Chama Reminder — SMS Communication for Groups',
+  title: 'Bulk SMS Reminders for Chamas & Welfare Groups',
   description:
-    'Remind. Inform. Celebrate. Mobilize. Automated SMS reminders and announcements for chamas, welfare groups and SACCOs.',
+    'Automated SMS reminders for contributions, meetings and loan repayments, plus announcements, so every member of your chama or welfare group stays informed.',
 });
 
 /**
