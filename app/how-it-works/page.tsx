@@ -22,9 +22,9 @@ import recordImg from '../../public/img/bookkeeper.jpg';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/how-it-works',
-  title: 'How it works',
+  title: 'How M-Pesa Chama Contributions Get Recorded',
   description:
-    "From an M-Pesa payment to the member's updated balance and the journal entry behind it — how a contribution reaches the group's books.",
+    "From a member's M-Pesa payment to their updated balance and the journal entry behind it: how Kitabu Yetu keeps chama records accurate automatically.",
 });
 
 /**

@@ -8,9 +8,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/fundraise',
-  title: 'Changi$ha — Fundraising',
+  title: 'Support Harambees & Community Causes in Kenya',
   description:
-    'Support community fundraising campaigns on Kitabu Yetu — weddings, medical appeals, school fees, and community projects across Kenya.',
+    'Give by M-Pesa to harambees and community campaigns reviewed by Kitabu Yetu: medical appeals, school fees, weddings and local projects across Kenya.',
 });
 
 export const dynamic = 'force-dynamic';

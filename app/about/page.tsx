@@ -9,8 +9,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about',
-  title: 'About',
-  description: 'Why Kitabu Yetu exists, who builds it, and what it has changed for the groups using it.',
+  title: 'About Us — Digital Records for Kenyan Groups',
+  description:
+    'Why Kitabu Yetu exists: to give chamas, welfare groups and SACCOs across Kenya simple, trustworthy digital records, and what that has changed for them.',
 });
 
 /**

@@ -32,9 +32,9 @@ import benefitImg from '../../public/img/bookkeeper.jpg';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/bookkeeper',
-  title: 'Bookkeeper — Group Financial Management',
+  title: 'Chama Bookkeeping Software with M-Pesa',
   description:
-    'Digital bookkeeping for chamas, SACCOs, welfare groups and investment clubs. Collect by M-Pesa, reconcile every shilling, and keep an audit-ready double-entry book.',
+    'Digital bookkeeping for chamas, SACCOs, welfare groups and investment clubs. Collect by M-Pesa, track loans and give every member a clear statement.',
 });
 
 /**

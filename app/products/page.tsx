@@ -7,8 +7,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/products',
-  title: 'Products',
-  description: 'Bookkeeper, Chama Reminder, Fundraise / Changi$ha and Enterprise — the Kitabu Yetu product family.',
+  title: 'Chama, SMS & Fundraising Tools for Groups',
+  description:
+    'Bookkeeper for chama records, Chama Reminder for bulk SMS, Changi$ha for community fundraising and Enterprise for institutions: the Kitabu Yetu family.',
 });
 
 export default function ProductsPage() {
