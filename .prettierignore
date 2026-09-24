@@ -22,3 +22,6 @@ supabase/migrations/
 .claude/
 .github/
 *.code-workspace
+
+# Search-engine ownership tokens: served byte-for-byte as the provider issued them.
+public/google*.html
