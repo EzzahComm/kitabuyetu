@@ -24,16 +24,18 @@ import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
 
 import benefitImg from '../../public/img/bookkeeper.jpg';
 
-export const metadata: Metadata = {
-  title: 'Kitabu Yetu Bookkeeper — Group Financial Management',
+export const metadata: Metadata = marketingMetadata({
+  path: '/bookkeeper',
+  title: 'Bookkeeper — Group Financial Management',
   description:
     'Digital bookkeeping for chamas, SACCOs, welfare groups and investment clubs. Collect by M-Pesa, reconcile every shilling, and keep an audit-ready double-entry book.',
-};
+});
 
 /**
  * Kitabu Yetu Bookkeeper — the flagship product page.
@@ -267,6 +269,7 @@ const manageMoney = {
   title: 'Manage your money with confidence',
   desc: 'From the first member to the first dividend, everything your group needs to keep an account it can defend.',
   image: benefitImg,
+  imageAlt: 'Three men talking at a shared desk in an open-plan office',
   bullets: [
     {
       title: 'Members and their money',

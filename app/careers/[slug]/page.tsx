@@ -6,7 +6,9 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Container } from '@/components/Container';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { fraunces } from '@/components/marketing/fraunces-font';
 import { ApplicationForm } from '@/components/marketing/application-form';
+import { OG_FALLBACK } from '@/components/marketing/page-metadata';
 import { getJobBySlug, getOpenJobs } from '@/lib/cms/sanity';
 
 const DEPARTMENT_LABEL: Record<string, string> = {
@@ -44,8 +46,15 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
     title,
     description: job.summary,
     alternates: { canonical: url },
-    openGraph: { title, description: job.summary, url, type: 'article' },
-    twitter: { title, description: job.summary },
+    openGraph: {
+      siteName: 'Kitabu Yetu',
+      title,
+      description: job.summary,
+      url,
+      type: 'article',
+      images: [OG_FALLBACK],
+    },
+    twitter: { card: 'summary_large_image', title, description: job.summary, images: [OG_FALLBACK] },
   };
 }
 
@@ -80,7 +89,7 @@ export default async function JobPage({ params }: JobPageProps) {
   const url = `${SITE_URL}/careers/${job.slug}`;
 
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <StructuredData job={job} url={url} />
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">

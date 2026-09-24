@@ -26,7 +26,7 @@ const HERO_MESSAGES = [
     title: 'Keep the whole group book in one place.',
     subtitle: 'Members, contributions, savings, loans, welfare and M-Pesa on one reliable record.',
     image: bookkeeperImg,
-    imageAlt: 'A group of women meeting together, laughing and talking',
+    imageAlt: 'Three men talking at a shared desk in an open-plan office',
   },
   {
     id: 'chama-reminder',
@@ -34,7 +34,7 @@ const HERO_MESSAGES = [
     title: 'Keep every member in the conversation.',
     subtitle: 'Send contribution reminders, meeting notices and updates by SMS, without rebuilding your list.',
     image: chamaReminderImg,
-    imageAlt: 'A woman smiling while checking her phone',
+    imageAlt: 'One person points at a laptop screen while another uses the trackpad',
   },
   {
     id: 'fundraise',
@@ -42,7 +42,7 @@ const HERO_MESSAGES = [
     title: 'Turn a shared idea into a funded project.',
     subtitle: 'Create a campaign, track every contribution and keep project money separate from ordinary group funds.',
     image: fundraiseImg,
-    imageAlt: 'Community members meeting around a shared project',
+    imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
   },
   {
     id: 'enterprise',
@@ -50,7 +50,7 @@ const HERO_MESSAGES = [
     title: 'See the portfolio. Support every group.',
     subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
     image: enterpriseImg,
-    imageAlt: 'A community leader reviewing information on a phone',
+    imageAlt: 'Two women talking at a conference table, one taking notes beside a laptop',
   },
 ] as const;
 
@@ -102,7 +102,8 @@ export const Hero = () => {
                 sets the box size during the crossfade — no fixed height,
                 no layout jump once the shorter one settles in. */}
             <div className="grid">
-              <AnimatePresence>
+              {/* initial={false}: the first slide server-renders visible, not at opacity 0 waiting for JS. */}
+              <AnimatePresence initial={false}>
                 <m.div
                   key={current.id}
                   initial={{ opacity: 0, y: prefersReducedMotion ? 0 : 20 }}
@@ -150,7 +151,7 @@ export const Hero = () => {
         </div>
         <div className="flex items-center justify-center">
           <div className="grid w-full max-w-xl overflow-hidden rounded-md bg-brand-50 shadow-sm dark:bg-trueGray-800">
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
               <m.div
                 key={current.id}
                 initial={{ opacity: 0, x: prefersReducedMotion ? 0 : 40 }}
@@ -166,7 +167,9 @@ export const Hero = () => {
                   className="h-full w-full object-cover"
                   sizes="(max-width: 1023px) 100vw, 48vw"
                   alt={current.imageAlt}
-                  loading="eager"
+                  // LCP element; `priority` is deprecated in Next 16 and neither prop sets fetchPriority.
+                  preload
+                  fetchPriority="high"
                   placeholder="blur"
                 />
               </m.div>

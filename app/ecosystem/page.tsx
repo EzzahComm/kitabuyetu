@@ -17,18 +17,21 @@ import { Benefits } from '@/components/Benefits';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { fraunces } from '@/components/marketing/fraunces-font';
 import { ROUTES } from '@/components/marketing/routes';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 import donorImg from '../../public/img/benefit-one.jpg';
 import multigroupImg from '../../public/img/enterprise.jpg';
 import marketplaceImg from '../../public/img/fundraise.jpg';
 import programsImg from '../../public/img/benefit-two.jpg';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/ecosystem',
   title: 'The Ecosystem',
   description:
     'Donors, multigroup organizations, the marketplace and funded programs — the people and institutions that work with groups on Kitabu Yetu.',
-};
+});
 
 /**
  * The Kitabu Yetu Ecosystem — four pillars beyond the core products.
@@ -41,7 +44,7 @@ export const metadata: Metadata = {
  */
 export default function EcosystemPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">
@@ -115,6 +118,7 @@ const donors = {
   title: 'Donors',
   desc: "Money given to a group should be traceable to what it did there. Donors see the group's own records rather than a summary written for them.",
   image: donorImg,
+  imageAlt: 'A smiling woman in a headscarf seated at a classroom desk with an open notebook',
   bullets: [
     {
       title: 'Follow the money to the group',
@@ -138,6 +142,7 @@ const multigroup = {
   title: 'Multigroup Organizations',
   desc: 'NGOs, networks, church bodies and apex organizations that support many groups at once, from one account.',
   image: multigroupImg,
+  imageAlt: 'Two women talking at a conference table, one taking notes beside a laptop',
   bullets: [
     {
       title: 'Every group in one view',
@@ -161,6 +166,7 @@ const marketplace = {
   title: 'Marketplace',
   desc: "Groups already buy things together — inputs, stock, services, insurance. The marketplace is where those offers meet the groups, matched against a group's own record.",
   image: marketplaceImg,
+  imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
   bullets: [
     {
       title: 'Offers that reach a group, not an individual',
@@ -184,6 +190,7 @@ const programs = {
   title: 'Programs',
   desc: 'A funded programme running across many groups: its own rules, its own disbursements, and reporting that does not depend on chasing every group for numbers.',
   image: programsImg,
+  imageAlt: 'A woman in a headscarf, pen in hand, reading a notebook at a classroom desk',
   bullets: [
     {
       title: 'One programme, many groups',

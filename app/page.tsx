@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
   IconCash,
@@ -22,10 +23,46 @@ import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { JsonLd } from '@/components/marketing/json-ld';
+import { SITE_URL } from '@/components/marketing/page-metadata';
+import { CONTACT } from '@/components/marketing/routes';
 import { signUpUrl } from '@/lib/app-links';
 
 import benefitOneImg from '../public/img/benefit-one.jpg';
 import benefitTwoImg from '../public/img/benefit-two.jpg';
+
+// Canonical only: a page-level openGraph would replace the og:image app/opengraph-image.tsx attaches here.
+export const metadata: Metadata = {
+  alternates: { canonical: `${SITE_URL}/` },
+};
+
+const ORGANIZATION_ID = `${SITE_URL}/#organization`;
+
+const SITE_JSON_LD = {
+  '@context': 'https://schema.org',
+  '@graph': [
+    {
+      '@type': 'Organization',
+      '@id': ORGANIZATION_ID,
+      name: 'Kitabu Yetu',
+      url: `${SITE_URL}/`,
+      logo: `${SITE_URL}/icons/icon-512.png`,
+      contactPoint: CONTACT.phones.map((telephone) => ({
+        '@type': 'ContactPoint',
+        contactType: 'customer service',
+        telephone,
+        email: CONTACT.email,
+      })),
+    },
+    {
+      '@type': 'WebSite',
+      '@id': `${SITE_URL}/#website`,
+      name: 'Kitabu Yetu',
+      url: `${SITE_URL}/`,
+      publisher: { '@id': ORGANIZATION_ID },
+    },
+  ],
+};
 
 /** The punchy one-liner that closes several sections. */
 const Emphasis = ({ children }: { children: React.ReactNode }) => (
@@ -131,6 +168,7 @@ export default function Home() {
       />
 
       <SiteFooter />
+      <JsonLd data={SITE_JSON_LD} />
     </div>
   );
 }
@@ -139,6 +177,7 @@ const manage = {
   title: 'Everything your group needs, in one place.',
   desc: "No more switching between notebooks, spreadsheets, M-Pesa messages and WhatsApp to understand your group's finances.",
   image: benefitOneImg,
+  imageAlt: 'A smiling woman in a headscarf seated at a classroom desk with an open notebook',
   bullets: [
     {
       title: 'Manage your money',
@@ -167,6 +206,7 @@ const ecosystem = {
   title: 'From managing your group to growing it.',
   desc: 'The Kitabu Yetu Ecosystem connects organized groups to opportunities, knowledge and resources beyond their own savings.',
   image: benefitTwoImg,
+  imageAlt: 'A woman in a headscarf, pen in hand, reading a notebook at a classroom desk',
   bullets: [
     {
       title: 'Funding',

@@ -142,7 +142,8 @@ const config: Config = {
 
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
-        display: ['var(--font-fraunces)', 'var(--font-display)', 'Georgia', 'serif'],
+        // No other var() here: an undefined custom property invalidates the whole declaration.
+        display: ['var(--font-fraunces)', 'Georgia', 'serif'],
         mono: ['var(--font-dm-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 

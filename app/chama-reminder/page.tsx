@@ -18,16 +18,18 @@ import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL } from '@/types/enums';
 
 import benefitImg from '../../public/img/chama-reminder.jpg';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/chama-reminder',
   title: 'Chama Reminder — SMS Communication for Groups',
   description:
     'Remind. Inform. Celebrate. Mobilize. Automated SMS reminders and announcements for chamas, welfare groups and SACCOs.',
-};
+});
 
 /**
  * Chama Reminder — the communication-only product. Separate purchase from
@@ -93,33 +95,35 @@ export default function ChamaReminderPage() {
 
         <Benefits data={keepMembersInformed} />
 
-        <Container className="mb-20 rounded-2xl bg-brand-50/40 p-8 md:p-12">
-          <div className="mx-auto max-w-2xl text-center">
-            <h2 className="mb-4 font-display text-3xl font-light tracking-tight text-brand-blue-900">
-              Start with messaging, grow to full accounting
-            </h2>
-            <p className="mb-8 text-lg leading-relaxed text-brand-blue-900/65">
-              Chama Reminder is perfect for groups that only need to reach members. Upgrade to Bookkeeper whenever your
-              group is ready — everything comes with you.
-            </p>
-            <div className="mt-8 grid gap-6 md:grid-cols-2">
-              <div className="text-left">
-                <h3 className="mb-3 font-semibold text-brand-700">Start here (Chama Reminder)</h3>
-                <ul className="space-y-2 text-sm text-brand-blue-900/65">
-                  <li>✓ Member list &amp; contacts</li>
-                  <li>✓ SMS campaigns &amp; reminders</li>
-                  <li>✓ No accounting</li>
-                  <li>✓ Lower cost entry point</li>
-                </ul>
-              </div>
-              <div className="text-left">
-                <h3 className="mb-3 font-semibold text-brand-700">Grow here (Kitabu Yetu)</h3>
-                <ul className="space-y-2 text-sm text-brand-blue-900/65">
-                  <li>✓ Add Bookkeeper accounting</li>
-                  <li>✓ Members &amp; history carry over</li>
-                  <li>✓ All messaging features stay</li>
-                  <li>✓ Pay-as-you-go upgrade</li>
-                </ul>
+        <Container className="mb-20">
+          <div className="rounded-2xl bg-brand-50/40 p-8 md:p-12">
+            <div className="mx-auto max-w-2xl text-center">
+              <h2 className="mb-4 font-display text-3xl font-light tracking-tight text-brand-blue-900">
+                Start with messaging, grow to full accounting
+              </h2>
+              <p className="mb-8 text-lg leading-relaxed text-brand-blue-900/65">
+                Chama Reminder is perfect for groups that only need to reach members. Upgrade to Bookkeeper whenever
+                your group is ready — everything comes with you.
+              </p>
+              <div className="mt-8 grid gap-6 md:grid-cols-2">
+                <div className="text-left">
+                  <h3 className="mb-3 font-semibold text-brand-700">Start here (Chama Reminder)</h3>
+                  <ul className="space-y-2 text-sm text-brand-blue-900/65">
+                    <li>✓ Member list &amp; contacts</li>
+                    <li>✓ SMS campaigns &amp; reminders</li>
+                    <li>✓ No accounting</li>
+                    <li>✓ Lower cost entry point</li>
+                  </ul>
+                </div>
+                <div className="text-left">
+                  <h3 className="mb-3 font-semibold text-brand-700">Grow here (Kitabu Yetu)</h3>
+                  <ul className="space-y-2 text-sm text-brand-blue-900/65">
+                    <li>✓ Add Bookkeeper accounting</li>
+                    <li>✓ Members &amp; history carry over</li>
+                    <li>✓ All messaging features stay</li>
+                    <li>✓ Pay-as-you-go upgrade</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
@@ -257,6 +261,7 @@ const keepMembersInformed = {
   title: 'Keep members in the loop',
   desc: 'Reminders that go out on time, messages that reach everyone, and a member list you control.',
   image: benefitImg,
+  imageAlt: 'One person points at a laptop screen while another uses the trackpad',
   bullets: [
     {
       title: 'A member list that is yours',

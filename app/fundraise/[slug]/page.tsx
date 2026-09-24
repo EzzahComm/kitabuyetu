@@ -4,6 +4,7 @@ import { notFound } from 'next/navigation';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
 import { campaignsService } from '@/lib/services/campaigns.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,14 +16,12 @@ export async function generateMetadata({ params }: CampaignPageProps): Promise<M
   const { slug } = await params;
   const campaign = await campaignsService.getPublicCampaignBySlug(slug);
   if (!campaign) return { title: 'Changi$ha' };
-  const title = `${campaign.title} — Changi$ha`;
-  const description = campaign.story.slice(0, 160);
-  return {
-    title,
-    description,
-    openGraph: { title, description, images: campaign.cover_image_url ? [campaign.cover_image_url] : undefined },
-    twitter: { title, description },
-  };
+  return marketingMetadata({
+    path: `/fundraise/${slug}`,
+    title: `${campaign.title} — Changi$ha`,
+    description: campaign.story.slice(0, 160),
+    image: campaign.cover_image_url,
+  });
 }
 
 export default async function CampaignPage({ params }: CampaignPageProps) {
@@ -43,7 +42,14 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
     >
       {campaign.cover_image_url && (
         <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-paper-deep">
-          <Image src={campaign.cover_image_url} alt="" fill className="object-cover" sizes="100vw" priority />
+          <Image
+            src={campaign.cover_image_url}
+            alt={campaign.title}
+            fill
+            className="object-cover"
+            sizes="(min-width: 768px) 768px, 100vw"
+            priority
+          />
         </div>
       )}
 

@@ -4,11 +4,14 @@ import { SectionTitle } from '@/components/SectionTitle';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/about',
   title: 'About',
   description: 'Why Kitabu Yetu exists, who builds it, and what it has changed for the groups using it.',
-};
+});
 
 /**
  * About Kitabu Yetu — the company story, team positioning, and impact claim.
@@ -19,7 +22,7 @@ export const metadata: Metadata = {
  */
 export default function AboutPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         <div id="our-story">

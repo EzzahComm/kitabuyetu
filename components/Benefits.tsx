@@ -11,6 +11,8 @@ interface BenefitsProps {
     title: string;
     desc: string;
     image: StaticImageData;
+    /** Describes the photo itself; the title is already rendered as the adjacent heading. */
+    imageAlt: string;
     bullets: {
       title: string;
       desc: string;
@@ -36,10 +38,9 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
             src={data.image}
             width={521}
             height={521}
-            alt={data.title}
+            alt={data.imageAlt}
             className={'object-cover'}
             placeholder="blur"
-            blurDataURL={data.image.src}
           />
         </div>
       </div>

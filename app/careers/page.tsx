@@ -4,13 +4,16 @@ import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
+import { fraunces } from '@/components/marketing/fraunces-font';
 import { CareersOpenings } from '@/components/marketing/careers-openings';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { getOpenJobs } from '@/lib/cms/sanity';
 
-export const metadata: Metadata = {
-  title: 'Careers — Kitabu Yetu',
+export const metadata: Metadata = marketingMetadata({
+  path: '/careers',
+  title: 'Careers',
   description: 'Help build practical financial tools for groups and organizations across East Africa.',
-};
+});
 
 /**
  * Predates the marketing redesign and was missed when the rest of the site
@@ -26,7 +29,7 @@ export const metadata: Metadata = {
 export default async function CareersPage() {
   const jobs = await getOpenJobs();
   return (
-    <div className="flex min-h-screen flex-col bg-white">
+    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="Careers" title="Build the tools that help communities move forward" titleAs="h1">

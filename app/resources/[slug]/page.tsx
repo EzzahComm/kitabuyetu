@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation';
 import Image from 'next/image';
 import { PortableText, type PortableTextComponents } from '@portabletext/react';
 import { PageShell } from '@/components/marketing/page-shell';
+import { OG_FALLBACK } from '@/components/marketing/page-metadata';
 import { getPostBySlug, getPosts, urlForImage } from '@/lib/cms/sanity';
 
 interface PostPageProps {
@@ -24,6 +25,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
   const description = post.seoDescription ?? post.excerpt;
   const url = `${SITE_URL}/resources/${post.slug}`;
   const coverImageUrl = urlForImage(post.coverImage);
+  const shareImage = coverImageUrl ? { url: coverImageUrl } : OG_FALLBACK;
 
   return {
     title: post.title,
@@ -34,15 +36,16 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
       description,
       url,
       type: 'article',
+      siteName: 'Kitabu Yetu',
       publishedTime: post.publishedAt ?? undefined,
       authors: post.authorName ? [post.authorName] : undefined,
-      images: coverImageUrl ? [{ url: coverImageUrl }] : undefined,
+      images: [shareImage],
     },
     twitter: {
-      card: coverImageUrl ? 'summary_large_image' : 'summary',
+      card: 'summary_large_image',
       title: post.title,
       description,
-      images: coverImageUrl ? [coverImageUrl] : undefined,
+      images: [shareImage],
     },
   };
 }
@@ -81,20 +84,37 @@ function StructuredData({
   );
 }
 
-const portableTextComponents: PortableTextComponents = {
-  types: {
-    image: ({ value }) => {
-      const src = urlForImage(value);
-      if (!src) return null;
-      return (
-        <span className="not-prose my-8 block overflow-hidden rounded-lg">
-          {/* eslint-disable-next-line @next/next/no-img-element -- variable aspect ratio, unknown dimensions from Studio */}
-          <img src={src} alt="" className="w-full" />
-        </span>
-      );
+const FALLBACK_IMAGE_DIMENSIONS = { width: 1200, height: 800 };
+
+function sanityImageDimensions(ref: unknown): { width: number; height: number } | null {
+  const match = typeof ref === 'string' ? /^image-[A-Za-z0-9]+-(\d+)x(\d+)-[a-z0-9]+$/.exec(ref) : null;
+  return match ? { width: Number(match[1]), height: Number(match[2]) } : null;
+}
+
+// next/image, not a raw <img>: the CSP's img-src 'self' blocks direct cdn.sanity.io URLs.
+function portableTextComponents(postTitle: string): PortableTextComponents {
+  return {
+    types: {
+      image: ({ value }) => {
+        const src = urlForImage(value);
+        if (!src) return null;
+        const { width, height } = sanityImageDimensions(value?.asset?._ref) ?? FALLBACK_IMAGE_DIMENSIONS;
+        return (
+          <span className="not-prose my-8 block overflow-hidden rounded-lg">
+            <Image
+              src={src}
+              alt={postTitle}
+              width={width}
+              height={height}
+              sizes="(min-width: 768px) 768px, 100vw"
+              className="h-auto w-full"
+            />
+          </span>
+        );
+      },
     },
-  },
-};
+  };
+}
 
 export default async function PostPage({ params }: PostPageProps) {
   const { slug } = await params;
@@ -109,11 +129,18 @@ export default async function PostPage({ params }: PostPageProps) {
       <StructuredData post={post} url={url} coverImageUrl={coverImageUrl} />
       {coverImageUrl && (
         <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-paper-deep">
-          <Image src={coverImageUrl} alt="" fill className="object-cover" sizes="100vw" priority />
+          <Image
+            src={coverImageUrl}
+            alt={post.title}
+            fill
+            className="object-cover"
+            sizes="(min-width: 768px) 768px, 100vw"
+            priority
+          />
         </div>
       )}
       {post.authorName && <p className="not-prose text-sm font-medium text-brand-blue-900/50">By {post.authorName}</p>}
-      <PortableText value={post.content} components={portableTextComponents} />
+      <PortableText value={post.content} components={portableTextComponents(post.title)} />
     </PageShell>
   );
 }
