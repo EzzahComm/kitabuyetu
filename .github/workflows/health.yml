@@ -70,10 +70,14 @@ jobs:
           npm run health
           cat .health/report.md >> "$GITHUB_STEP_SUMMARY"
 
+      # include-hidden-files: upload-artifact@v4 skips dot-paths by default,
+      # and `.health/` is one — without this the artifact is silently empty.
       - name: Upload report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: health-report
           path: .health/
+          include-hidden-files: true
+          if-no-files-found: error
           retention-days: 90
