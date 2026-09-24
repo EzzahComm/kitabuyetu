@@ -22,15 +22,53 @@ interface SiteHeaderProps {
 }
 
 /**
- * A single top-nav dropdown (About / Products / Ecosystem). Click-to-toggle
- * rather than hover-only — hover panels are unreliable on touch and awkward
- * for keyboard users; a button with aria-expanded works for both.
+ * A single top-nav dropdown (About / Products / Ecosystem). Opens on hover for
+ * a mouse, and on click for everything else — touch has no hover, and the
+ * button with aria-expanded is what keyboard and screen-reader users operate.
  */
 function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transparent: boolean; pathname: string }) {
   const [open, setOpen] = useState(false);
   const [lastPathname, setLastPathname] = useState(pathname);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openedByHover = useRef(false);
   const active = group.items.some((item) => item.href === pathname);
+
+  const cancelClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+  };
+
+  const onPointerEnter = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    cancelClose();
+    if (!open) {
+      openedByHover.current = true;
+      setOpen(true);
+    }
+  };
+
+  // A short grace period, so a diagonal move from the label toward the panel
+  // does not close it on the way.
+  const onPointerLeave = (e: React.PointerEvent) => {
+    if (e.pointerType !== 'mouse') return;
+    cancelClose();
+    closeTimer.current = setTimeout(() => setOpen(false), 150);
+  };
+
+  // A mouse click on a panel that hover already opened keeps it open, rather
+  // than toggling it shut under the cursor.
+  const onClick = () => {
+    if (openedByHover.current) {
+      openedByHover.current = false;
+      return;
+    }
+    setOpen((v) => !v);
+  };
+
+  useEffect(() => {
+    if (!open) openedByHover.current = false;
+  }, [open]);
 
   // A route change closes any open dropdown. Adjusted during render — the
   // React-recommended way to derive state from a prop change — rather than
@@ -57,10 +95,10 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
   }, [open]);
 
   return (
-    <div ref={wrapperRef} className="relative">
+    <div ref={wrapperRef} className="relative" onPointerEnter={onPointerEnter} onPointerLeave={onPointerLeave}>
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
+        onClick={onClick}
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
@@ -77,27 +115,31 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
       </button>
 
       {open && (
-        <div
-          role="menu"
-          aria-label={group.label}
-          className="absolute left-1/2 top-full z-10 mt-3 w-80 -translate-x-1/2 rounded-lg border border-brand-blue-900/10 bg-white p-2 shadow-xl shadow-brand-blue-900/[0.08]"
-        >
-          {group.items.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              role="menuitem"
-              onClick={() => setOpen(false)}
-              className="block rounded-md px-3.5 py-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
-            >
-              <span className="block text-[0.9375rem] font-medium text-brand-blue-900">{item.label}</span>
-              {item.description && (
-                <span className="mt-0.5 block text-[0.8125rem] leading-snug text-brand-blue-900/55">
-                  {item.description}
-                </span>
-              )}
-            </Link>
-          ))}
+        // pt-3 rather than a margin: the gap stays inside the wrapper, so the
+        // pointer crossing it never counts as leaving.
+        <div className="absolute left-1/2 top-full z-10 w-80 -translate-x-1/2 pt-3">
+          <div
+            role="menu"
+            aria-label={group.label}
+            className="rounded-lg border border-brand-blue-900/10 bg-white p-2 shadow-xl shadow-brand-blue-900/[0.08]"
+          >
+            {group.items.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                className="block rounded-md px-3.5 py-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
+              >
+                <span className="block text-[0.9375rem] font-medium text-brand-blue-900">{item.label}</span>
+                {item.description && (
+                  <span className="mt-0.5 block text-[0.8125rem] leading-snug text-brand-blue-900/55">
+                    {item.description}
+                  </span>
+                )}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -221,7 +263,9 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               </span>
             </Link>
 
-            <nav aria-label="Primary" className="hidden lg:block">
+            {/* xl, not lg: the seven items need ~700px, so between 1024 and
+                1279px the row overflowed and pushed "Get started" off-screen. */}
+            <nav aria-label="Primary" className="hidden xl:block">
               <ul className="flex items-center gap-8">
                 {NAV_ITEMS.map((entry) => {
                   if (isNavGroup(entry)) {
@@ -256,7 +300,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               </ul>
             </nav>
 
-            <div className="hidden shrink-0 items-center gap-1 lg:flex">
+            <div className="hidden shrink-0 items-center gap-1 xl:flex">
               <Link
                 href={ROUTES.signIn}
                 className={cn(
@@ -284,7 +328,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               aria-expanded={open}
               aria-controls="site-menu"
               className={cn(
-                '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 lg:hidden',
+                '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 xl:hidden',
                 transparent ? 'text-white hover:bg-white/10' : 'text-brand-blue-900 hover:bg-brand-blue-900/[0.06]',
               )}
             >
@@ -302,7 +346,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
           id="site-menu"
           ref={panelRef}
           hidden={!open}
-          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-brand-blue-900/10 bg-paper lg:hidden"
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-brand-blue-900/10 bg-paper lg:max-h-[calc(100dvh-5rem)] xl:hidden"
         >
           <nav aria-label="Primary" className="px-5 py-4 sm:px-8">
             <ul className="divide-y divide-brand-blue-900/[0.07]">

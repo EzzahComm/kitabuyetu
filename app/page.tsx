@@ -76,7 +76,8 @@ const Emphasis = ({ children }: { children: React.ReactNode }) => (
 export default function Home() {
   return (
     <div className={fraunces.variable}>
-      <SiteHeader variant="overlay" />
+      {/* solid: the hero is light, and overlay paints the nav white. */}
+      <SiteHeader />
 
       <Hero />
 
