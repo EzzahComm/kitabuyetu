@@ -218,6 +218,6 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
 /** Contact details, matching what the shipped footer already publishes. */
 export const CONTACT = {
   email: 'info@kitabuyetu.co.ke',
-  phones: ['+254 717 548 646', '+254 738 692 698'],
+  phones: ['+254 0182625807'],
   city: 'Nairobi, Kenya',
 } as const;
