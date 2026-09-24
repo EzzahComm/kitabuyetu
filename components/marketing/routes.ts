@@ -215,9 +215,18 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
 ];
 
-/** Contact details, matching what the shipped footer already publishes. */
+/**
+ * Contact details, published in the footer, /contact, /support and the homepage JSON-LD.
+ * Phones are international format (+254, no trunk 0): a leading 0 after +254 makes the
+ * number undialable. Build call links with telHref(), never by hand.
+ */
 export const CONTACT = {
   email: 'info@kitabuyetu.co.ke',
-  phones: ['+254 0182625807'],
+  phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;
+
+/** `tel:` link for a CONTACT phone: its digits with the leading +, spaces dropped. */
+export function telHref(phone: string): string {
+  return `tel:${phone.replace(/\s/g, '')}`;
+}

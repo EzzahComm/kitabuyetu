@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
-import { CONTACT } from '@/components/marketing/routes';
+import { CONTACT, telHref } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -28,8 +28,8 @@ export default function ContactPage() {
         <div className="flex flex-col items-start gap-2 rounded-xl border border-slate-200 p-5">
           <Phone className="h-5 w-5 text-brand-600" />
           <span className="text-sm font-semibold text-slate-900">Phone</span>
-          <a href="tel:+254018262580" className="text-sm text-slate-500 hover:text-brand-600">
-            +254 0182625807
+          <a href={telHref(CONTACT.phones[0])} className="text-sm text-slate-500 hover:text-brand-600">
+            {CONTACT.phones[0]}
           </a>
           <span className="text-xs text-slate-400">(Calls & WhatsApp)</span>
         </div>
