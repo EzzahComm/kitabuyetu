@@ -5,6 +5,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { OpportunityApplicationForm } from '@/components/ecosystem/opportunity-application-form';
 import { withAdminDb } from '@/lib/db';
 import { getOpportunityById, getPartnerById } from '@/lib/services/ecosystem.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 interface OpportunityDetailPageProps {
   params: Promise<{ id: string }>;
@@ -29,10 +30,11 @@ export async function generateMetadata({ params }: OpportunityDetailPageProps): 
 
   if (!opportunity) return { title: 'Opportunity not found' };
 
-  return {
+  return marketingMetadata({
+    path: `/ecosystem/marketplace/${id}`,
     title: `${opportunity.title} — Marketplace`,
     description: opportunity.description,
-  };
+  });
 }
 
 async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {

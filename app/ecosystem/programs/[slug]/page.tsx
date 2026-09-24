@@ -5,6 +5,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 interface ProgramDetailPageProps {
   params: Promise<{ slug: string }>;
@@ -23,10 +24,13 @@ export async function generateMetadata({ params }: ProgramDetailPageProps): Prom
 
   if (!campaign) return { title: 'Program not found' };
 
-  return {
+  return marketingMetadata({
+    // Same campaign /fundraise/[slug] renders, so that URL is the canonical one.
+    path: `/fundraise/${slug}`,
     title: `${campaign.title} — Support`,
     description: campaign.story?.slice(0, 160) || 'Support this program and make an impact.',
-  };
+    image: campaign.cover_image_url,
+  });
 }
 
 export default async function ProgramDetailPage({ params }: ProgramDetailPageProps) {

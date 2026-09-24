@@ -4,20 +4,14 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-const TITLE = 'Changi$ha — Fundraising';
-const DESCRIPTION =
-  'Support community fundraising campaigns on Kitabu Yetu — weddings, medical appeals, school fees, and community projects across Kenya.';
-
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/fundraise`,
-  },
-  openGraph: { title: TITLE, description: DESCRIPTION },
-  twitter: { title: TITLE, description: DESCRIPTION },
-};
+export const metadata: Metadata = marketingMetadata({
+  path: '/fundraise',
+  title: 'Changi$ha — Fundraising',
+  description:
+    'Support community fundraising campaigns on Kitabu Yetu — weddings, medical appeals, school fees, and community projects across Kenya.',
+});
 
 export const dynamic = 'force-dynamic';
 

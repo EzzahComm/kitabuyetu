@@ -4,11 +4,13 @@ import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ProgramProgressCard } from '@/components/ecosystem/program-progress-card';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/ecosystem/programs',
   title: 'Programs — Ecosystem',
   description: 'Browse active programs and support causes that matter to you.',
-};
+});
 
 /**
  * Reads live Changi$ha campaigns, not the `programs` table this page used to

@@ -6,19 +6,14 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { CONTACT, ROUTES } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
 
-const TITLE = 'Support';
-const DESCRIPTION = 'Get help with your Kitabu Yetu group, a payment, or your account.';
-
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/support`,
-  },
-  openGraph: { title: TITLE, description: DESCRIPTION },
-  twitter: { title: TITLE, description: DESCRIPTION },
-};
+export const metadata: Metadata = marketingMetadata({
+  path: '/support',
+  title: 'Support',
+  description: 'Get help with your Kitabu Yetu group, a payment, or your account.',
+});
 
 /**
  * Grounded in what the platform actually does — no invented features, no
@@ -176,6 +171,7 @@ export default function SupportPage() {
       </main>
 
       <SiteFooter />
+      <JsonLd data={faqPageJsonLd(FAQ_CATEGORIES.flatMap((category) => category.items))} />
     </div>
   );
 }

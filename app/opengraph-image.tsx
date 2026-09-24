@@ -1,17 +1,9 @@
 import { ImageResponse } from 'next/og';
 
 /**
- * The site-wide OG/Twitter card. `app/page.tsx` declares its own `openGraph`
- * and `twitter` metadata objects (title/description only, no images) — a
- * page-level metadata export replaces the parent's object key for key rather
- * than deep-merging, which is what silently dropped the root layout's
- * `/icons/icon-512.png` fallback. File-convention images are a separate,
- * additive resolution step that survives that, so this is the fix rather
- * than adding an `images` array to page.tsx's metadata (see
- * docs/audits/HERO_BRIEF_CLAIM_AUDIT_2026-08.md §5, defect 4).
- *
- * No twitter-image.tsx alongside this on purpose — Next reuses this file for
- * the Twitter card automatically when a dedicated one isn't present.
+ * The site-wide OG/Twitter card, served at /opengraph-image. Next attaches this
+ * file-convention image to `/` only; the root layout and every marketing page
+ * reference it explicitly (OG_FALLBACK in components/marketing/page-metadata.ts).
  *
  * Colours are the real tokens from lib/ui/brand-palette.ts, not eyeballed —
  * this is the one social-preview surface no design tool touches, so it has

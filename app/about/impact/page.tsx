@@ -1,11 +1,13 @@
 import type { Metadata } from 'next';
 import { IMPACT_STATS } from '@/components/marketing/content';
 import { PageShell } from '@/components/marketing/page-shell';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/about/impact',
   title: 'Impact',
   description: 'The social and economic impact of digitizing group administration.',
-};
+});
 
 export default function ImpactPage() {
   return (

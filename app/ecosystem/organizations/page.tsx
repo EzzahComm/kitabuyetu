@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ROUTES } from '@/components/marketing/routes';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/ecosystem/organizations',
   title: 'Multigroup Organizations',
   description: 'One login, every group and branch your organization runs.',
-};
+});
 
 export default function MultigroupOrganizationsPage() {
   return (

@@ -2,11 +2,13 @@ import type { Metadata } from 'next';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CONTACT } from '@/components/marketing/routes';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/contact',
   title: 'Contact',
   description: 'Get in touch with the Kitabu Yetu team.',
-};
+});
 
 export default function ContactPage() {
   return (

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from 'next';
+import { SITE_URL } from '@/components/marketing/page-metadata';
 
 /**
  * Keeps crawlers on the marketing surface.
@@ -9,8 +10,6 @@ import type { MetadataRoute } from 'next';
  * /login is wasted, and /admin should not be advertised at all.
  */
 export default function robots(): MetadataRoute.Robots {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
-
   return {
     rules: {
       userAgent: '*',
@@ -52,6 +51,6 @@ export default function robots(): MetadataRoute.Robots {
         '/design-system',
       ],
     },
-    sitemap: `${base}/sitemap.xml`,
+    sitemap: `${SITE_URL}/sitemap.xml`,
   };
 }

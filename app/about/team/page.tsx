@@ -1,10 +1,12 @@
 import type { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/about/team',
   title: 'Our Team',
   description: 'The people and expertise behind Kitabu Yetu.',
-};
+});
 
 /**
  * Deliberately no named individuals, titles, or photographs. This site has

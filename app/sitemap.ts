@@ -1,5 +1,10 @@
 import type { MetadataRoute } from 'next';
 import { getPosts, getOpenJobs } from '@/lib/cms/sanity';
+import { SITE_URL } from '@/components/marketing/page-metadata';
+import { logger } from '@/lib/logger';
+
+// Per request, never at build: the campaign and marketplace entries read the DB, which builds can't reach.
+export const dynamic = 'force-dynamic';
 
 /**
  * The public surface, and only the public surface.
@@ -22,6 +27,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
   { path: '/ecosystem/marketplace', priority: 0.4, changeFrequency: 'monthly' },
   { path: '/ecosystem/programs', priority: 0.4, changeFrequency: 'monthly' },
   { path: '/fundraise', priority: 0.4, changeFrequency: 'monthly' },
+  { path: '/how-it-works', priority: 0.6, changeFrequency: 'monthly' },
   { path: '/about', priority: 0.5, changeFrequency: 'monthly' },
   { path: '/about/team', priority: 0.3, changeFrequency: 'monthly' },
   { path: '/about/impact', priority: 0.3, changeFrequency: 'monthly' },
@@ -31,43 +37,92 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
   { path: '/status', priority: 0.3, changeFrequency: 'weekly' },
   { path: '/resources', priority: 0.7, changeFrequency: 'weekly' },
   { path: '/careers', priority: 0.5, changeFrequency: 'weekly' },
-  // Legal pages hold placeholder content, not published policy — deliberately
-  // excluded so search engines don't index a page that isn't a real policy
-  // yet. Each also sets `robots: { index: false }` in its own metadata.
+  { path: '/legal/privacy', priority: 0.2, changeFrequency: 'monthly' },
+  { path: '/legal/terms', priority: 0.2, changeFrequency: 'monthly' },
+  // Not /legal/data-protection: it is still a placeholder and sets robots noindex.
 ];
 
-/**
- * Blog posts and job postings are content, not code — a new one shouldn't
- * need a code change to become crawlable. Fetched at request time via the
- * same Sanity client + 300s ISR the pages themselves use (lib/cms/sanity.ts),
- * so this list is never more than 5 minutes stale.
- */
-export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
-  const lastModified = new Date();
+const SOURCE_TIMEOUT_MS = 5_000;
 
-  const staticEntries = ROUTES.map((route) => ({
-    url: `${base}${route.path}`,
-    lastModified,
+type SitemapEntry = MetadataRoute.Sitemap[number];
+
+async function entriesFrom<T>(
+  source: string,
+  load: () => Promise<T[]>,
+  toEntry: (item: T) => SitemapEntry,
+): Promise<MetadataRoute.Sitemap> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const items = await Promise.race([
+      load(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`timed out after ${SOURCE_TIMEOUT_MS}ms`)), SOURCE_TIMEOUT_MS);
+      }),
+    ]);
+    return items.map(toEntry);
+  } catch (err) {
+    logger.error(`[sitemap] ${source} entries omitted`, err);
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// An Invalid Date would throw later, in Next's serializer, outside every source's try.
+function lastModifiedOf(value: string | Date | null | undefined): { lastModified?: Date } {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? { lastModified: date } : {};
+}
+
+// Imported lazily so a DB module that fails to initialize drops these entries instead of the whole sitemap.
+async function activeCampaigns() {
+  const { campaignsService } = await import('@/lib/services/campaigns.service');
+  return campaignsService.listActiveCampaigns();
+}
+
+async function publishedOpportunities() {
+  const [{ withAdminDb }, { listPublishedOpportunities }] = await Promise.all([
+    import('@/lib/db'),
+    import('@/lib/services/ecosystem.service'),
+  ]);
+  return withAdminDb((db) => listPublishedOpportunities(db));
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // No lastModified: at request time it would claim every page changed on every crawl.
+  const staticEntries: MetadataRoute.Sitemap = ROUTES.map((route) => ({
+    url: `${SITE_URL}${route.path}`,
     changeFrequency: route.changeFrequency,
     priority: route.priority,
   }));
 
-  const [posts, jobs] = await Promise.all([getPosts(), getOpenJobs()]);
+  // No /ecosystem/programs/[slug]: it duplicates /fundraise/[slug] and canonicalizes to it.
+  const dynamicEntries = await Promise.all([
+    entriesFrom('resources posts', getPosts, (post) => ({
+      url: `${SITE_URL}/resources/${post.slug}`,
+      ...lastModifiedOf(post.publishedAt),
+      changeFrequency: 'monthly',
+      priority: 0.5,
+    })),
+    entriesFrom('careers jobs', getOpenJobs, (job) => ({
+      url: `${SITE_URL}/careers/${job.slug}`,
+      ...lastModifiedOf(job.postedAt),
+      changeFrequency: 'weekly',
+      priority: 0.4,
+    })),
+    entriesFrom('Changi$ha campaigns', activeCampaigns, (campaign) => ({
+      url: `${SITE_URL}/fundraise/${campaign.slug}`,
+      ...lastModifiedOf(campaign.updated_at),
+      changeFrequency: 'weekly',
+      priority: 0.4,
+    })),
+    entriesFrom('marketplace opportunities', publishedOpportunities, (opportunity) => ({
+      url: `${SITE_URL}/ecosystem/marketplace/${opportunity.id}`,
+      ...lastModifiedOf(opportunity.updated_at),
+      changeFrequency: 'monthly',
+      priority: 0.3,
+    })),
+  ]);
 
-  const postEntries = posts.map((post) => ({
-    url: `${base}/resources/${post.slug}`,
-    lastModified: post.publishedAt ? new Date(post.publishedAt) : lastModified,
-    changeFrequency: 'monthly' as const,
-    priority: 0.5,
-  }));
-
-  const jobEntries = jobs.map((job) => ({
-    url: `${base}/careers/${job.slug}`,
-    lastModified: job.postedAt ? new Date(job.postedAt) : lastModified,
-    changeFrequency: 'weekly' as const,
-    priority: 0.4,
-  }));
-
-  return [...staticEntries, ...postEntries, ...jobEntries];
+  return [...staticEntries, ...dynamicEntries.flat()];
 }

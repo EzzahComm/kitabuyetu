@@ -3,11 +3,13 @@ import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { PRODUCT_PILLARS } from '@/components/marketing/content';
 import { PageShell } from '@/components/marketing/page-shell';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/products',
   title: 'Products',
   description: 'Bookkeeper, Chama Reminder, Fundraise / Changi$ha and Enterprise — the Kitabu Yetu product family.',
-};
+});
 
 export default function ProductsPage() {
   return (

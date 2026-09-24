@@ -5,11 +5,13 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { pool } from '@/lib/db';
 import { redis } from '@/lib/redis';
 import { getAccessToken } from '@/lib/services/daraja.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/status',
   title: 'System status',
   description: 'Current operational status of Kitabu Yetu services.',
-};
+});
 
 /**
  * This page used to render a hardcoded "All systems operational" with a

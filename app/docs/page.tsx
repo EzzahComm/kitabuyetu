@@ -6,20 +6,13 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-const TITLE = 'Documentation';
-const DESCRIPTION =
-  'Getting-started guides for Kitabu Yetu — set up your group, collect by M-Pesa, and manage your book.';
-
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/docs`,
-  },
-  openGraph: { title: TITLE, description: DESCRIPTION },
-  twitter: { title: TITLE, description: DESCRIPTION },
-};
+export const metadata: Metadata = marketingMetadata({
+  path: '/docs',
+  title: 'Documentation',
+  description: 'Getting-started guides for Kitabu Yetu — set up your group, collect by M-Pesa, and manage your book.',
+});
 
 /**
  * No fabricated API reference or written manual — there is no public API,

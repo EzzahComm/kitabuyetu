@@ -3,6 +3,7 @@ import { Inter, DM_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
+import { OG_FALLBACK } from '@/components/marketing/page-metadata';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -89,13 +90,13 @@ export const metadata: Metadata = {
     siteName: 'Kitabu Yetu',
     title: `Kitabu Yetu — ${TAGLINE}`,
     description: LONG_DESCRIPTION,
-    images: [{ url: '/icons/icon-512.png', width: 512, height: 512, alt: 'Kitabu Yetu logo' }],
+    images: [OG_FALLBACK],
   },
   twitter: {
-    card: 'summary',
+    card: 'summary_large_image',
     title: `Kitabu Yetu — ${TAGLINE}`,
     description: LONG_DESCRIPTION,
-    images: ['/icons/icon-512.png'],
+    images: [OG_FALLBACK],
   },
 };
 

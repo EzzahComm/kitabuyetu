@@ -2,25 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { ROUTES } from '@/components/marketing/routes';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-const TITLE = 'Enterprise';
-const DESCRIPTION =
-  'Kitabu Yetu for institutions managing multiple groups, branches or programs — ' +
-  'portfolio oversight, programs, funding and disbursements, without flattening any group’s own book.';
-
-export const metadata: Metadata = {
-  title: TITLE,
-  description: DESCRIPTION,
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/enterprise-solutions`,
-  },
-  // Without its own openGraph block a page fully inherits the root layout's
-  // (title/description included, not auto-derived from this page's own) —
-  // so a link to this page shared on social media showed the generic
-  // homepage preview instead of this page's own.
-  openGraph: { title: TITLE, description: DESCRIPTION },
-  twitter: { title: TITLE, description: DESCRIPTION },
-};
+export const metadata: Metadata = marketingMetadata({
+  path: '/enterprise-solutions',
+  title: 'Enterprise',
+  description:
+    'Kitabu Yetu for institutions managing multiple groups, branches or programs — ' +
+    'portfolio oversight, programs, funding and disbursements, without flattening any group’s own book.',
+});
 
 /**
  * The public pitch for the Enterprise portal at ROUTES.orgPortal

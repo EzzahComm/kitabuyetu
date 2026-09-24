@@ -4,11 +4,13 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { OpportunityCard } from '@/components/ecosystem/opportunity-card';
 import { withAdminDb } from '@/lib/db';
 import { listPublishedOpportunities } from '@/lib/services/ecosystem.service';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/ecosystem/marketplace',
   title: 'Marketplace — Ecosystem',
   description: 'Grants, loans, insurance, training and services matched to groups on Kitabu Yetu.',
-};
+});
 
 async function MarketplacePage() {
   const published = await withAdminDb((db) => listPublishedOpportunities(db));

@@ -3,11 +3,13 @@ import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
 import { createClient } from '@/lib/supabase/server';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/ecosystem/donors',
   title: 'Top Supporters — Ecosystem',
   description: 'Meet the community of supporters making an impact.',
-};
+});
 
 async function EcosystemDonorsPage() {
   const supabase = await createClient();

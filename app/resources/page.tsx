@@ -4,11 +4,13 @@ import Image from 'next/image';
 import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { getPosts, urlForImage, type PostCategory } from '@/lib/cms/sanity';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/resources',
   title: 'Resources',
   description: 'Guides, case studies and updates on running chamas, VSLAs and community organizations well.',
-};
+});
 
 const CATEGORY_LABEL: Record<PostCategory, string> = {
   blog: 'Blog',

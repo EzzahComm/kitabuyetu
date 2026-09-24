@@ -7,6 +7,8 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
 import {
   PLAN_MONTHLY_FEES,
   PLAN_SMS_ALLOWANCE,
@@ -34,15 +36,13 @@ import {
  * feature bullet still comes from the constants; nothing was retyped.
  */
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/pricing',
   title: 'Pricing',
   description:
     'Kitabu Yetu pricing: one monthly price for the whole group, not per member. ' +
     'Full bookkeeping with M-Pesa, or SMS reminders on their own with Chama Reminder.',
-  alternates: {
-    canonical: `${process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke'}/pricing`,
-  },
-};
+});
 
 /** Where a "buy this" click goes. Kitabu Yetu is the default product, so it
  *  needs no query string; Chama Reminder must carry one or `register_group()`
@@ -332,6 +332,7 @@ export default function PricingPage() {
       </main>
 
       <SiteFooter />
+      <JsonLd data={faqPageJsonLd(FAQS)} />
     </div>
   );
 }

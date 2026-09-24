@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import { marked } from 'marked';
 import { PageShell } from '@/components/marketing/page-shell';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/legal/terms',
   title: 'Terms & Conditions',
-};
+  description:
+    'The terms governing access to and use of the Kitabu Yetu platform, its website, applications, payment services and communications.',
+});
 
 const TERMS_MD = `
 **Last Updated: September 2026**

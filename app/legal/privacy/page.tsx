@@ -1,10 +1,14 @@
 import type { Metadata } from 'next';
 import { marked } from 'marked';
 import { PageShell } from '@/components/marketing/page-shell';
+import { marketingMetadata } from '@/components/marketing/page-metadata';
 
-export const metadata: Metadata = {
+export const metadata: Metadata = marketingMetadata({
+  path: '/legal/privacy',
   title: 'Privacy Policy',
-};
+  description:
+    'How Kitabu Yetu collects, uses, protects and retains the personal information of groups, members and organizations using the platform.',
+});
 
 const PRIVACY_POLICY_MD = `
 **Last Updated: September 2026**
