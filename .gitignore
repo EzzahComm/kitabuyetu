@@ -43,6 +43,9 @@ Thumbs.db
 # Jest coverage output
 coverage/
 
+# Codebase health report output (scripts/health/report.mjs)
+.health/
+
 .vercel
 # Every local env file is ignored by default (added by `vercel link`).
 # .env.test is the deliberate exception: CI reads it from the repo, and it

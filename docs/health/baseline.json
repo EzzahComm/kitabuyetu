@@ -1,0 +1,93 @@
+{
+  "generatedAt": "2026-09-24T14:08:02.717Z",
+  "commit": "a4f5ff7",
+  "coverage": {
+    "lines": 27.31,
+    "branches": 25.41,
+    "functions": 24.07,
+    "statements": 27.07
+  },
+  "bundle": {
+    "clientJsKb": 5223,
+    "largestChunkKb": 359,
+    "serverKb": 27411,
+    "topChunks": [
+      {
+        "file": "static/chunks/0ep9l8wgpqt9v.js",
+        "kb": 359
+      },
+      {
+        "file": "static/chunks/0-_5q-bedv_lk.js",
+        "kb": 224
+      },
+      {
+        "file": "static/chunks/1vgpv7vwitdbl.js",
+        "kb": 153
+      },
+      {
+        "file": "static/chunks/0cz1d0mv5g_q7.js",
+        "kb": 110
+      },
+      {
+        "file": "static/chunks/3ni1pj-rpymfo.js",
+        "kb": 84
+      }
+    ]
+  },
+  "audit": {
+    "critical": 0,
+    "high": 0,
+    "moderate": 2,
+    "low": 1
+  },
+  "hygiene": {
+    "explicitAny": 4,
+    "tsSuppressions": 0,
+    "eslintSuppressions": 6,
+    "consoleLog": 3,
+    "todos": 4,
+    "largeFiles": 42,
+    "largestFiles": [
+      {
+        "file": "lib/services/sms.service.ts",
+        "lines": 2776
+      },
+      {
+        "file": "lib/services/organization-finance.service.ts",
+        "lines": 1927
+      },
+      {
+        "file": "lib/services/admin.service.ts",
+        "lines": 1879
+      },
+      {
+        "file": "app/(dashboard)/accounting/page.tsx",
+        "lines": 1548
+      },
+      {
+        "file": "lib/jobs/handlers.ts",
+        "lines": 1435
+      },
+      {
+        "file": "lib/services/import.service.ts",
+        "lines": 1345
+      },
+      {
+        "file": "app/(enterprise)/enterprise/funding/page.tsx",
+        "lines": 1329
+      },
+      {
+        "file": "app/(dashboard)/treasury/page.tsx",
+        "lines": 1317
+      },
+      {
+        "file": "components/sms/tabs.tsx",
+        "lines": 1252
+      },
+      {
+        "file": "lib/services/mpesa-stk.service.ts",
+        "lines": 1221
+      }
+    ]
+  }
+}

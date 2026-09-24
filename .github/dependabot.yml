@@ -1,0 +1,45 @@
+# Automated dependency updates — part of the continuous-optimization loop
+# (docs/health/README.md).
+#
+# Minor/patch bumps are grouped into ONE weekly PR per ecosystem so they don't
+# flood the queue; every PR still has to pass the full CI gate (lint, typecheck,
+# jest, build, tenant-isolation suite) before it can merge. Majors arrive as
+# individual PRs because they're the ones that break APIs and need a human read.
+#
+# Security advisories bypass the schedule: GitHub opens those immediately when
+# "Dependabot security updates" is on (Settings → Code security).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Africa/Nairobi
+    open-pull-requests-limit: 5
+    labels: [dependencies]
+    commit-message:
+      prefix: chore(deps)
+    groups:
+      npm-minor-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Next.js majors change APIs and file conventions (see AGENTS.md) — they
+      # are migrated deliberately, not bumped by a bot.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '05:00'
+      timezone: Africa/Nairobi
+    labels: [dependencies]
+    commit-message:
+      prefix: chore(ci)
+    groups:
+      actions:
+        patterns: ['*']
