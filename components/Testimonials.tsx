@@ -1,5 +1,8 @@
 import React from 'react';
+import Image, { type StaticImageData } from 'next/image';
 import { Container } from '@/components/Container';
+import bernardKisakaPhoto from '@/public/img/testimonials/bernard-kisaka.jpg';
+import ezraWekesaPhoto from '@/public/img/testimonials/ezra-wekesa.jpg';
 
 const testimonials = [
   {
@@ -7,12 +10,14 @@ const testimonials = [
     mark: 'game changer',
     name: 'Ezra Wekesa',
     title: 'Coordinator, Munyali Ukulima Self Help Group',
+    image: ezraWekesaPhoto,
   },
   {
     quote: 'It has made mobilizing our members much easier and managing the group more efficient.',
     mark: 'much easier',
     name: 'Bernard Kisaka',
     title: 'Musikoma Home Owners Welfare Association',
+    image: bernardKisakaPhoto,
   },
   {
     quote: 'Manually updating contributions is a thing of the past.',
@@ -58,6 +63,7 @@ interface Item {
   mark: string;
   name: string;
   title: string;
+  image?: StaticImageData;
 }
 
 function Card({ item, ariaHidden }: { item: Item; ariaHidden?: boolean }) {
@@ -68,7 +74,7 @@ function Card({ item, ariaHidden }: { item: Item; ariaHidden?: boolean }) {
     >
       <blockquote className="text-xl leading-normal">{quoteWithMark(item.quote, item.mark)}</blockquote>
       <figcaption>
-        <Avatar name={item.name} title={item.title} />
+        <Avatar name={item.name} title={item.title} image={item.image} />
       </figcaption>
     </figure>
   );
@@ -90,6 +96,7 @@ function quoteWithMark(quote: string, mark: string) {
 interface AvatarProps {
   name: string;
   title: string;
+  image?: StaticImageData;
 }
 
 function Avatar(props: Readonly<AvatarProps>) {
@@ -102,9 +109,18 @@ function Avatar(props: Readonly<AvatarProps>) {
 
   return (
     <div className="flex items-center mt-8 space-x-3">
-      <div className="flex items-center justify-center flex-shrink-0 text-lg font-medium text-indigo-800 bg-indigo-100 rounded-full w-14 h-14 dark:bg-indigo-900 dark:text-indigo-200">
-        {initials}
-      </div>
+      {props.image ? (
+        <Image
+          src={props.image}
+          alt={props.name}
+          className="flex-shrink-0 rounded-full w-14 h-14 object-cover"
+          sizes="56px"
+        />
+      ) : (
+        <div className="flex items-center justify-center flex-shrink-0 text-lg font-medium text-indigo-800 bg-indigo-100 rounded-full w-14 h-14 dark:bg-indigo-900 dark:text-indigo-200">
+          {initials}
+        </div>
+      )}
       <div>
         <div className="text-lg font-medium">{props.name}</div>
         <div className="text-sm text-gray-600 dark:text-gray-400">{props.title}</div>

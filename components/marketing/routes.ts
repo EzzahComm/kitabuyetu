@@ -153,8 +153,8 @@ export const NAV_ITEMS: NavEntry[] = [
   { label: 'About', items: ABOUT_ITEMS },
   { label: 'Products', items: PRODUCT_ITEMS },
   { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
-  { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
   { label: 'Pricing', items: PRICING_ITEMS },
+  { label: 'Blog', href: ROUTES.resources },
   { label: 'Contact', href: ROUTES.contact },
 ];
 

@@ -10,6 +10,7 @@ const DEPARTMENT_LABEL: Record<string, string> = {
   'community-and-operations': 'Community and operations',
   partnerships: 'Partnerships',
   'customer-experience': 'Customer experience',
+  marketing: 'Marketing',
 };
 
 const EMPLOYMENT_LABEL: Record<Job['employmentType'], string> = {

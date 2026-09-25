@@ -7,6 +7,7 @@
 import { createClient, type SanityClient } from '@sanity/client';
 import { createImageUrlBuilder } from '@sanity/image-url';
 import type { PortableTextBlock } from '@portabletext/react';
+import type { ArbitraryTypedObject } from '@portabletext/types';
 
 const projectId = process.env.NEXT_PUBLIC_SANITY_PROJECT_ID;
 const dataset = process.env.NEXT_PUBLIC_SANITY_DATASET ?? 'production';
@@ -23,16 +24,39 @@ const REVALIDATE_SECONDS = 300;
 
 export type PostCategory = 'blog' | 'guide' | 'case-study' | 'education' | 'announcement';
 
+export interface FaqItem {
+  question: string;
+  answer: string;
+}
+
+export interface HowToStep {
+  name: string;
+  text: string;
+}
+
 export interface Post {
   slug: string;
   title: string;
   excerpt: string;
-  content: PortableTextBlock[];
+  content: (PortableTextBlock | ArbitraryTypedObject)[];
   category: PostCategory;
   authorName: string | null;
   seoDescription: string | null;
   coverImage: { asset: { _ref: string } } | null;
   publishedAt: string | null;
+  updatedAt: string | null;
+  mainQuery: string | null;
+  productLink: string | null;
+  reviewedOn: string | null;
+  relatedSlugs: string[] | null;
+  faq: FaqItem[] | null;
+  howToSteps: HowToStep[] | null;
+}
+
+export interface RelatedPost {
+  slug: string;
+  title: string;
+  excerpt: string;
 }
 
 const client: SanityClient | null = isValidProjectId(projectId)
@@ -63,7 +87,14 @@ const POST_FIELDS = `
   authorName,
   seoDescription,
   coverImage,
-  publishedAt
+  publishedAt,
+  "updatedAt": _updatedAt,
+  mainQuery,
+  productLink,
+  reviewedOn,
+  relatedSlugs,
+  faq,
+  howToSteps
 `;
 
 async function sanityFetch<T>(query: string, params: Record<string, unknown> = {}): Promise<T | null> {
@@ -86,6 +117,20 @@ export async function getPosts(): Promise<Post[]> {
 
 export async function getPostBySlug(slug: string): Promise<Post | null> {
   return sanityFetch<Post | null>(`*[_type == "post" && slug.current == $slug][0] { ${POST_FIELDS} }`, { slug });
+}
+
+/** Titles/excerpts for a post's `relatedSlugs`, in the order given — for the
+ *  "related guides" links at the end of an article. Slugs with no matching
+ *  published post (not yet written, or a typo) are silently dropped. */
+export async function getRelatedPosts(slugs: string[]): Promise<RelatedPost[]> {
+  if (slugs.length === 0) return [];
+  const posts = await sanityFetch<RelatedPost[]>(
+    `*[_type == "post" && defined(publishedAt) && slug.current in $slugs] { "slug": slug.current, title, excerpt }`,
+    { slugs },
+  );
+  if (!posts) return [];
+  const bySlug = new Map(posts.map((post) => [post.slug, post]));
+  return slugs.map((slug) => bySlug.get(slug)).filter((post): post is RelatedPost => post !== undefined);
 }
 
 export type EmploymentType = 'full-time' | 'part-time' | 'contract' | 'internship';

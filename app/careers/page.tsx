@@ -118,7 +118,13 @@ export default async function CareersPage() {
                 Our work sits where community insight, product craft, technology and operations meet.
               </p>
               <div className="mt-6 grid gap-3 sm:grid-cols-2">
-                {['Product and engineering', 'Community and operations', 'Partnerships', 'Customer experience'].map(
+                {[
+                  'Product and engineering',
+                  'Community and operations',
+                  'Partnerships',
+                  'Customer experience',
+                  'Marketing',
+                ].map(
                   (team) => (
                     <div
                       key={team}

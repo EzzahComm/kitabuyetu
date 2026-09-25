@@ -10,6 +10,15 @@ import bookkeeperImg from '../public/img/bookkeeper.jpg';
 import chamaReminderImg from '../public/img/chama-reminder.jpg';
 import fundraiseImg from '../public/img/fundraise.jpg';
 import enterpriseImg from '../public/img/enterprise.jpg';
+import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
+import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
+import nexusLogo from '../public/img/partners/nexus-by-ezzahcomm.png';
+
+const PARTNER_LOGOS = [
+  { id: 'ezzahcomm', name: 'EzzahComm', image: ezzahcommLogo },
+  { id: 'ezzahcomm-intelligent-systems', name: 'EzzahComm Intelligent Systems', image: ezzahcommIntelligentSystemsLogo },
+  { id: 'nexus', name: 'NEXUS by EzzahComm', image: nexusLogo },
+] as const;
 
 /**
  * The four product pillars rotate through the home hero so the platform is
@@ -184,10 +193,21 @@ export const Hero = () => {
             Built for Kenyan groups, on <span className="text-indigo-600">Kenyan rails</span>
           </div>
 
-          <p className="max-w-2xl mx-auto mt-5 text-center text-gray-500 dark:text-gray-400">
-            Partner and customer logos go here once we have permission to show them. We would rather leave this empty
-            than fill it with names that have not agreed to appear.
-          </p>
+          <div className="mx-auto mt-8 flex max-w-3xl flex-wrap items-center justify-center gap-6">
+            {PARTNER_LOGOS.map((partner) => (
+              <div
+                key={partner.id}
+                className="flex h-16 items-center justify-center rounded-md bg-white px-6 py-3 shadow-sm"
+              >
+                <Image
+                  src={partner.image}
+                  alt={partner.name}
+                  className="h-10 w-auto object-contain"
+                  sizes="200px"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </Container>
     </LazyMotion>
