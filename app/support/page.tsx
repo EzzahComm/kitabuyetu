@@ -4,7 +4,7 @@ import { Mail, Phone } from 'lucide-react';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
-import { CONTACT, ROUTES } from '@/components/marketing/routes';
+import { CONTACT, ROUTES, telHref } from '@/components/marketing/routes';
 import { fraunces } from '@/components/marketing/fraunces-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
@@ -128,7 +128,7 @@ export default function SupportPage() {
               </span>
             </a>
             <a
-              href="tel:+254018262580"
+              href={telHref(CONTACT.phones[0])}
               className="group flex items-center gap-4 rounded-2xl border border-brand-blue-900/10 bg-white p-6 transition-colors hover:border-brand-500/40"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">

@@ -3,7 +3,7 @@ import { Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { NewsletterSignupForm } from './newsletter-signup-form';
 import { Container } from './primitives';
-import { CONTACT, FOOTER_COLUMNS, ROUTES } from './routes';
+import { CONTACT, FOOTER_COLUMNS, ROUTES, telHref } from './routes';
 
 export function SiteFooter() {
   const year = new Date().getFullYear();
@@ -57,7 +57,7 @@ export function SiteFooter() {
                   {CONTACT.phones.map((phone) => (
                     <a
                       key={phone}
-                      href={`tel:${phone.replace(/\s/g, '')}`}
+                      href={telHref(phone)}
                       className="rounded-sm transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
                     >
                       {phone}
