@@ -216,9 +216,7 @@ const PRODUCT_LINK_LABEL: Record<string, string> = {
 function ProductCta({ href }: { href: string }) {
   return (
     <div className="not-prose my-8 flex flex-col items-start gap-3 rounded-lg border border-brand-500/20 bg-brand-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-      <p className="text-sm font-medium text-brand-blue-900">
-        Kitabu Yetu keeps these records for you automatically.
-      </p>
+      <p className="text-sm font-medium text-brand-blue-900">Kitabu Yetu keeps these records for you automatically.</p>
       <Link
         href={href}
         className="inline-flex shrink-0 items-center gap-1.5 rounded-md bg-brand-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-brand-700"

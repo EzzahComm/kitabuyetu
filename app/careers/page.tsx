@@ -124,16 +124,14 @@ export default async function CareersPage() {
                   'Partnerships',
                   'Customer experience',
                   'Marketing',
-                ].map(
-                  (team) => (
-                    <div
-                      key={team}
-                      className="border-l-2 border-indigo-200 pl-4 text-sm font-semibold text-gray-700 dark:border-indigo-500/50 dark:text-gray-200"
-                    >
-                      {team}
-                    </div>
-                  ),
-                )}
+                ].map((team) => (
+                  <div
+                    key={team}
+                    className="border-l-2 border-indigo-200 pl-4 text-sm font-semibold text-gray-700 dark:border-indigo-500/50 dark:text-gray-200"
+                  >
+                    {team}
+                  </div>
+                ))}
               </div>
             </div>
             <div id="benefits">

@@ -16,7 +16,11 @@ import nexusLogo from '../public/img/partners/nexus-by-ezzahcomm.png';
 
 const PARTNER_LOGOS = [
   { id: 'ezzahcomm', name: 'EzzahComm', image: ezzahcommLogo },
-  { id: 'ezzahcomm-intelligent-systems', name: 'EzzahComm Intelligent Systems', image: ezzahcommIntelligentSystemsLogo },
+  {
+    id: 'ezzahcomm-intelligent-systems',
+    name: 'EzzahComm Intelligent Systems',
+    image: ezzahcommIntelligentSystemsLogo,
+  },
   { id: 'nexus', name: 'NEXUS by EzzahComm', image: nexusLogo },
 ] as const;
 
@@ -199,12 +203,7 @@ export const Hero = () => {
                 key={partner.id}
                 className="flex h-16 items-center justify-center rounded-md bg-white px-6 py-3 shadow-sm"
               >
-                <Image
-                  src={partner.image}
-                  alt={partner.name}
-                  className="h-10 w-auto object-contain"
-                  sizes="200px"
-                />
+                <Image src={partner.image} alt={partner.name} className="h-10 w-auto object-contain" sizes="200px" />
               </div>
             ))}
           </div>
