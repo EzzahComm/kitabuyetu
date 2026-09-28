@@ -67,8 +67,21 @@ CREATE POLICY campaign_withdrawals_update ON public.campaign_withdrawals
 -- No delete policy — withdrawals are never deleted, only status-transitioned
 -- (same as vendor_payments/campaigns).
 
-GRANT SELECT, INSERT, UPDATE ON public.campaign_withdrawals TO app_tenant;
+-- Same hygiene as every migration since the 2026-08-08 PostgREST exposure
+-- incident: default privileges hand new public tables full anon/authenticated
+-- rights, which must be revoked explicitly. Deliberately no grant back to
+-- anon/authenticated — matches campaigns' own posture (migration 182
+-- header): this table is never read via PostgREST, only through
+-- withDb/withTransaction/withAdminDb in application code.
+REVOKE ALL ON public.campaign_withdrawals FROM anon, authenticated;
+
 GRANT SELECT, INSERT, UPDATE ON public.campaign_withdrawals TO service_role;
--- Deliberately no grant to anon/authenticated — matches campaigns' own
--- posture (migration 182 header): this table is never read via PostgREST,
--- only through withDb/withTransaction/withAdminDb in application code.
+
+-- app_tenant is provisioned out-of-band in production (ADR-001) and does not
+-- exist in a fresh/CI Postgres replay — a plain GRANT would abort the run.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
+    EXECUTE 'GRANT SELECT, INSERT, UPDATE ON public.campaign_withdrawals TO app_tenant';
+  END IF;
+END $$;

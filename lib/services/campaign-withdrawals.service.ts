@@ -437,7 +437,10 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
           [id],
         );
         if (wRows[0]) {
-          await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${wRows[0].gross_amount}`]);
+          await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [
+            acctRows[0].id,
+            `-${wRows[0].gross_amount}`,
+          ]);
         }
       }
       await db.query(

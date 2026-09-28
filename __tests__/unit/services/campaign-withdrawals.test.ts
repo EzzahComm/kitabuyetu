@@ -44,9 +44,9 @@ describe('campaignWithdrawalsService.request', () => {
   });
 
   it('requires an idempotency key before touching the DB', async () => {
-    await expect(
-      campaignWithdrawalsService.request(ctx, { ...input, idempotencyKey: '' }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(campaignWithdrawalsService.request(ctx, { ...input, idempotencyKey: '' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
   });
 

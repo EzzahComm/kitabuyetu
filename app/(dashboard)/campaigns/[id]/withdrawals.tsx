@@ -11,7 +11,11 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { ExpandableText } from '@/components/shared/expandable-text';
 import { StatusPill } from '@/components/shared/status-pill';
 import { ConfirmDialog, MoneyActionDialog } from '@/components/shared/confirm-dialog';
-import { useCampaignWithdrawals, useRequestCampaignWithdrawal, useCampaignWithdrawalAction } from '@/hooks/use-campaigns';
+import {
+  useCampaignWithdrawals,
+  useRequestCampaignWithdrawal,
+  useCampaignWithdrawalAction,
+} from '@/hooks/use-campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.service';
@@ -116,7 +120,12 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
                     <Button size="sm" variant="outline" onClick={() => setApproveTarget(r)}>
                       Approve
                     </Button>
-                    <Button size="sm" variant="outline" className="text-destructive" onClick={() => setRejectTarget(r.id)}>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-destructive"
+                      onClick={() => setRejectTarget(r.id)}
+                    >
                       Reject
                     </Button>
                   </div>
@@ -136,8 +145,8 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               <Label>Amount (KES)</Label>
               <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
               <p className="text-xs text-muted-foreground">
-                Raised so far: {formatKES(amountRaised)}. The platform fee and M-Pesa cost are deducted from this
-                amount before it reaches the payout phone.
+                Raised so far: {formatKES(amountRaised)}. The platform fee and M-Pesa cost are deducted from this amount
+                before it reaches the payout phone.
               </p>
             </div>
           </div>
@@ -186,7 +195,11 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
         description={
           <div className="space-y-2">
             <p>Why is this being rejected? The reserved funds are released.</p>
-            <Input value={rejectReason} onChange={(e) => setRejectReason(e.target.value)} placeholder="Reason (min 5 chars)" />
+            <Input
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              placeholder="Reason (min 5 chars)"
+            />
           </div>
         }
         confirmLabel="Reject"

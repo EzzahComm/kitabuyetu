@@ -92,7 +92,9 @@ export function useRequestCampaignWithdrawal(id: string) {
 export function useCampaignWithdrawalAction(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (args: { withdrawalId: string; action: 'approve' } | { withdrawalId: string; action: 'reject'; reason: string }) =>
+    mutationFn: (
+      args: { withdrawalId: string; action: 'approve' } | { withdrawalId: string; action: 'reject'; reason: string },
+    ) =>
       api.post<CampaignWithdrawalRow>(
         `${BASE}/${id}/withdrawals/${args.withdrawalId}`,
         args.action === 'approve' ? { action: 'approve' } : { action: 'reject', reason: args.reason },

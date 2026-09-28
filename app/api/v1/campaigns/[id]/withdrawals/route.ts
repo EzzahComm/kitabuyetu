@@ -48,7 +48,11 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       const input = RequestWithdrawalSchema.parse(await req.json());
       const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return created(
-        await campaignWithdrawalsService.request(ctx, { campaignId: id, grossAmount: input.grossAmount, idempotencyKey }),
+        await campaignWithdrawalsService.request(ctx, {
+          campaignId: id,
+          grossAmount: input.grossAmount,
+          idempotencyKey,
+        }),
       );
     } catch (err) {
       return handleError(err);

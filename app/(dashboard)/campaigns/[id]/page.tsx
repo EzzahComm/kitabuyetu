@@ -103,8 +103,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </CardHeader>
           <CardContent className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              Where withdrawn funds are sent once this campaign is live. Required before submitting for review, and
-              can only be changed while still a draft.
+              Where withdrawn funds are sent once this campaign is live. Required before submitting for review, and can
+              only be changed while still a draft.
             </p>
             <div className="flex items-center gap-2 max-w-sm">
               <Input
@@ -120,7 +120,9 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
                 {setPayoutPhone.isPending ? 'Saving…' : 'Save'}
               </Button>
             </div>
-            {campaign.payout_phone && <p className="text-xs text-muted-foreground">Currently set: {campaign.payout_phone}</p>}
+            {campaign.payout_phone && (
+              <p className="text-xs text-muted-foreground">Currently set: {campaign.payout_phone}</p>
+            )}
           </CardContent>
         </Card>
       )}

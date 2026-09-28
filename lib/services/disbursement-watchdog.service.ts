@@ -32,7 +32,10 @@ import type { DisbursementWatchdogKind } from '@/lib/queue/qstash';
 // Table/in-flight-status pair per kind. Keyed by the closed
 // DisbursementWatchdogKind union (never user input) — safe to interpolate
 // the table name directly, there is no fourth value this can ever be.
-const SPINE_BY_KIND: Record<DisbursementWatchdogKind, { table: string; inProgressStatus: string; amountColumn: string }> = {
+const SPINE_BY_KIND: Record<
+  DisbursementWatchdogKind,
+  { table: string; inProgressStatus: string; amountColumn: string }
+> = {
   disbursement: { table: 'disbursement_requests', inProgressStatus: 'dispatched', amountColumn: 'amount' },
   settlement: { table: 'settlement_requests', inProgressStatus: 'processing', amountColumn: 'amount' },
   vendor_payment: { table: 'vendor_payments', inProgressStatus: 'processing', amountColumn: 'amount' },

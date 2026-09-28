@@ -19,7 +19,11 @@ import type { PoolClient } from 'pg';
 import { logger } from '@/lib/logger';
 import { assertSafaricomIp } from './daraja.service';
 import { computeB2BCharge, computeB2CCharge } from './mpesa-charges.service';
-import { postSettlementSweepJournal, postVendorPaymentJournal, postCampaignWithdrawalJournal } from './posting-templates.service';
+import {
+  postSettlementSweepJournal,
+  postVendorPaymentJournal,
+  postCampaignWithdrawalJournal,
+} from './posting-templates.service';
 import { notifyDisbursementCallback } from '@/lib/queue/qstash';
 
 // What to tell the disbursement watchdog once a handler's transaction
