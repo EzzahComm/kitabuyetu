@@ -26,6 +26,10 @@ export interface Campaign {
   slug: string;
   story: string;
   beneficiary_name: string | null;
+  /** Where a withdrawal pays out to. Set at creation or via setPayoutPhone
+   *  while still a draft; locked once the campaign leaves 'draft' — see
+   *  setPayoutPhone's own guard. */
+  payout_phone: string | null;
   target_amount: string;
   amount_raised: string;
   currency: string;
@@ -59,6 +63,7 @@ export interface CreateCampaignInput {
   story: string;
   targetAmount: number;
   beneficiaryName?: string;
+  payoutPhone?: string;
   coverImageUrl?: string;
   endsAt?: string;
 }
@@ -104,9 +109,9 @@ export const campaignsService = {
 
       const { rows } = await db.query<Campaign>(
         `INSERT INTO campaigns
-           (group_id, title, slug, story, beneficiary_name, target_amount,
+           (group_id, title, slug, story, beneficiary_name, payout_phone, target_amount,
             cover_image_url, ends_at, created_by, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft')
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')
          RETURNING *`,
         [
           ctx.groupId,
@@ -114,6 +119,7 @@ export const campaignsService = {
           slug,
           data.story,
           data.beneficiaryName ?? null,
+          data.payoutPhone ?? null,
           data.targetAmount.toFixed(2),
           data.coverImageUrl ?? null,
           data.endsAt ?? null,
@@ -153,6 +159,9 @@ export const campaignsService = {
           `Only a draft campaign can be submitted for review (current status: ${existing[0].status})`,
         );
       }
+      if (!existing[0].payout_phone) {
+        throw new ValidationError('A payout phone number is required before submitting for review');
+      }
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns SET status = 'pending_review', updated_at = NOW()
@@ -171,6 +180,50 @@ export const campaignsService = {
           campaignId,
           JSON.stringify({ status: 'draft' }),
           JSON.stringify({ status: 'pending_review' }),
+        ],
+      );
+
+      return updated[0];
+    });
+  },
+
+  /**
+   * Sets/changes the payout destination — only while still a draft. Locked
+   * after that (service-layer guard, not just UI): payout_phone is the
+   * single highest-value field on a campaign once it can raise real money,
+   * and a withdrawal snapshots it per-row anyway, so silently changing the
+   * source field post-activation would only create confusion about which
+   * number actually governed a given payout, not a live redirection risk —
+   * but there's no legitimate reason to allow it either, so it stays closed.
+   */
+  async setPayoutPhone(ctx: TenantContext, campaignId: string, payoutPhone: string): Promise<Campaign> {
+    assertOfficer(ctx);
+    return withTransaction(ctx, async (db) => {
+      const { rows: existing } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`,
+        [campaignId, ctx.groupId],
+      );
+      if (!existing[0]) throw new NotFoundError('Campaign', campaignId);
+      if (existing[0].status !== 'draft') {
+        throw new ValidationError('The payout phone can only be set while the campaign is still a draft');
+      }
+
+      const { rows: updated } = await db.query<Campaign>(
+        `UPDATE campaigns SET payout_phone = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
+        [campaignId, payoutPhone],
+      );
+
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'campaign.set_payout_phone',
+          'campaign',
+          campaignId,
+          JSON.stringify({ payout_phone: existing[0].payout_phone }),
+          JSON.stringify({ payout_phone: payoutPhone }),
         ],
       );
 

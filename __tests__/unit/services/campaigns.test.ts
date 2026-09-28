@@ -81,7 +81,7 @@ describe('campaignsService.submitForReview', () => {
   });
 
   it('moves a draft to pending_review', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft', payout_phone: '254712345678' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'pending_review' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
@@ -89,9 +89,39 @@ describe('campaignsService.submitForReview', () => {
     expect(campaign.status).toBe('pending_review');
   });
 
+  it('rejects a draft with no payout phone set yet', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft', payout_phone: null }] });
+    await expect(campaignsService.submitForReview(ctx, 'camp-1')).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it("throws NotFoundError for a campaign outside the caller's group", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(campaignsService.submitForReview(ctx, 'camp-x')).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('campaignsService.setPayoutPhone', () => {
+  it('sets the payout phone while still a draft', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft', payout_phone: null }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft', payout_phone: '254712345678' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const campaign = await campaignsService.setPayoutPhone(ctx, 'camp-1', '254712345678');
+    expect(campaign.payout_phone).toBe('254712345678');
+  });
+
+  it('refuses to change the payout phone once the campaign has left draft', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'active', payout_phone: '254712345678' }] });
+    await expect(campaignsService.setPayoutPhone(ctx, 'camp-1', '254799999999')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+  });
+
+  it('rejects a member (not an officer)', async () => {
+    await expect(
+      campaignsService.setPayoutPhone({ ...ctx, role: 'member' }, 'camp-1', '254712345678'),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 

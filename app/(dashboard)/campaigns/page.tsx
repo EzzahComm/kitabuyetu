@@ -25,6 +25,7 @@ const createSchema = z.object({
   story: z.string().min(20).max(10_000),
   targetAmount: z.coerce.number().positive(),
   beneficiaryName: z.string().optional(),
+  payoutPhone: z.string().optional(),
 });
 
 type CreateCampaignForm = z.infer<typeof createSchema>;
@@ -42,7 +43,10 @@ export default function CampaignsPage() {
 
   const onSubmit = async (values: CreateCampaignForm) => {
     try {
-      const campaign = await createCampaign.mutateAsync(values);
+      const campaign = await createCampaign.mutateAsync({
+        ...values,
+        payoutPhone: values.payoutPhone || undefined,
+      });
       toast({
         title: 'Campaign created as a draft',
         description: 'Submit it for review when you’re ready to go live.',
@@ -146,6 +150,13 @@ export default function CampaignsPage() {
                 {...form.register('beneficiaryName')}
                 placeholder="Who benefits from this campaign?"
               />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="payoutPhone">Payout phone (optional)</Label>
+              <Input id="payoutPhone" {...form.register('payoutPhone')} placeholder="07XXXXXXXX" />
+              <p className="text-xs text-muted-foreground">
+                Where withdrawals are paid out to. Can also be set later — required before submitting for review.
+              </p>
             </div>
             <DialogFooter>
               <Button type="submit" disabled={createCampaign.isPending}>

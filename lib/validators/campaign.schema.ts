@@ -6,8 +6,18 @@ export const CreateCampaignSchema = z.object({
   story: z.string().min(20).max(10_000),
   targetAmount: z.number().positive().max(50_000_000),
   beneficiaryName: z.string().max(120).optional(),
+  /** Where a withdrawal pays out to — required before submitForReview, not
+   *  at creation (a draft campaign legitimately has none yet). */
+  payoutPhone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number').optional(),
   coverImageUrl: z.string().url().optional(),
   endsAt: z.string().datetime().optional(),
+});
+
+/** Setting/changing the payout destination — kept separate from
+ *  CreateCampaignSchema so the campaigns.service.ts guard that locks this
+ *  field once a campaign leaves 'draft' has one clear call site to gate. */
+export const SetPayoutPhoneSchema = z.object({
+  payoutPhone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
 });
 
 export const RejectCampaignSchema = z.object({
