@@ -7,8 +7,8 @@ import { HOME_DESCRIPTION, HOME_TITLE, OG_FALLBACK } from '@/components/marketin
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-// Fraunces (the marketing display serif) is NOT loaded here — it lives in
-// components/marketing/fraunces-font.ts, applied only at marketing entry
+// The marketing display face (Jost) is NOT loaded here — it lives in
+// components/marketing/display-font.ts, applied only at marketing entry
 // points. It used to load in this root layout and apply to every route via
 // <body>, so all 80 authenticated routes (which never render it) preload-
 // hinted 117.9KB of a font they don't use (docs/audits/optimization-2026-09).

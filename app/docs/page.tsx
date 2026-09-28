@@ -5,7 +5,7 @@ import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -58,18 +58,18 @@ const GUIDES: { title: string; body: string; href: string }[] = [
 
 export default function DocsPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-paper`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-paper`}>
       <SiteHeader />
 
       <main id="main" className="flex-1">
         <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
+              <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
                 Documentation
               </p>
-              <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                Getting started with <em className="italic font-normal text-brand-600">Kitabu Yetu</em>
+              <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl">
+                Getting started with <em className="not-italic text-brand-500">Kitabu Yetu</em>
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
                 A written manual and API reference are on the way. In the meantime, here is where to start.

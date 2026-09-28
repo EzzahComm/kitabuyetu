@@ -17,7 +17,7 @@ import { Benefits } from '@/components/Benefits';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { ROUTES } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
@@ -44,7 +44,7 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function EcosystemPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">

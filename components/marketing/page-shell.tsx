@@ -2,52 +2,49 @@ import type { ReactNode } from 'react';
 import { Container } from './primitives';
 import { SiteFooter } from './site-footer';
 import { SiteHeader } from './site-header';
-import { fraunces } from './fraunces-font';
+import { displayFont } from './display-font';
+import { PageHeader, type Crumb } from './finanza';
 
 interface PageShellProps {
   title: string;
   description?: string;
   children: ReactNode;
+  /** Breadcrumb steps between Home and this page, e.g. About on the team page. */
+  crumbs?: Crumb[];
+  /**
+   * `prose` (default) sets children in a readable column with typographic
+   * defaults — policies, docs, short informational pages. `sections` hands
+   * children the full width, for pages composed of Finanza sections.
+   */
+  layout?: 'prose' | 'sections';
 }
 
 /**
  * The wrapper for most public pages that are not the home page — About,
  * Contact, Docs, Ecosystem, Enterprise Solutions, Fundraise, Legal, Products,
- * Status, Support. Same three-prop API as the shell it replaces, so those
- * pages only changed an import path. Bookkeeper and Chama Reminder have
- * their own independent root layout (richer/more custom than this shell
- * supports) — each applies fraunces-font.ts's variable directly rather than
- * through this file.
+ * Status, Support. Bookkeeper and Chama Reminder have their own independent
+ * root layout (richer/more custom than this shell supports) — each applies
+ * display-font.ts's variable directly rather than through this file.
  *
- * The header is `solid` here, deliberately. The previous shell used the
- * overlay header on every page, which painted white text over a white
- * background: on all nine of these pages the logo and the entire menu were
- * invisible until the visitor happened to scroll. Only the home page, whose
- * first section is a dark hero, gets the overlay treatment.
+ * The masthead is the Finanza template's page header: a large title and a
+ * breadcrumb on lavender waves, pushed clear of the fixed header.
  */
-export function PageShell({ title, description, children }: PageShellProps) {
+export function PageShell({ title, description, children, crumbs, layout = 'prose' }: PageShellProps) {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
-        {/* Title band, on paper — gives short informational pages a proper
-            masthead instead of a heading floating in white space. */}
-        <div className="border-b border-brand-blue-900/10 bg-paper-deep pb-14 pt-28 md:pb-20 md:pt-36">
-          <Container>
-            <div className="max-w-3xl">
-              <h1 className="font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                {title}
-              </h1>
-              {description && <p className="mt-5 text-lg leading-relaxed text-brand-blue-900/60">{description}</p>}
+        <PageHeader title={title} lede={description} crumbs={crumbs} />
+
+        {layout === 'sections' ? (
+          children
+        ) : (
+          <Container className="py-12 md:py-16">
+            <div className="max-w-3xl space-y-5 text-base leading-relaxed text-finanza-text [&_a]:font-medium [&_a]:text-brand-500 [&_a:hover]:text-brand-700 [&_a:hover]:underline [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-finanza-dark [&_h3]:font-display [&_h3]:font-semibold [&_h3]:text-finanza-dark [&_strong]:font-semibold [&_strong]:text-finanza-dark">
+              {children}
             </div>
           </Container>
-        </div>
-
-        <Container className="py-14 md:py-20">
-          <div className="max-w-3xl space-y-5 text-base leading-relaxed text-brand-blue-900/75 [&_a]:font-medium [&_a]:text-brand-700 [&_a:hover]:underline [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-normal [&_h2]:text-brand-blue-900 [&_strong]:font-semibold [&_strong]:text-brand-blue-900">
-            {children}
-          </div>
-        </Container>
+        )}
       </main>
       <SiteFooter />
     </div>

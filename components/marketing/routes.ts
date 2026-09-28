@@ -230,3 +230,38 @@ export const CONTACT = {
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/\s/g, '')}`;
 }
+
+/** WhatsApp click-to-chat link for a CONTACT phone (wa.me takes digits only, no +). */
+export function whatsappHref(phone: string, text?: string): string {
+  const base = `https://wa.me/${phone.replace(/\D/g, '')}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+
+export type SocialPlatform = 'facebook' | 'x' | 'linkedin' | 'instagram' | 'youtube' | 'whatsapp';
+
+export interface SocialLink {
+  platform: SocialPlatform;
+  label: string;
+  /** null until the real profile URL is supplied: the icon still renders, but not as a link. */
+  href: string | null;
+}
+
+/**
+ * Social profiles shown in the header, footer and team cards. To publish one,
+ * set its `href` to the full profile URL — nothing else needs to change.
+ */
+export const SOCIAL_LINKS: SocialLink[] = [
+  { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
+  { platform: 'x', label: 'X (Twitter)', href: null },
+  { platform: 'linkedin', label: 'LinkedIn', href: null },
+  { platform: 'instagram', label: 'Instagram', href: null },
+  { platform: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@KitabuYetu' },
+  { platform: 'whatsapp', label: 'WhatsApp', href: whatsappHref(CONTACT.phones[0]) },
+];
+
+/** The founder's own profiles, for the team card — personal, not the company's. Same rule: fill in `href`. */
+export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
+  { platform: 'linkedin', label: 'Polycap Wanyonyi on LinkedIn', href: null },
+  { platform: 'x', label: 'Polycap Wanyonyi on X', href: null },
+  { platform: 'facebook', label: 'Polycap Wanyonyi on Facebook', href: null },
+];

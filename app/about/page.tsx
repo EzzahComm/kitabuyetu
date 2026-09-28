@@ -1,11 +1,28 @@
 import type { Metadata } from 'next';
-import { Container } from '@/components/Container';
-import { SectionTitle } from '@/components/SectionTitle';
-import { Cta } from '@/components/Cta';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import Image from 'next/image';
+import Link from 'next/link';
+import { BarChart3, HandHeart, Lightbulb, LineChart, ShieldCheck, Wallet } from 'lucide-react';
+import { PageShell } from '@/components/marketing/page-shell';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { ROUTES } from '@/components/marketing/routes';
+import { Reveal } from '@/components/marketing/reveal';
+import { StoryTabs } from '@/components/marketing/finanza-tabs';
+import {
+  FeatureBox,
+  FinanzaHeading,
+  FinanzaSection,
+  IconBadge,
+  Pill,
+  btnOutline,
+} from '@/components/marketing/finanza';
+import {
+  CtaBand,
+  FounderCard,
+  JoinTeamCard,
+  KitabuFacts,
+  TestimonialsSection,
+} from '@/components/marketing/kitabu-sections';
+import benefitTwoImg from '@/public/img/benefit-two.jpg';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about',
@@ -14,82 +31,178 @@ export const metadata: Metadata = marketingMetadata({
     'Why Kitabu Yetu exists: to give chamas, welfare groups and SACCOs across Kenya simple, trustworthy digital records, and what that has changed for them.',
 });
 
+const VALUES = [
+  {
+    icon: HandHeart,
+    title: 'Community',
+    body: 'Listen to treasurers, officials and members before we decide what to build.',
+  },
+  {
+    icon: Lightbulb,
+    title: 'Product',
+    body: 'Turn complicated group workflows into steps people can understand and repeat.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Trust',
+    body: 'Treat financial records, permissions and communication as responsibilities, not details.',
+  },
+];
+
+const IMPACT = [
+  { icon: Wallet, title: 'Manage', body: 'Members, contributions, loans, welfare and group activity.' },
+  { icon: BarChart3, title: 'Understand', body: 'Reports and insights that explain where the money went.' },
+  { icon: LineChart, title: 'Grow', body: 'A clearer track record for funding, products and opportunity.' },
+];
+
 /**
- * About Kitabu Yetu — the company story, team positioning, and impact claim.
- *
- * Expanded from the template to include three sections (Our Story, Team, Impact)
- * and wrapped with SiteHeader/SiteFooter, following the pattern the rest of the
- * marketing site uses.
+ * About Kitabu Yetu — the Finanza about.html layout (image + Story/Mission/
+ * Vision tabs, value badges, facts, team) carrying the company's own story,
+ * team positioning and impact commitment. The tabs are Story / Team / Impact
+ * rather than an invented mission statement.
  */
 export default function AboutPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
-      <SiteHeader />
-      <main id="main" className="flex-1">
-        <div id="our-story">
-          <SectionTitle preTitle="Our Story" title="Most groups already keep good records" titleAs="h1">
-            The trouble was never discipline. It was where the records lived — one cash book in one person&apos;s
-            handwriting, a spreadsheet three officers all need at once, and an M-Pesa statement somebody matches to a
-            list of names the evening before every meeting.
-          </SectionTitle>
-
-          <Container className="mb-20">
-            <div className="mx-auto max-w-3xl text-center text-lg leading-relaxed text-brand-blue-900/70">
-              Kitabu Yetu was built to put those three things in one place: the members, the money and the payments, on
-              a ledger that has to balance before it saves. The group keeps doing what it already does. The book just
-              stops being something one person carries.
-            </div>
-          </Container>
+    <PageShell
+      title="About Us"
+      description="Simple, trustworthy digital records for the groups Kenyans already organize."
+      layout="sections"
+    >
+      <FinanzaSection id="our-story" labelledBy="story-heading" className="pt-8 lg:pt-12">
+        <div className="mb-8 grid items-end gap-8 lg:grid-cols-2">
+          <Reveal>
+            <Image
+              src={benefitTwoImg}
+              alt="A woman in a headscarf, pen in hand, reading a notebook at a classroom desk"
+              className="w-full rounded-lg"
+              sizes="(max-width: 1023px) 100vw, 50vw"
+              placeholder="blur"
+            />
+          </Reveal>
+          <Reveal delay={150}>
+            <Pill>Our Story</Pill>
+            <h2
+              id="story-heading"
+              className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
+            >
+              Most groups already keep good records
+            </h2>
+            <p className="mb-6 leading-relaxed text-finanza-text">
+              The trouble was never discipline. It was where the records lived — one cash book in one person&apos;s
+              handwriting, a spreadsheet three officers all need at once, and an M-Pesa statement somebody matches to a
+              list of names the evening before every meeting.
+            </p>
+            <StoryTabs
+              label="About Kitabu Yetu"
+              tabs={[
+                {
+                  value: 'story',
+                  label: 'Our Story',
+                  content: (
+                    <p>
+                      Kitabu Yetu was built to put those three things in one place: the members, the money and the
+                      payments, on a ledger that has to balance before it saves. The group keeps doing what it already
+                      does. The book just stops being something one person carries.
+                    </p>
+                  ),
+                },
+                {
+                  value: 'team',
+                  label: 'Our Team',
+                  content: (
+                    <p>
+                      Kitabu Yetu brings together product, engineering, operations and community knowledge. The people
+                      who use the platform are part of the feedback loop, not an audience we design around from a
+                      distance.
+                    </p>
+                  ),
+                },
+                {
+                  value: 'impact',
+                  label: 'Impact',
+                  content: (
+                    <p>
+                      We will publish verified numbers as the platform grows. Until then, our standard is practical:
+                      records close on time, members can see their own activity, and organizations can act on figures
+                      they can trace back to a group.
+                    </p>
+                  ),
+                },
+              ]}
+            />
+          </Reveal>
         </div>
-
-        <div id="team">
-          <SectionTitle preTitle="Team" title="A product built across the community">
-            Kitabu Yetu brings together product, engineering, operations and community knowledge. The people who use the
-            platform are part of the feedback loop, not an audience we design around from a distance.
-          </SectionTitle>
-          <Container className="mb-20">
-            <div className="mx-auto grid max-w-3xl gap-6 md:grid-cols-3">
-              {[
-                ['Community', 'Listen to treasurers, officials and members before we decide what to build.'],
-                ['Product', 'Turn complicated group workflows into steps people can understand and repeat.'],
-                ['Trust', 'Treat financial records, permissions and communication as responsibilities, not details.'],
-              ].map(([title, description]) => (
-                <div key={title} className="border-t-2 border-brand-600 pt-5">
-                  <h3 className="text-xl font-semibold text-brand-blue-900">{title}</h3>
-                  <p className="mt-3 leading-relaxed text-brand-blue-900/65">{description}</p>
+        <Reveal className="rounded-lg border border-brand-100 p-6">
+          <ul className="grid gap-6 lg:grid-cols-3">
+            {VALUES.map((value, i) => (
+              <li
+                key={value.title}
+                className={
+                  i < VALUES.length - 1
+                    ? 'flex gap-4 border-b border-brand-100 pb-6 lg:border-b-0 lg:border-r lg:pb-0'
+                    : 'flex gap-4'
+                }
+              >
+                <IconBadge icon={value.icon} />
+                <div>
+                  <h3 className="font-display text-xl font-semibold text-finanza-dark">{value.title}</h3>
+                  <p className="text-finanza-text">{value.body}</p>
                 </div>
-              ))}
-            </div>
-          </Container>
-        </div>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+      </FinanzaSection>
 
-        <div id="impact">
-          <SectionTitle preTitle="Impact" title="Measure what becomes easier">
-            We will publish verified numbers as the platform grows. Until then, our standard is practical: records close
-            on time, members can see their own activity, and organizations can act on figures they can trace back to a
-            group.
-          </SectionTitle>
-          <Container className="mb-20">
-            <div className="mx-auto max-w-3xl space-y-6 border-y border-brand-blue-900/10 py-8">
-              <div className="grid gap-6 md:grid-cols-3">
-                {[
-                  ['Manage', 'Members, contributions, loans, welfare and group activity.'],
-                  ['Understand', 'Reports and insights that explain where the money went.'],
-                  ['Grow', 'A clearer track record for funding, products and opportunity.'],
-                ].map(([label, description]) => (
-                  <div key={label}>
-                    <p className="font-semibold text-brand-blue-900">{label}</p>
-                    <p className="mt-2 text-brand-blue-900/65">{description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Container>
-        </div>
+      <KitabuFacts />
 
-        <Cta />
-      </main>
-      <SiteFooter />
-    </div>
+      <FinanzaSection id="team" labelledBy="team-heading">
+        <FinanzaHeading
+          id="team-heading"
+          align="center"
+          pill="Our Team"
+          title="A product built across the community"
+          className="mb-6"
+        />
+        <div className="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
+          <FounderCard />
+          <JoinTeamCard />
+        </div>
+        <div className="mt-4 text-center">
+          <Link href={ROUTES.aboutTeam} className={btnOutline}>
+            Meet the team
+          </Link>
+        </div>
+      </FinanzaSection>
+
+      <FinanzaSection id="impact" labelledBy="impact-heading" className="bg-brand-50/60">
+        <FinanzaHeading
+          id="impact-heading"
+          align="center"
+          pill="Impact"
+          title="Measure what becomes easier"
+          lede="Verified numbers will follow as the platform grows. What we already hold ourselves to:"
+          className="mb-12"
+        />
+        <div className="grid gap-6 md:grid-cols-3">
+          {IMPACT.map((item, i) => (
+            <Reveal key={item.title} delay={i * 120}>
+              <FeatureBox icon={item.icon} title={item.title} className="h-full">
+                {item.body}
+              </FeatureBox>
+            </Reveal>
+          ))}
+        </div>
+        <p className="mt-10 text-center">
+          <Link href={ROUTES.aboutImpact} className="font-medium text-brand-500 hover:text-brand-700">
+            Read more about our impact →
+          </Link>
+        </p>
+      </FinanzaSection>
+
+      <TestimonialsSection />
+
+      <CtaBand />
+    </PageShell>
   );
 }

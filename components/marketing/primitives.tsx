@@ -87,11 +87,11 @@ export function LedgerRules({ className }: { className?: string }) {
 }
 
 interface SectionHeadingProps {
-  /** Small mono kicker above the headline. */
+  /** Pill label above the headline. */
   eyebrow?: string;
   /** Plain text before the emphasised phrase. */
   title: ReactNode;
-  /** Rendered in italic brand colour, then the trailing text. */
+  /** Rendered in the primary colour, then the trailing text. */
   emphasis?: string;
   trailing?: string;
   lede?: ReactNode;
@@ -104,9 +104,9 @@ interface SectionHeadingProps {
 }
 
 /**
- * One heading block for the whole site: mono eyebrow, large Fraunces headline
- * with a single italic phrase, and an optional lede. The italic phrase is the
- * site's signature — used once per section and never twice in one headline.
+ * One heading block for the whole site, in the Finanza style: pill eyebrow,
+ * bold display-face headline with an optional primary-coloured phrase, and an
+ * optional lede. Use the emphasis once per section, never twice in a headline.
  */
 export function SectionHeading({
   eyebrow,
@@ -125,10 +125,11 @@ export function SectionHeading({
   return (
     <div className={cn('max-w-3xl', align === 'center' && 'mx-auto text-center', className)}>
       {eyebrow && (
+        // The Finanza template's bordered pill label.
         <p
           className={cn(
-            'mb-5 font-mono text-[11px] font-medium uppercase tracking-[0.24em]',
-            dark ? 'text-brand-400' : 'text-brand-700',
+            'mb-4 inline-block rounded-lg border px-3 py-1 text-[0.9375rem] font-medium',
+            dark ? 'border-white/40 text-brand-200' : 'border-brand-100 text-brand-500',
           )}
         >
           {eyebrow}
@@ -137,18 +138,18 @@ export function SectionHeading({
       <Heading
         id={id}
         className={cn(
-          'font-display font-light tracking-tight',
+          'font-display font-bold',
           as === 'h1'
-            ? 'text-[2.75rem] leading-[1.02] sm:text-6xl lg:text-[4.25rem]'
-            : 'text-[2.125rem] leading-[1.06] sm:text-[2.75rem] lg:text-[3.25rem]',
-          dark ? 'text-white' : 'text-brand-blue-900',
+            ? 'text-[2.5rem] leading-[1.1] sm:text-5xl lg:text-[4rem]'
+            : 'text-[2rem] leading-[1.15] sm:text-[2.5rem] xl:text-5xl',
+          dark ? 'text-white' : 'text-finanza-dark',
         )}
       >
         {title}
         {emphasis && (
           <>
             {' '}
-            <em className={cn('italic font-normal', dark ? 'text-brand-400' : 'text-brand-700')}>{emphasis}</em>
+            <em className={cn('not-italic', dark ? 'text-brand-300' : 'text-brand-500')}>{emphasis}</em>
           </>
         )}
         {trailing}
@@ -158,7 +159,7 @@ export function SectionHeading({
           className={cn(
             'mt-6 text-lg leading-relaxed sm:text-[1.175rem]',
             align === 'center' && 'mx-auto',
-            dark ? 'text-brand-blue-100/70' : 'text-brand-blue-900/65',
+            dark ? 'text-brand-blue-100/70' : 'text-finanza-text',
           )}
         >
           {lede}
