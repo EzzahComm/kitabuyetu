@@ -6,7 +6,7 @@ import { IconArrowLeft } from '@tabler/icons-react';
 import { Container } from '@/components/Container';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { ApplicationForm } from '@/components/marketing/application-form';
 import { OG_FALLBACK } from '@/components/marketing/page-metadata';
 import { getJobBySlug, getOpenJobs } from '@/lib/cms/sanity';
@@ -90,7 +90,7 @@ export default async function JobPage({ params }: JobPageProps) {
   const url = `${SITE_URL}/careers/${job.slug}`;
 
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <StructuredData job={job} url={url} />
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">

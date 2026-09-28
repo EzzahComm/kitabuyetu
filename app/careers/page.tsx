@@ -4,7 +4,7 @@ import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { CareersOpenings } from '@/components/marketing/careers-openings';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { getOpenJobs } from '@/lib/cms/sanity';
@@ -29,7 +29,7 @@ export const metadata: Metadata = marketingMetadata({
 export default async function CareersPage() {
   const jobs = await getOpenJobs();
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="Careers" title="Build the tools that help communities move forward" titleAs="h1">

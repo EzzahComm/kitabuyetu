@@ -23,7 +23,7 @@ import { Benefits } from '@/components/Benefits';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
@@ -57,14 +57,16 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function BookkeeperPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
         <Container className="mb-20 pt-28 md:pt-36">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Bookkeeper</p>
-            <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl lg:text-6xl">
-              The group book that keeps every shilling <em className="font-normal italic text-brand-600">visible</em>.
+            <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
+              Bookkeeper
+            </p>
+            <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
+              The group book that keeps every shilling <em className="not-italic text-brand-500">visible</em>.
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-brand-blue-900/65">
               Move from notebooks and spreadsheets to a double-entry record for members, contributions, savings, loans,
@@ -168,7 +170,7 @@ export default function BookkeeperPage() {
         </Container>
 
         <Container className="mb-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-light tracking-tight text-brand-blue-900">
+          <h2 className="mb-12 text-center font-display text-3xl font-bold text-brand-blue-900">
             Who uses Bookkeeper?
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -189,7 +191,7 @@ export default function BookkeeperPage() {
           <div className="rounded-2xl bg-brand-blue-900 p-8 text-white md:p-12">
             <div className="mx-auto max-w-2xl text-center">
               <IconPhone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
-              <h2 className="mb-4 font-display text-3xl font-light tracking-tight">Built for M-Pesa</h2>
+              <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
                 Bookkeeper plans include Safaricom Daraja integration — PayBill collections, STK prompts and B2C
                 payouts.

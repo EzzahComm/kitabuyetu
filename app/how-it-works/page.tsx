@@ -14,7 +14,7 @@ import { Video } from '@/components/Video';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 import paymentImg from '../../public/img/fundraise.jpg';
@@ -37,7 +37,7 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function HowItWorksPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="How it works" title="From member activity to a record the group can trust" titleAs="h1">
