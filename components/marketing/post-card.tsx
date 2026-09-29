@@ -2,6 +2,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { ArrowRight } from 'lucide-react';
 import { urlForImage, type Post, type PostCategory } from '@/lib/cms/sanity';
+import { fallbackPhoto } from './photos';
 
 export const CATEGORY_LABEL: Record<PostCategory, string> = {
   blog: 'Blog',
@@ -25,9 +26,9 @@ export function PostCard({ post, headingAs: Heading = 'h3' }: { post: Post; head
       href={`/resources/${post.slug}`}
       className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
     >
-      {cover && (
-        <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
-          {/* alt="" — the card link already carries the title. */}
+      <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
+        {/* alt="" — the card link already carries the title. Posts without a cover get a registry photo. */}
+        {cover ? (
           <Image
             src={cover}
             alt=""
@@ -35,8 +36,18 @@ export function PostCard({ post, headingAs: Heading = 'h3' }: { post: Post; head
             className="object-cover transition-transform duration-500 group-hover:scale-105"
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
-        </div>
-      )}
+        ) : (
+          <Image
+            src={fallbackPhoto(post.slug).src}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-105"
+            style={{ objectPosition: fallbackPhoto(post.slug).position }}
+            sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+            placeholder="blur"
+          />
+        )}
+      </div>
       <div className="flex flex-1 flex-col p-6">
         <p className="flex items-center gap-2 text-sm">
           <span className="rounded-full bg-brand-50 px-2.5 py-0.5 font-medium text-brand-500">

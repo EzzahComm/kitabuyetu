@@ -25,7 +25,14 @@ import { HeroCarousel } from '@/components/marketing/hero-carousel';
 import { Container } from '@/components/marketing/primitives';
 import { Reveal } from '@/components/marketing/reveal';
 import { PHOTOS } from '@/components/marketing/photos';
-import { FinanzaHeading, FinanzaSection, IconBadge, Pill, btnPrimary } from '@/components/marketing/finanza';
+import {
+  FinanzaHeading,
+  FinanzaSection,
+  IconBadge,
+  Pill,
+  btnOutline,
+  btnPrimary,
+} from '@/components/marketing/finanza';
 import {
   CallbackSection,
   CommunitiesSection,
@@ -33,6 +40,7 @@ import {
   CustomerPathsSection,
   FaqSection,
   LatestPostsSection,
+  LiveCampaignsSection,
   KitabuFacts,
   MemberBenefitsSection,
   ProductTabsSection,
@@ -51,6 +59,9 @@ export const metadata: Metadata = {
   description: HOME_DESCRIPTION,
   alternates: { canonical: `${SITE_URL}/` },
 };
+
+/** Re-render at most every 5 minutes so live campaigns and new blog posts appear without a deploy. */
+export const revalidate = 300;
 
 const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 
@@ -343,12 +354,19 @@ export default function Home() {
               <div className="my-8">
                 <Emphasis>Manage your group. Build its track record. Unlock its potential.</Emphasis>
               </div>
-              <Link href={ROUTES.ecosystem} className={btnPrimary}>
-                Explore the Ecosystem
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>
+                  Browse the Marketplace
+                </Link>
+                <Link href={ROUTES.ecosystem} className={btnOutline}>
+                  Explore the Ecosystem
+                </Link>
+              </div>
             </div>
           </div>
         </FinanzaSection>
+
+        <LiveCampaignsSection id={SECTION_IDS.campaigns} />
 
         <CallbackSection />
 

@@ -1,13 +1,12 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { FinanzaHeading, FinanzaSection } from '@/components/marketing/finanza';
 import { CtaBand } from '@/components/marketing/kitabu-sections';
 import { ROUTES } from '@/components/marketing/routes';
 import { CHANGISHA_PRICING } from '@/types/enums';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
+import { CampaignCard } from '@/components/marketing/campaign-card';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -36,7 +35,7 @@ const STEPS = [
 ];
 
 /**
- * Real listing of live Changi$ha campaigns (migration 182) — was a static
+ * Real listing of live and past Changi$ha campaigns (migration 182) — was a static
  * "coming soon" page until the product actually existed. Reads via
  * campaignsService.listActiveCampaigns(), which goes through withAdminDb with
  * an explicit `status = 'active'` filter rather than any anon/PostgREST
@@ -46,9 +45,13 @@ const STEPS = [
  */
 export default async function FundraisePage() {
   let campaigns: Campaign[] = [];
+  let past: Campaign[] = [];
   try {
-    campaigns = await campaignsService.listActiveCampaigns();
-  } catch (err) {
+    [campaigns, past] = await Promise.all([
+      campaignsService.listActiveCampaigns(),
+      campaignsService.listPastCampaigns(6),
+    ]);
+  } catch {
     // During build time in CI, the database may not be accessible. Gracefully
     // fall back to an empty list — the page will render the "no campaigns" state.
     // At runtime in production, the database will be available.
@@ -75,55 +78,33 @@ export default async function FundraisePage() {
           </div>
         ) : (
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {campaigns.map((c) => {
-              const pct = Math.min(100, Math.round((parseFloat(c.amount_raised) / parseFloat(c.target_amount)) * 100));
-              return (
-                <li key={c.slug}>
-                  <Link
-                    href={`/fundraise/${c.slug}`}
-                    className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
-                  >
-                    {c.cover_image_url && (
-                      <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
-                        {/* alt="" — the card link already carries the title. */}
-                        <Image
-                          src={c.cover_image_url}
-                          alt=""
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105"
-                          sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
-                        />
-                      </div>
-                    )}
-                    <div className="flex flex-1 flex-col p-6">
-                      <h3 className="font-display text-xl font-semibold text-finanza-dark">{c.title}</h3>
-                      <p className="mt-2 line-clamp-2 leading-relaxed text-finanza-text">{c.story}</p>
-                      <div className="mt-auto pt-5">
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-brand-100">
-                          <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
-                        </div>
-                        <p className="mt-2 text-sm text-finanza-text">
-                          <strong className="font-semibold text-finanza-dark">
-                            KES {parseFloat(c.amount_raised).toLocaleString()}
-                          </strong>{' '}
-                          raised of KES {parseFloat(c.target_amount).toLocaleString()}
-                        </p>
-                        <span className="mt-4 inline-flex items-center gap-1.5 font-medium text-brand-500">
-                          Support this campaign
-                          <ArrowRight
-                            aria-hidden="true"
-                            className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5"
-                          />
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </li>
-              );
-            })}
+            {campaigns.map((c) => (
+              <li key={c.slug}>
+                <CampaignCard campaign={c} />
+              </li>
+            ))}
           </ul>
         )}
       </FinanzaSection>
+
+      {past.length > 0 && (
+        <FinanzaSection labelledBy="past-heading" className="pt-0 lg:pt-0">
+          <FinanzaHeading
+            id="past-heading"
+            pill="Past Fundraisers"
+            title="What communities have raised"
+            lede="Finished campaigns stay here, with what they raised, so every shilling stays on the record."
+            className="mb-10 max-w-3xl"
+          />
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {past.map((c) => (
+              <li key={c.slug}>
+                <CampaignCard campaign={c} ended />
+              </li>
+            ))}
+          </ul>
+        </FinanzaSection>
+      )}
 
       <FinanzaSection labelledBy="how-changisha-heading" className="bg-brand-50/60">
         <FinanzaHeading

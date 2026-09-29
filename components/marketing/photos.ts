@@ -81,3 +81,15 @@ export const PRODUCT_PHOTOS = {
   fundraise: PHOTOS.payments,
   enterprise: PHOTOS.organisations,
 } satisfies Record<string, Photo>;
+
+/**
+ * Stand-in artwork for CMS content without its own image (blog posts, campaigns).
+ * Deterministic per key, so a card keeps the same photo between renders.
+ */
+const FALLBACK_ROTATION: Photo[] = [PHOTOS.vslaRecords, PHOTOS.youthTech, PHOTOS.memberPhone, PHOTOS.vslaReading];
+
+export function fallbackPhoto(key: string): Photo {
+  let hash = 0;
+  for (const char of key) hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  return FALLBACK_ROTATION[hash % FALLBACK_ROTATION.length];
+}

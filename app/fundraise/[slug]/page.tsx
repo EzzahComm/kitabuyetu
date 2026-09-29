@@ -4,7 +4,10 @@ import { notFound } from 'next/navigation';
 import { ShieldCheck } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
-import { campaignsService } from '@/lib/services/campaigns.service';
+import { campaignsService, isAcceptingDonations } from '@/lib/services/campaigns.service';
+import { fallbackPhoto } from '@/components/marketing/photos';
+import { ROUTES } from '@/components/marketing/routes';
+import Link from 'next/link';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +18,7 @@ interface CampaignPageProps {
 
 export async function generateMetadata({ params }: CampaignPageProps): Promise<Metadata> {
   const { slug } = await params;
-  const campaign = await campaignsService.getPublicCampaignBySlug(slug);
+  const campaign = await campaignsService.getPublicCampaignForDisplay(slug);
   if (!campaign) return { title: 'Changi$ha' };
   return marketingMetadata({
     path: `/fundraise/${slug}`,
@@ -27,8 +30,11 @@ export async function generateMetadata({ params }: CampaignPageProps): Promise<M
 
 export default async function CampaignPage({ params }: CampaignPageProps) {
   const { slug } = await params;
-  const campaign = await campaignsService.getPublicCampaignBySlug(slug);
+  // Display read: live or finished. Donations are still gated separately by getPublicCampaignBySlug in the donate route.
+  const campaign = await campaignsService.getPublicCampaignForDisplay(slug);
   if (!campaign) notFound();
+  const accepting = isAcceptingDonations(campaign);
+  const photo = fallbackPhoto(campaign.slug);
 
   const donationCount = await campaignsService.getPublicDonationCount(campaign.id);
   const pct = Math.min(
@@ -42,8 +48,8 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       crumbs={[{ label: 'Changi$ha', href: '/fundraise' }]}
       description={campaign.beneficiary_name ? `Benefiting ${campaign.beneficiary_name}` : undefined}
     >
-      {campaign.cover_image_url && (
-        <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-brand-50">
+      <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-brand-50">
+        {campaign.cover_image_url ? (
           <Image
             src={campaign.cover_image_url}
             alt={campaign.title}
@@ -52,8 +58,25 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
             sizes="(min-width: 768px) 768px, 100vw"
             priority
           />
-        </div>
-      )}
+        ) : (
+          // Illustrative stand-in until the campaign has its own photo; not the beneficiary.
+          <Image
+            src={photo.src}
+            alt=""
+            fill
+            className="object-cover"
+            style={{ objectPosition: photo.position }}
+            sizes="(min-width: 768px) 768px, 100vw"
+            placeholder="blur"
+            priority
+          />
+        )}
+        {!accepting && (
+          <span className="absolute left-4 top-4 rounded-full bg-finanza-dark px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
+            {pct >= 100 ? 'Funded' : 'Ended'}
+          </span>
+        )}
+      </div>
 
       <div className="not-prose grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5 text-base leading-relaxed text-finanza-text">
@@ -76,7 +99,19 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
             </p>
           </div>
 
-          <CampaignDonateForm slug={campaign.slug} />
+          {accepting ? (
+            <CampaignDonateForm slug={campaign.slug} />
+          ) : (
+            <div className="rounded-lg border border-brand-100 bg-white p-6">
+              <p className="font-display text-xl font-semibold text-finanza-dark">This campaign has ended</p>
+              <p className="mt-2 text-finanza-text">
+                It is no longer taking donations. Thank you to everyone who gave.
+              </p>
+              <Link href={ROUTES.fundraise} className="mt-4 inline-block font-medium text-brand-500 hover:underline">
+                See live campaigns
+              </Link>
+            </div>
+          )}
 
           <ul className="space-y-2 rounded-lg bg-brand-50 p-5 text-sm text-finanza-text">
             {[

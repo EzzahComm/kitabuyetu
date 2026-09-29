@@ -74,6 +74,7 @@ export const SECTION_IDS = {
   trust: 'security',
   faq: 'faq',
   blog: 'blog',
+  campaigns: 'campaigns',
 } as const;
 
 export interface NavLink {
@@ -166,10 +167,12 @@ export const PRICING_ITEMS: NavLink[] = [
  * parallel lists that can drift apart.
  */
 export const NAV_ITEMS: NavEntry[] = [
-  { label: 'Home', href: ROUTES.home },
+  // No "Home" item: the logo links home, and the slot goes to the Marketplace,
+  // which otherwise sat two clicks deep under Ecosystem.
   { label: 'About', items: ABOUT_ITEMS },
   { label: 'Products', items: PRODUCT_ITEMS },
   { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
+  { label: 'Marketplace', href: ROUTES.ecosystemMarketplace },
   { label: 'Pricing', items: PRICING_ITEMS },
   { label: 'Blog', href: ROUTES.resources },
   { label: 'Contact', href: ROUTES.contact },
