@@ -60,6 +60,9 @@ const newDeclSchema = z.object({
   notes: z.string().optional().or(z.literal('')),
 });
 type NewDeclForm = z.infer<typeof newDeclSchema>;
+// hookform/resolvers v5: useForm's first generic must be the raw input shape
+// (fields with a Zod .default() are optional here), not the resolved output.
+type NewDeclFormInput = z.input<typeof newDeclSchema>;
 
 export default function DividendsPage() {
   const { toast } = useToast();
@@ -84,7 +87,7 @@ export default function DividendsPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<NewDeclForm>({
+  } = useForm<NewDeclFormInput, unknown, NewDeclForm>({
     resolver: zodResolver(newDeclSchema),
     defaultValues: {
       policyType: 'proportional_to_shares',

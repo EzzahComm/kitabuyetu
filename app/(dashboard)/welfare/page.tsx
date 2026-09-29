@@ -46,6 +46,11 @@ const requestSchema = z.object({
 });
 
 type WelfareRequestForm = z.infer<typeof requestSchema>;
+// hookform/resolvers v5 requires useForm's generics to distinguish the raw
+// input shape (fields with a Zod .default() are optional here) from the
+// resolved output shape (defaults applied) -- see the other useForm<...>
+// call sites in this file for the same pattern.
+type WelfareRequestFormInput = z.input<typeof requestSchema>;
 
 const poolSchema = z.object({
   memberId: z.string().min(1, 'Member required'),
@@ -56,6 +61,7 @@ const poolSchema = z.object({
 });
 
 type WelfarePoolForm = z.infer<typeof poolSchema>;
+type WelfarePoolFormInput = z.input<typeof poolSchema>;
 
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
@@ -92,11 +98,11 @@ export default function WelfarePage() {
   const recordPool = useRecordWelfarePoolContribution();
   const reviewReq = useReviewWelfareRequest(reviewRow?.id ?? '');
 
-  const reqForm = useForm<WelfareRequestForm>({
+  const reqForm = useForm<WelfareRequestFormInput, unknown, WelfareRequestForm>({
     resolver: zodResolver(requestSchema),
     defaultValues: { requestType: 'emergency', priority: 'normal' },
   });
-  const poolForm = useForm<WelfarePoolForm>({
+  const poolForm = useForm<WelfarePoolFormInput, unknown, WelfarePoolForm>({
     resolver: zodResolver(poolSchema),
     defaultValues: { contributionType: 'regular' },
   });

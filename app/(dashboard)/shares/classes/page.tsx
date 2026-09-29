@@ -54,6 +54,9 @@ const schema = z.object({
   lockPeriodDays: z.coerce.number().int().nonnegative().default(0),
 });
 type FormValues = z.infer<typeof schema>;
+// hookform/resolvers v5: useForm's first generic must be the raw input shape
+// (fields with a Zod .default() are optional here), not the resolved output.
+type FormValuesInput = z.input<typeof schema>;
 
 export default function ShareClassesPage() {
   const { toast } = useToast();
@@ -73,7 +76,7 @@ export default function ShareClassesPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
+  } = useForm<FormValuesInput, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { votingWeight: 1, transferAllowed: true, lockPeriodDays: 0 },
   });

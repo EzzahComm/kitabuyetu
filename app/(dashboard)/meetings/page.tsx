@@ -34,6 +34,9 @@ const createSchema = z.object({
 });
 
 type CreateMeetingForm = z.infer<typeof createSchema>;
+// hookform/resolvers v5: useForm's first generic must be the raw input shape
+// (fields with a Zod .default() are optional here), not the resolved output.
+type CreateMeetingFormInput = z.input<typeof createSchema>;
 
 // Statuses not in the shared STATUS_TONE map get an explicit tone override
 // here; the rest (scheduled, completed, cancelled) derive automatically.
@@ -63,7 +66,7 @@ export default function MeetingsPage() {
   const createMeeting = useCreateMeeting();
   const canManage = useHasPermission('meetings.manage');
 
-  const form = useForm<CreateMeetingForm>({
+  const form = useForm<CreateMeetingFormInput, unknown, CreateMeetingForm>({
     resolver: zodResolver(createSchema),
     defaultValues: { meetingType: 'regular', isVirtual: false },
   });
