@@ -9,7 +9,7 @@ business logic (commits) ─► emitActivity() ─► platform_activity_logs (au
                     aggregate? ────┴──── individual
                         │                     │
                   digest job (≤60 min)   notification_deliveries (sms/email × recipient)
-                                              ├─ inline send (HIGH/CRITICAL) 
+                                              ├─ inline send (HIGH/CRITICAL)
                                               └─ job_queue `admin_alert_deliver` (retry, backoff, max 5)
 ```
 
@@ -19,12 +19,12 @@ business logic (commits) ─► emitActivity() ─► platform_activity_logs (au
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
 
 await emitActivity({
-  type: ActivityEventType.SOMETHING_HAPPENED,   // add it to lib/notifications/activity-events.ts
-  dedupKey: `thing:${id}:happened`,             // idempotency key (recommended)
-  group: { id: groupId, name: '' },              // names are filled in from ids
+  type: ActivityEventType.SOMETHING_HAPPENED, // add it to lib/notifications/activity-events.ts
+  dedupKey: `thing:${id}:happened`, // idempotency key (recommended)
+  group: { id: groupId, name: '' }, // names are filled in from ids
   actor: { userId },
   transaction: { reference, amount, currency: 'KES', status },
-  metadata: { anything: 'non-secret' },          // secrets are stripped by key name
+  metadata: { anything: 'non-secret' }, // secrets are stripped by key name
 });
 ```
 
@@ -42,12 +42,12 @@ above `KITABU_HIGH_VALUE_THRESHOLD_KES` (default 100,000) is alerted individuall
 
 ## Configuration
 
-| Variable | Purpose |
-|---|---|
-| `KITABU_ADMIN_ALERT_PHONE` | SMS recipient(s), e.g. `+254182625807` |
-| `KITABU_ADMIN_ALERT_EMAIL` | Email recipient(s), e.g. `info@kitabuyetu.co.ke` |
-| `KITABU_HIGH_VALUE_THRESHOLD_KES` | Individual-alert threshold for routine payments |
-| `KITABU_ADMIN_DIGEST_MINUTES` | Digest window (min 5, default 60) |
+| Variable                          | Purpose                                          |
+| --------------------------------- | ------------------------------------------------ |
+| `KITABU_ADMIN_ALERT_PHONE`        | SMS recipient(s), e.g. `+254182625807`           |
+| `KITABU_ADMIN_ALERT_EMAIL`        | Email recipient(s), e.g. `info@kitabuyetu.co.ke` |
+| `KITABU_HIGH_VALUE_THRESHOLD_KES` | Individual-alert threshold for routine payments  |
+| `KITABU_ADMIN_DIGEST_MINUTES`     | Digest window (min 5, default 60)                |
 
 Delivery uses the existing SMS (TextSMS) and email (Resend/SMTP) providers. Admin SMS goes straight to the
 provider, not through the group-billed path, so alerts never consume a customer's credits.
