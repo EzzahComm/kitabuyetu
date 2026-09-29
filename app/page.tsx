@@ -39,9 +39,13 @@ import {
 import {
   CallbackSection,
   CtaBand,
+  CustomerPathsSection,
+  FaqSection,
   KitabuFacts,
+  MemberBenefitsSection,
   ProductTabsSection,
   TestimonialsSection,
+  TrustSection,
 } from '@/components/marketing/kitabu-sections';
 
 import benefitOneImg from '../public/img/benefit-one.jpg';
@@ -226,6 +230,8 @@ export default function Home() {
             </ul>
           </Container>
         </section>
+
+        <CustomerPathsSection id={SECTION_IDS.paths} />
 
         {/* About */}
         <FinanzaSection id={SECTION_IDS.solution} labelledBy="about-heading">
@@ -437,6 +443,10 @@ export default function Home() {
           </div>
         </FinanzaSection>
 
+        <MemberBenefitsSection />
+
+        <TrustSection id={SECTION_IDS.trust} />
+
         {/* Ecosystem */}
         <FinanzaSection id={SECTION_IDS.ecosystem} labelledBy="ecosystem-heading">
           <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -482,6 +492,8 @@ export default function Home() {
         <CallbackSection />
 
         <TestimonialsSection />
+
+        <FaqSection id={SECTION_IDS.faq} />
 
         <CtaBand id={SECTION_IDS.pricing} />
       </main>

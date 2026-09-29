@@ -2,29 +2,14 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { PortableText } from '@portabletext/react';
-import { IconArrowLeft } from '@tabler/icons-react';
-import { Container } from '@/components/Container';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { displayFont } from '@/components/marketing/display-font';
+import { ArrowLeft, Briefcase, Clock, Mail, MapPin } from 'lucide-react';
+import { PageShell } from '@/components/marketing/page-shell';
+import { Container } from '@/components/marketing/primitives';
 import { ApplicationForm } from '@/components/marketing/application-form';
+import { departmentLabel, employmentLabel } from '@/components/marketing/careers-labels';
 import { OG_FALLBACK } from '@/components/marketing/page-metadata';
+import { CONTACT, ROUTES } from '@/components/marketing/routes';
 import { getJobBySlug, getOpenJobs } from '@/lib/cms/sanity';
-
-const DEPARTMENT_LABEL: Record<string, string> = {
-  'product-and-engineering': 'Product and engineering',
-  'community-and-operations': 'Community and operations',
-  partnerships: 'Partnerships',
-  'customer-experience': 'Customer experience',
-  marketing: 'Marketing',
-};
-
-const EMPLOYMENT_LABEL: Record<string, string> = {
-  'full-time': 'Full-time',
-  'part-time': 'Part-time',
-  contract: 'Contract',
-  internship: 'Internship',
-};
 
 interface JobPageProps {
   params: Promise<{ slug: string }>;
@@ -89,43 +74,76 @@ export default async function JobPage({ params }: JobPageProps) {
   if (!job) notFound();
   const url = `${SITE_URL}/careers/${job.slug}`;
 
+  const facts = [
+    { icon: Briefcase, label: 'Department', value: departmentLabel(job.department) },
+    { icon: MapPin, label: 'Location', value: job.location },
+    { icon: Clock, label: 'Type', value: employmentLabel(job.employmentType) },
+  ];
+
   return (
-    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
+    <PageShell
+      title={job.title}
+      description={job.summary}
+      crumbs={[{ label: 'Careers', href: ROUTES.careers }]}
+      layout="sections"
+    >
       <StructuredData job={job} url={url} />
-      <SiteHeader />
-      <main id="main" className="flex-1 pt-16 lg:pt-20">
-        <Container className="py-12 md:py-16">
-          <Link
-            href="/careers"
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-indigo-600 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
-          >
-            <IconArrowLeft className="h-4 w-4" aria-hidden="true" />
-            All open positions
-          </Link>
+      <Container className="pb-16 pt-4 md:pb-24">
+        <div className="grid gap-12 lg:grid-cols-[minmax(0,1fr)_22rem]">
+          <div>
+            <Link
+              href={ROUTES.careers}
+              className="inline-flex items-center gap-1.5 rounded-sm font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+              All open positions
+            </Link>
 
-          <div className="mt-6 max-w-3xl">
-            <p className="text-sm font-bold uppercase tracking-wider text-indigo-600">
-              {DEPARTMENT_LABEL[job.department] ?? job.department}
-            </p>
-            <h1 className="mt-3 text-3xl font-bold leading-tight text-gray-800 dark:text-white sm:text-4xl">
-              {job.title}
-            </h1>
-            <p className="mt-3 text-sm font-semibold text-gray-500 dark:text-gray-300">
-              {job.location} · {EMPLOYMENT_LABEL[job.employmentType] ?? job.employmentType}
-            </p>
-            <p className="mt-6 text-lg leading-relaxed text-gray-600 dark:text-gray-300">{job.summary}</p>
+            <div className="mt-8 max-w-3xl space-y-5 text-base leading-relaxed text-finanza-text [&_a]:font-medium [&_a]:text-brand-500 [&_h2]:mt-10 [&_h2]:font-display [&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:text-finanza-dark [&_h3]:font-display [&_h3]:text-lg [&_h3]:font-semibold [&_h3]:text-finanza-dark [&_li::marker]:text-brand-500 [&_ol]:list-decimal [&_ol]:space-y-2 [&_ol]:pl-6 [&_strong]:font-semibold [&_strong]:text-finanza-dark [&_ul]:list-disc [&_ul]:space-y-2 [&_ul]:pl-6">
+              <PortableText value={job.description} />
+            </div>
+
+            <div id="apply" className="mt-12 max-w-3xl scroll-mt-28">
+              <ApplicationForm jobSlug={job.slug} jobTitle={job.title} />
+            </div>
           </div>
 
-          <div className="mt-10 max-w-3xl space-y-5 text-base leading-7 text-gray-600 dark:text-gray-300 [&_h2]:mt-8 [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-gray-800 [&_h2]:dark:text-white [&_strong]:font-semibold [&_strong]:text-gray-800 [&_strong]:dark:text-white [&_ul]:list-disc [&_ul]:pl-5 [&_ul]:space-y-2">
-            <PortableText value={job.description} />
-          </div>
-
-          <div className="mt-12 max-w-3xl">
-            <ApplicationForm jobSlug={job.slug} jobTitle={job.title} />
-          </div>
-        </Container>
-      </main>
-      <SiteFooter />
-    </div>
+          <aside className="lg:sticky lg:top-28 lg:self-start">
+            <div className="rounded-lg border border-brand-100 p-6">
+              <p className="font-display text-xl font-semibold text-finanza-dark">Role at a glance</p>
+              <dl className="mt-5 space-y-4">
+                {facts.map((fact) => (
+                  <div key={fact.label} className="flex items-start gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand-50">
+                      <fact.icon aria-hidden="true" className="h-4 w-4 text-brand-500" />
+                    </span>
+                    <div>
+                      <dt className="text-sm text-finanza-text">{fact.label}</dt>
+                      <dd className="font-medium text-finanza-dark">{fact.value}</dd>
+                    </div>
+                  </div>
+                ))}
+              </dl>
+              <a
+                href="#apply"
+                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-500 px-6 py-3 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+              >
+                Apply for this role
+              </a>
+            </div>
+            <div className="mt-6 rounded-lg bg-brand-50 p-6 text-[0.9375rem] text-finanza-text">
+              <p className="font-medium text-finanza-dark">Questions about the role?</p>
+              <a
+                href={`mailto:${CONTACT.careersEmail}?subject=${encodeURIComponent(job.title)}`}
+                className="mt-2 inline-flex items-center gap-2 font-medium text-brand-500 hover:text-brand-700"
+              >
+                <Mail aria-hidden="true" className="h-4 w-4" />
+                {CONTACT.careersEmail}
+              </a>
+            </div>
+          </aside>
+        </div>
+      </Container>
+    </PageShell>
   );
 }

@@ -46,7 +46,8 @@ export const ROUTES = {
   ecosystemMarketplace: '/ecosystem/marketplace',
   ecosystemPrograms: '/ecosystem/programs',
 
-  // Legal — stub pages only. See the note on LEGAL_LINKS below for why.
+  // Legal. See the note on LEGAL_ITEMS below for which documents are real policy text.
+  legal: '/legal',
   legalTerms: '/legal/terms',
   legalPrivacy: '/legal/privacy',
   legalDataProtection: '/legal/data-protection',
@@ -62,12 +63,15 @@ export const ROUTES = {
 /** In-page anchors on the home page, referenced from the header and footer —
  *  so the ids are declared once instead of as loose strings in three files. */
 export const SECTION_IDS = {
+  paths: 'who-its-for',
   solution: 'what-it-does',
   showcase: 'product',
   howItWorks: 'how-it-works',
   ecosystem: 'ecosystem',
   payments: 'payments',
   pricing: 'pricing',
+  trust: 'security',
+  faq: 'faq',
 } as const;
 
 export interface NavLink {
@@ -97,6 +101,7 @@ export const ABOUT_ITEMS: NavLink[] = [
   },
   { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
   { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
+  { label: 'Careers', href: ROUTES.careers, description: 'Open roles, and how to join the team.' },
 ];
 
 export const PRODUCT_ITEMS: NavLink[] = [
@@ -175,7 +180,28 @@ export interface FooterColumn {
  * data is a liability, not a marketing choice, so nobody should draft it
  * except counsel or the business owner themself. Do not generate policy
  * language for it.
+ *
+ * Shared by the footer, the /legal hub and each document's "other documents"
+ * rail, so a new policy is published by adding one entry here.
  */
+export const LEGAL_ITEMS: NavLink[] = [
+  {
+    label: 'Terms & Conditions',
+    href: ROUTES.legalTerms,
+    description: 'The agreement that governs using Kitabu Yetu, its payment services and communications.',
+  },
+  {
+    label: 'Privacy Policy',
+    href: ROUTES.legalPrivacy,
+    description: 'What personal information we collect, why, who receives it, and the rights you have over it.',
+  },
+  {
+    label: 'Data Protection',
+    href: ROUTES.legalDataProtection,
+    description: 'Where our Data Protection Act, 2019 registration and compliance programme stands.',
+  },
+];
+
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: 'Products',
@@ -200,6 +226,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Team', href: ROUTES.aboutTeam },
       { label: 'Impact', href: ROUTES.aboutImpact },
       { label: 'Careers', href: ROUTES.careers },
+      { label: 'Legal', href: ROUTES.legal },
       { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
       { label: 'Pricing', href: ROUTES.pricing },
       { label: 'Contact', href: ROUTES.contact },
@@ -207,11 +234,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
   {
     heading: 'Legal',
-    links: [
-      { label: 'Terms & Conditions', href: ROUTES.legalTerms },
-      { label: 'Privacy Policy', href: ROUTES.legalPrivacy },
-      { label: 'Data Protection', href: ROUTES.legalDataProtection },
-    ],
+    links: LEGAL_ITEMS,
   },
 ];
 
@@ -222,6 +245,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
  */
 export const CONTACT = {
   email: 'info@kitabuyetu.co.ke',
+  careersEmail: 'careers@kitabuyetu.co.ke',
   phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;

@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { marked } from 'marked';
-import { PageShell } from '@/components/marketing/page-shell';
+import { LegalDocument } from '@/components/marketing/legal-document';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { ROUTES } from '@/components/marketing/routes';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/legal/terms',
@@ -447,10 +447,12 @@ Kitabu Yetu is built to help community groups and organizations keep their recor
  * never generated here).
  */
 export default function TermsPage() {
-  const html = marked.parse(TERMS_MD, { async: false }) as string;
   return (
-    <PageShell title="Terms & Conditions" description="Last updated: September 2026">
-      <div dangerouslySetInnerHTML={{ __html: html }} />
-    </PageShell>
+    <LegalDocument
+      title="Terms & Conditions"
+      updated="Last updated: September 2026"
+      markdown={TERMS_MD}
+      href={ROUTES.legalTerms}
+    />
   );
 }

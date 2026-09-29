@@ -42,9 +42,9 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
 
   if (submit.isSuccess) {
     return (
-      <div className="rounded-lg border border-green-200 bg-green-50 p-6 dark:border-green-900 dark:bg-green-950/40">
-        <p className="font-bold text-gray-800 dark:text-white">Application received</p>
-        <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+      <div role="status" className="rounded-lg border border-brand-500 bg-brand-50 p-6">
+        <p className="font-display text-xl font-semibold text-finanza-dark">Application received</p>
+        <p className="mt-1 text-finanza-text">
           Thanks for applying for {jobTitle} — our team will be in touch if there&rsquo;s a fit.
         </p>
       </div>
@@ -52,11 +52,11 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
-      className="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-6 dark:border-trueGray-700 dark:bg-trueGray-800/40"
-    >
-      <p className="font-bold text-gray-800 dark:text-white">Apply for this role</p>
+    <form onSubmit={onSubmit} className="space-y-5 rounded-lg border border-brand-100 bg-white p-6 sm:p-8">
+      <div>
+        <h2 className="font-display text-2xl font-semibold text-finanza-dark">Apply for this role</h2>
+        <p className="mt-1 text-finanza-text">Fields marked * are required.</p>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="app_name">Full name *</Label>
@@ -90,8 +90,17 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
           placeholder="Why this role, why Kitabu Yetu?"
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
-      <Button type="submit" disabled={submit.isPending || !name.trim() || !email.trim()}>
+      {error && (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
+      <Button
+        type="submit"
+        size="lg"
+        className="bg-brand-500 text-white hover:bg-brand-600"
+        disabled={submit.isPending || !name.trim() || !email.trim()}
+      >
         {submit.isPending ? 'Submitting…' : 'Submit application'}
       </Button>
     </form>

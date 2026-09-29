@@ -1,6 +1,6 @@
 import Image from 'next/image';
 import Link from 'next/link';
-import { ArrowRight, Check, HandCoins, Layers, MessageSquareText, UsersRound } from 'lucide-react';
+import { ArrowRight, Check, ChevronDown, HandCoins, Layers, MessageSquareText, UsersRound } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
@@ -12,19 +12,23 @@ import bernardKisakaPhoto from '@/public/img/testimonials/bernard-kisaka.jpg';
 import ezraWekesaPhoto from '@/public/img/testimonials/ezra-wekesa.jpg';
 import founderPhoto from '@/public/img/team/polycap-wanyonyi.png';
 import { CallbackForm } from './callback-form';
-import { PRODUCT_PILLARS } from './content';
+import { CONTROLS, CUSTOMER_PATHS, HOME_FAQS, MEMBER_BENEFITS, PRODUCT_PILLARS } from './content';
 import {
   FactsBand,
   FinanzaHeading,
   FinanzaSection,
+  IconBadge,
   Pill,
   btnOnPrimary,
+  btnOutline,
   btnPrimary,
   patternBandStyle,
   type Fact,
 } from './finanza';
 import { ServiceTabs } from './finanza-tabs';
+import { JsonLd, faqPageJsonLd } from './json-ld';
 import { Container } from './primitives';
+import { Reveal } from './reveal';
 import { FOUNDER_SOCIAL_LINKS, ROUTES } from './routes';
 import { SocialLinks } from './social-links';
 import { TestimonialCarousel, type Testimonial } from './testimonial-carousel';
@@ -337,5 +341,177 @@ export function JoinTeamCard() {
         </p>
       </div>
     </div>
+  );
+}
+
+/**
+ * The self-selection fork: a group runs its own book, an organization
+ * oversees many. Both destinations are real public pages (see CUSTOMER_PATHS).
+ */
+export function CustomerPathsSection({ id }: { id?: string }) {
+  return (
+    <FinanzaSection id={id} labelledBy="paths-heading" className="bg-brand-50/60">
+      <FinanzaHeading
+        id="paths-heading"
+        align="center"
+        pill="Who It's For"
+        title="Start where your group is today."
+        lede="Whether you keep one group's book or support a whole portfolio of them, there is a path built for you."
+        className="mb-12"
+      />
+      <div className="grid gap-6 lg:grid-cols-2">
+        {CUSTOMER_PATHS.map((path, i) => (
+          <Reveal
+            key={path.eyebrow}
+            delay={i * 150}
+            className="flex flex-col rounded-lg border border-brand-100 bg-white p-8 transition-colors duration-500 hover:border-brand-500"
+          >
+            <div className="mb-6 flex items-center gap-4">
+              <IconBadge icon={path.icon} />
+              <p className="font-medium uppercase tracking-wide text-brand-500">{path.eyebrow}</p>
+            </div>
+            <h3 className="font-display text-2xl font-semibold leading-snug text-finanza-dark lg:text-[1.75rem]">
+              {path.title}
+            </h3>
+            <p className="mt-4 leading-relaxed text-finanza-text">{path.body}</p>
+            <ul className="mt-6 flex flex-wrap gap-2" aria-label="Built for">
+              {path.audience.map((audience) => (
+                <li
+                  key={audience}
+                  className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-sm font-medium text-finanza-dark"
+                >
+                  {audience}
+                </li>
+              ))}
+            </ul>
+            <div className="mt-8 flex-1" />
+            <Link href={path.href} className={cn(i === 0 ? btnPrimary : btnOutline, 'self-start')}>
+              {path.linkText} <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </Link>
+          </Reveal>
+        ))}
+      </div>
+    </FinanzaSection>
+  );
+}
+
+/** What a member sees in their own portal (app/(member)/me) — see MEMBER_BENEFITS. */
+export function MemberBenefitsSection() {
+  return (
+    <FinanzaSection labelledBy="members-heading">
+      <div className="grid items-start gap-12 lg:grid-cols-[0.9fr_1.1fr]">
+        <div className="lg:sticky lg:top-32">
+          <FinanzaHeading
+            id="members-heading"
+            pill="For Every Member"
+            title="Members see their own numbers — without asking."
+            lede="Every member gets their own view of the group book: what they have saved, what they owe and every transaction behind it. Fewer questions at meetings, more trust between them."
+          />
+          <a href={signUpUrl()} className={cn(btnPrimary, 'mt-8')}>
+            Get Started
+          </a>
+        </div>
+        <ul className="grid gap-6 sm:grid-cols-2">
+          {MEMBER_BENEFITS.map((benefit, i) => (
+            <Reveal
+              as="li"
+              key={benefit.title}
+              delay={(i % 2) * 120}
+              className="rounded-lg border border-brand-100 p-6"
+            >
+              <benefit.icon aria-hidden="true" className="mb-4 h-9 w-9 text-brand-500" />
+              <h3 className="font-display text-xl font-semibold text-finanza-dark">{benefit.title}</h3>
+              <p className="mt-2 leading-relaxed text-finanza-text">{benefit.body}</p>
+            </Reveal>
+          ))}
+        </ul>
+      </div>
+    </FinanzaSection>
+  );
+}
+
+/** Shipped controls only — see the note on CONTROLS. Dark band so it reads as its own moment. */
+export function TrustSection({ id }: { id?: string }) {
+  return (
+    <section id={id} aria-labelledby="trust-heading" className="scroll-mt-28 bg-finanza-dark py-16 lg:py-24">
+      <Container>
+        <div className="mb-12 grid items-end gap-8 lg:grid-cols-2">
+          <Reveal>
+            <Pill tone="dark">Security & Trust</Pill>
+            <h2
+              id="trust-heading"
+              className="font-display text-[2rem] font-bold leading-[1.15] text-white sm:text-[2.5rem] xl:text-5xl"
+            >
+              Built for money that belongs to many people.
+            </h2>
+          </Reveal>
+          <Reveal delay={150}>
+            <p className="text-lg leading-relaxed text-brand-100/85">
+              A group&apos;s book only works if every member can trust it. These controls are in the product today — not
+              on a roadmap.
+            </p>
+          </Reveal>
+        </div>
+        <ul className="grid gap-px overflow-hidden rounded-lg bg-white/10 sm:grid-cols-2 lg:grid-cols-3">
+          {CONTROLS.map((control) => (
+            <li key={control.title} className="bg-finanza-dark p-7">
+              <span className="mb-5 flex h-12 w-12 items-center justify-center rounded-full bg-brand-500">
+                <control.icon aria-hidden="true" className="h-5 w-5 text-white" />
+              </span>
+              <h3 className="font-display text-xl font-semibold text-white">{control.title}</h3>
+              <p className="mt-2 leading-relaxed text-brand-100/80">{control.body}</p>
+            </li>
+          ))}
+        </ul>
+      </Container>
+    </section>
+  );
+}
+
+/**
+ * Native <details> accordion: works without JavaScript, and the FAQPage
+ * JSON-LD is generated from the same HOME_FAQS array so the two cannot drift.
+ */
+export function FaqSection({ id }: { id?: string }) {
+  return (
+    <FinanzaSection id={id} labelledBy="faq-heading" className="bg-brand-50/60">
+      <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+        <div>
+          <FinanzaHeading
+            id="faq-heading"
+            pill="FAQ"
+            title="Questions groups ask us first."
+            lede="Can't find your answer here? Our support team speaks treasurer."
+          />
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link href={ROUTES.support} className={btnPrimary}>
+              Visit Support
+            </Link>
+            <Link href={ROUTES.pricing} className={btnOutline}>
+              See Pricing
+            </Link>
+          </div>
+        </div>
+        <div className="space-y-4">
+          {HOME_FAQS.map(([question, answer], i) => (
+            <details
+              key={question}
+              open={i === 0}
+              className="group rounded-lg border border-brand-100 bg-white px-6 py-5 open:border-brand-500"
+            >
+              <summary className="flex cursor-pointer list-none items-start justify-between gap-4 font-display text-lg font-semibold text-finanza-dark [&::-webkit-details-marker]:hidden">
+                {question}
+                <ChevronDown
+                  aria-hidden="true"
+                  className="mt-1 h-5 w-5 shrink-0 text-brand-500 transition-transform duration-300 group-open:rotate-180"
+                />
+              </summary>
+              <p className="mt-3 leading-relaxed text-finanza-text">{answer}</p>
+            </details>
+          ))}
+        </div>
+      </div>
+      <JsonLd data={faqPageJsonLd(HOME_FAQS)} />
+    </FinanzaSection>
   );
 }

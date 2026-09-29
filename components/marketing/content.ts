@@ -833,3 +833,45 @@ export const IMPACT_STATS: ImpactStat[] = [
   { label: 'Funds managed', value: '—' },
   { label: 'Communities reached', value: '—' },
 ];
+
+/* ── Section 19 — homepage FAQ ────────────────────────────────────────────── */
+
+/**
+ * Every answer repeats wording already verified for /pricing and /support
+ * (their own FAQ arrays), so the homepage cannot promise more than those
+ * pages do. Rendered as FAQPage JSON-LD from this same array.
+ */
+export const HOME_FAQS: [question: string, answer: string][] = [
+  [
+    'Which product should we start with?',
+    'If you only need to reach members — contribution reminders, meeting notices, birthdays — Chama Reminder is enough. Choose Kitabu Yetu when you also need to record and reconcile the money.',
+  ],
+  [
+    'Is M-Pesa included?',
+    'Yes. Every Kitabu Yetu plan includes the full Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+  ],
+  [
+    'Can members pay by something other than M-Pesa?',
+    'A group can record cash, bank transfer or cheque contributions directly in the ledger as well — M-Pesa is the only channel that posts automatically.',
+  ],
+  [
+    'Can we bring in our existing records?',
+    'Yes. Every plan supports bulk CSV import for members and historical contributions, so you are not starting from a blank book.',
+  ],
+  [
+    "Can another group see our group's records?",
+    "No. Each group's records are isolated at the database level — this is enforced by the database itself, not just by the app's screens.",
+  ],
+  [
+    'What can an ordinary member see?',
+    'Members can see their own contribution, loan and welfare history. Editing group records is limited to the chairperson, treasurer and secretary roles.',
+  ],
+  [
+    'Can we change plan later?',
+    'Yes. Buy a different plan by M-Pesa at any time from your billing page and it activates immediately — there is no lock-in period.',
+  ],
+  [
+    'Is there a free plan?',
+    'No. Every plan is paid, and bought self-service by M-Pesa. See the full price list on the Pricing page.',
+  ],
+];

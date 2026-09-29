@@ -37,6 +37,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
   { path: '/status', priority: 0.3, changeFrequency: 'weekly' },
   { path: '/resources', priority: 0.7, changeFrequency: 'weekly' },
   { path: '/careers', priority: 0.5, changeFrequency: 'weekly' },
+  { path: '/legal', priority: 0.2, changeFrequency: 'monthly' },
   { path: '/legal/privacy', priority: 0.2, changeFrequency: 'monthly' },
   { path: '/legal/terms', priority: 0.2, changeFrequency: 'monthly' },
   // Not /legal/data-protection: it is still a placeholder and sets robots noindex.
