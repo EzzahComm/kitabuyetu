@@ -74,30 +74,30 @@ export default function EcosystemPage() {
           <div className="not-prose grid gap-4 sm:grid-cols-3">
             <Link
               href={ROUTES.bookkeeper}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Bookkeeper</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
+              <h3 className="font-semibold text-finanza-dark">Bookkeeper</h3>
+              <p className="mt-2 text-sm text-finanza-text">
                 The core ledger — contributions, loans, welfare and shares on one double-entry book.
               </p>
             </Link>
             <Link
               href={ROUTES.chamaReminder}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Chama Reminder</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
+              <h3 className="font-semibold text-finanza-dark">Chama Reminder</h3>
+              <p className="mt-2 text-sm text-finanza-text">
                 Member management and messaging — reminders, announcements and engagement, standalone or with
                 Bookkeeper.
               </p>
             </Link>
             <Link
               href={ROUTES.fundraise}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Fundraise</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
-                Digital campaigns for causes, projects and community fundraising — coming soon.
+              <h3 className="font-semibold text-finanza-dark">Fundraise</h3>
+              <p className="mt-2 text-sm text-finanza-text">
+                M-Pesa campaigns for causes, projects and community fundraising — reviewed before they go live.
               </p>
             </Link>
           </div>

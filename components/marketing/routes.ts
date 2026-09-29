@@ -73,6 +73,7 @@ export const SECTION_IDS = {
   pricing: 'pricing',
   trust: 'security',
   faq: 'faq',
+  blog: 'blog',
 } as const;
 
 export interface NavLink {
@@ -145,7 +146,17 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 
 export const PRICING_ITEMS: NavLink[] = [
   { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
-  { label: 'Chama Reminder', href: ROUTES.pricing, description: 'SMS reminders and group announcements.' },
+  {
+    label: 'Chama Reminder',
+    href: `${ROUTES.pricing}#chama-reminder`,
+    description: 'SMS reminders and group announcements.',
+  },
+  {
+    label: 'Changi$ha',
+    href: `${ROUTES.pricing}#changisha`,
+    description: 'No monthly fee — a small fee per withdrawal.',
+  },
+  { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];
 
 /**

@@ -35,7 +35,7 @@ export default function MultigroupOrganizationsPage() {
         </Link>
         <Link
           href={ROUTES.ecosystem}
-          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper-deep"
+          className="rounded-md border border-brand-100 px-5 py-2.5 text-sm font-semibold text-finanza-dark transition-colors hover:bg-brand-50/60"
         >
           Back to the ecosystem
         </Link>

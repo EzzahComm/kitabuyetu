@@ -34,6 +34,7 @@ import { recordApproval } from './settlement-approvals.service';
 import { resolvePolicy } from './configuration.service';
 import { computeB2CCharge } from './mpesa-charges.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
+import { CHANGISHA_PRICING } from '@/types/enums';
 
 export interface RequestWithdrawalInput {
   campaignId: string;
@@ -62,8 +63,8 @@ export interface CampaignWithdrawalRow {
   idempotency_key: string | null;
 }
 
-const DEFAULT_PLATFORM_FEE_PCT = 4;
-const DEFAULT_MIN_WITHDRAWAL = 500;
+const DEFAULT_PLATFORM_FEE_PCT = CHANGISHA_PRICING.platformFeePct;
+const DEFAULT_MIN_WITHDRAWAL = CHANGISHA_PRICING.minWithdrawal;
 
 /** Non-terminal — still counts against the campaign's undrawn balance. */
 const OPEN_STATUSES = ['pending_approval', 'approved', 'processing'];

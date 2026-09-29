@@ -24,6 +24,8 @@ import {
 import { ServiceTabs } from './finanza-tabs';
 import { JsonLd, faqPageJsonLd } from './json-ld';
 import { PHOTOS, PRODUCT_PHOTOS, type Photo } from './photos';
+import { PostCard } from './post-card';
+import { getPosts } from '@/lib/cms/sanity';
 import { Container } from './primitives';
 import { Reveal } from './reveal';
 import { FOUNDER_SOCIAL_LINKS, ROUTES } from './routes';
@@ -222,6 +224,10 @@ interface CtaBandProps {
   title?: string;
   subtitle?: string;
   footnote?: string;
+  /** Show the subscription starting prices under the subtitle. Off for pages about another product. */
+  showPlanPrices?: boolean;
+  /** Primary button; defaults to group sign-up. */
+  primary?: { label: string; href: string };
 }
 
 /** Closing call to action on the template's primary pattern band. */
@@ -230,6 +236,8 @@ export function CtaBand({
   title = 'Ready to grow your group?',
   subtitle = 'Bring your members, money, records and investments together.',
   footnote = 'No lock-in period · Pay by M-Pesa · Built for Kenyan groups',
+  showPlanPrices = true,
+  primary,
 }: CtaBandProps) {
   return (
     <section id={id} aria-labelledby="cta-heading" className="scroll-mt-28 py-12">
@@ -246,17 +254,19 @@ export function CtaBand({
               {title}
             </h2>
             <p className="mt-3 text-lg text-white/90">{subtitle}</p>
-            <p className="mt-4 text-white/90">
-              Bookkeeper from KES {PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Chama Reminder from KES{' '}
-              {PLAN_MONTHLY_FEES.chama_reminder.starter}/month ·{' '}
-              <Link href={ROUTES.pricing} className="font-medium underline underline-offset-4 hover:text-white">
-                View pricing
-              </Link>
-            </p>
+            {showPlanPrices && (
+              <p className="mt-4 text-white/90">
+                Bookkeeper from KES {PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Chama Reminder from KES{' '}
+                {PLAN_MONTHLY_FEES.chama_reminder.starter}/month ·{' '}
+                <Link href={ROUTES.pricing} className="font-medium underline underline-offset-4 hover:text-white">
+                  View pricing
+                </Link>
+              </p>
+            )}
           </div>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row lg:flex-col xl:flex-row">
-            <a href={signUpUrl()} className={btnOnPrimary}>
-              Get Started
+            <a href={primary?.href ?? signUpUrl()} className={btnOnPrimary}>
+              {primary?.label ?? 'Get Started'}
             </a>
             <Link
               href={ROUTES.contact}
@@ -521,7 +531,7 @@ const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: "Women's savings groups & VSLAs",
     title: 'The savings, the loans and the social fund — in one book.',
-    body: 'Keep running your meetings the way you do today. Kitabu Yetu keeps the record, so the numbers no longer live in one notebook carried by one official.',
+    body: 'Run meetings the way you do today. The record lives in one shared book, not one official’s notebook.',
     points: [
       'Record cash contributions by hand — M-Pesa payments post themselves',
       'Loans, repayments and welfare tracked member by member',
@@ -532,7 +542,7 @@ const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: 'Youth groups & young members',
     title: 'For groups that already run on their phones.',
-    body: 'Contributions by M-Pesa prompt, reminders by SMS and every member able to see their own savings and loans — without chasing the treasurer for an update.',
+    body: 'Contribute by M-Pesa, get reminders by SMS and check your own balance — no chasing the treasurer.',
     points: [
       'An M-Pesa prompt to contribute or repay, straight to the phone',
       'Contribution reminders that go out on their own, by SMS',
@@ -551,7 +561,7 @@ export function CommunitiesSection({ id }: { id?: string }) {
         align="center"
         pill="Our Communities"
         title="Made for the groups that keep communities moving."
-        lede="From a VSLA meeting under a tree to a youth group that does everything by phone, the group book should work for everyone in it."
+        lede="From a VSLA meeting under a tree to a youth group that runs on phones."
         className="mb-12"
       />
       <div className="grid gap-8 lg:grid-cols-2">
@@ -588,6 +598,34 @@ export function CommunitiesSection({ id }: { id?: string }) {
           </Reveal>
         ))}
       </div>
+    </FinanzaSection>
+  );
+}
+
+/** The three newest posts from the Sanity blog. Renders nothing when the CMS has none (or is unreachable). */
+export async function LatestPostsSection({ id }: { id?: string }) {
+  const posts = (await getPosts()).slice(0, 3);
+  if (posts.length === 0) return null;
+  return (
+    <FinanzaSection id={id} labelledBy="blog-heading">
+      <div className="mb-10 flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        <FinanzaHeading
+          id="blog-heading"
+          pill="From The Blog"
+          title="Guides for the people who run groups."
+          className="max-w-2xl"
+        />
+        <Link href={ROUTES.resources} className={cn(btnOutline, 'shrink-0 self-start sm:self-auto')}>
+          All articles <ArrowRight aria-hidden="true" className="h-4 w-4" />
+        </Link>
+      </div>
+      <ul className="grid gap-6 md:grid-cols-3">
+        {posts.map((post) => (
+          <li key={post.slug}>
+            <PostCard post={post} />
+          </li>
+        ))}
+      </ul>
     </FinanzaSection>
   );
 }
