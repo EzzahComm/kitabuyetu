@@ -292,7 +292,7 @@ export interface SocialLink {
 export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
   { platform: 'x', label: 'X (Twitter)', href: null },
-  { platform: 'linkedin', label: 'LinkedIn', href: null },
+  { platform: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167' },
   { platform: 'instagram', label: 'Instagram', href: null },
   { platform: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@KitabuYetu' },
   { platform: 'whatsapp', label: 'WhatsApp', href: whatsappHref(CONTACT.phones[0]) },
@@ -300,7 +300,11 @@ export const SOCIAL_LINKS: SocialLink[] = [
 
 /** The founder's own profiles, for the team card — personal, not the company's. Same rule: fill in `href`. */
 export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
-  { platform: 'linkedin', label: 'Polycap Wanyonyi on LinkedIn', href: null },
+  {
+    platform: 'linkedin',
+    label: 'Polycap Wanyonyi on LinkedIn',
+    href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167',
+  },
   { platform: 'x', label: 'Polycap Wanyonyi on X', href: null },
   { platform: 'facebook', label: 'Polycap Wanyonyi on Facebook', href: null },
 ];
