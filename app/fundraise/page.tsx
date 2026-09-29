@@ -23,7 +23,8 @@ export const dynamic = 'force-dynamic';
  * paybill (daraja.service SHORTCODE) and held on the group's 4006 Changi$ha
  * account; withdrawals go to the campaign's payout destination (phone, paybill
  * or till — lib/campaigns/payout-destination.ts) after maker-checker approval
- * by two group officials (campaign-withdrawals.service).
+ * by two group officials and then Kitabu Yetu's own sign-off
+ * (campaign-withdrawals.service, migration 203).
  */
 const STEPS = [
   {
@@ -36,7 +37,7 @@ const STEPS = [
   },
   {
     title: 'Share and release',
-    body: "Donations go to Kitabu Yetu's M-Pesa paybill and show on the page as they arrive; funds are released once two group officials approve.",
+    body: "Donations go to Kitabu Yetu's M-Pesa paybill and show on the page as they arrive; funds are released once two group officials approve and Kitabu Yetu signs off.",
   },
 ];
 

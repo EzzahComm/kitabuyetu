@@ -8,10 +8,10 @@
  *
  * request()'s query sequence: idempotency lookup -> campaign FOR UPDATE ->
  * drawn-so-far SUM -> lock_group_cash_account -> resolvePolicy(min) ->
- * resolvePolicy(fee %) -> computeB2CCharge -> adjust_account_reserved_amount
+ * resolvePolicy(fee %) -> resolvePolicy(platform sign-off) -> computeB2CCharge -> adjust_account_reserved_amount
  * -> INSERT campaign_withdrawals -> INSERT audit_logs.
  */
-import { withTransaction, withDb } from '@/lib/db';
+import { withTransaction, withDb, withAdminDb } from '@/lib/db';
 import { campaignWithdrawalsService } from '@/lib/services/campaign-withdrawals.service';
 import { ValidationError, NotFoundError } from '@/lib/utils/errors';
 
@@ -29,6 +29,7 @@ beforeEach(() => {
   mockQuery.mockReset();
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
+  (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
 });
 
 const ctx = { groupId: 'grp-1', userId: 'officer-1', role: 'treasurer' };
@@ -136,6 +137,7 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 90 }] }) // platform fee % — 90% of 1000 = 900
+      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '150.00' }] }); // mpesa charge — 900 + 150 > 1000
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
@@ -153,6 +155,7 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 4% of 1000 = 40
+      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '33.00' }] }) // mpesa charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
       .mockResolvedValueOnce({
@@ -171,14 +174,14 @@ describe('campaignWithdrawalsService.request', () => {
     const res = await campaignWithdrawalsService.request(ctx, input);
     expect(res.net_amount).toBe('927.00');
 
-    const reserveCall = mockQuery.mock.calls[7];
+    const reserveCall = mockQuery.mock.calls[8];
     expect(reserveCall[0]).toContain('adjust_account_reserved_amount');
     expect(reserveCall[1]).toEqual(['acct-1', '1000.00']); // reserves the GROSS amount, not net
 
-    const chargeCall = mockQuery.mock.calls[6];
+    const chargeCall = mockQuery.mock.calls[7];
     expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2c')"); // phone -> B2C tariff
 
-    const insertCall = mockQuery.mock.calls[8];
+    const insertCall = mockQuery.mock.calls[9];
     expect(insertCall[0]).toContain('INSERT INTO campaign_withdrawals');
     expect(insertCall[1]).toEqual([
       'camp-1',
@@ -195,6 +198,7 @@ describe('campaignWithdrawalsService.request', () => {
       '927.00', // net_amount
       'officer-1',
       'wk-1',
+      true, // platform_signoff_required (default: Kitabu Yetu signs off every release)
     ]);
   });
 
@@ -218,16 +222,17 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 40
+      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '22.00' }] }) // B2B charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
       .mockResolvedValueOnce({ rows: [{ id: 'cw-2', net_amount: '938.00' }] }); // INSERT
 
     await campaignWithdrawalsService.request(ctx, input);
 
-    const chargeCall = mockQuery.mock.calls[6];
+    const chargeCall = mockQuery.mock.calls[7];
     expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2b')");
 
-    const insertCall = mockQuery.mock.calls[8];
+    const insertCall = mockQuery.mock.calls[9];
     expect(insertCall[1].slice(2, 7)).toEqual(['paybill', null, '247247', 'PAT-00123', 'Kenyatta National Hospital']);
     expect(insertCall[1][11]).toBe('938.00'); // net = 1000 - 40 - 22
   });
@@ -276,5 +281,80 @@ describe('campaignWithdrawalsService.reject', () => {
     const releaseCall = mockQuery.mock.calls[3];
     expect(releaseCall[0]).toContain('adjust_account_reserved_amount');
     expect(releaseCall[1]).toEqual(['acct-1', '-1000.00']);
+  });
+});
+
+describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
+  const queries = () => mockQuery.mock.calls.map((c) => String(c[0]));
+
+  it('a second officer approving moves the row to awaiting_platform and dispatches NOTHING', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'cw-1', requested_by: 'officer-2', status: 'pending_approval', platform_signoff_required: true }],
+      })
+      .mockResolvedValueOnce({ rows: [] }) // recordApproval
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'awaiting_platform' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // audit
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'awaiting_platform' }] }); // getById
+
+    const res = await campaignWithdrawalsService.approve(ctx, 'cw-1');
+
+    expect(res.status).toBe('awaiting_platform');
+    const updateCall = mockQuery.mock.calls[2];
+    expect(updateCall[1]).toEqual(['cw-1', 'awaiting_platform']);
+    // Dispatch would claim the row with `SET status = 'processing'`; it must not have run.
+    expect(queries().some((q) => q.includes("SET    status = 'processing'"))).toBe(false);
+  });
+
+  it('platformApprove releases an awaiting_platform row and records a backoffice approval', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', group_id: 'grp-1', status: 'awaiting_platform' }] }) // SELECT FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // settlement_approvals
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'approved' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // audit
+      .mockResolvedValueOnce({ rows: [] }); // dispatch claim finds nothing (already claimed) -> no Daraja call
+
+    const res = await campaignWithdrawalsService.platformApprove('admin-1', 'cw-1');
+
+    expect(res.status).toBe('approved');
+    const [selectSql] = mockQuery.mock.calls[0];
+    expect(selectSql).toContain("status = 'awaiting_platform'");
+    const approvalCall = mockQuery.mock.calls[1];
+    expect(approvalCall[0]).toContain("'backoffice'");
+    expect(approvalCall[1]).toEqual(['cw-1', 'grp-1', 'admin-1']);
+  });
+
+  it('platformApprove refuses a row that is not awaiting the platform (e.g. already released)', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await expect(campaignWithdrawalsService.platformApprove('admin-1', 'cw-1')).rejects.toBeInstanceOf(NotFoundError);
+    expect(queries().some((q) => q.includes('settlement_approvals'))).toBe(false);
+  });
+
+  it('platformReject returns the reserved gross to the group and closes the row', async () => {
+    mockQuery
+      .mockResolvedValueOnce({
+        rows: [{ id: 'cw-1', group_id: 'grp-1', status: 'awaiting_platform', gross_amount: '1000.00' }],
+      })
+      .mockResolvedValueOnce({ rows: [] }) // settlement_approvals
+      .mockResolvedValueOnce({ rows: [{ id: 'acct-1' }] }) // lock cash account
+      .mockResolvedValueOnce({ rows: [] }) // release
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'rejected' }] }) // UPDATE
+      .mockResolvedValueOnce({ rows: [] }); // audit
+
+    const res = await campaignWithdrawalsService.platformReject('admin-1', 'cw-1', 'Payee could not be verified');
+
+    expect(res.status).toBe('rejected');
+    const releaseCall = mockQuery.mock.calls[3];
+    expect(releaseCall[0]).toContain('adjust_account_reserved_amount');
+    expect(releaseCall[1]).toEqual(['acct-1', '-1000.00']);
+    const updateCall = mockQuery.mock.calls[4];
+    expect(updateCall[1]).toEqual(['cw-1', 'Declined by Kitabu Yetu: Payee could not be verified']);
+  });
+
+  it('platformReject requires a reason and touches nothing without one', async () => {
+    await expect(campaignWithdrawalsService.platformReject('admin-1', 'cw-1', '  ')).rejects.toBeInstanceOf(
+      ValidationError,
+    );
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
