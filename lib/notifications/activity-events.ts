@@ -173,6 +173,9 @@ export enum ActivityEventType {
   ERROR_SPIKE = 'ERROR_SPIKE',
   NOTIFICATION_DELIVERY_FAILED = 'NOTIFICATION_DELIVERY_FAILED',
 
+  // HR / recruiting
+  JOB_APPLICATION_SUBMITTED = 'JOB_APPLICATION_SUBMITTED',
+
   // Meta
   ACTIVITY_DIGEST = 'ACTIVITY_DIGEST',
 }
@@ -351,6 +354,8 @@ const DEFS: Record<ActivityEventType, Def> = {
   [T.EMAIL_PROVIDER_FAILURE]: ['Email Provider Failure', 'WARNING'],
   [T.ERROR_SPIKE]: ['Server Error Spike', 'HIGH'],
   [T.NOTIFICATION_DELIVERY_FAILED]: ['Admin Notification Delivery Failed', 'WARNING', { sms: false, email: true }],
+
+  [T.JOB_APPLICATION_SUBMITTED]: ['New Job Application', 'INFO', { sms: false, email: true }],
 
   [T.ACTIVITY_DIGEST]: ['Platform Activity Summary', 'INFO', { sms: false, email: true }],
 };

@@ -11,6 +11,7 @@
  * previous version of the footer shipped 10 dead links out of 16 (see its own
  * note in git history) — "the link works" is checked here, once.
  * ──────────────────────────────────────────────────────────────────────────── */
+import { DEPARTMENTS } from '@/lib/departments';
 
 export const ROUTES = {
   home: '/',
@@ -259,8 +260,12 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
  * number undialable. Build call links with telHref(), never by hand.
  */
 export const CONTACT = {
-  email: 'info@kitabuyetu.co.ke',
-  careersEmail: 'careers@kitabuyetu.co.ke',
+  email: DEPARTMENTS.general.email,
+  // Recruiting goes to the HR mailbox (there is no careers@ mailbox).
+  careersEmail: DEPARTMENTS.hr.email,
+  supportEmail: DEPARTMENTS.support.email,
+  billingEmail: DEPARTMENTS.billing.email,
+  enterpriseEmail: DEPARTMENTS.enterprise.email,
   phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;

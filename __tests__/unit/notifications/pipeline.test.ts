@@ -151,7 +151,17 @@ describe('emitActivity', () => {
       adminPath: '/admin/campaigns',
     });
     expect(insertCalls()[0][1][1]).toBe('HIGH');
-    expect(res.queued).toBe(2);
+    // 1 SMS + emails to info@ (official), billing@ and admin@ (responsible departments)
+    expect(res.queued).toBe(4);
+    const targets = deliveryCalls().map(([, p]) => p[2]);
+    expect(targets).toEqual(
+      expect.arrayContaining([
+        '254182625807',
+        'info@kitabuyetu.co.ke',
+        'billing@kitabuyetu.co.ke',
+        'admin@kitabuyetu.co.ke',
+      ]),
+    );
     expect(sendAdminSms).toHaveBeenCalled();
   });
 

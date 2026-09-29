@@ -33,6 +33,7 @@ export function adminPathFor(type: string, override?: string): string {
     return '/admin/campaigns';
   }
   if (type === ActivityEventType.MPESA_UNROUTED_PAYMENT) return '/admin/mpesa-unrouted';
+  if (type === ActivityEventType.JOB_APPLICATION_SUBMITTED) return '/admin/careers';
   if (type.startsWith('SYSTEM_') || type.endsWith('_FAILURE') || type === ActivityEventType.ERROR_SPIKE) {
     return '/admin/monitoring';
   }

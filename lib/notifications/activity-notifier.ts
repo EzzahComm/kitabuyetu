@@ -145,7 +145,7 @@ export async function emitActivity(rawInput: EmitActivityInput): Promise<EmitRes
       );
       const row = rows[0];
       if (!row) return { activity: null, deliveryIds: [] as string[] };
-      const ids = notify && !aggregate ? await createDeliveries(db, row.id, routing) : [];
+      const ids = notify && !aggregate ? await createDeliveries(db, row.id, routing, input.type) : [];
       return { activity: row, deliveryIds: ids };
     });
 
@@ -208,7 +208,7 @@ async function directFallback(input: EmitActivityInput, severity: NotificationSe
       created_at: new Date().toISOString(),
     });
     event.activityRef = 'UNPERSISTED';
-    const { phones, emails } = getAdminRecipients();
+    const { phones, emails } = getAdminRecipients(input.type);
     await Promise.allSettled([
       ...(def.sms ? phones.map((p) => sendAdminSms(p, renderSms(event))) : []),
       ...(def.email ? emails.map((e) => sendAdminEmail(e, renderEmail(event), `fallback:${input.type}`)) : []),
@@ -300,7 +300,7 @@ export async function sweepUndeliveredActivities(limit = 50): Promise<number> {
     const base = await resolveRouting(r.event_type);
     // A non-aggregate row of an aggregate-by-default event was escalated (high value): SMS + email.
     const routing = base.aggregate ? { ...base, sms: true, email: true } : base;
-    const ids = await withAdminDb((db) => createDeliveries(db, r.id, routing));
+    const ids = await withAdminDb((db) => createDeliveries(db, r.id, routing, r.event_type));
     for (const id of ids) await enqueueDeliveryJob(id, r.severity);
     n += ids.length;
   }

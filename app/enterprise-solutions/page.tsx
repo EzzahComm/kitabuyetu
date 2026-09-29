@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
-import { ROUTES } from '@/components/marketing/routes';
+import { CONTACT, ROUTES } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -82,6 +82,15 @@ export default function EnterpriseSolutionsPage() {
           Sign in to the Enterprise portal
         </Link>
       </div>
+      <p className="pt-2 text-sm text-finanza-text">
+        Or email our enterprise team directly:{' '}
+        <a
+          href={`mailto:${CONTACT.enterpriseEmail}?subject=${encodeURIComponent('Enterprise enquiry')}`}
+          className="font-medium text-brand-700 underline-offset-4 hover:underline"
+        >
+          {CONTACT.enterpriseEmail}
+        </a>
+      </p>
     </PageShell>
   );
 }

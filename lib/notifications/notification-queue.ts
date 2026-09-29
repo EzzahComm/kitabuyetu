@@ -86,8 +86,9 @@ export async function createDeliveries(
   db: PoolClient,
   activityId: string,
   channels: { sms: boolean; email: boolean },
+  eventType?: string,
 ): Promise<string[]> {
-  const { phones, emails } = getAdminRecipients();
+  const { phones, emails } = getAdminRecipients(eventType);
   const targets: { channel: NotificationChannel; recipient: string }[] = [
     ...(channels.sms ? phones.map((recipient) => ({ channel: 'sms' as const, recipient })) : []),
     ...(channels.email ? emails.map((recipient) => ({ channel: 'email' as const, recipient })) : []),

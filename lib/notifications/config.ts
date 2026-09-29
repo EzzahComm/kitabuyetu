@@ -7,6 +7,7 @@
  *   KITABU_ADMIN_ALERT_EMAIL=info@kitabuyetu.co.ke
  */
 import { safeNormalizePhone } from '@/lib/utils/phone';
+import { departmentEmail, departmentsForEvent } from '@/lib/departments';
 
 const list = (v: string | undefined) =>
   (v ?? '')
@@ -19,12 +20,22 @@ export interface AdminRecipients {
   emails: string[];
 }
 
-export function getAdminRecipients(): AdminRecipients {
+/**
+ * Recipients for an alert. The official address (KITABU_ADMIN_ALERT_EMAIL, the
+ * `general` mailbox) always receives everything; when an event type is given,
+ * the departments responsible for it (lib/departments.ts) are added. SMS goes
+ * only to the official alert phone.
+ */
+export function getAdminRecipients(eventType?: string): AdminRecipients {
   const phones = list(process.env.KITABU_ADMIN_ALERT_PHONE)
     .map((p) => safeNormalizePhone(p))
     .filter((p): p is string => !!p);
   const emails = list(process.env.KITABU_ADMIN_ALERT_EMAIL ?? process.env.EMAIL_ADMIN).filter((e) => e.includes('@'));
-  return { phones: [...new Set(phones)], emails: [...new Set(emails.map((e) => e.toLowerCase()))] };
+  const deptEmails = eventType ? departmentsForEvent(eventType).map((d) => departmentEmail(d)) : [];
+  return {
+    phones: [...new Set(phones)],
+    emails: [...new Set([...emails, ...deptEmails].map((e) => e.toLowerCase()))],
+  };
 }
 
 /** Amount (KES) at or above which an otherwise-routine transaction is alerted individually. */
