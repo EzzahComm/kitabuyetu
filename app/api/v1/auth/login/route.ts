@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { NextRequest } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
@@ -130,6 +131,18 @@ export async function POST(req: NextRequest): Promise<Response> {
       const attempts = await incrementLoginAttempts(lookupKey);
       if (attempts >= MAX_ATTEMPTS) {
         await lockAccount(lookupKey, LOCKOUT_MINUTES);
+        // Masked identifier only; never the attempted password.
+        const masked = lookupKey.includes('@')
+          ? lookupKey.replace(/^(.).*(@.*)$/, '$1***$2')
+          : `${lookupKey.slice(0, 5)}***${lookupKey.slice(-3)}`;
+        await emitActivity({
+          type: ActivityEventType.ACCOUNT_LOCKED,
+          dedupKey: `lockout:${lookupKey}:${new Date().toISOString().slice(0, 13)}`,
+          ipAddress: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null,
+          userAgent: req.headers.get('user-agent'),
+          description: `${attempts} failed sign-in attempts; account locked for ${LOCKOUT_MINUTES} minutes.`,
+          metadata: { identifier: masked, attempts, smsLines: [`Account: ${masked}`, `Failed attempts: ${attempts}`] },
+        });
       }
       return errorResponse('Invalid phone/email or password', 'INVALID_CREDENTIALS', 401);
     }

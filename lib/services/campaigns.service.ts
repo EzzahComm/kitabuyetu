@@ -14,6 +14,7 @@
  * only creates/reviews campaigns and reads them back.
  */
 import { randomInt } from 'crypto';
+import { emitCampaignEvent, ActivityEventType } from '@/lib/notifications';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
@@ -144,7 +145,7 @@ export const campaignsService = {
     assertOfficer(ctx);
     if (!(data.targetAmount > 0)) throw new ValidationError('Target amount must be positive');
 
-    return withTransaction(ctx, async (db) => {
+    const created = await withTransaction(ctx, async (db) => {
       const slug = await uniqueSlug(db, data.title);
       const accountCode = await uniqueAccountCode(db);
 
@@ -193,11 +194,13 @@ export const campaignsService = {
 
       return campaign;
     });
+    await emitCampaignEvent(created.id, ActivityEventType.CAMPAIGN_CREATED, { actorUserId: ctx.userId });
+    return created;
   },
 
   async submitForReview(ctx: TenantContext, campaignId: string): Promise<Campaign> {
     assertOfficer(ctx);
-    return withTransaction(ctx, async (db) => {
+    const submitted = await withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`,
         [campaignId, ctx.groupId],
@@ -236,6 +239,8 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(submitted.id, ActivityEventType.CAMPAIGN_SUBMITTED, { actorUserId: ctx.userId });
+    return submitted;
   },
 
   /**
@@ -423,7 +428,7 @@ export const campaignsService = {
   },
 
   async approveCampaign(adminUserId: string, campaignId: string): Promise<Campaign> {
-    return withAdminDb(async (db) => {
+    const approved = await withAdminDb(async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND status = 'pending_review' FOR UPDATE`,
         [campaignId],
@@ -453,11 +458,13 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(campaignId, ActivityEventType.CAMPAIGN_APPROVED, { adminUserId });
+    return approved;
   },
 
   async rejectCampaign(adminUserId: string, campaignId: string, reason: string): Promise<Campaign> {
     if (!reason.trim()) throw new ValidationError('A rejection reason is required');
-    return withAdminDb(async (db) => {
+    const rejected = await withAdminDb(async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND status = 'pending_review' FOR UPDATE`,
         [campaignId],
@@ -487,5 +494,7 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(campaignId, ActivityEventType.CAMPAIGN_REJECTED, { adminUserId, reason });
+    return rejected;
   },
 };

@@ -10,6 +10,7 @@ import { normalizePhone } from '@/lib/utils/phone';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -101,6 +102,39 @@ export async function POST(req: NextRequest): Promise<Response> {
         [rpc.group_id, rpc.member_id],
       );
       return { result: rpc, membershipNo: gm[0]?.membership_no ?? null };
+    });
+
+    // Administrator alerts (after the registration transaction committed). Never
+    // includes the password or any credential; the phone/email are the
+    // registrant's own contact details, needed to follow up.
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+    await emitActivity({
+      type: ActivityEventType.USER_REGISTERED,
+      dedupKey: `register:${result.member_id}`,
+      actor: {
+        userId: result.member_id,
+        name: `${input.firstName} ${input.lastName}`.trim(),
+        email: email ?? undefined,
+        phone,
+        role: result.creator_role,
+      },
+      group: { id: result.group_id, name: result.group_name },
+      ipAddress: clientIp,
+      userAgent: req.headers.get('user-agent'),
+      metadata: {
+        product: input.product,
+        groupType: input.groupType,
+        registrationMethod: 'Web sign-up',
+        smsLines: [`Phone: ${phone}`, `Product: ${input.product}`],
+      },
+    });
+    await emitActivity({
+      type: ActivityEventType.GROUP_CREATED,
+      dedupKey: `group-created:${result.group_id}`,
+      group: { id: result.group_id, name: result.group_name },
+      actor: { userId: result.member_id, role: result.creator_role },
+      transaction: { id: result.group_id, reference: result.group_code, status: result.group_status },
+      metadata: { groupType: input.groupType, product: input.product },
     });
 
     stage = 'sign_tokens';

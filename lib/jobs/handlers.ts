@@ -5,6 +5,7 @@
  *   - Isolated: failures don't affect other jobs
  *   - Fast: Vercel Hobby functions time out at 10 s; keep handlers under 8 s
  */
+import { emitSmsBulkActivity } from '@/lib/notifications';
 import type { Job } from './types';
 import { pool } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
@@ -118,6 +119,15 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 
     case 'sms_trigger_fire':
       return handleSmsTriggerFire(job.payload);
+
+    case 'admin_alert_deliver':
+      return handleAdminAlertDeliver(job.payload);
+
+    case 'admin_alert_digest':
+      return handleAdminAlertDigest();
+
+    case 'system_health_check':
+      return handleSystemHealthCheck();
 
     case 'sms_low_balance_alert':
       return handleSmsLowBalanceAlert(job.payload);
@@ -972,6 +982,15 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
       });
     }
 
+    await emitSmsBulkActivity({
+      jobId,
+      groupId,
+      sentBy,
+      message,
+      recipients: phones.length,
+      chunks: chunks.length,
+      campaignId,
+    });
     return {
       message: `SMS bulk send chunked (${chunks.length} chunks published, ${phones.length} recipients)`,
       chunked: true,
@@ -999,6 +1018,16 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     dispatchBatchId: jobId,
   });
 
+  await emitSmsBulkActivity({
+    jobId,
+    groupId,
+    sentBy,
+    message,
+    recipients: phones.length,
+    sent: result.sent,
+    failed: result.failed,
+    campaignId,
+  });
   return {
     message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`,
     ...flattenResult(result),
@@ -1054,6 +1083,17 @@ async function handleMarketingCampaignSmsSend(payload: Record<string, unknown>, 
   });
 
   await completeMarketingCampaignSend(campaignId, result.sent, result.failed);
+  await emitSmsBulkActivity({
+    jobId,
+    groupId,
+    sentBy,
+    message,
+    recipients: phones.length,
+    sent: result.sent,
+    failed: result.failed,
+    campaignId,
+    kind: 'marketing',
+  });
 
   return {
     message: `Marketing campaign SMS dispatched (${result.sent} sent, ${result.failed} failed)`,
@@ -1435,4 +1475,25 @@ function flattenResult(value: unknown): Record<string, unknown> {
   if (value instanceof Error) return { error: value.message };
   if (typeof value === 'object') return value as Record<string, unknown>;
   return { result: value };
+}
+
+async function handleAdminAlertDeliver(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const { deliverNotification } = await import('@/lib/notifications/notification-queue');
+  const deliveryId = String(payload.deliveryId ?? '');
+  if (!deliveryId) throw new Error('admin_alert_deliver: missing deliveryId');
+  // Throws on a retryable failure so the queue applies its exponential backoff.
+  const outcome = await deliverNotification(deliveryId, { throwOnRetry: true });
+  return { message: `Admin alert delivery ${outcome}`, outcome };
+}
+
+async function handleAdminAlertDigest(): Promise<HandlerResult> {
+  const { runAdminDigest } = await import('@/lib/notifications/digest');
+  const r = await runAdminDigest();
+  return { message: r.sent ? `Digest sent (${r.events} events)` : 'No digest due', ...r };
+}
+
+async function handleSystemHealthCheck(): Promise<HandlerResult> {
+  const { runSystemHealthCheck } = await import('@/lib/notifications/system-health');
+  const r = await runSystemHealthCheck();
+  return { message: r.failing.length ? `Failing: ${r.failing.join(', ')}` : 'All checks healthy', ...r };
 }

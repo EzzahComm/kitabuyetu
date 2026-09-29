@@ -10,6 +10,7 @@
  */
 import type { PoolClient } from 'pg';
 import { postSystemJournal } from './accounting.service';
+import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { IS_SANDBOX } from './mpesa-spine.service';
 
 export interface CampaignDonationInput {
@@ -46,11 +47,11 @@ export async function creditCampaignDonation(db: PoolClient, in_: CampaignDonati
   const donationId = donationRows[0]?.id ?? null;
   if (!donationId) return null;
 
-  const { rows: campaignRows } = await db.query<{ title: string }>(
+  const { rows: campaignRows } = await db.query<{ title: string; target_amount: string; amount_raised: string }>(
     `UPDATE campaigns
      SET    amount_raised = amount_raised + $2, updated_at = NOW()
      WHERE  id = $1
-     RETURNING title`,
+     RETURNING title, target_amount, amount_raised`,
     [in_.campaignId, in_.amount.toFixed(2)],
   );
   const campaignTitle = campaignRows[0]?.title ?? 'campaign';
@@ -87,5 +88,33 @@ export async function creditCampaignDonation(db: PoolClient, in_: CampaignDonati
       }),
     ],
   );
+
+  // Transactional outbox (no donor identity): rolls back with the donation, reaches admins in the digest.
+  await recordActivityInTx(db, {
+    type: ActivityEventType.CAMPAIGN_DONATION_RECEIVED,
+    dedupKey: `donation:${in_.receipt}`,
+    group: { id: in_.groupId, name: '' },
+    transaction: { id: donationId, reference: in_.receipt, amount: in_.amount, currency: 'KES', status: 'completed' },
+    metadata: { campaign: campaignTitle, channel: in_.channel },
+  });
+  const camp = campaignRows[0];
+  if (
+    camp &&
+    Number(camp.amount_raised) >= Number(camp.target_amount) &&
+    Number(camp.amount_raised) - in_.amount < Number(camp.target_amount)
+  ) {
+    await recordActivityInTx(db, {
+      type: ActivityEventType.CAMPAIGN_TARGET_REACHED,
+      dedupKey: `campaign:${in_.campaignId}:target-reached`,
+      group: { id: in_.groupId, name: '' },
+      transaction: {
+        id: in_.campaignId,
+        amount: Number(camp.target_amount),
+        currency: 'KES',
+        status: 'target reached',
+      },
+      metadata: { campaign: campaignTitle, raised: Number(camp.amount_raised) },
+    });
+  }
   return donationId;
 }

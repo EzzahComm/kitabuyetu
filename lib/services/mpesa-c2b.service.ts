@@ -18,6 +18,7 @@ import {
   type C2BUrls,
   type C2BRegistrationResult,
 } from './daraja.service';
+import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { creditCampaignDonation } from './campaign-donation-ledger.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
 import {
@@ -173,6 +174,22 @@ export async function handleC2BConfirmation(
     );
     if (existingPay[0]) return;
 
+    // Audit every direct PayBill receipt once (aggregated into the digest;
+    // an unrouted one is escalated below). Keyed on the receipt, so Safaricom
+    // retries cannot record it twice. Payer phone deliberately not recorded.
+    await recordActivityInTx(db, {
+      type: ActivityEventType.MPESA_C2B_RECEIVED,
+      dedupKey: `c2b:${body.TransID}`,
+      transaction: {
+        reference: body.TransID,
+        type: 'PayBill (C2B)',
+        amount,
+        currency: 'KES',
+        status: 'received',
+      },
+      metadata: { accountRef: body.BillRefNumber },
+    });
+
     // 1b. Changi$ha campaign account (CH + 6 chars, migration 204): a donor
     //     paying the paybill directly with a campaign's account number. Checked
     //     before the membership registry; only a real campaign code matches, so
@@ -310,6 +327,19 @@ export async function handleC2BConfirmation(
           return;
         }
 
+        await recordActivityInTx(db, {
+          type: ActivityEventType.MPESA_UNROUTED_PAYMENT,
+          dedupKey: `c2b-unrouted:${body.TransID}`,
+          transaction: {
+            reference: body.TransID,
+            type: 'PayBill (C2B)',
+            amount,
+            currency: 'KES',
+            status: 'unrouted',
+          },
+          description: 'A PayBill payment matched no group, member or campaign and is waiting in the unrouted queue.',
+          metadata: { accountRef: body.BillRefNumber, smsLines: [`Acct ref: ${body.BillRefNumber}`] },
+        });
         await db.query(
           `INSERT INTO mpesa_unrouted
              (receipt, phone, amount, bill_ref, reason, raw_payload, candidate_group_id)

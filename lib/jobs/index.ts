@@ -156,6 +156,11 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     },
   );
 
+  // Administrator alerting: aggregated activity digest and platform health.
+  // Constant dedup keys, like the sweeps above: at most one outstanding row each.
+  queued.admin_alert_digest = await safe('admin_alert_digest', {}, { priority: 4, dedup_key: 'admin_alert_digest' });
+  queued.system_health_check = await safe('system_health_check', {}, { priority: 9, dedup_key: 'system_health_check' });
+
   // Recovers SMS credit earmarks orphaned by a crash between the provider call
   // and the settle write. Low priority: correctness backstop, not time-critical.
   queued.sms_release_stale_reservations = await safe(

@@ -19,6 +19,7 @@ import { notifyMember } from './notifications.service';
 import { billingService } from './billing.service';
 import { postContributionJournal } from './accounting.service';
 import { creditCampaignDonation } from './campaign-donation-ledger.service';
+import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
@@ -358,6 +359,25 @@ export async function handleSTKCallback(
         );
       }
 
+      if (stk) {
+        // Subscription payments failing is actionable; everything else rolls into the digest.
+        await recordActivityInTx(db, {
+          type: stk.purpose === 'subscription' ? ActivityEventType.PAYMENT_FAILED : ActivityEventType.MPESA_STK_FAILED,
+          dedupKey: `stk-failed:${cb.CheckoutRequestID}`,
+          group: { id: stk.group_id, name: '' },
+          transaction: {
+            id: stk.id,
+            reference: cb.CheckoutRequestID,
+            type: stk.purpose ?? 'STK push',
+            amount: Number(stk.amount),
+            currency: 'KES',
+            status: 'failed',
+          },
+          description: cb.ResultDesc,
+          metadata: { resultCode: cb.ResultCode, purpose: stk.purpose },
+        });
+      }
+
       const { rows: payRows } = await db.query<{ id: string; status: string }>(
         `UPDATE payments SET status='failed'
          WHERE mpesa_checkout_request_id=$1 AND status='pending'
@@ -613,6 +633,20 @@ export async function handleSTKCallback(
 
     // Audit: stk_request transitioned to completed (only on first transition)
     if (stkUpdateRows[0]) {
+      await recordActivityInTx(db, {
+        type: ActivityEventType.MPESA_STK_COMPLETED,
+        dedupKey: `stk-completed:${receipt}`,
+        group: { id: stkReq?.group_id ?? '', name: '' },
+        transaction: {
+          id: stkUpdateRows[0].id,
+          reference: receipt,
+          type: stkReq?.purpose ?? 'STK push',
+          amount,
+          currency: 'KES',
+          status: 'completed',
+        },
+        metadata: { purpose: stkReq?.purpose ?? null },
+      });
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -807,6 +841,27 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
         product: stkReq.product,
         planType: stkReq.plan_type,
         paymentId: pay[0].id,
+      });
+
+      await recordActivityInTx(db, {
+        type: ActivityEventType.SUBSCRIPTION_CREATED,
+        dedupKey: `subscription:${in_.receipt}`,
+        group: { id: stkReq.group_id, name: '' },
+        transaction: {
+          id: pay[0].id,
+          reference: in_.receipt,
+          type: 'Subscription payment',
+          amount: in_.amount,
+          currency: 'KES',
+          status: 'active',
+        },
+        metadata: {
+          product: stkReq.product,
+          plan: stkReq.plan_type,
+          billingCycle: stkReq.billing_cycle ?? 'monthly',
+          paymentMethod: 'M-Pesa STK',
+          smsLines: [`Plan: ${stkReq.product} ${stkReq.plan_type}`],
+        },
       });
 
       // Audit: subscription successfully activated
