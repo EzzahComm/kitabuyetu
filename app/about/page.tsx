@@ -22,7 +22,7 @@ import {
   KitabuFacts,
   TestimonialsSection,
 } from '@/components/marketing/kitabu-sections';
-import benefitTwoImg from '@/public/img/benefit-two.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about',
@@ -72,8 +72,8 @@ export default function AboutPage() {
         <div className="mb-8 grid items-end gap-8 lg:grid-cols-2">
           <Reveal>
             <Image
-              src={benefitTwoImg}
-              alt="A woman in a headscarf, pen in hand, reading a notebook at a classroom desk"
+              src={PHOTOS.vslaReading.src}
+              alt={PHOTOS.vslaReading.alt}
               className="w-full rounded-lg"
               sizes="(max-width: 1023px) 100vw, 50vw"
               placeholder="blur"

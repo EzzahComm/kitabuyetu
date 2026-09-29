@@ -4,7 +4,7 @@
  * can eventually push money into.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
-import { campaignsService } from '@/lib/services/campaigns.service';
+import { isAcceptingDonations, campaignsService } from '@/lib/services/campaigns.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -170,5 +170,30 @@ describe('campaignsService public reads', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const campaign = await campaignsService.getPublicCampaignBySlug('nonexistent');
     expect(campaign).toBeNull();
+  });
+
+  it('getPublicCampaignBySlug excludes campaigns past their end date, so they cannot take donations', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await campaignsService.getPublicCampaignBySlug('ended');
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toContain('ends_at IS NULL OR ends_at > NOW()');
+  });
+
+  it('listPastCampaigns reads completed or ended campaigns only', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await campaignsService.listPastCampaigns(6);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("status = 'completed'");
+    expect(sql).toContain('ends_at <= NOW()');
+    expect(sql).not.toContain("'draft'");
+    expect(params).toEqual([6]);
+  });
+
+  it('isAcceptingDonations matches the SQL rule', () => {
+    const now = new Date('2026-09-29T00:00:00Z');
+    expect(isAcceptingDonations({ status: 'active', ends_at: null }, now)).toBe(true);
+    expect(isAcceptingDonations({ status: 'active', ends_at: '2026-10-01T00:00:00Z' }, now)).toBe(true);
+    expect(isAcceptingDonations({ status: 'active', ends_at: '2026-09-01T00:00:00Z' }, now)).toBe(false);
+    expect(isAcceptingDonations({ status: 'completed', ends_at: null }, now)).toBe(false);
   });
 });

@@ -20,11 +20,7 @@ import { SiteFooter } from '@/components/marketing/site-footer';
 import { displayFont } from '@/components/marketing/display-font';
 import { ROUTES } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
-
-import donorImg from '../../public/img/benefit-one.jpg';
-import multigroupImg from '../../public/img/enterprise.jpg';
-import marketplaceImg from '../../public/img/fundraise.jpg';
-import programsImg from '../../public/img/benefit-two.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem',
@@ -78,30 +74,30 @@ export default function EcosystemPage() {
           <div className="not-prose grid gap-4 sm:grid-cols-3">
             <Link
               href={ROUTES.bookkeeper}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Bookkeeper</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
+              <h3 className="font-semibold text-finanza-dark">Bookkeeper</h3>
+              <p className="mt-2 text-sm text-finanza-text">
                 The core ledger — contributions, loans, welfare and shares on one double-entry book.
               </p>
             </Link>
             <Link
               href={ROUTES.chamaReminder}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Chama Reminder</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
+              <h3 className="font-semibold text-finanza-dark">Chama Reminder</h3>
+              <p className="mt-2 text-sm text-finanza-text">
                 Member management and messaging — reminders, announcements and engagement, standalone or with
                 Bookkeeper.
               </p>
             </Link>
             <Link
               href={ROUTES.fundraise}
-              className="rounded-lg border border-brand-blue-900/10 p-6 transition-colors hover:bg-paper-deep"
+              className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-brand-blue-900">Fundraise</h3>
-              <p className="mt-2 text-sm text-brand-blue-900/65">
-                Digital campaigns for causes, projects and community fundraising — coming soon.
+              <h3 className="font-semibold text-finanza-dark">Fundraise</h3>
+              <p className="mt-2 text-sm text-finanza-text">
+                M-Pesa campaigns for causes, projects and community fundraising — reviewed before they go live.
               </p>
             </Link>
           </div>
@@ -117,8 +113,8 @@ export default function EcosystemPage() {
 const donors = {
   title: 'Donors',
   desc: "Money given to a group should be traceable to what it did there. Donors see the group's own records rather than a summary written for them.",
-  image: donorImg,
-  imageAlt: 'A smiling woman in a headscarf seated at a classroom desk with an open notebook',
+  image: PHOTOS.vslaRecords.src,
+  imageAlt: PHOTOS.vslaRecords.alt,
   bullets: [
     {
       title: 'Follow the money to the group',
@@ -141,8 +137,8 @@ const donors = {
 const multigroup = {
   title: 'Multigroup Organizations',
   desc: 'NGOs, networks, church bodies and apex organizations that support many groups at once, from one account.',
-  image: multigroupImg,
-  imageAlt: 'Two women talking at a conference table, one taking notes beside a laptop',
+  image: PHOTOS.organisations.src,
+  imageAlt: PHOTOS.organisations.alt,
   bullets: [
     {
       title: 'Every group in one view',
@@ -165,8 +161,8 @@ const multigroup = {
 const marketplace = {
   title: 'Marketplace',
   desc: "Groups already buy things together — inputs, stock, services, insurance. The marketplace is where those offers meet the groups, matched against a group's own record.",
-  image: marketplaceImg,
-  imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
+  image: PHOTOS.memberPhone.src,
+  imageAlt: PHOTOS.memberPhone.alt,
   bullets: [
     {
       title: 'Offers that reach a group, not an individual',
@@ -189,8 +185,8 @@ const marketplace = {
 const programs = {
   title: 'Programs',
   desc: 'A funded programme running across many groups: its own rules, its own disbursements, and reporting that does not depend on chasing every group for numbers.',
-  image: programsImg,
-  imageAlt: 'A woman in a headscarf, pen in hand, reading a notebook at a classroom desk',
+  image: PHOTOS.youthTech.src,
+  imageAlt: PHOTOS.youthTech.alt,
   bullets: [
     {
       title: 'One programme, many groups',

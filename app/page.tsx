@@ -4,15 +4,12 @@ import Image from 'next/image';
 import Link from 'next/link';
 import {
   Banknote,
-  BarChart3,
   Check,
   FileText,
   GraduationCap,
-  MessagesSquare,
   ShieldCheck,
   Smartphone,
   Store,
-  TrendingUp,
   Unlock,
   UsersRound,
   X,
@@ -25,27 +22,32 @@ import { JsonLd } from '@/components/marketing/json-ld';
 import { HOME_DESCRIPTION, HOME_TITLE, SITE_URL } from '@/components/marketing/page-metadata';
 import { CONTACT, ROUTES, SECTION_IDS } from '@/components/marketing/routes';
 import { HeroCarousel } from '@/components/marketing/hero-carousel';
-import { StoryTabs } from '@/components/marketing/finanza-tabs';
 import { Container } from '@/components/marketing/primitives';
 import { Reveal } from '@/components/marketing/reveal';
+import { PHOTOS } from '@/components/marketing/photos';
 import {
-  FeatureBox,
   FinanzaHeading,
   FinanzaSection,
   IconBadge,
   Pill,
+  btnOutline,
   btnPrimary,
 } from '@/components/marketing/finanza';
 import {
   CallbackSection,
+  CommunitiesSection,
   CtaBand,
+  CustomerPathsSection,
+  FaqSection,
+  LatestPostsSection,
+  LiveCampaignsSection,
   KitabuFacts,
+  MemberBenefitsSection,
   ProductTabsSection,
   TestimonialsSection,
+  TrustSection,
 } from '@/components/marketing/kitabu-sections';
 
-import benefitOneImg from '../public/img/benefit-one.jpg';
-import benefitTwoImg from '../public/img/benefit-two.jpg';
 import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
 import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
 import nexusLogo from '../public/img/partners/nexus-by-ezzahcomm.png';
@@ -57,6 +59,9 @@ export const metadata: Metadata = {
   description: HOME_DESCRIPTION,
   alternates: { canonical: `${SITE_URL}/` },
 };
+
+/** Re-render at most every 5 minutes so live campaigns and new blog posts appear without a deploy. */
+export const revalidate = 300;
 
 const ORGANIZATION_ID = `${SITE_URL}/#organization`;
 
@@ -96,51 +101,10 @@ const PARTNER_LOGOS = [
   { id: 'nexus', name: 'NEXUS by EzzahComm', image: nexusLogo },
 ] as const;
 
-/**
- * The real organization types this platform already serves — matches
- * groups.type (migrations 001/154), grouped into plain-language categories
- * rather than listing the raw enum.
- */
-const AUDIENCES = [
-  'Chamas & VSLAs',
-  'SACCOs & cooperatives',
-  'Welfare & self-help groups',
-  'Investment groups',
-  'CBOs & community associations',
-  'NGOs & organizations',
-];
-
 const PROMISES = [
   { icon: Unlock, title: 'No lock-in period', body: 'Pay month to month, with no contract to break.' },
   { icon: Smartphone, title: 'Pay by M-Pesa', body: 'Your subscription and your members’ contributions.' },
   { icon: UsersRound, title: 'Built for Kenyan groups', body: 'Not a generic business tool adapted to fit.' },
-];
-
-const MANAGE = [
-  {
-    icon: Banknote,
-    title: 'Manage your money',
-    body: 'Track members, contributions, savings, loans, welfare, shares, dividends, income and expenses from one reliable financial record.',
-    href: ROUTES.bookkeeper,
-  },
-  {
-    icon: TrendingUp,
-    title: "Track what you're building",
-    body: 'Manage farms, rentals, shops, businesses, projects and other investments. See what each activity costs, earns and contributes to the group.',
-    href: ROUTES.bookkeeper,
-  },
-  {
-    icon: MessagesSquare,
-    title: 'Keep members informed',
-    body: 'Send contribution reminders, payment confirmations, announcements and campaigns — while members access their own balances and statements.',
-    href: ROUTES.chamaReminder,
-  },
-  {
-    icon: BarChart3,
-    title: 'Make every shilling visible',
-    body: 'Know where group money comes from, where it goes and what it is building.',
-    href: '/how-it-works',
-  },
 ];
 
 /** Matched 1:1 by index, so the two columns read as a direct correction. */
@@ -171,27 +135,27 @@ const ECOSYSTEM = [
   {
     icon: Banknote,
     title: 'Funding',
-    body: 'Connect with potential donors, development partners and funding opportunities for groups and community projects.',
+    body: 'Donors, development partners and funding for group projects.',
   },
   {
     icon: ShieldCheck,
     title: 'Financial products',
-    body: 'Discover relevant loans, insurance and other financial products for groups and their members.',
+    body: 'Loans, insurance and other products for groups and members.',
   },
   {
     icon: GraduationCap,
     title: 'Professional knowledge',
-    body: 'Information, training and practical guidance from professionals in finance, agriculture, investment, entrepreneurship and governance.',
+    body: 'Practical guidance on finance, farming, investment and governance.',
   },
   {
     icon: Store,
     title: 'Markets & services',
-    body: "Potential markets, suppliers, service providers and business opportunities that can support your group's activities.",
+    body: "Markets, suppliers and services for your group's activities.",
   },
   {
     icon: FileText,
     title: 'Build your track record',
-    body: 'Better records give your group a clearer picture of its financial health, activities and impact.',
+    body: 'Clean records show what your group has built — and what it can do next.',
   },
 ];
 
@@ -227,13 +191,15 @@ export default function Home() {
           </Container>
         </section>
 
+        <CustomerPathsSection id={SECTION_IDS.paths} />
+
         {/* About */}
         <FinanzaSection id={SECTION_IDS.solution} labelledBy="about-heading">
-          <div className="mb-8 grid items-end gap-8 lg:grid-cols-2">
+          <div className="grid items-center gap-10 lg:grid-cols-2">
             <Reveal>
               <Image
-                src={benefitOneImg}
-                alt="A smiling woman in a headscarf seated at a classroom desk with an open notebook"
+                src={PHOTOS.vslaRecords.src}
+                alt={PHOTOS.vslaRecords.alt}
                 className="w-full rounded-lg"
                 sizes="(max-width: 1023px) 100vw, 50vw"
                 placeholder="blur"
@@ -247,120 +213,30 @@ export default function Home() {
               >
                 Built for the groups Kenyans already organize.
               </h2>
-              <p className="mb-6 leading-relaxed text-finanza-text">
-                Chamas, SACCOs, welfare groups, investment groups, CBOs and the organizations that support them — not a
-                generic business tool adapted to fit.
+              <p className="mb-4 leading-relaxed text-finanza-text">
+                Most groups already keep good records. The trouble is where they live: one cash book in one
+                person&apos;s handwriting, and an M-Pesa statement matched to names the night before a meeting.
               </p>
-              <StoryTabs
-                label="About Kitabu Yetu"
-                tabs={[
-                  {
-                    value: 'story',
-                    label: 'Our Story',
-                    content: (
-                      <>
-                        <p>
-                          Most groups already keep good records. The trouble was never discipline — it was where the
-                          records lived: one cash book in one person&apos;s handwriting, a spreadsheet three officers
-                          all need at once, and an M-Pesa statement matched to a list of names the evening before a
-                          meeting.
-                        </p>
-                        <p>
-                          Kitabu Yetu puts the members, the money and the payments in one place, on a ledger that has to
-                          balance before it saves.
-                        </p>
-                      </>
-                    ),
-                  },
-                  {
-                    value: 'audience',
-                    label: "Who It's For",
-                    content: (
-                      <ul className="grid gap-2 sm:grid-cols-2">
-                        {AUDIENCES.map((audience) => (
-                          <li key={audience} className="flex items-center gap-2">
-                            <Check aria-hidden="true" className="h-4 w-4 shrink-0 text-brand-500" />
-                            {audience}
-                          </li>
-                        ))}
-                      </ul>
-                    ),
-                  },
-                  {
-                    value: 'problem',
-                    label: 'The Problem',
-                    content: (
-                      <>
-                        <p>
-                          Every group tracks its money somehow. The problem is never effort — it&rsquo;s that notebooks,
-                          spreadsheets and scattered M-Pesa messages don&rsquo;t add up the same way twice.
-                        </p>
-                        <p>
-                          The group keeps doing what it already does. The book just stops being something one person
-                          carries.
-                        </p>
-                      </>
-                    ),
-                  },
-                ]}
-              />
+              <p className="mb-8 leading-relaxed text-finanza-text">
+                Kitabu Yetu puts members, money and payments in one place, on a ledger that has to balance before it
+                saves.
+              </p>
+              <ul className="space-y-5">
+                {PROMISES.map((promise) => (
+                  <li key={promise.title} className="flex gap-4">
+                    <IconBadge icon={promise.icon} />
+                    <div>
+                      <h3 className="font-display text-lg font-semibold text-finanza-dark">{promise.title}</h3>
+                      <p className="text-finanza-text">{promise.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
             </Reveal>
           </div>
-          <Reveal className="rounded-lg border border-brand-100 p-6">
-            <ul className="grid gap-6 lg:grid-cols-3">
-              {PROMISES.map((promise, i) => (
-                <li
-                  key={promise.title}
-                  className={
-                    i < PROMISES.length - 1
-                      ? 'flex gap-4 border-b border-brand-100 pb-6 lg:border-b-0 lg:border-r lg:pb-0'
-                      : 'flex gap-4'
-                  }
-                >
-                  <IconBadge icon={promise.icon} />
-                  <div>
-                    <h3 className="font-display text-xl font-semibold text-finanza-dark">{promise.title}</h3>
-                    <p className="text-finanza-text">{promise.body}</p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </Reveal>
         </FinanzaSection>
 
         <KitabuFacts />
-
-        {/* Why Kitabu Yetu — the template's feature boxes */}
-        <FinanzaSection labelledBy="why-heading">
-          <div className="grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <FinanzaHeading
-                id="why-heading"
-                pill="Why Kitabu Yetu"
-                title="Everything your group needs, in one place."
-                lede="No more switching between notebooks, spreadsheets, M-Pesa messages and WhatsApp to understand your group's finances."
-              />
-              <div className="my-8">
-                <Emphasis>More visibility. More accountability. Better decisions.</Emphasis>
-              </div>
-              <Link href="/how-it-works" className={btnPrimary}>
-                Explore More
-              </Link>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              {MANAGE.map((item, i) => (
-                // The stagger lives on an inner element: the reveal animation owns the outer transform.
-                <Reveal key={item.title} delay={i * 120}>
-                  <div className={i % 2 === 1 ? 'h-full sm:translate-y-10' : 'h-full'}>
-                    <FeatureBox icon={item.icon} title={item.title} href={item.href} className="h-full">
-                      {item.body}
-                    </FeatureBox>
-                  </div>
-                </Reveal>
-              ))}
-            </div>
-          </div>
-        </FinanzaSection>
 
         {/* The problem, and what changes */}
         <FinanzaSection labelledBy="problem-heading" className="bg-brand-50/60">
@@ -398,6 +274,8 @@ export default function Home() {
         </FinanzaSection>
 
         <ProductTabsSection id={SECTION_IDS.showcase} />
+
+        <CommunitiesSection id={SECTION_IDS.communities} />
 
         {/* How it works */}
         <FinanzaSection id={SECTION_IDS.howItWorks} labelledBy="how-heading" className="bg-brand-50/60">
@@ -437,14 +315,18 @@ export default function Home() {
           </div>
         </FinanzaSection>
 
+        <MemberBenefitsSection />
+
+        <TrustSection id={SECTION_IDS.trust} />
+
         {/* Ecosystem */}
         <FinanzaSection id={SECTION_IDS.ecosystem} labelledBy="ecosystem-heading">
           <div className="grid items-center gap-12 lg:grid-cols-2">
             <div className="lg:order-2">
               <Reveal>
                 <Image
-                  src={benefitTwoImg}
-                  alt="A woman in a headscarf, pen in hand, reading a notebook at a classroom desk"
+                  src={PHOTOS.youthTech.src}
+                  alt={PHOTOS.youthTech.alt}
                   className="w-full rounded-lg"
                   sizes="(max-width: 1023px) 100vw, 50vw"
                   placeholder="blur"
@@ -472,16 +354,27 @@ export default function Home() {
               <div className="my-8">
                 <Emphasis>Manage your group. Build its track record. Unlock its potential.</Emphasis>
               </div>
-              <Link href={ROUTES.ecosystem} className={btnPrimary}>
-                Explore the Ecosystem
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>
+                  Browse the Marketplace
+                </Link>
+                <Link href={ROUTES.ecosystem} className={btnOutline}>
+                  Explore the Ecosystem
+                </Link>
+              </div>
             </div>
           </div>
         </FinanzaSection>
 
+        <LiveCampaignsSection id={SECTION_IDS.campaigns} />
+
         <CallbackSection />
 
         <TestimonialsSection />
+
+        <LatestPostsSection id={SECTION_IDS.blog} />
+
+        <FaqSection id={SECTION_IDS.faq} />
 
         <CtaBand id={SECTION_IDS.pricing} />
       </main>

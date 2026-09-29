@@ -163,6 +163,21 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
  * never be sold through the self-serve payment path, and the STK validator
  * rejects it for exactly that reason.
  */
+/**
+ * Changi$ha (campaign fundraising) has no subscription. It is charged when a
+ * group withdraws raised funds: the platform fee below plus Safaricom's B2C
+ * charge (mpesa_b2c_charge_tiers), both deducted from the gross withdrawal.
+ * Donors pay nothing on top of their gift.
+ *
+ * These are the platform DEFAULTS campaign-withdrawals.service applies. A
+ * per-group 'changisha' policy (configuration.service) can override either,
+ * so the public pages say "standard".
+ */
+export const CHANGISHA_PRICING = {
+  platformFeePct: 4,
+  minWithdrawal: 500,
+} as const;
+
 export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, number>> = {
   kitabu_yetu: {
     starter: 150,

@@ -30,13 +30,13 @@ export default function ImpactPage() {
       </p>
       <div className="not-prose grid grid-cols-2 gap-4 sm:grid-cols-3">
         {IMPACT_STATS.map((stat) => (
-          <div key={stat.label} className="rounded-lg border border-brand-blue-900/10 bg-paper px-4 py-5 text-center">
-            <p className="font-display text-2xl font-light text-brand-blue-900">{stat.value}</p>
-            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-brand-blue-900/55">{stat.label}</p>
+          <div key={stat.label} className="rounded-lg border border-brand-100 bg-white px-4 py-5 text-center">
+            <p className="font-display text-2xl font-light text-finanza-dark">{stat.value}</p>
+            <p className="mt-1 text-xs font-medium uppercase tracking-wide text-finanza-text">{stat.label}</p>
           </div>
         ))}
       </div>
-      <p className="text-sm text-brand-blue-900/55">
+      <p className="text-sm text-finanza-text">
         Figures shown as — have not been published yet. See <a href="/status">system status</a> for what is running
         right now.
       </p>
