@@ -14,12 +14,12 @@ jest.mock('@/lib/email/adapters/smtp', () => ({
 const payload = { to: 'info@kitabuyetu.co.ke', subject: 's', html: '<p>x</p>' };
 
 /** provider.ts memoises its adapter, so load a fresh copy per case. */
-function load() {
-  let mod: typeof import('@/lib/email/provider');
-  jest.isolateModules(() => {
-    mod = require('@/lib/email/provider');
+async function load() {
+  let mod!: typeof import('@/lib/email/provider');
+  await jest.isolateModulesAsync(async () => {
+    mod = await import('@/lib/email/provider');
   });
-  return mod!;
+  return mod;
 }
 
 describe('email provider: Resend primary, cPanel SMTP fallback', () => {
@@ -37,7 +37,7 @@ describe('email provider: Resend primary, cPanel SMTP fallback', () => {
     process.env.SMTP_HOST = 'das121.truehost.cloud';
     resendSend.mockResolvedValueOnce({ success: false, provider: 'resend', error: 'domain not verified' });
     smtpSend.mockResolvedValueOnce({ success: true, provider: 'smtp', messageId: 'm' });
-    const res = await load().sendEmailWithFallback(payload);
+    const res = await (await load()).sendEmailWithFallback(payload);
     expect(resendSend).toHaveBeenCalledTimes(1);
     expect(smtpSend).toHaveBeenCalledTimes(1);
     expect(res).toMatchObject({ success: true, provider: 'smtp' });
@@ -47,7 +47,7 @@ describe('email provider: Resend primary, cPanel SMTP fallback', () => {
     process.env.EMAIL_PROVIDER = 'resend';
     process.env.SMTP_HOST = 'das121.truehost.cloud';
     resendSend.mockResolvedValueOnce({ success: true, provider: 'resend' });
-    await load().sendEmailWithFallback(payload);
+    await (await load()).sendEmailWithFallback(payload);
     expect(smtpSend).not.toHaveBeenCalled();
   });
 
@@ -55,7 +55,7 @@ describe('email provider: Resend primary, cPanel SMTP fallback', () => {
     process.env.EMAIL_PROVIDER = 'smtp';
     process.env.SMTP_HOST = 'das121.truehost.cloud';
     smtpSend.mockResolvedValueOnce({ success: false, provider: 'smtp', error: 'auth failed' });
-    const res = await load().sendEmailWithFallback(payload);
+    const res = await (await load()).sendEmailWithFallback(payload);
     expect(resendSend).not.toHaveBeenCalled();
     expect(res).toMatchObject({ success: false, provider: 'smtp' });
   });
@@ -64,7 +64,7 @@ describe('email provider: Resend primary, cPanel SMTP fallback', () => {
     process.env.EMAIL_PROVIDER = 'resend';
     delete process.env.SMTP_HOST;
     resendSend.mockResolvedValueOnce({ success: false, provider: 'resend', error: 'boom' });
-    const res = await load().sendEmailWithFallback(payload);
+    const res = await (await load()).sendEmailWithFallback(payload);
     expect(smtpSend).not.toHaveBeenCalled();
     expect(res.success).toBe(false);
   });
