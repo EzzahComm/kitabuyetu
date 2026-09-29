@@ -5,12 +5,16 @@ import { ShieldCheck } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
 import { campaignsService, isAcceptingDonations } from '@/lib/services/campaigns.service';
+import { getPublicCampaignStatement, type PublicCampaignStatement } from '@/lib/services/campaign-statement.service';
+import { CampaignStatement } from '@/components/marketing/campaign-statement';
 import { fallbackPhoto } from '@/components/marketing/photos';
 import { ROUTES } from '@/components/marketing/routes';
 import Link from 'next/link';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const dynamic = 'force-dynamic';
+
+const PAYBILL = process.env.NEXT_PUBLIC_MPESA_PAYBILL ?? '';
 
 interface CampaignPageProps {
   params: Promise<{ slug: string }>;
@@ -37,6 +41,13 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   const photo = fallbackPhoto(campaign.slug);
 
   const donationCount = await campaignsService.getPublicDonationCount(campaign.id);
+  // The statement is supplementary: if it fails to load, the campaign page still renders.
+  let statement: PublicCampaignStatement | null = null;
+  try {
+    statement = await getPublicCampaignStatement(campaign.id);
+  } catch {
+    statement = null;
+  }
   const pct = Math.min(
     100,
     Math.round((parseFloat(campaign.amount_raised) / parseFloat(campaign.target_amount)) * 100),
@@ -81,6 +92,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       <div className="not-prose grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5 text-base leading-relaxed text-finanza-text">
           <p style={{ whiteSpace: 'pre-wrap' }}>{campaign.story}</p>
+          {statement && <CampaignStatement statement={statement} />}
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-28 lg:self-start">
@@ -100,7 +112,19 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
           </div>
 
           {accepting ? (
-            <CampaignDonateForm slug={campaign.slug} />
+            <>
+              <CampaignDonateForm slug={campaign.slug} />
+              {PAYBILL && (
+                <div className="mt-4 rounded-lg border border-brand-100 bg-white p-5 text-sm text-finanza-text">
+                  <p className="font-medium text-finanza-dark">Prefer to pay by M-Pesa PayBill?</p>
+                  <p className="mt-1">
+                    Go to Lipa na M-Pesa → Pay Bill. Business no.{' '}
+                    <strong className="text-finanza-dark">{PAYBILL}</strong>, account no.{' '}
+                    <strong className="text-finanza-dark">{campaign.account_code}</strong>.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="rounded-lg border border-brand-100 bg-white p-6">
               <p className="font-display text-xl font-semibold text-finanza-dark">This campaign has ended</p>

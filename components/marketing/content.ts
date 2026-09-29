@@ -522,7 +522,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   },
   {
     icon: MessageSquareText,
-    title: 'Chama Reminder',
+    title: 'Chama Reminder / Kumbusha',
     body: 'Communication and engagement for groups that want the messaging without setting up the full ledger.',
     points: [
       'Contribution and meeting reminders',

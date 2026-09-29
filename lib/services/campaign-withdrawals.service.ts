@@ -31,6 +31,7 @@
  *    M-Pesa cost), so the M-Pesa cost must be known before net_amount — and
  *    therefore before dispatch — can be computed at all.
  */
+import { emitWithdrawalEvent, ActivityEventType } from '@/lib/notifications';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
@@ -66,13 +67,33 @@ export interface CampaignWithdrawalRow extends PayoutFields {
   failure_reason: string | null;
   reconciled_at: Date | null;
   idempotency_key: string | null;
+  /** Snapshotted at request time: does this release also need a Kitabu Yetu super-admin's sign-off? */
+  platform_signoff_required: boolean;
+}
+
+/** One row of the Kitabu Yetu release queue — includes the destination, so the reviewer sees where money goes. */
+export interface PlatformQueueRow extends PayoutFields {
+  id: string;
+  campaign_id: string;
+  group_id: string;
+  campaign_title: string;
+  group_name: string;
+  amount_raised: string;
+  gross_amount: string;
+  platform_fee_amount: string;
+  mpesa_charge_amount: string;
+  net_amount: string;
+  requested_at: Date;
 }
 
 const DEFAULT_PLATFORM_FEE_PCT = CHANGISHA_PRICING.platformFeePct;
 const DEFAULT_MIN_WITHDRAWAL = CHANGISHA_PRICING.minWithdrawal;
 
 /** Non-terminal — still counts against the campaign's undrawn balance. */
-const OPEN_STATUSES = ['pending_approval', 'approved', 'processing'];
+const OPEN_STATUSES = ['pending_approval', 'awaiting_platform', 'approved', 'processing'];
+
+/** Kitabu Yetu signs off every release unless a policy explicitly turns it off (see request()). */
+const DEFAULT_REQUIRE_PLATFORM_SIGNOFF = true;
 
 export const campaignWithdrawalsService = {
   async request(ctx: TenantContext, input: RequestWithdrawalInput): Promise<CampaignWithdrawalRow> {
@@ -81,7 +102,7 @@ export const campaignWithdrawalsService = {
       throw new ValidationError('A valid idempotency key is required');
     }
 
-    return withTransaction(ctx, async (db) => {
+    const created = await withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<CampaignWithdrawalRow>(
         `SELECT * FROM campaign_withdrawals WHERE group_id = $1 AND idempotency_key = $2`,
         [ctx.groupId, input.idempotencyKey],
@@ -151,6 +172,13 @@ export const campaignWithdrawalsService = {
         { groupId: ctx.groupId },
         DEFAULT_PLATFORM_FEE_PCT,
       );
+      const platformSignoffRequired = await resolvePolicy<boolean>(
+        db,
+        'changisha',
+        'require_platform_signoff',
+        { groupId: ctx.groupId },
+        DEFAULT_REQUIRE_PLATFORM_SIGNOFF,
+      );
       const platformFeeAmount = Math.round(input.grossAmount * (platformFeePct / 100) * 100) / 100;
       const mpesaChargeAmount =
         destination.method === 'phone'
@@ -170,8 +198,8 @@ export const campaignWithdrawalsService = {
         `INSERT INTO campaign_withdrawals
            (campaign_id, group_id, payout_method, payout_phone, payout_shortcode, payout_account,
             payout_payee_name, gross_amount, platform_fee_pct, platform_fee_amount,
-            mpesa_charge_amount, net_amount, status, requested_by, idempotency_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending_approval',$13,$14)
+            mpesa_charge_amount, net_amount, status, requested_by, idempotency_key, platform_signoff_required)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending_approval',$13,$14,$15)
          RETURNING *`,
         [
           input.campaignId,
@@ -188,6 +216,7 @@ export const campaignWithdrawalsService = {
           netAmount.toFixed(2),
           ctx.userId,
           input.idempotencyKey,
+          platformSignoffRequired,
         ],
       );
 
@@ -215,6 +244,12 @@ export const campaignWithdrawalsService = {
 
       return inserted[0];
     });
+    // After commit; deduped per withdrawal, so an idempotent replay is silent.
+    await emitWithdrawalEvent(created.id, ActivityEventType.WITHDRAWAL_REQUESTED, {
+      actorUserId: ctx.userId,
+      stage: 'Awaiting approval by group officials',
+    });
+    return created;
   },
 
   async approve(ctx: TenantContext, id: string): Promise<CampaignWithdrawalRow> {
@@ -235,9 +270,12 @@ export const campaignWithdrawalsService = {
         decision: 'approved',
       });
 
+      // With platform sign-off on, the second officer's approval only moves it to the
+      // platform's queue — nothing is dispatched until a Kitabu Yetu super-admin releases it.
+      const nextStatus = prior.platform_signoff_required ? 'awaiting_platform' : 'approved';
       const { rows: updated } = await db.query<CampaignWithdrawalRow>(
-        `UPDATE campaign_withdrawals SET status = 'approved' WHERE id = $1 RETURNING *`,
-        [id],
+        `UPDATE campaign_withdrawals SET status = $2 WHERE id = $1 RETURNING *`,
+        [id, nextStatus],
       );
 
       await db.query(
@@ -250,19 +288,29 @@ export const campaignWithdrawalsService = {
           'campaign_withdrawal',
           id,
           JSON.stringify({ status: prior.status }),
-          JSON.stringify({ status: 'approved' }),
+          JSON.stringify({ status: nextStatus }),
         ],
       );
 
       return updated[0];
     });
 
-    await dispatchCampaignWithdrawal(row.id);
+    // Only a fully approved row is dispatched; an awaiting_platform row waits for platformApprove().
+    if (row.status === 'awaiting_platform') {
+      // The action-required alert: Kitabu Yetu now has to sign this off.
+      await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_PENDING_REVIEW, {
+        actorUserId: ctx.userId,
+        stage: 'Approved by group officials — Kitabu Yetu approval required',
+      });
+    } else {
+      await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_APPROVED, { actorUserId: ctx.userId });
+    }
+    if (row.status === 'approved') await dispatchCampaignWithdrawal(row.id);
     return this.getById(ctx, row.id);
   },
 
   async reject(ctx: TenantContext, id: string, reason: string): Promise<CampaignWithdrawalRow> {
-    return withTransaction(ctx, async (db) => {
+    const rejected = await withTransaction(ctx, async (db) => {
       const { rows } = await db.query<CampaignWithdrawalRow>(
         `SELECT * FROM campaign_withdrawals
          WHERE  id = $1 AND group_id = $2 AND status = 'pending_approval'
@@ -310,6 +358,112 @@ export const campaignWithdrawalsService = {
 
       return updated[0];
     });
+    await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_REJECTED, { actorUserId: ctx.userId, reason });
+    return rejected;
+  },
+
+  /** Withdrawals a Kitabu Yetu super-admin still has to release, oldest first. Backoffice only. */
+  async listAwaitingPlatform(): Promise<PlatformQueueRow[]> {
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query<PlatformQueueRow>(
+        `SELECT w.id, w.campaign_id, w.group_id, w.gross_amount, w.platform_fee_amount, w.mpesa_charge_amount,
+                w.net_amount, w.payout_method, w.payout_phone, w.payout_shortcode, w.payout_account,
+                w.payout_payee_name, w.requested_at,
+                c.title AS campaign_title, c.amount_raised, g.name AS group_name
+         FROM   campaign_withdrawals w
+         JOIN   campaigns c ON c.id = w.campaign_id
+         JOIN   groups g ON g.id = w.group_id
+         WHERE  w.status = 'awaiting_platform'
+         ORDER  BY w.requested_at ASC`,
+      );
+      return rows;
+    });
+  },
+
+  /**
+   * Kitabu Yetu's sign-off: releases an 'awaiting_platform' withdrawal for
+   * dispatch. The decision is recorded in settlement_approvals as a
+   * 'backoffice' approver — the same ledger as the officers' decisions.
+   */
+  async platformApprove(adminUserId: string, id: string): Promise<CampaignWithdrawalRow> {
+    const row = await withAdminDb(async (db) => {
+      const { rows } = await db.query<CampaignWithdrawalRow>(
+        `SELECT * FROM campaign_withdrawals WHERE id = $1 AND status = 'awaiting_platform' FOR UPDATE`,
+        [id],
+      );
+      if (!rows[0]) throw new NotFoundError('Campaign withdrawal awaiting platform sign-off', id);
+      const prior = rows[0];
+
+      await db.query(
+        `INSERT INTO settlement_approvals (subject_type, subject_id, group_id, approver_id, approver_kind, decision)
+           VALUES ('campaign_withdrawal', $1, $2, $3, 'backoffice', 'approved')`,
+        [id, prior.group_id, adminUserId],
+      );
+      const { rows: updated } = await db.query<CampaignWithdrawalRow>(
+        `UPDATE campaign_withdrawals SET status = 'approved' WHERE id = $1 RETURNING *`,
+        [id],
+      );
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, 'campaignWithdrawal.platformApprove', 'campaign_withdrawal', $3, $4, $5)`,
+        [
+          prior.group_id,
+          adminUserId,
+          id,
+          JSON.stringify({ status: 'awaiting_platform' }),
+          JSON.stringify({ status: 'approved' }),
+        ],
+      );
+      return updated[0];
+    });
+
+    await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_APPROVED, { adminUserId });
+    await dispatchCampaignWithdrawal(row.id);
+    return row;
+  },
+
+  /** Kitabu Yetu declines a release: the reserved cash goes back to the group and the row is closed. */
+  async platformReject(adminUserId: string, id: string, reason: string): Promise<CampaignWithdrawalRow> {
+    if (!reason.trim()) throw new ValidationError('A reason is required to decline a release');
+    const declined = await withAdminDb(async (db) => {
+      const { rows } = await db.query<CampaignWithdrawalRow>(
+        `SELECT * FROM campaign_withdrawals WHERE id = $1 AND status = 'awaiting_platform' FOR UPDATE`,
+        [id],
+      );
+      if (!rows[0]) throw new NotFoundError('Campaign withdrawal awaiting platform sign-off', id);
+      const prior = rows[0];
+
+      await db.query(
+        `INSERT INTO settlement_approvals
+             (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason)
+           VALUES ('campaign_withdrawal', $1, $2, $3, 'backoffice', 'rejected', $4)`,
+        [id, prior.group_id, adminUserId, reason],
+      );
+      const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
+        prior.group_id,
+      ]);
+      if (acctRows[0]) {
+        await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, `-${prior.gross_amount}`]);
+      }
+      const { rows: updated } = await db.query<CampaignWithdrawalRow>(
+        `UPDATE campaign_withdrawals SET status = 'rejected', failure_reason = $2 WHERE id = $1 RETURNING *`,
+        [id, `Declined by Kitabu Yetu: ${reason}`],
+      );
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, 'campaignWithdrawal.platformReject', 'campaign_withdrawal', $3, $4, $5)`,
+        [
+          prior.group_id,
+          adminUserId,
+          id,
+          JSON.stringify({ status: 'awaiting_platform' }),
+          JSON.stringify({ status: 'rejected', failure_reason: reason }),
+        ],
+      );
+      return updated[0];
+    });
+    await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_REJECTED, { adminUserId, reason });
+    return declined;
   },
 
   async getById(ctx: TenantContext, id: string): Promise<CampaignWithdrawalRow> {
@@ -416,6 +570,7 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
     return rows[0] ?? null;
   });
   if (!claimed) return;
+  await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_PROCESSING);
 
   const { rows: campaignRows } = await withAdminDb((db) =>
     db.query<{ title: string }>(`SELECT title FROM campaigns WHERE id = $1`, [claimed.campaign_id]),
@@ -493,6 +648,9 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
          WHERE  id = $1 AND status = 'processing'`,
         [id, `Dispatch error: ${String(err).slice(0, 500)}`],
       );
+    });
+    await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_FAILED, {
+      reason: `Dispatch error before M-Pesa accepted the request`,
     });
   }
 }

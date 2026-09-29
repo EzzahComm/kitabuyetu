@@ -66,8 +66,8 @@ export default function EcosystemPage() {
         </div>
 
         <SectionTitle preTitle="Built on" title="The products underneath" align="center">
-          Every pillar above sits on top of the same products: Bookkeeper for the ledger, Chama Reminder for the
-          messaging, and Fundraise / Changi$ha for causes and campaigns.
+          Every pillar above sits on top of the same products: Bookkeeper for the ledger, Chama Reminder (Kumbusha) for
+          the messaging, and Fundraise / Changi$ha for causes and campaigns.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -85,7 +85,7 @@ export default function EcosystemPage() {
               href={ROUTES.chamaReminder}
               className="rounded-lg border border-brand-100 p-6 transition-colors hover:bg-brand-50/60"
             >
-              <h3 className="font-semibold text-finanza-dark">Chama Reminder</h3>
+              <h3 className="font-semibold text-finanza-dark">Chama Reminder / Kumbusha</h3>
               <p className="mt-2 text-sm text-finanza-text">
                 Member management and messaging — reminders, announcements and engagement, standalone or with
                 Bookkeeper.

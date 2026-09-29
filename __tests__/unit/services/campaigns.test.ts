@@ -65,6 +65,7 @@ describe('campaignsService.createCampaign', () => {
 
   it('creates a draft campaign with a unique slug', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // slug uniqueness check — free
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // account code uniqueness check — free
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'camp-1', title: input.title, slug: 'water-for-kianjege', status: 'draft' }],
     });
@@ -73,14 +74,17 @@ describe('campaignsService.createCampaign', () => {
     const campaign = await campaignsService.createCampaign(ctx, input);
 
     expect(campaign.status).toBe('draft');
-    expect(mockQuery).toHaveBeenCalledTimes(3);
-    const insertCall = mockQuery.mock.calls[1];
+    expect(mockQuery).toHaveBeenCalledTimes(4);
+    const insertCall = mockQuery.mock.calls[2];
     expect(insertCall[1]).toContain('water-for-kianjege');
+    // Every campaign gets a PayBill account number: CH + 6 unambiguous chars.
+    expect(insertCall[1][10]).toMatch(/^CH[A-HJ-NP-Z2-9]{6}$/);
   });
 
   it('appends a numeric suffix when the slug is already taken', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ x: 1 }] }); // 'water-for-kianjege' taken
     mockQuery.mockResolvedValueOnce({ rows: [] }); // 'water-for-kianjege-2' free
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // account code free
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'camp-2', title: input.title, slug: 'water-for-kianjege-2', status: 'draft' }],
     });

@@ -27,7 +27,7 @@ const SLIDES = [
   },
   {
     id: 'chama-reminder',
-    product: 'Chama Reminder',
+    product: 'Chama Reminder / Kumbusha',
     title: 'Every member reminded, on the phone they already use.',
     subtitle: 'Contribution reminders, meeting notices and updates by SMS — no app for members to install.',
     photo: PRODUCT_PHOTOS.chamaReminder,

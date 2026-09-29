@@ -10,6 +10,7 @@ import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
 import { SMS_EVENTS } from '@/lib/sms/events';
+import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { logger } from '@/lib/logger';
 import type { Loan, LoanRepayment, PaginatedResult } from '@/types/db.types';
 import type {
@@ -201,6 +202,20 @@ export const loansService = {
         status: loan.status,
       });
 
+      await recordActivityInTx(client, {
+        type: ActivityEventType.LOAN_CREATED,
+        dedupKey: `loan:${loan.id}:created`,
+        group: { id: ctx.groupId, name: '' },
+        actor: { userId: ctx.userId },
+        transaction: {
+          id: loan.id,
+          type: 'Loan',
+          amount: parseFloat(loan.principal_amount),
+          currency: 'KES',
+          status: 'pending',
+        },
+      });
+
       return loan;
     });
   },
@@ -242,6 +257,20 @@ export const loansService = {
       }).catch((err) =>
         logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
       );
+
+      await recordActivityInTx(client, {
+        type: ActivityEventType.LOAN_APPROVED,
+        dedupKey: `loan:${updated.id}:approved`,
+        group: { id: ctx.groupId, name: '' },
+        actor: { userId: ctx.userId },
+        transaction: {
+          id: updated.id,
+          type: 'Loan',
+          amount: parseFloat(updated.principal_amount),
+          currency: 'KES',
+          status: 'approved',
+        },
+      });
 
       return updated;
     });
@@ -291,6 +320,20 @@ export const loansService = {
       }).catch((err) =>
         logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
       );
+
+      await recordActivityInTx(client, {
+        type: ActivityEventType.LOAN_REJECTED,
+        dedupKey: `loan:${updated.id}:rejected`,
+        group: { id: ctx.groupId, name: '' },
+        actor: { userId: ctx.userId },
+        transaction: {
+          id: updated.id,
+          type: 'Loan',
+          amount: parseFloat(updated.principal_amount),
+          currency: 'KES',
+          status: 'rejected',
+        },
+      });
 
       return updated;
     });
@@ -388,6 +431,20 @@ export const loansService = {
       }).catch((err) =>
         logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
       );
+
+      await recordActivityInTx(client, {
+        type: ActivityEventType.LOAN_DISBURSED,
+        dedupKey: `loan:${updated.id}:disbursed`,
+        group: { id: ctx.groupId, name: '' },
+        actor: { userId: ctx.userId },
+        transaction: {
+          id: updated.id,
+          type: 'Loan',
+          amount: parseFloat(updated.principal_amount),
+          currency: 'KES',
+          status: 'disbursed',
+        },
+      });
 
       return updated;
     });

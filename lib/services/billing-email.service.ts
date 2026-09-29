@@ -1,3 +1,4 @@
+import { departmentEmail } from '@/lib/departments';
 import { sendTemplatedEmail, queueEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
@@ -207,7 +208,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
       // in a customer-facing overdue notice. EMAIL_FROM is required and real,
       // so an unconfigured EMAIL_ADMIN degrades to an address we own instead
       // of to an empty sentence.
-      adminEmail: ADMIN_EMAIL ?? env.EMAIL_FROM,
+      adminEmail: departmentEmail('billing'),
     };
 
     await sendTemplatedEmail({

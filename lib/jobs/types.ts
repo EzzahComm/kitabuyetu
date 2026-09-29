@@ -43,6 +43,9 @@ export type JobType =
   | 'organization_sms_allowance_grant' // Grant each org's bundled SMS allowance on its plan's monthly anniversary (daily)
   | 'organization_report_export' // Ad-hoc: render + upload one organization report export (enqueued on demand or by a due schedule)
   | 'organization_report_schedules_process' // Fire due report_schedules rows (every 5 min, mirrors sms_process_schedules)
+  | 'admin_alert_deliver' // Ad-hoc: deliver one administrator SMS/email (retries with backoff)
+  | 'admin_alert_digest' // Send the aggregated admin activity digest (every 5 min, self-gated by window)
+  | 'system_health_check' // Check DB/Redis/jobs/SMS/callbacks and alert admins on failures (every 5 min)
   | 'cleanup_old_jobs'; // Prune completed/failed job_queue + stale job_logs rows (1st of month, 08:00 UTC)
 
 export interface Job {

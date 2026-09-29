@@ -7,6 +7,7 @@
  * tracks candidates who applied. job_slug is a soft reference to a Sanity
  * job document — see migration 199's header for why that can't be a real FK.
  */
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/utils/errors';
@@ -67,6 +68,28 @@ async function logCareersAudit(
  * elsewhere in this codebase.
  */
 export async function submitApplication(
+  data: SubmitApplicationInput,
+  resume?: { buffer: Buffer; contentType: string; filename: string },
+): Promise<JobApplication> {
+  const application = await insertApplication(data, resume);
+  // After the application is saved: alerts the HR mailbox (email only; see
+  // lib/departments.ts). Best-effort — never affects the applicant.
+  await emitActivity({
+    type: ActivityEventType.JOB_APPLICATION_SUBMITTED,
+    dedupKey: `job-application:${application.id}`,
+    adminPath: '/admin/careers',
+    transaction: { id: application.id, type: 'Job application', status: 'submitted' },
+    metadata: {
+      role: data.jobTitle,
+      applicant: data.applicantName,
+      applicantEmail: data.applicantEmail,
+      resumeAttached: !!application.resume_path,
+    },
+  });
+  return application;
+}
+
+async function insertApplication(
   data: SubmitApplicationInput,
   resume?: { buffer: Buffer; contentType: string; filename: string },
 ): Promise<JobApplication> {

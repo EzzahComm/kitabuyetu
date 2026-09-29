@@ -11,6 +11,7 @@
  * previous version of the footer shipped 10 dead links out of 16 (see its own
  * note in git history) — "the link works" is checked here, once.
  * ──────────────────────────────────────────────────────────────────────────── */
+import { DEPARTMENTS } from '@/lib/departments';
 
 export const ROUTES = {
   home: '/',
@@ -114,7 +115,7 @@ export const PRODUCT_ITEMS: NavLink[] = [
     description: 'Contributions, loans, welfare, shares and a real ledger.',
   },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: ROUTES.chamaReminder,
     description: 'SMS reminders and announcements, no ledger required.',
   },
@@ -148,7 +149,7 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 export const PRICING_ITEMS: NavLink[] = [
   { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,
     description: 'SMS reminders and group announcements.',
   },
@@ -259,8 +260,12 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
  * number undialable. Build call links with telHref(), never by hand.
  */
 export const CONTACT = {
-  email: 'info@kitabuyetu.co.ke',
-  careersEmail: 'careers@kitabuyetu.co.ke',
+  email: DEPARTMENTS.general.email,
+  // Recruiting goes to the HR mailbox (there is no careers@ mailbox).
+  careersEmail: DEPARTMENTS.hr.email,
+  supportEmail: DEPARTMENTS.support.email,
+  billingEmail: DEPARTMENTS.billing.email,
+  enterpriseEmail: DEPARTMENTS.enterprise.email,
   phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;

@@ -8,6 +8,7 @@ import { CreateAdditionalGroupSchema } from '@/lib/validators/auth.schema';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -68,6 +69,21 @@ export async function POST(req: NextRequest): Promise<Response> {
           [auth.userId, JSON.stringify(rpcPayload)],
         );
         return rows[0].create_additional_group;
+      });
+
+      await emitActivity({
+        type: ActivityEventType.GROUP_CREATED,
+        dedupKey: `group-created:${result.group_id}`,
+        group: { id: result.group_id, name: result.group_name },
+        actor: {
+          userId: result.member_id,
+          name: `${result.first_name} ${result.last_name}`.trim(),
+          phone: result.phone,
+          email: result.email ?? undefined,
+          role: result.creator_role,
+        },
+        transaction: { id: result.group_id, reference: result.group_code, status: result.group_status },
+        metadata: { groupType: input.groupType, product: input.product, additionalGroup: true },
       });
 
       // New session for the freshly-created membership — same shape as

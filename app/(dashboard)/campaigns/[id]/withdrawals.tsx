@@ -97,7 +97,11 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               header: 'Status',
               render: (r: CampaignWithdrawalRow) => (
                 <div>
-                  <StatusPill status={r.status} size="sm" />
+                  <StatusPill
+                    status={r.status}
+                    size="sm"
+                    label={r.status === 'awaiting_platform' ? 'Awaiting Kitabu Yetu sign-off' : undefined}
+                  />
                   {r.failure_reason && (
                     <ExpandableText lines={2} className="text-[10px] text-destructive mt-0.5 max-w-[180px]">
                       {r.failure_reason}

@@ -1,4 +1,4 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -7,6 +7,7 @@ import { CampaignCreateSchema } from '@/lib/validators/sms.schema';
 import { resolveSmsRecipients } from '@/lib/services/sms.service';
 import { enforceSmsRateLimit } from '@/lib/sms/rate-limit';
 import { ForbiddenError } from '@/lib/utils/errors';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/campaign â€” list campaigns
@@ -133,6 +134,19 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
     }
 
+    await emitActivity({
+      type: ActivityEventType.SMS_CAMPAIGN_CREATED,
+      dedupKey: `smscampaign:${campaign.id}:created`,
+      group: { id: auth.groupId, name: '' },
+      actor: { userId: auth.userId },
+      transaction: { id: campaign.id, type: 'SMS campaign', status: input.scheduledAt ? 'scheduled' : 'sending' },
+      metadata: {
+        name: input.name,
+        recipients: phones.length,
+        scheduledAt: input.scheduledAt ?? null,
+        messagePreview: input.message.slice(0, 400),
+      },
+    });
     return ok(campaign, 201);
   });
 }

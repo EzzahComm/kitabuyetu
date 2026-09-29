@@ -77,6 +77,11 @@ const schema = z
       .regex(/^\d{2}:\d{2}$/, 'HH:MM')
       .optional()
       .or(z.literal('')),
+
+    // Legal
+    agreeToTerms: z.boolean().refine((v) => v === true, {
+      message: 'You must accept the terms and conditions',
+    }),
   })
   .refine((d) => d.password === d.confirm, {
     message: 'Passwords do not match',
@@ -186,7 +191,7 @@ function RegisterForm() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const { confirm: _unused, ...body } = values;
+      const { confirm: _unused, agreeToTerms: _terms, ...body } = values;
       const data = (await authApi.register({ ...body, product })) as Awaited<ReturnType<typeof authApi.register>> & {
         groupCode?: string;
         membershipNo?: string;
@@ -426,7 +431,30 @@ function RegisterForm() {
             </div>
           </div>
 
-          <Button type="submit" className="w-full mt-2" loading={isSubmitting}>
+          {/* ─── Legal ─── */}
+          <p className={sectionTitle}>Compliance</p>
+          <div className="space-y-3">
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                {...register('agreeToTerms')}
+                className="mt-1 h-4 w-4 rounded border-input bg-background accent-brand-600"
+              />
+              <span className="text-sm text-foreground leading-relaxed">
+                I agree to the{' '}
+                <Link href="/legal#terms" target="_blank" className="text-brand-600 hover:underline font-medium">
+                  Terms & Conditions
+                </Link>
+                {' and '}
+                <Link href="/legal#data-protection" target="_blank" className="text-brand-600 hover:underline font-medium">
+                  Data Protection Policy
+                </Link>
+              </span>
+            </label>
+            {errors.agreeToTerms && <p className="text-xs text-destructive">{errors.agreeToTerms.message}</p>}
+          </div>
+
+          <Button type="submit" className="w-full mt-5" loading={isSubmitting}>
             Create group
           </Button>
         </form>

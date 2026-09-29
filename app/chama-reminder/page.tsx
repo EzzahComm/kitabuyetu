@@ -25,7 +25,7 @@ import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
-  title: 'Bulk SMS Reminders for Chamas & Welfare Groups',
+  title: 'Kumbusha — Bulk SMS Reminders for Chamas & Welfare Groups',
   description:
     'Automated SMS reminders for contributions, meetings and loan repayments, plus announcements, so every member of your chama or welfare group stays informed.',
 });
@@ -46,7 +46,7 @@ export default function ChamaReminderPage() {
         <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
             <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
-              Chama Reminder
+              Chama Reminder · Kumbusha
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
               Keep the group moving <em className="not-italic text-brand-500">between meetings</em>.

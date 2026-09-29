@@ -14,6 +14,7 @@
  * harmless: the `WHERE status = 'processing'` guard matches nothing the
  * second time.
  */
+import { emitWithdrawalEvent, ActivityEventType } from '@/lib/notifications';
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
 import { logger } from '@/lib/logger';
@@ -421,5 +422,15 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
 
   if (watchdogNotify) {
     await notifyDisbursementCallback('campaign_withdrawal', watchdogNotify.rowId, watchdogNotify.eventData);
+    // Validated callback, row already settled in the transaction above.
+    const ok = watchdogNotify.eventData.status === 'completed';
+    await emitWithdrawalEvent(
+      watchdogNotify.rowId,
+      ok ? ActivityEventType.WITHDRAWAL_COMPLETED : ActivityEventType.WITHDRAWAL_FAILED,
+      {
+        receipt: ok ? String(watchdogNotify.eventData.receipt ?? '') : null,
+        reason: ok ? undefined : String(watchdogNotify.eventData.failureReason ?? ''),
+      },
+    );
   }
 }

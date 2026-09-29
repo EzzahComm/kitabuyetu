@@ -118,15 +118,15 @@ export default function SupportPage() {
         <Container className="py-14 md:py-20">
           <div className="grid gap-5 sm:grid-cols-2">
             <a
-              href={`mailto:${CONTACT.email}`}
+              href={`mailto:${CONTACT.supportEmail}`}
               className="group flex items-center gap-4 rounded-lg border border-brand-100 bg-white p-6 transition-colors hover:border-brand-500/40"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                 <Mail aria-hidden="true" className="h-5 w-5" />
               </span>
               <span>
-                <span className="block text-sm font-semibold text-finanza-dark">Email us</span>
-                <span className="block text-[0.9375rem] text-finanza-text">{CONTACT.email}</span>
+                <span className="block text-sm font-semibold text-finanza-dark">Email support</span>
+                <span className="block text-[0.9375rem] text-finanza-text">{CONTACT.supportEmail}</span>
               </span>
             </a>
             <a

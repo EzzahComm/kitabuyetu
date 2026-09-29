@@ -28,6 +28,11 @@ export interface PortalNavItem {
    * (UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4).
    */
   soon?: boolean;
+  /**
+   * When true, prevents navigation (used with href: '#' for gated features).
+   * Rendered as non-interactive like `soon`, but without the "Soon" badge.
+   */
+  disabled?: boolean;
 }
 
 export interface PortalNavSection {
@@ -277,20 +282,22 @@ export function PortalSidebar({
                 {section.items.map((item) => {
                   const Icon = item.icon;
 
-                  if (item.soon) {
+                  if (item.soon || item.disabled) {
                     return (
                       <span
                         key={item.href}
-                        title="Coming soon"
+                        title={item.disabled ? 'Not yet available' : 'Coming soon'}
                         className={cn(v.link, 'cursor-default text-muted-foreground/50', collapsed && 'justify-center')}
                       >
                         <Icon size={v.iconSize} className="text-muted-foreground/40" />
                         {!collapsed && (
                           <>
                             <span className="flex-1 truncate">{item.label}</span>
-                            <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                              Soon
-                            </span>
+                            {item.soon && (
+                              <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                                Soon
+                              </span>
+                            )}
                           </>
                         )}
                       </span>
