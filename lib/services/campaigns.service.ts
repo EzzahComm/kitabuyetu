@@ -13,7 +13,7 @@
  * mpesa-stk.service.ts's applyCampaignDonationFromSTK, not here — this module
  * only creates/reviews campaigns and reads them back.
  */
-import { randomBytes } from 'crypto';
+import { randomInt } from 'crypto';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
@@ -119,9 +119,9 @@ const ACCOUNT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 async function uniqueAccountCode(db: PoolClient): Promise<string> {
   for (let attempt = 0; attempt < 20; attempt++) {
-    const bytes = randomBytes(6);
     let code = 'CH';
-    for (const b of bytes) code += ACCOUNT_CODE_ALPHABET[b % ACCOUNT_CODE_ALPHABET.length];
+    // randomInt is uniform (no modulo bias) and cryptographically secure.
+    for (let i = 0; i < 6; i++) code += ACCOUNT_CODE_ALPHABET[randomInt(ACCOUNT_CODE_ALPHABET.length)];
     const { rows } = await db.query('SELECT 1 FROM campaigns WHERE account_code = $1', [code]);
     if (!rows[0]) return code;
   }
