@@ -14,6 +14,8 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const dynamic = 'force-dynamic';
 
+const PAYBILL = process.env.NEXT_PUBLIC_MPESA_PAYBILL ?? '';
+
 interface CampaignPageProps {
   params: Promise<{ slug: string }>;
 }
@@ -110,7 +112,19 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
           </div>
 
           {accepting ? (
-            <CampaignDonateForm slug={campaign.slug} />
+            <>
+              <CampaignDonateForm slug={campaign.slug} />
+              {PAYBILL && (
+                <div className="mt-4 rounded-lg border border-brand-100 bg-white p-5 text-sm text-finanza-text">
+                  <p className="font-medium text-finanza-dark">Prefer to pay by M-Pesa PayBill?</p>
+                  <p className="mt-1">
+                    Go to Lipa na M-Pesa → Pay Bill. Business no.{' '}
+                    <strong className="text-finanza-dark">{PAYBILL}</strong>, account no.{' '}
+                    <strong className="text-finanza-dark">{campaign.account_code}</strong>.
+                  </p>
+                </div>
+              )}
+            </>
           ) : (
             <div className="rounded-lg border border-brand-100 bg-white p-6">
               <p className="font-display text-xl font-semibold text-finanza-dark">This campaign has ended</p>

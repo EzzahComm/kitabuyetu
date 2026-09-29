@@ -18,6 +18,7 @@ import {
   type C2BUrls,
   type C2BRegistrationResult,
 } from './daraja.service';
+import { creditCampaignDonation } from './campaign-donation-ledger.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
 import {
   IS_SANDBOX,
@@ -68,6 +69,16 @@ export type C2BValidationVerdict =
  */
 export async function validateC2BAccount(billRef: string | null | undefined): Promise<C2BValidationVerdict> {
   try {
+    // A real Changi$ha campaign account can be all digits after 'CH', which
+    // would otherwise read as a (bad) membership number and be rejected.
+    const campaignCode = parseCampaignAccountCode(billRef);
+    if (campaignCode) {
+      const known = await withAdminDb(async (db) => {
+        const { rows } = await db.query('SELECT 1 FROM campaigns WHERE account_code = $1', [campaignCode]);
+        return rows.length > 0;
+      });
+      if (known) return { accept: true };
+    }
     const parsed = parseAccountRef(billRef ?? '');
     if (!looksLikeMembershipNo(parsed.account)) {
       // Not membership-number shaped — legacy/invoice refs flow to
@@ -122,6 +133,12 @@ export interface C2BCallbackBody {
   LastName?: string;
 }
 
+/** 'ch 4k7m-2q' -> 'CH4K7M2Q'; null when the reference is not campaign-shaped. */
+export function parseCampaignAccountCode(billRef: string | null | undefined): string | null {
+  const n = (billRef ?? '').toUpperCase().replace(/[\s_-]/g, '');
+  return /^CH[A-Z0-9]{6}$/.test(n) ? n : null;
+}
+
 export async function handleC2BConfirmation(
   body: C2BCallbackBody,
   callerIp: string,
@@ -155,6 +172,54 @@ export async function handleC2BConfirmation(
       [body.TransID],
     );
     if (existingPay[0]) return;
+
+    // 1b. Changi$ha campaign account (CH + 6 chars, migration 204): a donor
+    //     paying the paybill directly with a campaign's account number. Checked
+    //     before the membership registry; only a real campaign code matches, so
+    //     no other account grammar is affected.
+    const campaignCode = parseCampaignAccountCode(body.BillRefNumber);
+    if (campaignCode) {
+      const { rows: campRows } = await db.query<{
+        id: string;
+        group_id: string;
+        status: string;
+        ends_at: string | null;
+      }>('SELECT id, group_id, status, ends_at FROM campaigns WHERE account_code = $1', [campaignCode]);
+      const camp = campRows[0];
+      if (camp) {
+        await recordC2BInbound(db, camp.group_id, body, phone, amount, rawBody);
+        // Ended or not-yet-live campaigns must not accept money silently:
+        // park it for ops to refund or reassign.
+        if (camp.status !== 'active' || (camp.ends_at && new Date(camp.ends_at) <= new Date())) {
+          await c2bToUnrouted(
+            db,
+            {
+              groupId: camp.group_id,
+              route,
+              receipt: body.TransID,
+              amount,
+              phone,
+              billRef: body.BillRefNumber,
+              rawBody,
+            },
+            'other',
+          );
+          return;
+        }
+        await creditCampaignDonation(db, {
+          campaignId: camp.id,
+          groupId: camp.group_id,
+          donorName: null,
+          donorPhone: phone,
+          amount,
+          message: null,
+          isAnonymous: false,
+          receipt: body.TransID,
+          channel: 'paybill',
+        });
+        return;
+      }
+    }
 
     // 2. Registry-first routing (payment architecture §3.3 R1–R4): one
     //    indexed lookup resolves membership numbers and legacy member codes

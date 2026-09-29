@@ -13,6 +13,7 @@
  * mpesa-stk.service.ts's applyCampaignDonationFromSTK, not here — this module
  * only creates/reviews campaigns and reads them back.
  */
+import { randomBytes } from 'crypto';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
@@ -45,6 +46,8 @@ export interface Campaign extends PayoutFields {
   group_id: string;
   title: string;
   slug: string;
+  /** PayBill account number donors type to give directly, e.g. CH4K7M2Q. */
+  account_code: string;
   story: string;
   beneficiary_name: string | null;
   target_amount: string;
@@ -111,6 +114,20 @@ function slugify(title: string): string {
     .slice(0, 80);
 }
 
+// No 0/O/1/I: the code is read off a screen and typed into M-Pesa.
+const ACCOUNT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+async function uniqueAccountCode(db: PoolClient): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const bytes = randomBytes(6);
+    let code = 'CH';
+    for (const b of bytes) code += ACCOUNT_CODE_ALPHABET[b % ACCOUNT_CODE_ALPHABET.length];
+    const { rows } = await db.query('SELECT 1 FROM campaigns WHERE account_code = $1', [code]);
+    if (!rows[0]) return code;
+  }
+  throw new Error('Could not allocate a campaign account code');
+}
+
 async function uniqueSlug(db: PoolClient, title: string): Promise<string> {
   const base = slugify(title) || 'campaign';
   for (let attempt = 0; attempt < 20; attempt++) {
@@ -129,12 +146,13 @@ export const campaignsService = {
 
     return withTransaction(ctx, async (db) => {
       const slug = await uniqueSlug(db, data.title);
+      const accountCode = await uniqueAccountCode(db);
 
       const { rows } = await db.query<Campaign>(
         `INSERT INTO campaigns
-           (group_id, title, slug, story, beneficiary_name, payout_phone, target_amount,
+           (group_id, title, slug, account_code, story, beneficiary_name, payout_phone, target_amount,
             cover_image_url, ends_at, created_by, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')
+         VALUES ($1,$2,$3,$11,$4,$5,$6,$7,$8,$9,$10,'draft')
          RETURNING *`,
         [
           ctx.groupId,
@@ -147,6 +165,7 @@ export const campaignsService = {
           data.coverImageUrl ?? null,
           data.endsAt ?? null,
           ctx.userId,
+          accountCode,
         ],
       );
       const campaign = rows[0];

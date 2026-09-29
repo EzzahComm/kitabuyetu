@@ -17,7 +17,8 @@ import { toMpesaAmount } from '@/lib/utils/currency';
 import type { PlanType, SubscriptionProduct, BillingCycle } from '@/types/enums';
 import { notifyMember } from './notifications.service';
 import { billingService } from './billing.service';
-import { postContributionJournal, postSystemJournal } from './accounting.service';
+import { postContributionJournal } from './accounting.service';
+import { creditCampaignDonation } from './campaign-donation-ledger.service';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
@@ -1082,67 +1083,17 @@ async function applyCampaignDonationFromSTK(
     return;
   }
 
-  const { rows: donationRows } = await db.query<{ id: string }>(
-    `INSERT INTO campaign_donations
-       (campaign_id, group_id, donor_name, donor_phone, amount, message, is_anonymous, mpesa_receipt_number, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'completed')
-     ON CONFLICT (mpesa_receipt_number) DO NOTHING
-     RETURNING id`,
-    [
-      stkReq.campaign_id,
-      stkReq.group_id,
-      stkReq.donor_name,
-      in_.phone,
-      in_.amount.toFixed(2),
-      stkReq.donor_message,
-      stkReq.is_anonymous ?? false,
-      in_.receipt,
-    ],
-  );
-  const donationId = donationRows[0]?.id ?? null;
-  if (!donationId) return; // duplicate callback — nothing more to do
-
-  const { rows: campaignRows } = await db.query<{ title: string }>(
-    `UPDATE campaigns
-     SET    amount_raised = amount_raised + $2, updated_at = NOW()
-     WHERE  id = $1
-     RETURNING title`,
-    [stkReq.campaign_id, in_.amount.toFixed(2)],
-  );
-  const campaignTitle = campaignRows[0]?.title ?? 'campaign';
-
-  const journalEntryId = await postSystemJournal(
-    db,
-    stkReq.group_id,
-    null,
-    `Changi$ha donation — ${campaignTitle}`,
-    [
-      { accountCode: '1001', debit: in_.amount },
-      { accountCode: '4006', credit: in_.amount },
-    ],
-    { reference: in_.receipt, isTest: IS_SANDBOX },
-  );
-  if (journalEntryId) {
-    await db.query(`UPDATE campaign_donations SET journal_entry_id = $1 WHERE id = $2`, [journalEntryId, donationId]);
-  }
-
-  // Audit: donation settled from STK payment
-  await db.query(
-    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      stkReq.group_id,
-      null, // system-triggered via M-Pesa callback
-      'campaign_donation.settle',
-      'campaign_donation',
-      donationId,
-      JSON.stringify({
-        amount: in_.amount.toFixed(2),
-        mpesa_receipt_number: in_.receipt,
-        campaign_id: stkReq.campaign_id,
-      }),
-    ],
-  );
+  await creditCampaignDonation(db, {
+    campaignId: stkReq.campaign_id,
+    groupId: stkReq.group_id,
+    donorName: stkReq.donor_name,
+    donorPhone: in_.phone,
+    amount: in_.amount,
+    message: stkReq.donor_message,
+    isAnonymous: stkReq.is_anonymous ?? false,
+    receipt: in_.receipt,
+    channel: 'stk',
+  });
 }
 
 /**
