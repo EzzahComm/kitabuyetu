@@ -1,10 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Opportunity } from '@/lib/services/ecosystem.service';
+import { PublicOpportunity } from '@/lib/services/ecosystem.service';
 
 interface OpportunityCardProps {
-  opportunity: Opportunity;
+  opportunity: PublicOpportunity;
   matches?: boolean;
   failedRules?: string[];
 }

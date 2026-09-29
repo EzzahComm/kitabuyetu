@@ -1,6 +1,9 @@
 /**
- * Changi$ha withdrawals — paying a campaign's raised funds out to its
- * beneficiary via M-Pesa B2C, with the platform taking a fee.
+ * Changi$ha withdrawals — paying a campaign's raised funds out to its payout
+ * destination, with the platform taking a fee: an M-Pesa phone via Daraja
+ * B2C, or a business paybill/till via Daraja B2B (migration 202;
+ * lib/campaigns/payout-destination.ts). The destination is snapshotted onto
+ * each withdrawal row at request time.
  *
  * Same spine as vendor-payments.service.ts (the closest existing analog: an
  * external, non-member payee) — reserve group cash -> dual-approve (maker
@@ -18,8 +21,9 @@
  *    defeating the whole point of account 4006 keeping Changi$ha separate
  *    from Bookkeeper finances (migration 185).
  *
- * 2. The M-Pesa B2C charge is computed HERE, at request time — not at
- *    settlement like every other B2C flow in this codebase. Vendor
+ * 2. The M-Pesa charge (B2C tariff for a phone, B2B tariff for a
+ *    paybill/till) is computed HERE, at request time — not at settlement
+ *    like every other outbound flow in this codebase. Vendor
  *    payments/settlements send their full requested amount to Daraja; the
  *    Safaricom fee is a separate deduction from the group's cash on top,
  *    never shorting the payee. Changi$ha's fee model is the opposite: the
@@ -30,9 +34,10 @@
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { payoutColumns, toPayoutDestination, type PayoutFields } from '@/lib/campaigns/payout-destination';
 import { recordApproval } from './settlement-approvals.service';
 import { resolvePolicy } from './configuration.service';
-import { computeB2CCharge } from './mpesa-charges.service';
+import { computeB2BCharge, computeB2CCharge } from './mpesa-charges.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 import { CHANGISHA_PRICING } from '@/types/enums';
 
@@ -42,11 +47,11 @@ export interface RequestWithdrawalInput {
   idempotencyKey: string;
 }
 
-export interface CampaignWithdrawalRow {
+/** The payout_* fields are the destination snapshotted at request time. */
+export interface CampaignWithdrawalRow extends PayoutFields {
   id: string;
   campaign_id: string;
   group_id: string;
-  payout_phone: string;
   gross_amount: string;
   platform_fee_pct: string;
   platform_fee_amount: string;
@@ -83,24 +88,24 @@ export const campaignWithdrawalsService = {
       );
       if (existing[0]) return existing[0];
 
-      const { rows: campaignRows } = await db.query<{
-        status: string;
-        payout_phone: string | null;
-        amount_raised: string;
-      }>(`SELECT status, payout_phone, amount_raised FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`, [
-        input.campaignId,
-        ctx.groupId,
-      ]);
+      const { rows: campaignRows } = await db.query<PayoutFields & { status: string; amount_raised: string }>(
+        `SELECT status, amount_raised, payout_method, payout_phone, payout_shortcode, payout_account, payout_payee_name
+         FROM   campaigns
+         WHERE  id = $1 AND group_id = $2
+         FOR UPDATE`,
+        [input.campaignId, ctx.groupId],
+      );
       const campaign = campaignRows[0];
       if (!campaign) throw new NotFoundError('Campaign', input.campaignId);
       if (campaign.status !== 'active') {
         throw new ValidationError(`Only an active campaign can be withdrawn from (current status: ${campaign.status})`);
       }
-      if (!campaign.payout_phone) {
+      const destination = toPayoutDestination(campaign);
+      if (!destination) {
         // Defense in depth — submitForReview already guarantees this, but a
-        // campaign could theoretically have been approved before that guard
-        // existed.
-        throw new ValidationError('This campaign has no payout phone number set');
+        // campaign can have been approved before that guard existed (one live
+        // campaign was).
+        throw new ValidationError('This campaign has no payout destination set');
       }
 
       const { rows: drawnRows } = await db.query<{ drawn: string }>(
@@ -147,7 +152,10 @@ export const campaignWithdrawalsService = {
         DEFAULT_PLATFORM_FEE_PCT,
       );
       const platformFeeAmount = Math.round(input.grossAmount * (platformFeePct / 100) * 100) / 100;
-      const mpesaChargeAmount = await computeB2CCharge(db, input.grossAmount);
+      const mpesaChargeAmount =
+        destination.method === 'phone'
+          ? await computeB2CCharge(db, input.grossAmount)
+          : await computeB2BCharge(db, input.grossAmount);
       const netAmount = Math.round((input.grossAmount - platformFeeAmount - mpesaChargeAmount) * 100) / 100;
       if (netAmount <= 0) {
         throw new ValidationError(
@@ -157,16 +165,22 @@ export const campaignWithdrawalsService = {
 
       await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, input.grossAmount.toFixed(2)]);
 
+      const payout = payoutColumns(destination);
       const { rows: inserted } = await db.query<CampaignWithdrawalRow>(
         `INSERT INTO campaign_withdrawals
-           (campaign_id, group_id, payout_phone, gross_amount, platform_fee_pct,
-            platform_fee_amount, mpesa_charge_amount, net_amount, status, requested_by, idempotency_key)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'pending_approval',$9,$10)
+           (campaign_id, group_id, payout_method, payout_phone, payout_shortcode, payout_account,
+            payout_payee_name, gross_amount, platform_fee_pct, platform_fee_amount,
+            mpesa_charge_amount, net_amount, status, requested_by, idempotency_key)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending_approval',$13,$14)
          RETURNING *`,
         [
           input.campaignId,
           ctx.groupId,
-          campaign.payout_phone,
+          payout.payout_method,
+          payout.payout_phone,
+          payout.payout_shortcode,
+          payout.payout_account,
+          payout.payout_payee_name,
           input.grossAmount.toFixed(2),
           platformFeePct.toFixed(2),
           platformFeeAmount.toFixed(2),
@@ -189,6 +203,7 @@ export const campaignWithdrawalsService = {
           null,
           JSON.stringify({
             campaign_id: input.campaignId,
+            ...payout,
             gross_amount: inserted[0].gross_amount,
             platform_fee_amount: inserted[0].platform_fee_amount,
             mpesa_charge_amount: inserted[0].mpesa_charge_amount,
@@ -357,23 +372,28 @@ export async function findStuckCampaignWithdrawals(): Promise<{
 }
 
 /**
- * Fires the Daraja B2C call for an 'approved' row and flips it to
- * 'processing'. Same claim-then-dispatch-then-release-on-throw shape as
- * every other outbound money path in this codebase.
+ * Fires the Daraja call for an 'approved' row and flips it to 'processing':
+ * B2C for a phone, B2B (pay bill / buy goods) for a paybill or till. Same
+ * claim-then-dispatch-then-release-on-throw shape as every other outbound
+ * money path in this codebase. Both products report back with the same
+ * OriginatorConversationID correlation, settled by
+ * handleCampaignWithdrawalResult from whichever route Safaricom calls.
  */
 async function dispatchCampaignWithdrawal(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      id: string;
-      group_id: string;
-      campaign_id: string;
-      net_amount: string;
-      payout_phone: string;
-    }>(
+    const { rows } = await db.query<
+      PayoutFields & {
+        id: string;
+        group_id: string;
+        campaign_id: string;
+        net_amount: string;
+      }
+    >(
       `UPDATE campaign_withdrawals
        SET    status = 'processing'
        WHERE  id = $1 AND status = 'approved'
-       RETURNING id, group_id, campaign_id, net_amount, payout_phone`,
+       RETURNING id, group_id, campaign_id, net_amount, payout_method, payout_phone,
+                 payout_shortcode, payout_account, payout_payee_name`,
       [id],
     );
 
@@ -401,16 +421,39 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
     db.query<{ title: string }>(`SELECT title FROM campaigns WHERE id = $1`, [claimed.campaign_id]),
   );
   const campaignTitle = campaignRows[0]?.title ?? 'Changi$ha campaign';
+  const remarks = `Changi$ha withdrawal — ${campaignTitle}`.slice(0, 100);
 
   try {
-    const { initiateB2C } = await import('./daraja.service');
-    const res = await initiateB2C({
-      phone: claimed.payout_phone,
-      amount: parseFloat(claimed.net_amount),
-      commandId: 'BusinessPayment',
-      occasion: `Changi$ha withdrawal — ${campaignTitle}`.slice(0, 100),
-      remarks: `Changi$ha withdrawal — ${campaignTitle}`.slice(0, 100),
-    });
+    // The DB CHECK (migration 202) guarantees a complete destination on every
+    // row; this only narrows the type — if it ever fails, the catch below
+    // releases the reservation and marks the row failed.
+    const destination = toPayoutDestination(claimed);
+    if (!destination) throw new Error('Withdrawal row has an incomplete payout destination');
+
+    const { initiateB2C, initiateB2B } = await import('./daraja.service');
+    const amount = parseFloat(claimed.net_amount);
+    const res =
+      destination.method === 'phone'
+        ? await initiateB2C({
+            phone: destination.phone,
+            amount,
+            commandId: 'BusinessPayment',
+            occasion: remarks,
+            remarks,
+          })
+        : await initiateB2B({
+            amount,
+            receiverShortcode: destination.shortcode,
+            // '4' = organisation shortcode — Daraja's identifier for both a
+            // paybill and a till number (same value vendor payments use).
+            receiverIdentifier: '4',
+            commandId: destination.method === 'paybill' ? 'BusinessPayBill' : 'BusinessBuyGoods',
+            // A paybill needs the business's own account number; a till has
+            // none, so send a reference the business can trace back to us.
+            accountReference:
+              destination.method === 'paybill' ? destination.account : `CHANGISHA-${claimed.id.slice(0, 8)}`,
+            remarks,
+          });
 
     await withAdminDb((db) =>
       db.query(`UPDATE campaign_withdrawals SET originator_conversation_id = $2 WHERE id = $1`, [

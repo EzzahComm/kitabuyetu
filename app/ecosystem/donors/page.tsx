@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
-import { createClient } from '@/lib/supabase/server';
+import { listPublicActiveOrganizations } from '@/lib/services/organization.service';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -12,11 +12,9 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 async function EcosystemDonorsPage() {
-  const supabase = await createClient();
-  // Get organizations with active programs for context
-  const { data: orgs } = await supabase.from('organizations').select('id, name').eq('status', 'active').limit(10);
-
-  const activeOrgs = orgs || [];
+  // Public, anonymous page — see listPublicActiveOrganizations's own header
+  // for why this no longer reads via the Supabase anon-key client.
+  const activeOrgs = await listPublicActiveOrganizations(10);
 
   return (
     <PageShell title="Our Supporters" description="Meet the community of supporters making a difference.">

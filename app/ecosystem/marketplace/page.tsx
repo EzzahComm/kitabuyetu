@@ -8,7 +8,12 @@ import { FinanzaHeading, FinanzaSection, IconBadge, btnPrimary } from '@/compone
 import { CtaBand } from '@/components/marketing/kitabu-sections';
 import { ROUTES } from '@/components/marketing/routes';
 import { withAdminDb } from '@/lib/db';
-import { listPublishedOpportunities, type Opportunity } from '@/lib/services/ecosystem.service';
+import {
+  listPublishedOpportunities,
+  toPublicOpportunity,
+  type Opportunity,
+  type PublicOpportunity,
+} from '@/lib/services/ecosystem.service';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -34,7 +39,7 @@ const OFFER_TYPES: { type: Opportunity['opportunity_type']; label: string; body:
 
 const TYPE_LABEL = Object.fromEntries(OFFER_TYPES.map((t) => [t.type, t.label.replace(/s$/, '')]));
 
-function amountLabel(o: Opportunity): string | null {
+function amountLabel(o: PublicOpportunity): string | null {
   if (o.amount_min && o.amount_max) {
     return `${o.currency} ${o.amount_min.toLocaleString()} – ${o.amount_max.toLocaleString()}`;
   }
@@ -43,12 +48,16 @@ function amountLabel(o: Opportunity): string | null {
 }
 
 async function MarketplacePage() {
-  let published: Opportunity[] = [];
+  let opportunities: Opportunity[] = [];
   try {
-    published = await withAdminDb((db) => listPublishedOpportunities(db));
+    opportunities = await withAdminDb((db) => listPublishedOpportunities(db));
   } catch {
     // Database unreachable (build or preview) — render the empty state rather than fail the page.
   }
+  // Anonymous, public page — strip internal-only fields (eligibility_rules)
+  // before they're ever in scope here, in case a future edit passes one of
+  // these into a client component or otherwise serializes it whole.
+  const published: PublicOpportunity[] = opportunities.map(toPublicOpportunity);
 
   return (
     <PageShell

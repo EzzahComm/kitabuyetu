@@ -16,6 +16,12 @@
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
+import {
+  payoutColumns,
+  toPayoutDestination,
+  type PayoutDestination,
+  type PayoutFields,
+} from '@/lib/campaigns/payout-destination';
 
 /** SQL predicates shared by the public reads, so "live" and "past" can never overlap. */
 const ACCEPTING_DONATIONS = `(status = 'active' AND (ends_at IS NULL OR ends_at > NOW()))`;
@@ -28,17 +34,19 @@ export function isAcceptingDonations(campaign: Pick<Campaign, 'status' | 'ends_a
 
 export type CampaignStatus = 'draft' | 'pending_review' | 'active' | 'completed' | 'cancelled' | 'rejected';
 
-export interface Campaign {
+/**
+ * The payout_* fields (PayoutFields) are where a withdrawal pays out to: a
+ * phone (B2C), or a business paybill/till (B2B). Set at creation (phone only)
+ * or via setPayoutDestination while still a draft; locked once the campaign
+ * leaves 'draft' — see setPayoutDestination's own guard.
+ */
+export interface Campaign extends PayoutFields {
   id: string;
   group_id: string;
   title: string;
   slug: string;
   story: string;
   beneficiary_name: string | null;
-  /** Where a withdrawal pays out to. Set at creation or via setPayoutPhone
-   *  while still a draft; locked once the campaign leaves 'draft' — see
-   *  setPayoutPhone's own guard. */
-  payout_phone: string | null;
   target_amount: string;
   amount_raised: string;
   currency: string;
@@ -72,6 +80,12 @@ export interface CreateCampaignInput {
   story: string;
   targetAmount: number;
   beneficiaryName?: string;
+  /** Required (enforced by CreateCampaignSchema) whenever beneficiaryName is
+   *  set — beneficiary_name is published on the campaign's public, indexed
+   *  page, so naming someone needs an explicit confirmation, not a silent
+   *  default. Recorded in the creation audit log as evidence, not a new
+   *  column — this is a one-time gate at creation, never re-asked. */
+  beneficiaryConsentConfirmed?: boolean;
   payoutPhone?: string;
   coverImageUrl?: string;
   endsAt?: string;
@@ -147,7 +161,14 @@ export const campaignsService = {
           'campaign',
           campaign.id,
           null,
-          JSON.stringify({ title: campaign.title, target_amount: campaign.target_amount, status: 'draft' }),
+          JSON.stringify({
+            title: campaign.title,
+            target_amount: campaign.target_amount,
+            status: 'draft',
+            ...(campaign.beneficiary_name
+              ? { beneficiary_name: campaign.beneficiary_name, beneficiary_consent_confirmed: true }
+              : {}),
+          }),
         ],
       );
 
@@ -168,8 +189,10 @@ export const campaignsService = {
           `Only a draft campaign can be submitted for review (current status: ${existing[0].status})`,
         );
       }
-      if (!existing[0].payout_phone) {
-        throw new ValidationError('A payout phone number is required before submitting for review');
+      if (!toPayoutDestination(existing[0])) {
+        throw new ValidationError(
+          'Set where withdrawals are paid (an M-Pesa phone, paybill or till) before submitting for review',
+        );
       }
 
       const { rows: updated } = await db.query<Campaign>(
@@ -198,15 +221,31 @@ export const campaignsService = {
 
   /**
    * Sets/changes the payout destination — only while still a draft. Locked
-   * after that (service-layer guard, not just UI): payout_phone is the
+   * after that (service-layer guard, not just UI): the destination is the
    * single highest-value field on a campaign once it can raise real money,
-   * and a withdrawal snapshots it per-row anyway, so silently changing the
-   * source field post-activation would only create confusion about which
-   * number actually governed a given payout, not a live redirection risk —
-   * but there's no legitimate reason to allow it either, so it stays closed.
+   * and the admin approves the campaign with it in view. A withdrawal
+   * snapshots it per-row anyway, so changing the source post-activation
+   * would only blur which destination governed a given payout — there's no
+   * legitimate reason to allow it, so it stays closed.
    */
-  async setPayoutPhone(ctx: TenantContext, campaignId: string, payoutPhone: string): Promise<Campaign> {
+  async setPayoutDestination(
+    ctx: TenantContext,
+    campaignId: string,
+    destination: PayoutDestination,
+  ): Promise<Campaign> {
     assertOfficer(ctx);
+    if (destination.method !== 'phone') {
+      // Paying the platform's own collection/B2C shortcode would just loop
+      // pooled money back in as an unattributed C2B payment.
+      const platformShortcodes = [process.env.MPESA_SHORTCODE, process.env.MPESA_B2C_SHORTCODE].filter(Boolean);
+      if (platformShortcodes.includes(destination.shortcode)) {
+        throw new ValidationError(
+          "That is Kitabu Yetu's own M-Pesa number — enter the paybill or till of the business being paid",
+        );
+      }
+    }
+    const columns = payoutColumns(destination);
+
     return withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`,
@@ -214,25 +253,43 @@ export const campaignsService = {
       );
       if (!existing[0]) throw new NotFoundError('Campaign', campaignId);
       if (existing[0].status !== 'draft') {
-        throw new ValidationError('The payout phone can only be set while the campaign is still a draft');
+        throw new ValidationError('The payout destination can only be set while the campaign is still a draft');
       }
 
       const { rows: updated } = await db.query<Campaign>(
-        `UPDATE campaigns SET payout_phone = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-        [campaignId, payoutPhone],
+        `UPDATE campaigns
+         SET    payout_method = $2, payout_phone = $3, payout_shortcode = $4,
+                payout_account = $5, payout_payee_name = $6, updated_at = NOW()
+         WHERE  id = $1
+         RETURNING *`,
+        [
+          campaignId,
+          columns.payout_method,
+          columns.payout_phone,
+          columns.payout_shortcode,
+          columns.payout_account,
+          columns.payout_payee_name,
+        ],
       );
 
+      const prior = existing[0];
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1,$2,$3,$4,$5,$6,$7)`,
         [
           ctx.groupId,
           ctx.userId,
-          'campaign.set_payout_phone',
+          'campaign.set_payout_destination',
           'campaign',
           campaignId,
-          JSON.stringify({ payout_phone: existing[0].payout_phone }),
-          JSON.stringify({ payout_phone: payoutPhone }),
+          JSON.stringify({
+            payout_method: prior.payout_method,
+            payout_phone: prior.payout_phone,
+            payout_shortcode: prior.payout_shortcode,
+            payout_account: prior.payout_account,
+            payout_payee_name: prior.payout_payee_name,
+          }),
+          JSON.stringify(columns),
         ],
       );
 

@@ -19,6 +19,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.service';
+import { describePayoutDestination } from '@/lib/campaigns/payout-destination';
 
 /**
  * Withdrawal request + maker-checker approval, same shape as the treasury
@@ -64,7 +65,7 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
           error={listQ.error}
           onPageChange={() => {}}
           emptyMessage="No withdrawals yet."
-          emptyDescription="Pay raised funds out to the campaign's payout phone."
+          emptyDescription="Pay raised funds out to the campaign's payout destination."
           columns={[
             {
               key: 'gross_amount',
@@ -77,6 +78,12 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               header: 'Net (paid out)',
               className: 'font-medium',
               render: (r: CampaignWithdrawalRow) => formatKES(r.net_amount),
+            },
+            {
+              key: 'destination',
+              header: 'Paid to',
+              className: 'text-xs',
+              render: (r: CampaignWithdrawalRow) => describePayoutDestination(r),
             },
             {
               key: 'fees',
@@ -146,7 +153,7 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               <Input type="number" min={1} value={amount} onChange={(e) => setAmount(e.target.value)} />
               <p className="text-xs text-muted-foreground">
                 Raised so far: {formatKES(amountRaised)}. The platform fee and M-Pesa cost are deducted from this amount
-                before it reaches the payout phone.
+                before it reaches the payout destination.
               </p>
             </div>
           </div>
@@ -169,7 +176,7 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
         details={
           approveTarget
             ? [
-                { label: 'Payout phone', value: approveTarget.payout_phone },
+                { label: 'Paid to', value: describePayoutDestination(approveTarget) },
                 { label: 'Gross amount', value: formatKES(approveTarget.gross_amount) },
                 { label: 'Requested', value: formatDate(approveTarget.requested_at) },
               ]

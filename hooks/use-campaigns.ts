@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api/client';
 import type { Campaign, CampaignDonation, CreateCampaignInput } from '@/lib/services/campaigns.service';
 import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.service';
+import type { PayoutDestination } from '@/lib/campaigns/payout-destination';
 
 const BASE = '/campaigns';
 
@@ -53,10 +54,10 @@ export function useSubmitCampaignForReview(id: string) {
   });
 }
 
-export function useSetCampaignPayoutPhone(id: string) {
+export function useSetCampaignPayoutDestination(id: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (payoutPhone: string) => api.patch<Campaign>(`${BASE}/${id}`, { payoutPhone }),
+    mutationFn: (destination: PayoutDestination) => api.patch<Campaign>(`${BASE}/${id}`, destination),
     onSuccess: () => qc.invalidateQueries({ queryKey: campaignKeys.detail(id) }),
   });
 }

@@ -33,6 +33,16 @@ beforeEach(() => {
 
 const ctx = { groupId: 'grp-1', userId: 'officer-1', role: 'treasurer' };
 
+/** An active campaign paying out to a phone, as the DB returns it (migration 202 columns included). */
+const activePhone = {
+  status: 'active',
+  payout_method: 'phone',
+  payout_phone: '254712345678',
+  payout_shortcode: null,
+  payout_account: null,
+  payout_payee_name: null,
+};
+
 describe('campaignWithdrawalsService.request', () => {
   const input = { campaignId: 'camp-1', grossAmount: 1000, idempotencyKey: 'wk-1' };
 
@@ -61,15 +71,15 @@ describe('campaignWithdrawalsService.request', () => {
   it('rejects when the campaign is not active', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] }) // no existing idempotency row
-      .mockResolvedValueOnce({ rows: [{ status: 'draft', payout_phone: '254712345678', amount_raised: '5000.00' }] });
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, status: 'draft', amount_raised: '5000.00' }] });
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it('rejects when the campaign has no payout phone set', async () => {
+  it('rejects when the campaign has no payout destination set', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: null, amount_raised: '5000.00' }] });
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, payout_phone: null, amount_raised: '5000.00' }] });
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
@@ -83,7 +93,7 @@ describe('campaignWithdrawalsService.request', () => {
   it('rejects when the amount exceeds the campaign’s own undrawn balance', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: '254712345678', amount_raised: '1000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '1000.00' }] })
       // already drawn 900 -> only 100 left, requesting 1000
       .mockResolvedValueOnce({ rows: [{ drawn: '900.00' }] });
 
@@ -98,7 +108,7 @@ describe('campaignWithdrawalsService.request', () => {
   it('rejects when the amount exceeds available GROUP cash, even if the campaign has enough raised', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: '254712345678', amount_raised: '10000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '10000.00' }] })
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       // group's pooled 1001 account only has 500 available
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '500.00', reserved_amount: '0.00' }] });
@@ -109,7 +119,7 @@ describe('campaignWithdrawalsService.request', () => {
   it('rejects an amount below the configured minimum', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: '254712345678', amount_raised: '10000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '10000.00' }] })
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       // resolvePolicy(min_withdrawal_amount) — set above the requested 1000
@@ -121,7 +131,7 @@ describe('campaignWithdrawalsService.request', () => {
   it('rejects when fees would consume the entire withdrawal (net <= 0)', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: '254712345678', amount_raised: '10000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '10000.00' }] })
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
@@ -138,7 +148,7 @@ describe('campaignWithdrawalsService.request', () => {
   it('reserves gross_amount (not net_amount) and stores the full fee breakdown', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
-      .mockResolvedValueOnce({ rows: [{ status: 'active', payout_phone: '254712345678', amount_raised: '10000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '10000.00' }] })
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
@@ -165,12 +175,19 @@ describe('campaignWithdrawalsService.request', () => {
     expect(reserveCall[0]).toContain('adjust_account_reserved_amount');
     expect(reserveCall[1]).toEqual(['acct-1', '1000.00']); // reserves the GROSS amount, not net
 
+    const chargeCall = mockQuery.mock.calls[6];
+    expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2c')"); // phone -> B2C tariff
+
     const insertCall = mockQuery.mock.calls[8];
     expect(insertCall[0]).toContain('INSERT INTO campaign_withdrawals');
     expect(insertCall[1]).toEqual([
       'camp-1',
       'grp-1',
-      '254712345678',
+      'phone', // payout_method
+      '254712345678', // payout_phone
+      null, // payout_shortcode
+      null, // payout_account
+      null, // payout_payee_name
       '1000.00', // gross
       '4.00', // platform_fee_pct
       '40.00', // platform_fee_amount
@@ -179,6 +196,59 @@ describe('campaignWithdrawalsService.request', () => {
       'officer-1',
       'wk-1',
     ]);
+  });
+
+  it('a paybill campaign uses the B2B tariff and snapshots the business destination', async () => {
+    mockQuery
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [
+          {
+            status: 'active',
+            amount_raised: '10000.00',
+            payout_method: 'paybill',
+            payout_phone: null,
+            payout_shortcode: '247247',
+            payout_account: 'PAT-00123',
+            payout_payee_name: 'Kenyatta National Hospital',
+          },
+        ],
+      })
+      .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
+      .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
+      .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 40
+      .mockResolvedValueOnce({ rows: [{ charge: '22.00' }] }) // B2B charge
+      .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-2', net_amount: '938.00' }] }); // INSERT
+
+    await campaignWithdrawalsService.request(ctx, input);
+
+    const chargeCall = mockQuery.mock.calls[6];
+    expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2b')");
+
+    const insertCall = mockQuery.mock.calls[8];
+    expect(insertCall[1].slice(2, 7)).toEqual(['paybill', null, '247247', 'PAT-00123', 'Kenyatta National Hospital']);
+    expect(insertCall[1][11]).toBe('938.00'); // net = 1000 - 40 - 22
+  });
+
+  it('rejects a paybill campaign whose destination is incomplete', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({
+      rows: [
+        {
+          status: 'active',
+          amount_raised: '10000.00',
+          payout_method: 'paybill',
+          payout_phone: null,
+          payout_shortcode: '247247',
+          payout_account: null,
+          payout_payee_name: 'Kenyatta National Hospital',
+        },
+      ],
+    });
+
+    await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).toHaveBeenCalledTimes(2); // nothing reserved
   });
 });
 

@@ -1,23 +1,19 @@
 'use client';
 
-import { use, useState } from 'react';
+import { use } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
-import {
-  useCampaign,
-  useCampaignDonations,
-  useSubmitCampaignForReview,
-  useSetCampaignPayoutPhone,
-} from '@/hooks/use-campaigns';
+import { useCampaign, useCampaignDonations, useSubmitCampaignForReview } from '@/hooks/use-campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
+import { toPayoutDestination } from '@/lib/campaigns/payout-destination';
 import { CampaignWithdrawals } from './withdrawals';
+import { PayoutDestinationEditor } from './payout-destination';
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -28,8 +24,6 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
   const { data: campaign, isLoading } = useCampaign(id);
   const { data: donations } = useCampaignDonations(id);
   const submitForReview = useSubmitCampaignForReview(id);
-  const setPayoutPhone = useSetCampaignPayoutPhone(id);
-  const [payoutPhoneDraft, setPayoutPhoneDraft] = useState('');
 
   const onSubmit = async () => {
     try {
@@ -40,19 +34,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     }
   };
 
-  const onSavePayoutPhone = async () => {
-    try {
-      await setPayoutPhone.mutateAsync(payoutPhoneDraft);
-      toast({ title: 'Payout phone saved' });
-      setPayoutPhoneDraft('');
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
-    }
-  };
-
   if (isLoading || !campaign) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
+
+  const hasPayoutDestination = toPayoutDestination(campaign) !== null;
 
   const progressPct = Math.min(
     100,
@@ -70,8 +56,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
             {canManage && campaign.status === 'draft' && (
               <Button
                 onClick={onSubmit}
-                disabled={submitForReview.isPending || !campaign.payout_phone}
-                title={campaign.payout_phone ? undefined : 'Set a payout phone number first'}
+                disabled={submitForReview.isPending || !hasPayoutDestination}
+                title={hasPayoutDestination ? undefined : 'Set a payout destination first'}
               >
                 {submitForReview.isPending ? 'Submitting…' : 'Submit for review'}
               </Button>
@@ -96,36 +82,7 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
         </Card>
       )}
 
-      {canManage && campaign.status === 'draft' && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Payout phone</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Where withdrawn funds are sent once this campaign is live. Required before submitting for review, and can
-              only be changed while still a draft.
-            </p>
-            <div className="flex items-center gap-2 max-w-sm">
-              <Input
-                placeholder={campaign.payout_phone ?? '07XXXXXXXX'}
-                value={payoutPhoneDraft}
-                onChange={(e) => setPayoutPhoneDraft(e.target.value)}
-              />
-              <Button
-                variant="outline"
-                onClick={onSavePayoutPhone}
-                disabled={!payoutPhoneDraft || setPayoutPhone.isPending}
-              >
-                {setPayoutPhone.isPending ? 'Saving…' : 'Save'}
-              </Button>
-            </div>
-            {campaign.payout_phone && (
-              <p className="text-xs text-muted-foreground">Currently set: {campaign.payout_phone}</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {canManage && campaign.status === 'draft' && <PayoutDestinationEditor campaignId={id} campaign={campaign} />}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>

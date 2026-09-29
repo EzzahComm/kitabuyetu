@@ -10,6 +10,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { usePendingCampaigns, useApproveCampaign, useRejectCampaign } from '@/hooks/use-admin-campaigns';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { describePayoutDestination } from '@/lib/campaigns/payout-destination';
 
 export default function AdminCampaignsPage() {
   const { toast } = useToast();
@@ -64,6 +65,11 @@ export default function AdminCampaignsPage() {
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.story}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
                     Target {formatKES(c.target_amount)} · submitted {formatDate(c.created_at)}
+                  </p>
+                  {/* The reviewer vets where the money will go, not just the story. */}
+                  <p className="mt-1 text-xs">
+                    <span className="text-muted-foreground">Withdrawals paid to: </span>
+                    <span className="font-medium">{describePayoutDestination(c)}</span>
                   </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
