@@ -21,8 +21,7 @@ import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL } from '@/types/enums';
-
-import benefitImg from '../../public/img/chama-reminder.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
@@ -260,8 +259,8 @@ const coreFeatures = [
 const keepMembersInformed = {
   title: 'Keep members in the loop',
   desc: 'Reminders that go out on time, messages that reach everyone, and a member list you control.',
-  image: benefitImg,
-  imageAlt: 'One person points at a laptop screen while another uses the trackpad',
+  image: PHOTOS.memberPhone.src,
+  imageAlt: PHOTOS.memberPhone.alt,
   bullets: [
     {
       title: 'A member list that is yours',

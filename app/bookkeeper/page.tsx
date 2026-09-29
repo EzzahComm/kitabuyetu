@@ -27,8 +27,7 @@ import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
-
-import benefitImg from '../../public/img/bookkeeper.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/bookkeeper',
@@ -270,8 +269,8 @@ const coreFeatures = [
 const manageMoney = {
   title: 'Manage your money with confidence',
   desc: 'From the first member to the first dividend, everything your group needs to keep an account it can defend.',
-  image: benefitImg,
-  imageAlt: 'Three men talking at a shared desk in an open-plan office',
+  image: PHOTOS.vslaRecords.src,
+  imageAlt: PHOTOS.vslaRecords.alt,
   bullets: [
     {
       title: 'Members and their money',

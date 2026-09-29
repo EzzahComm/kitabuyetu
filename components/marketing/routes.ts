@@ -65,6 +65,7 @@ export const ROUTES = {
 export const SECTION_IDS = {
   paths: 'who-its-for',
   solution: 'what-it-does',
+  communities: 'communities',
   showcase: 'product',
   howItWorks: 'how-it-works',
   ecosystem: 'ecosystem',

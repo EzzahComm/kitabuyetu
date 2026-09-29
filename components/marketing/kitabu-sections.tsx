@@ -4,10 +4,6 @@ import { ArrowRight, Check, ChevronDown, HandCoins, Layers, MessageSquareText, U
 import { cn } from '@/lib/utils';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES } from '@/types/enums';
-import bookkeeperImg from '@/public/img/bookkeeper.jpg';
-import chamaReminderImg from '@/public/img/chama-reminder.jpg';
-import fundraiseImg from '@/public/img/fundraise.jpg';
-import enterpriseImg from '@/public/img/enterprise.jpg';
 import bernardKisakaPhoto from '@/public/img/testimonials/bernard-kisaka.jpg';
 import ezraWekesaPhoto from '@/public/img/testimonials/ezra-wekesa.jpg';
 import founderPhoto from '@/public/img/team/polycap-wanyonyi.png';
@@ -27,6 +23,7 @@ import {
 } from './finanza';
 import { ServiceTabs } from './finanza-tabs';
 import { JsonLd, faqPageJsonLd } from './json-ld';
+import { PHOTOS, PRODUCT_PHOTOS, type Photo } from './photos';
 import { Container } from './primitives';
 import { Reveal } from './reveal';
 import { FOUNDER_SOCIAL_LINKS, ROUTES } from './routes';
@@ -66,26 +63,16 @@ export function KitabuFacts() {
 }
 
 const PRODUCT_MEDIA = {
-  Bookkeeper: {
-    tagline: "Your group's financial record.",
-    image: bookkeeperImg,
-    imageAlt: 'Three men talking at a shared desk in an open-plan office',
-  },
+  Bookkeeper: { tagline: "Your group's financial record.", photo: PRODUCT_PHOTOS.bookkeeper },
   'Chama Reminder': {
     tagline: 'Keep members engaged and contributions on track.',
-    image: chamaReminderImg,
-    imageAlt: 'One person points at a laptop screen while another uses the trackpad',
+    photo: PRODUCT_PHOTOS.chamaReminder,
   },
   'Fundraise / Changi$ha': {
     tagline: 'Raise money for groups, projects and community initiatives.',
-    image: fundraiseImg,
-    imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
+    photo: PRODUCT_PHOTOS.fundraise,
   },
-  Enterprise: {
-    tagline: 'Manage many groups from one place.',
-    image: enterpriseImg,
-    imageAlt: 'Two women talking at a conference table, one taking notes beside a laptop',
-  },
+  Enterprise: { tagline: 'Manage many groups from one place.', photo: PRODUCT_PHOTOS.enterprise },
 } as const;
 
 /** Finanza's "Our Services" tabs, carrying the four real products. */
@@ -108,11 +95,12 @@ export function ProductTabsSection({ id, headingAs = 'h2' }: { id?: string; head
           {media && (
             <div className="relative min-h-[260px] overflow-hidden rounded-lg md:min-h-[350px]">
               <Image
-                src={media.image}
-                alt={media.imageAlt}
+                src={media.photo.src}
+                alt={media.photo.alt}
                 fill
                 sizes="(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw"
                 className="object-cover"
+                style={{ objectPosition: media.photo.position }}
                 placeholder="blur"
               />
             </div>
@@ -512,6 +500,94 @@ export function FaqSection({ id }: { id?: string }) {
         </div>
       </div>
       <JsonLd data={faqPageJsonLd(HOME_FAQS)} />
+    </FinanzaSection>
+  );
+}
+
+interface CommunityCard {
+  eyebrow: string;
+  title: string;
+  body: string;
+  points: string[];
+  photo: Photo;
+}
+
+/**
+ * Every point is a shipped behaviour already stated elsewhere on the site
+ * (support FAQ, MEMBER_BENEFITS, CONTROLS). VSLAs and youth groups register as
+ * an ordinary group type — there is no special mode for either, so none is claimed.
+ */
+const COMMUNITIES: CommunityCard[] = [
+  {
+    eyebrow: "Women's savings groups & VSLAs",
+    title: 'The savings, the loans and the social fund — in one book.',
+    body: 'Keep running your meetings the way you do today. Kitabu Yetu keeps the record, so the numbers no longer live in one notebook carried by one official.',
+    points: [
+      'Record cash contributions by hand — M-Pesa payments post themselves',
+      'Loans, repayments and welfare tracked member by member',
+      'Each member can check her own balance, not take it on faith',
+    ],
+    photo: PHOTOS.vslaReading,
+  },
+  {
+    eyebrow: 'Youth groups & young members',
+    title: 'For groups that already run on their phones.',
+    body: 'Contributions by M-Pesa prompt, reminders by SMS and every member able to see their own savings and loans — without chasing the treasurer for an update.',
+    points: [
+      'An M-Pesa prompt to contribute or repay, straight to the phone',
+      'Contribution reminders that go out on their own, by SMS',
+      'Roles for chair, treasurer and secretary — everyone else sees only their own record',
+    ],
+    photo: PHOTOS.memberPhone,
+  },
+];
+
+/** Photo-led section naming the two communities the site's art direction centres on. */
+export function CommunitiesSection({ id }: { id?: string }) {
+  return (
+    <FinanzaSection id={id} labelledBy="communities-heading">
+      <FinanzaHeading
+        id="communities-heading"
+        align="center"
+        pill="Our Communities"
+        title="Made for the groups that keep communities moving."
+        lede="From a VSLA meeting under a tree to a youth group that does everything by phone, the group book should work for everyone in it."
+        className="mb-12"
+      />
+      <div className="grid gap-8 lg:grid-cols-2">
+        {COMMUNITIES.map((community, i) => (
+          <Reveal
+            key={community.eyebrow}
+            delay={i * 150}
+            className="flex flex-col overflow-hidden rounded-lg border border-brand-100 bg-white"
+          >
+            <div className="relative aspect-[16/10]">
+              <Image
+                src={community.photo.src}
+                alt={community.photo.alt}
+                fill
+                sizes="(max-width: 1023px) 100vw, 50vw"
+                className="object-cover"
+                style={{ objectPosition: community.photo.position }}
+                placeholder="blur"
+              />
+            </div>
+            <div className="flex flex-1 flex-col p-7 sm:p-8">
+              <p className="mb-3 font-medium uppercase tracking-wide text-brand-500">{community.eyebrow}</p>
+              <h3 className="font-display text-2xl font-semibold leading-snug text-finanza-dark">{community.title}</h3>
+              <p className="mt-3 leading-relaxed text-finanza-text">{community.body}</p>
+              <ul className="mt-5 space-y-3">
+                {community.points.map((point) => (
+                  <li key={point} className="flex items-start gap-3 text-finanza-text">
+                    <Check aria-hidden="true" className="mt-0.5 h-5 w-5 shrink-0 text-brand-500" />
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </Reveal>
+        ))}
+      </div>
     </FinanzaSection>
   );
 }

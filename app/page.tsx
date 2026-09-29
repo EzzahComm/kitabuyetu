@@ -28,6 +28,7 @@ import { HeroCarousel } from '@/components/marketing/hero-carousel';
 import { StoryTabs } from '@/components/marketing/finanza-tabs';
 import { Container } from '@/components/marketing/primitives';
 import { Reveal } from '@/components/marketing/reveal';
+import { PHOTOS } from '@/components/marketing/photos';
 import {
   FeatureBox,
   FinanzaHeading,
@@ -38,6 +39,7 @@ import {
 } from '@/components/marketing/finanza';
 import {
   CallbackSection,
+  CommunitiesSection,
   CtaBand,
   CustomerPathsSection,
   FaqSection,
@@ -48,8 +50,6 @@ import {
   TrustSection,
 } from '@/components/marketing/kitabu-sections';
 
-import benefitOneImg from '../public/img/benefit-one.jpg';
-import benefitTwoImg from '../public/img/benefit-two.jpg';
 import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
 import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
 import nexusLogo from '../public/img/partners/nexus-by-ezzahcomm.png';
@@ -238,8 +238,8 @@ export default function Home() {
           <div className="mb-8 grid items-end gap-8 lg:grid-cols-2">
             <Reveal>
               <Image
-                src={benefitOneImg}
-                alt="A smiling woman in a headscarf seated at a classroom desk with an open notebook"
+                src={PHOTOS.vslaRecords.src}
+                alt={PHOTOS.vslaRecords.alt}
                 className="w-full rounded-lg"
                 sizes="(max-width: 1023px) 100vw, 50vw"
                 placeholder="blur"
@@ -405,6 +405,8 @@ export default function Home() {
 
         <ProductTabsSection id={SECTION_IDS.showcase} />
 
+        <CommunitiesSection id={SECTION_IDS.communities} />
+
         {/* How it works */}
         <FinanzaSection id={SECTION_IDS.howItWorks} labelledBy="how-heading" className="bg-brand-50/60">
           <div className="grid items-center gap-12 lg:grid-cols-[1fr_1.2fr]">
@@ -453,8 +455,8 @@ export default function Home() {
             <div className="lg:order-2">
               <Reveal>
                 <Image
-                  src={benefitTwoImg}
-                  alt="A woman in a headscarf, pen in hand, reading a notebook at a classroom desk"
+                  src={PHOTOS.youthTech.src}
+                  alt={PHOTOS.youthTech.alt}
                   className="w-full rounded-lg"
                   sizes="(max-width: 1023px) 100vw, 50vw"
                   placeholder="blur"
