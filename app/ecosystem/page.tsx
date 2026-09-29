@@ -42,7 +42,7 @@ export default function EcosystemPage() {
   return (
     <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
-      <main id="main" className="flex-1">
+      <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">
           A group grows stronger when its records can open the right doors: funding, training, financial products,
           professional support and markets. Kitabu Yetu connects those relationships without taking the group&apos;s own

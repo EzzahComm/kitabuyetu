@@ -108,15 +108,16 @@ export interface Crumb {
 }
 
 /**
- * Finanza's inner-page masthead (`.page-header`): a large title and breadcrumb
- * on lavender waves. The template's version is a photo of two models; this
+ * Finanza's inner-page masthead (`.page-header`): a title and breadcrumb on
+ * lavender waves. Deliberately compact — just clear of the fixed header, so
+ * the page's own content starts above the fold. The template's version is a photo of two models; this
  * draws the same waves in SVG and keeps its decorative pattern, so no stock
  * people stand in for Kitabu Yetu's team.
  */
 export function PageHeader({ title, lede, crumbs }: { title: string; lede?: ReactNode; crumbs?: Crumb[] }) {
   const trail: Crumb[] = [{ label: 'Home', href: '/' }, ...(crumbs ?? []), { label: title }];
   return (
-    <div className="relative isolate mb-4 overflow-hidden bg-white pb-16 pt-32 lg:pb-24 lg:pt-[12rem]">
+    <div className="relative isolate overflow-hidden bg-white pb-10 pt-24 lg:pb-12 lg:pt-40">
       <svg
         aria-hidden="true"
         className="absolute inset-0 -z-10 h-full w-full"
@@ -134,15 +135,15 @@ export function PageHeader({ title, lede, crumbs }: { title: string; lede?: Reac
       </svg>
       <div
         aria-hidden="true"
-        className="absolute right-[6%] top-1/2 -z-10 hidden h-[260px] w-[520px] -translate-y-1/3 bg-contain bg-center bg-no-repeat opacity-60 lg:block"
+        className="absolute right-[6%] top-1/2 -z-10 hidden h-[180px] w-[360px] -translate-y-1/4 bg-contain bg-center bg-no-repeat opacity-50 lg:block"
         style={{ backgroundImage: 'url(/img/finanza/pattern.png)' }}
       />
       <Container>
         <div className="max-w-3xl">
-          <h1 className="mb-5 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark motion-safe:animate-fade-up sm:text-5xl xl:text-[4rem]">
+          <h1 className="mb-3 font-display text-[2.25rem] font-bold leading-[1.1] text-finanza-dark motion-safe:animate-fade-up sm:text-[2.75rem] xl:text-5xl">
             {title}
           </h1>
-          {lede && <p className="mb-5 max-w-2xl text-lg leading-relaxed text-finanza-text">{lede}</p>}
+          {lede && <p className="mb-4 max-w-2xl leading-relaxed text-finanza-text sm:text-lg">{lede}</p>}
           <nav aria-label="Breadcrumb">
             <ol className="flex flex-wrap items-center gap-2 text-[0.9375rem] font-medium">
               {trail.map((crumb, i) => (

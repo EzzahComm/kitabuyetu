@@ -140,7 +140,7 @@ export default async function CareersPage() {
             <FinanzaHeading
               id="why-join-heading"
               pill="Why Join Us"
-              title="Serious about the work. Human about the people."
+              title="Serious about the work, human about the people."
               lede="Every group that switches from a notebook to Kitabu Yetu trusts us with its members, its money and its history. That trust is the job — and the reason the job matters."
             />
             <div className="mt-8 flex flex-wrap gap-4">

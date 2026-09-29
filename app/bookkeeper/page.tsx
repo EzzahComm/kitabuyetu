@@ -59,7 +59,7 @@ export default function BookkeeperPage() {
     <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
-        <Container className="mb-20 pt-28 md:pt-36">
+        <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
             <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
               Bookkeeper
