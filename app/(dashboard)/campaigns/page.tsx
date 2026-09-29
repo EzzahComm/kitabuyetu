@@ -20,13 +20,24 @@ import { useToast } from '@/hooks/use-toast';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
 
-const createSchema = z.object({
-  title: z.string().min(3).max(120),
-  story: z.string().min(20).max(10_000),
-  targetAmount: z.coerce.number().positive(),
-  beneficiaryName: z.string().optional(),
-  payoutPhone: z.string().optional(),
-});
+const createSchema = z
+  .object({
+    title: z.string().min(3).max(120),
+    story: z.string().min(20).max(10_000),
+    targetAmount: z.coerce.number().positive(),
+    beneficiaryName: z.string().optional(),
+    beneficiaryConsentConfirmed: z.boolean().optional(),
+    payoutPhone: z.string().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.beneficiaryName?.trim() && !data.beneficiaryConsentConfirmed) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['beneficiaryConsentConfirmed'],
+        message: 'Confirm the beneficiary has agreed to be named publicly',
+      });
+    }
+  });
 
 type CreateCampaignForm = z.infer<typeof createSchema>;
 
@@ -40,6 +51,7 @@ export default function CampaignsPage() {
   const createCampaign = useCreateCampaign();
 
   const form = useForm<CreateCampaignForm>({ resolver: zodResolver(createSchema) });
+  const beneficiaryName = form.watch('beneficiaryName');
 
   const onSubmit = async (values: CreateCampaignForm) => {
     try {
@@ -150,6 +162,25 @@ export default function CampaignsPage() {
                 {...form.register('beneficiaryName')}
                 placeholder="Who benefits from this campaign?"
               />
+              {!!beneficiaryName?.trim() && (
+                <div className="flex items-start gap-2 pt-1">
+                  <input
+                    id="beneficiaryConsentConfirmed"
+                    type="checkbox"
+                    className="mt-0.5 h-4 w-4"
+                    {...form.register('beneficiaryConsentConfirmed')}
+                  />
+                  <Label htmlFor="beneficiaryConsentConfirmed" className="text-xs font-normal leading-snug">
+                    I confirm {beneficiaryName} has agreed to be named publicly in this campaign, including in its
+                    title and search-indexed page.
+                  </Label>
+                </div>
+              )}
+              {form.formState.errors.beneficiaryConsentConfirmed && (
+                <p className="text-xs text-destructive">
+                  {form.formState.errors.beneficiaryConsentConfirmed.message}
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="payoutPhone">Payout phone (optional)</Label>

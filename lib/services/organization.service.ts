@@ -1,4 +1,4 @@
-import { withDb, type TenantContext } from '@/lib/db';
+import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
 import { logger } from '@/lib/logger';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -19,6 +19,36 @@ const orgId = (ctx: TenantContext): string => {
   if (!ctx.organizationId) throw new ValidationError('Organization context is required');
   return ctx.organizationId;
 };
+
+/**
+ * Public read for the anonymous /ecosystem/donors page. Previously read via
+ * the Supabase anon-key PostgREST client (`lib/supabase/server.ts`), which
+ * bypasses this codebase's whole custom-JWT/Postgres architecture and made
+ * the page's safety depend entirely on the `organizations_select` RLS policy
+ * (migration 050) — which requires `is_super_admin()` or the caller's own
+ * org, so for a genuinely anonymous visitor it silently returned zero rows.
+ * Worse: it filtered on `.eq('status', 'active')`, a column `organizations`
+ * has never had (migration 007 defines `is_active BOOLEAN`, never renamed or
+ * supplemented with a `status` column anywhere) — so on top of the RLS block,
+ * the query itself errored at PostgREST, silently swallowed by `orgs || []`.
+ * Mirrors campaigns.service.ts's public-read pattern instead: withAdminDb
+ * with the real column and a minimal projection baked into the SQL, never
+ * through PostgREST/anon grants.
+ */
+export interface PublicOrganizationSummary {
+  id: string;
+  name: string;
+}
+
+export async function listPublicActiveOrganizations(limit = 10): Promise<PublicOrganizationSummary[]> {
+  return withAdminDb(async (db) => {
+    const { rows } = await db.query<PublicOrganizationSummary>(
+      `SELECT id, name FROM organizations WHERE is_active = true ORDER BY name LIMIT $1`,
+      [limit],
+    );
+    return rows;
+  });
+}
 
 export interface OrganizationBranding {
   logoUrl: string | null;

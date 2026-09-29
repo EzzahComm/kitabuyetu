@@ -5,7 +5,6 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
 export interface ProgramProgress {
-  id: string;
   name: string;
   status: string;
   target_amount?: number;

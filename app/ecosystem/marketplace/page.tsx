@@ -3,7 +3,7 @@ import type { Metadata } from 'next';
 import { PageShell } from '@/components/marketing/page-shell';
 import { OpportunityCard } from '@/components/ecosystem/opportunity-card';
 import { withAdminDb } from '@/lib/db';
-import { listPublishedOpportunities } from '@/lib/services/ecosystem.service';
+import { listPublishedOpportunities, toPublicOpportunity } from '@/lib/services/ecosystem.service';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -13,7 +13,10 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 async function MarketplacePage() {
-  const published = await withAdminDb((db) => listPublishedOpportunities(db));
+  const opportunities = await withAdminDb((db) => listPublishedOpportunities(db));
+  // Anonymous, public page — strip internal-only fields (eligibility_rules)
+  // before they cross into the 'use client' OpportunityCard below.
+  const published = opportunities.map(toPublicOpportunity);
 
   return (
     <PageShell

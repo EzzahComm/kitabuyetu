@@ -25,6 +25,7 @@ import {
   postCampaignWithdrawalJournal,
 } from './posting-templates.service';
 import { notifyDisbursementCallback } from '@/lib/queue/qstash';
+import { payoutChannel, type PayoutMethod } from '@/lib/campaigns/payout-destination';
 
 // What to tell the disbursement watchdog once a handler's transaction
 // commits — fired AFTER withAdminDb resolves, never from inside it. Same
@@ -292,9 +293,10 @@ export async function handleVendorPaymentResult(body: Record<string, unknown>, c
 }
 
 /**
- * Changi$ha withdrawal result callback — B2C only (campaigns pay out to a
- * beneficiary phone, never a paybill), so this only needs wiring into the
- * B2C route, not B2B.
+ * Changi$ha withdrawal result callback — for both channels: a phone payout
+ * reports on the B2C route, a paybill/till payout (migration 202) on the B2B
+ * route, and both routes call this. A given withdrawal's
+ * originator_conversation_id only ever matches one of them.
  *
  * Unlike handleVendorPaymentResult, the M-Pesa charge is NOT recomputed
  * here: it was already computed and locked in at request time
@@ -315,12 +317,14 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
       id: string;
       group_id: string;
       campaign_id: string;
+      payout_method: PayoutMethod;
       gross_amount: string;
       platform_fee_amount: string;
       mpesa_charge_amount: string;
       net_amount: string;
     }>(
-      `SELECT id, group_id, campaign_id, gross_amount, platform_fee_amount, mpesa_charge_amount, net_amount
+      `SELECT id, group_id, campaign_id, payout_method, gross_amount, platform_fee_amount,
+              mpesa_charge_amount, net_amount
        FROM   campaign_withdrawals
        WHERE  originator_conversation_id = $1 AND status = 'processing'
        FOR UPDATE`,
@@ -354,8 +358,8 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
       await db.query(
         `INSERT INTO failed_payment_logs
            (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
-         VALUES ($1,'b2c',$2,$3,$4,$5)`,
-        [row.group_id, parsed.origId, parsed.desc, String(parsed.code), rawBody],
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [row.group_id, payoutChannel(row.payout_method), parsed.origId, parsed.desc, String(parsed.code), rawBody],
       );
       await releaseCashReservation(db, row.group_id, row.gross_amount);
       return { rowId: row.id, eventData: { status: 'failed', failureReason: parsed.desc } };
