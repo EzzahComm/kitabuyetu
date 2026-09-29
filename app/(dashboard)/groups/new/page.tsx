@@ -71,6 +71,10 @@ const schema = z.object({
 });
 
 type FormValues = z.infer<typeof schema>;
+// hookform/resolvers v5: useForm's first generic must be the raw input shape
+// (fields with a Zod .default() are optional here), not the resolved output
+// shape FormValues already serves elsewhere in this file (e.g. PRODUCT_LABELS).
+type FormValuesInput = z.input<typeof schema>;
 
 interface County {
   id: string;
@@ -94,7 +98,7 @@ export default function CreateAdditionalGroupPage() {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
+  } = useForm<FormValuesInput, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { groupType: 'chama', creatorRole: 'chairperson', product: 'kitabu_yetu' },
   });
