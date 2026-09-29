@@ -1,19 +1,19 @@
 {
-  "generatedAt": "2026-09-24T14:08:02.717Z",
-  "commit": "a4f5ff7",
+  "generatedAt": "2026-09-29T13:54:56.443Z",
+  "commit": "65a698e",
   "coverage": {
-    "lines": 27.31,
-    "branches": 25.41,
-    "functions": 24.07,
-    "statements": 27.07
+    "lines": 28.94,
+    "branches": 27.2,
+    "functions": 25.31,
+    "statements": 28.59
   },
   "bundle": {
-    "clientJsKb": 5223,
+    "clientJsKb": 5433,
     "largestChunkKb": 359,
-    "serverKb": 27411,
+    "serverKb": 28787,
     "topChunks": [
       {
-        "file": "static/chunks/0ep9l8wgpqt9v.js",
+        "file": "static/chunks/30zts_6s4-3_b.js",
         "kb": 359
       },
       {
@@ -29,8 +29,8 @@
         "kb": 110
       },
       {
-        "file": "static/chunks/3ni1pj-rpymfo.js",
-        "kb": 84
+        "file": "static/chunks/0sq86leequ8pd.js",
+        "kb": 74
       }
     ]
   },
@@ -46,7 +46,7 @@
     "eslintSuppressions": 6,
     "consoleLog": 3,
     "todos": 4,
-    "largeFiles": 42,
+    "largeFiles": 43,
     "largestFiles": [
       {
         "file": "lib/services/sms.service.ts",
@@ -66,7 +66,7 @@
       },
       {
         "file": "lib/jobs/handlers.ts",
-        "lines": 1435
+        "lines": 1439
       },
       {
         "file": "lib/services/import.service.ts",
