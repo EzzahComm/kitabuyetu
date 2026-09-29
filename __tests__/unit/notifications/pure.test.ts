@@ -114,6 +114,10 @@ describe('templates', () => {
     expect(formatEat('2026-09-29T11:35:00.000Z')).toBe('29 Sep 2026 14:35 EAT');
   });
 
+  it('turns non-breaking spaces into plain spaces', () => {
+    expect(gsmSafe('a\u00a0b')).toBe('a b');
+  });
+
   it('keeps SMS GSM-safe', () => {
     expect(gsmSafe('Wangari — “tea” … ok')).toBe('Wangari - "tea" ... ok');
   });

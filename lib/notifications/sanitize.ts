@@ -41,7 +41,7 @@ export function gsmSafe(text: string): string {
     .replace(/[“”„″]/g, '"')
     .replace(/[–—−]/g, '-')
     .replace(/…/g, '...')
-    .replace(/ /g, ' ')
+    .replace(/\u00a0/g, ' ')
     .replace(/[^\x20-\x7E\n£€]/g, '')
     .trim();
 }
