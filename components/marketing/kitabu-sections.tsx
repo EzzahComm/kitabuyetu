@@ -68,7 +68,7 @@ export function KitabuFacts() {
 
 const PRODUCT_MEDIA = {
   Bookkeeper: { tagline: "Your group's financial record.", photo: PRODUCT_PHOTOS.bookkeeper },
-  'Chama Reminder': {
+  'Chama Reminder / Kumbusha': {
     tagline: 'Keep members engaged and contributions on track.',
     photo: PRODUCT_PHOTOS.chamaReminder,
   },

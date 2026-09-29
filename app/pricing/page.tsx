@@ -175,7 +175,7 @@ export default function PricingPage() {
       <FinanzaSection id="chama-reminder" labelledBy="chama-reminder-heading" className="bg-brand-50/60">
         <FinanzaHeading
           id="chama-reminder-heading"
-          pill="SMS only"
+          pill="SMS only · Kumbusha"
           title={PRODUCT_LABEL.chama_reminder}
           lede={`Reminders, announcements and birthday greetings by SMS — no ledger to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} whenever you're ready; your members come with you.`}
           className="mb-10 max-w-3xl"
@@ -209,7 +209,7 @@ export default function PricingPage() {
               {[
                 'Donors give by M-Pesa and pay nothing extra',
                 "Safaricom's M-Pesa transfer charge is passed on at cost",
-                `Minimum withdrawal KES ${CHANGISHA_PRICING.minWithdrawal.toLocaleString()}, paid out by M-Pesa`,
+                `Minimum withdrawal KES ${CHANGISHA_PRICING.minWithdrawal.toLocaleString()}, to an M-Pesa number, paybill or till`,
                 'Every campaign is reviewed by Kitabu Yetu before it goes live',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">

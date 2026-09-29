@@ -18,19 +18,25 @@ export const metadata: Metadata = marketingMetadata({
 
 export const dynamic = 'force-dynamic';
 
-/** Mirrors the real lifecycle in campaigns.service: draft → review → active → withdraw. */
+/**
+ * Mirrors the real money flow: donations are STK-pushed to the platform
+ * paybill (daraja.service SHORTCODE) and held on the group's 4006 Changi$ha
+ * account; withdrawals go to the campaign's payout destination (phone, paybill
+ * or till — lib/campaigns/payout-destination.ts) after maker-checker approval
+ * by two group officials (campaign-withdrawals.service).
+ */
 const STEPS = [
   {
     title: 'Create it',
-    body: "From your group's account, write the story, set a target and the M-Pesa number that will receive the funds.",
+    body: "From your group's account, tell the story, set a target and choose where funds are released to: an M-Pesa number, paybill or till.",
   },
   {
     title: 'We review it',
     body: 'Kitabu Yetu checks every campaign before it goes public, so donors know it is genuine.',
   },
   {
-    title: 'Share and withdraw',
-    body: 'Share the link. Donations arrive by M-Pesa and show on the page; withdraw to M-Pesa as funds come in.',
+    title: 'Share and release',
+    body: "Donations go to Kitabu Yetu's M-Pesa paybill and show on the page as they arrive; funds are released once two group officials approve.",
   },
 ];
 

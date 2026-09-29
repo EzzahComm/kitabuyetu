@@ -114,7 +114,7 @@ export const PRODUCT_ITEMS: NavLink[] = [
     description: 'Contributions, loans, welfare, shares and a real ledger.',
   },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: ROUTES.chamaReminder,
     description: 'SMS reminders and announcements, no ledger required.',
   },
@@ -148,7 +148,7 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 export const PRICING_ITEMS: NavLink[] = [
   { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,
     description: 'SMS reminders and group announcements.',
   },
