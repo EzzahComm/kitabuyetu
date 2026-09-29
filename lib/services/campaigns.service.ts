@@ -23,6 +23,15 @@ import {
   type PayoutFields,
 } from '@/lib/campaigns/payout-destination';
 
+/** SQL predicates shared by the public reads, so "live" and "past" can never overlap. */
+const ACCEPTING_DONATIONS = `(status = 'active' AND (ends_at IS NULL OR ends_at > NOW()))`;
+const ENDED = `(status = 'completed' OR (status = 'active' AND ends_at IS NOT NULL AND ends_at <= NOW()))`;
+
+/** True when a campaign row may still take donations (mirrors ACCEPTING_DONATIONS). */
+export function isAcceptingDonations(campaign: Pick<Campaign, 'status' | 'ends_at'>, now = new Date()): boolean {
+  return campaign.status === 'active' && (!campaign.ends_at || new Date(campaign.ends_at) > now);
+}
+
 export type CampaignStatus = 'draft' | 'pending_review' | 'active' | 'completed' | 'cancelled' | 'rejected';
 
 /**
@@ -323,20 +332,52 @@ export const campaignsService = {
 
   // ── Public reads (no ctx — see module header) ───────────────────────────
 
+  /** Donatable right now: approved and not past its end date. */
   async listActiveCampaigns(): Promise<Campaign[]> {
     return withAdminDb(async (db) => {
       const { rows } = await db.query<Campaign>(
-        `SELECT * FROM campaigns WHERE status = 'active' ORDER BY created_at DESC`,
+        `SELECT * FROM campaigns WHERE ${ACCEPTING_DONATIONS} ORDER BY created_at DESC`,
       );
       return rows;
     });
   },
 
+  /**
+   * The donation gate — the donate route relies on this returning null for
+   * anything that must not take money, so it stays limited to campaigns that
+   * are active AND not past `ends_at`. Display-only reads use
+   * getPublicCampaignForDisplay instead.
+   */
   async getPublicCampaignBySlug(slug: string): Promise<Campaign | null> {
     return withAdminDb(async (db) => {
-      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE slug = $1 AND status = 'active'`, [
+      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE slug = $1 AND ${ACCEPTING_DONATIONS}`, [
         slug,
       ]);
+      return rows[0] ?? null;
+    });
+  },
+
+  /** Finished fundraisers for the public "past campaigns" list: completed, or active but past their end date. */
+  async listPastCampaigns(limit = 12): Promise<Campaign[]> {
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE ${ENDED} ORDER BY COALESCE(ends_at, updated_at) DESC LIMIT $1`,
+        [limit],
+      );
+      return rows;
+    });
+  },
+
+  /**
+   * Read-only public view of a live OR finished campaign, for its page.
+   * Never used to accept donations — see getPublicCampaignBySlug.
+   */
+  async getPublicCampaignForDisplay(slug: string): Promise<Campaign | null> {
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE slug = $1 AND (${ACCEPTING_DONATIONS} OR ${ENDED})`,
+        [slug],
+      );
       return rows[0] ?? null;
     });
   },

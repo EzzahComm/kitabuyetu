@@ -37,6 +37,7 @@ const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'we
   { path: '/status', priority: 0.3, changeFrequency: 'weekly' },
   { path: '/resources', priority: 0.7, changeFrequency: 'weekly' },
   { path: '/careers', priority: 0.5, changeFrequency: 'weekly' },
+  { path: '/legal', priority: 0.2, changeFrequency: 'monthly' },
   { path: '/legal/privacy', priority: 0.2, changeFrequency: 'monthly' },
   { path: '/legal/terms', priority: 0.2, changeFrequency: 'monthly' },
   // Not /legal/data-protection: it is still a placeholder and sets robots noindex.
@@ -77,7 +78,12 @@ function lastModifiedOf(value: string | Date | null | undefined): { lastModified
 // Imported lazily so a DB module that fails to initialize drops these entries instead of the whole sitemap.
 async function activeCampaigns() {
   const { campaignsService } = await import('@/lib/services/campaigns.service');
-  return campaignsService.listActiveCampaigns();
+  // Past campaigns keep their public page (read-only), so they stay indexable.
+  const [active, past] = await Promise.all([
+    campaignsService.listActiveCampaigns(),
+    campaignsService.listPastCampaigns(50),
+  ]);
+  return [...active, ...past];
 }
 
 async function publishedOpportunities() {

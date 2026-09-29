@@ -6,49 +6,45 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signUpUrl } from '@/lib/app-links';
-import bookkeeperImg from '@/public/img/bookkeeper.jpg';
-import chamaReminderImg from '@/public/img/chama-reminder.jpg';
-import fundraiseImg from '@/public/img/fundraise.jpg';
-import enterpriseImg from '@/public/img/enterprise.jpg';
+import { PLAN_MONTHLY_FEES } from '@/types/enums';
 import { btnOutline, btnPrimary } from './finanza';
+import { PRODUCT_PHOTOS } from './photos';
 
 /**
  * The four product pillars rotate through the home hero so the platform is
  * immediately legible as an ecosystem, not a generic bookkeeping product.
- * Photo provenance: public/img/IMAGE_SOURCES.md.
+ * Photos come from photos.ts (provenance: public/img/IMAGE_SOURCES.md); the
+ * first slide is the LCP image, so it carries the strongest group photo.
  */
 const SLIDES = [
   {
     id: 'bookkeeper',
     product: 'Bookkeeper',
-    title: 'Keep the whole group book in one place.',
-    subtitle: 'Members, contributions, savings, loans, welfare and M-Pesa on one reliable record.',
-    image: bookkeeperImg,
-    imageAlt: 'Three men talking at a shared desk in an open-plan office',
+    title: 'One group book. No more guesswork.',
+    subtitle:
+      'Members, contributions, savings, loans and welfare on one record that has to balance — for chamas, VSLAs, SACCOs and welfare groups.',
+    photo: PRODUCT_PHOTOS.bookkeeper,
   },
   {
     id: 'chama-reminder',
     product: 'Chama Reminder',
-    title: 'Keep every member in the conversation.',
-    subtitle: 'Send contribution reminders, meeting notices and updates by SMS, without rebuilding your list.',
-    image: chamaReminderImg,
-    imageAlt: 'One person points at a laptop screen while another uses the trackpad',
+    title: 'Every member reminded, on the phone they already use.',
+    subtitle: 'Contribution reminders, meeting notices and updates by SMS — no app for members to install.',
+    photo: PRODUCT_PHOTOS.chamaReminder,
   },
   {
     id: 'fundraise',
     product: 'Fundraise / Changi$ha',
     title: 'Turn a shared idea into a funded project.',
     subtitle: 'Create a campaign, track every contribution and keep project money separate from ordinary group funds.',
-    image: fundraiseImg,
-    imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
+    photo: PRODUCT_PHOTOS.fundraise,
   },
   {
     id: 'enterprise',
     product: 'Enterprise',
     title: 'See the portfolio. Support every group.',
     subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
-    image: enterpriseImg,
-    imageAlt: 'Two women talking at a conference table, one taking notes beside a laptop',
+    photo: PRODUCT_PHOTOS.enterprise,
   },
 ] as const;
 
@@ -131,11 +127,12 @@ export function HeroCarousel() {
               {/* Photo: full width on phones, the right half (under the wave) on desktop. */}
               <div className="relative order-2 aspect-[4/3] lg:absolute lg:inset-y-0 lg:right-0 lg:aspect-auto lg:w-[58%]">
                 <Image
-                  src={slide.image}
-                  alt={slide.imageAlt}
+                  src={slide.photo.src}
+                  alt={slide.photo.alt}
                   fill
                   sizes="(max-width: 1023px) 100vw, 58vw"
                   className="object-cover"
+                  style={{ objectPosition: slide.photo.position }}
                   placeholder="blur"
                   preload={i === 0}
                   fetchPriority={i === 0 ? 'high' : 'low'}
@@ -180,7 +177,8 @@ export function HeroCarousel() {
                       </Link>
                     </div>
                     <p className="mt-6 text-sm text-finanza-text">
-                      From KES 150/month · Pay by M-Pesa · Built for Kenyan groups
+                      From KES {PLAN_MONTHLY_FEES.chama_reminder.starter}/month · Pay by M-Pesa · Built for Kenyan
+                      groups
                     </p>
                   </div>
                 </div>
