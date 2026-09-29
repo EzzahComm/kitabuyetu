@@ -171,15 +171,13 @@ export default function CampaignsPage() {
                     {...form.register('beneficiaryConsentConfirmed')}
                   />
                   <Label htmlFor="beneficiaryConsentConfirmed" className="text-xs font-normal leading-snug">
-                    I confirm {beneficiaryName} has agreed to be named publicly in this campaign, including in its
-                    title and search-indexed page.
+                    I confirm {beneficiaryName} has agreed to be named publicly in this campaign, including in its title
+                    and search-indexed page.
                   </Label>
                 </div>
               )}
               {form.formState.errors.beneficiaryConsentConfirmed && (
-                <p className="text-xs text-destructive">
-                  {form.formState.errors.beneficiaryConsentConfirmed.message}
-                </p>
+                <p className="text-xs text-destructive">{form.formState.errors.beneficiaryConsentConfirmed.message}</p>
               )}
             </div>
             <div className="space-y-1.5">
