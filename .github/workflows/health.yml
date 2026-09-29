@@ -36,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       # Single source of truth for build-time placeholder env: read ci.yml's
       # top-level `env:` block instead of duplicating 25 vars that would drift.
@@ -47,7 +47,7 @@ jobs:
           yq '.env | to_entries | .[] | .key + "=" + (.value | tostring)' .github/workflows/ci.yml >> "$GITHUB_ENV"
 
       - name: Setup Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -74,7 +74,7 @@ jobs:
       # and `.health/` is one — without this the artifact is silently empty.
       - name: Upload report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: health-report
           path: .health/
