@@ -152,7 +152,7 @@ async function MarketplacePage() {
 
       <CtaBand
         title="Get your group marketplace-ready"
-        subtitle="Offers go to groups with clear records. Start keeping yours on Kitabu Yetu."
+        subtitle="Offers go to groups with clear records — start keeping yours on Kitabu Yetu."
       />
     </PageShell>
   );

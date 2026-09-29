@@ -200,7 +200,7 @@ export default function Home() {
               <Image
                 src={PHOTOS.vslaRecords.src}
                 alt={PHOTOS.vslaRecords.alt}
-                className="w-full rounded-lg"
+                className="aspect-[4/3] w-full rounded-lg object-cover"
                 sizes="(max-width: 1023px) 100vw, 50vw"
                 placeholder="blur"
               />
@@ -244,7 +244,7 @@ export default function Home() {
             id="problem-heading"
             align="center"
             pill="The Problem"
-            title="Your group already keeps records. They just aren't reliable."
+            title="Your group already keeps records, but they aren't reliable."
             className="mb-12"
           />
           <div className="grid gap-6 md:grid-cols-2">
@@ -288,7 +288,7 @@ export default function Home() {
                 lede="Payments and records work together. Members pay through M-Pesa and Kitabu Yetu helps match payments to members and update the group's records."
               />
               <div className="my-8">
-                <Emphasis>Less manual reconciliation. Less guessing. More confidence.</Emphasis>
+                <Emphasis>Less reconciling and guessing, more confidence.</Emphasis>
               </div>
               <Link href="/how-it-works" className={btnPrimary}>
                 See How It Works
@@ -327,7 +327,7 @@ export default function Home() {
                 <Image
                   src={PHOTOS.youthTech.src}
                   alt={PHOTOS.youthTech.alt}
-                  className="w-full rounded-lg"
+                  className="aspect-[4/3] w-full rounded-lg object-cover"
                   sizes="(max-width: 1023px) 100vw, 50vw"
                   placeholder="blur"
                 />
@@ -352,7 +352,7 @@ export default function Home() {
                 ))}
               </ul>
               <div className="my-8">
-                <Emphasis>Manage your group. Build its track record. Unlock its potential.</Emphasis>
+                <Emphasis>Manage your group, build its track record and unlock its potential.</Emphasis>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>

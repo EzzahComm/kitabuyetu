@@ -20,7 +20,7 @@ const SLIDES = [
   {
     id: 'bookkeeper',
     product: 'Bookkeeper',
-    title: 'One group book. No more guesswork.',
+    title: 'One group book, no more guesswork.',
     subtitle:
       'Members, contributions, savings, loans and welfare on one record that has to balance — for chamas, VSLAs, SACCOs and welfare groups.',
     photo: PRODUCT_PHOTOS.bookkeeper,
@@ -42,7 +42,7 @@ const SLIDES = [
   {
     id: 'enterprise',
     product: 'Enterprise',
-    title: 'See the portfolio. Support every group.',
+    title: 'See the whole portfolio and support every group.',
     subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
     photo: PRODUCT_PHOTOS.enterprise,
   },

@@ -41,7 +41,7 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
           width={521}
           height={521}
           alt={data.imageAlt}
-          className="w-full rounded-lg object-cover"
+          className="aspect-[4/3] w-full rounded-lg object-cover"
           placeholder="blur"
         />
       </div>

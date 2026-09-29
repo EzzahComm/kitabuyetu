@@ -98,7 +98,7 @@ export default function SupportPage() {
       <SiteHeader />
 
       <main id="main" className="flex-1">
-        <div className="border-b border-brand-100 bg-white pb-14 pt-28 md:pb-16 md:pt-36">
+        <div className="border-b border-brand-100 bg-white pb-10 pt-24 lg:pb-12 lg:pt-36">
           <Container>
             <div className="max-w-3xl">
               <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
