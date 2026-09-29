@@ -1,9 +1,10 @@
 /**
  * Shared dual-control primitive for the Bank Accounts / Settlements / Vendor
- * Payments feature. `settlement_approvals` is one table covering all three
- * subject types (bank_account, settlement, vendor_payment) — this module is
- * the single place that writes to it, so the self-approval guard and the
- * decision-recording shape exist once, not three times.
+ * Payments feature, extended to Changi$ha withdrawals. `settlement_approvals`
+ * is one table covering all four subject types (bank_account, settlement,
+ * vendor_payment, campaign_withdrawal) — this module is the single place
+ * that writes to it, so the self-approval guard and the decision-recording
+ * shape exist once, not four times.
  *
  * MVP dual control is exactly one second-officer decision (maker ≠ checker),
  * not amount-tiered N-of-M — the schema (settlement_approvals allows many
@@ -21,7 +22,7 @@ import type { PoolClient } from 'pg';
 import type { TenantContext } from '@/lib/db';
 import { ForbiddenError } from '@/lib/utils/errors';
 
-export type SettlementSubjectType = 'bank_account' | 'settlement' | 'vendor_payment';
+export type SettlementSubjectType = 'bank_account' | 'settlement' | 'vendor_payment' | 'campaign_withdrawal';
 export type SettlementDecision = 'approved' | 'rejected';
 
 export interface RecordApprovalInput {

@@ -16,10 +16,31 @@
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
+import {
+  payoutColumns,
+  toPayoutDestination,
+  type PayoutDestination,
+  type PayoutFields,
+} from '@/lib/campaigns/payout-destination';
+
+/** SQL predicates shared by the public reads, so "live" and "past" can never overlap. */
+const ACCEPTING_DONATIONS = `(status = 'active' AND (ends_at IS NULL OR ends_at > NOW()))`;
+const ENDED = `(status = 'completed' OR (status = 'active' AND ends_at IS NOT NULL AND ends_at <= NOW()))`;
+
+/** True when a campaign row may still take donations (mirrors ACCEPTING_DONATIONS). */
+export function isAcceptingDonations(campaign: Pick<Campaign, 'status' | 'ends_at'>, now = new Date()): boolean {
+  return campaign.status === 'active' && (!campaign.ends_at || new Date(campaign.ends_at) > now);
+}
 
 export type CampaignStatus = 'draft' | 'pending_review' | 'active' | 'completed' | 'cancelled' | 'rejected';
 
-export interface Campaign {
+/**
+ * The payout_* fields (PayoutFields) are where a withdrawal pays out to: a
+ * phone (B2C), or a business paybill/till (B2B). Set at creation (phone only)
+ * or via setPayoutDestination while still a draft; locked once the campaign
+ * leaves 'draft' — see setPayoutDestination's own guard.
+ */
+export interface Campaign extends PayoutFields {
   id: string;
   group_id: string;
   title: string;
@@ -59,6 +80,13 @@ export interface CreateCampaignInput {
   story: string;
   targetAmount: number;
   beneficiaryName?: string;
+  /** Required (enforced by CreateCampaignSchema) whenever beneficiaryName is
+   *  set — beneficiary_name is published on the campaign's public, indexed
+   *  page, so naming someone needs an explicit confirmation, not a silent
+   *  default. Recorded in the creation audit log as evidence, not a new
+   *  column — this is a one-time gate at creation, never re-asked. */
+  beneficiaryConsentConfirmed?: boolean;
+  payoutPhone?: string;
   coverImageUrl?: string;
   endsAt?: string;
 }
@@ -104,9 +132,9 @@ export const campaignsService = {
 
       const { rows } = await db.query<Campaign>(
         `INSERT INTO campaigns
-           (group_id, title, slug, story, beneficiary_name, target_amount,
+           (group_id, title, slug, story, beneficiary_name, payout_phone, target_amount,
             cover_image_url, ends_at, created_by, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'draft')
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')
          RETURNING *`,
         [
           ctx.groupId,
@@ -114,6 +142,7 @@ export const campaignsService = {
           slug,
           data.story,
           data.beneficiaryName ?? null,
+          data.payoutPhone ?? null,
           data.targetAmount.toFixed(2),
           data.coverImageUrl ?? null,
           data.endsAt ?? null,
@@ -132,7 +161,14 @@ export const campaignsService = {
           'campaign',
           campaign.id,
           null,
-          JSON.stringify({ title: campaign.title, target_amount: campaign.target_amount, status: 'draft' }),
+          JSON.stringify({
+            title: campaign.title,
+            target_amount: campaign.target_amount,
+            status: 'draft',
+            ...(campaign.beneficiary_name
+              ? { beneficiary_name: campaign.beneficiary_name, beneficiary_consent_confirmed: true }
+              : {}),
+          }),
         ],
       );
 
@@ -153,6 +189,11 @@ export const campaignsService = {
           `Only a draft campaign can be submitted for review (current status: ${existing[0].status})`,
         );
       }
+      if (!toPayoutDestination(existing[0])) {
+        throw new ValidationError(
+          'Set where withdrawals are paid (an M-Pesa phone, paybill or till) before submitting for review',
+        );
+      }
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns SET status = 'pending_review', updated_at = NOW()
@@ -171,6 +212,84 @@ export const campaignsService = {
           campaignId,
           JSON.stringify({ status: 'draft' }),
           JSON.stringify({ status: 'pending_review' }),
+        ],
+      );
+
+      return updated[0];
+    });
+  },
+
+  /**
+   * Sets/changes the payout destination — only while still a draft. Locked
+   * after that (service-layer guard, not just UI): the destination is the
+   * single highest-value field on a campaign once it can raise real money,
+   * and the admin approves the campaign with it in view. A withdrawal
+   * snapshots it per-row anyway, so changing the source post-activation
+   * would only blur which destination governed a given payout — there's no
+   * legitimate reason to allow it, so it stays closed.
+   */
+  async setPayoutDestination(
+    ctx: TenantContext,
+    campaignId: string,
+    destination: PayoutDestination,
+  ): Promise<Campaign> {
+    assertOfficer(ctx);
+    if (destination.method !== 'phone') {
+      // Paying the platform's own collection/B2C shortcode would just loop
+      // pooled money back in as an unattributed C2B payment.
+      const platformShortcodes = [process.env.MPESA_SHORTCODE, process.env.MPESA_B2C_SHORTCODE].filter(Boolean);
+      if (platformShortcodes.includes(destination.shortcode)) {
+        throw new ValidationError(
+          "That is Kitabu Yetu's own M-Pesa number — enter the paybill or till of the business being paid",
+        );
+      }
+    }
+    const columns = payoutColumns(destination);
+
+    return withTransaction(ctx, async (db) => {
+      const { rows: existing } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`,
+        [campaignId, ctx.groupId],
+      );
+      if (!existing[0]) throw new NotFoundError('Campaign', campaignId);
+      if (existing[0].status !== 'draft') {
+        throw new ValidationError('The payout destination can only be set while the campaign is still a draft');
+      }
+
+      const { rows: updated } = await db.query<Campaign>(
+        `UPDATE campaigns
+         SET    payout_method = $2, payout_phone = $3, payout_shortcode = $4,
+                payout_account = $5, payout_payee_name = $6, updated_at = NOW()
+         WHERE  id = $1
+         RETURNING *`,
+        [
+          campaignId,
+          columns.payout_method,
+          columns.payout_phone,
+          columns.payout_shortcode,
+          columns.payout_account,
+          columns.payout_payee_name,
+        ],
+      );
+
+      const prior = existing[0];
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+        [
+          ctx.groupId,
+          ctx.userId,
+          'campaign.set_payout_destination',
+          'campaign',
+          campaignId,
+          JSON.stringify({
+            payout_method: prior.payout_method,
+            payout_phone: prior.payout_phone,
+            payout_shortcode: prior.payout_shortcode,
+            payout_account: prior.payout_account,
+            payout_payee_name: prior.payout_payee_name,
+          }),
+          JSON.stringify(columns),
         ],
       );
 
@@ -213,20 +332,52 @@ export const campaignsService = {
 
   // ── Public reads (no ctx — see module header) ───────────────────────────
 
+  /** Donatable right now: approved and not past its end date. */
   async listActiveCampaigns(): Promise<Campaign[]> {
     return withAdminDb(async (db) => {
       const { rows } = await db.query<Campaign>(
-        `SELECT * FROM campaigns WHERE status = 'active' ORDER BY created_at DESC`,
+        `SELECT * FROM campaigns WHERE ${ACCEPTING_DONATIONS} ORDER BY created_at DESC`,
       );
       return rows;
     });
   },
 
+  /**
+   * The donation gate — the donate route relies on this returning null for
+   * anything that must not take money, so it stays limited to campaigns that
+   * are active AND not past `ends_at`. Display-only reads use
+   * getPublicCampaignForDisplay instead.
+   */
   async getPublicCampaignBySlug(slug: string): Promise<Campaign | null> {
     return withAdminDb(async (db) => {
-      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE slug = $1 AND status = 'active'`, [
+      const { rows } = await db.query<Campaign>(`SELECT * FROM campaigns WHERE slug = $1 AND ${ACCEPTING_DONATIONS}`, [
         slug,
       ]);
+      return rows[0] ?? null;
+    });
+  },
+
+  /** Finished fundraisers for the public "past campaigns" list: completed, or active but past their end date. */
+  async listPastCampaigns(limit = 12): Promise<Campaign[]> {
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE ${ENDED} ORDER BY COALESCE(ends_at, updated_at) DESC LIMIT $1`,
+        [limit],
+      );
+      return rows;
+    });
+  },
+
+  /**
+   * Read-only public view of a live OR finished campaign, for its page.
+   * Never used to accept donations — see getPublicCampaignBySlug.
+   */
+  async getPublicCampaignForDisplay(slug: string): Promise<Campaign | null> {
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query<Campaign>(
+        `SELECT * FROM campaigns WHERE slug = $1 AND (${ACCEPTING_DONATIONS} OR ${ENDED})`,
+        [slug],
+      );
       return rows[0] ?? null;
     });
   },

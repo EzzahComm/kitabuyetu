@@ -3,12 +3,12 @@ import { Inter, DM_Mono } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
-import { OG_FALLBACK } from '@/components/marketing/page-metadata';
+import { HOME_DESCRIPTION, HOME_TITLE, OG_FALLBACK } from '@/components/marketing/page-metadata';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-// Fraunces (the marketing display serif) is NOT loaded here — it lives in
-// components/marketing/fraunces-font.ts, applied only at marketing entry
+// The marketing display face (Jost) is NOT loaded here — it lives in
+// components/marketing/display-font.ts, applied only at marketing entry
 // points. It used to load in this root layout and apply to every route via
 // <body>, so all 80 authenticated routes (which never render it) preload-
 // hinted 117.9KB of a font they don't use (docs/audits/optimization-2026-09).
@@ -32,7 +32,7 @@ export const viewport: Viewport = {
 
 const TAGLINE = 'Build Vibrant Communities';
 const LONG_DESCRIPTION =
-  'Kitabu Yetu — Build Vibrant Communities Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
+  'Kitabu Yetu — Build Vibrant Communities. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.';
 
 export const metadata: Metadata = {
   // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is
@@ -88,14 +88,14 @@ export const metadata: Metadata = {
   openGraph: {
     type: 'website',
     siteName: 'Kitabu Yetu',
-    title: `Kitabu Yetu — ${TAGLINE}`,
-    description: LONG_DESCRIPTION,
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
     images: [OG_FALLBACK],
   },
   twitter: {
     card: 'summary_large_image',
-    title: `Kitabu Yetu — ${TAGLINE}`,
-    description: LONG_DESCRIPTION,
+    title: HOME_TITLE,
+    description: HOME_DESCRIPTION,
     images: [OG_FALLBACK],
   },
 };

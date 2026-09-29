@@ -1,22 +1,41 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
+import { FinanzaHeading, FinanzaSection } from '@/components/marketing/finanza';
+import { CtaBand } from '@/components/marketing/kitabu-sections';
+import { ROUTES } from '@/components/marketing/routes';
+import { CHANGISHA_PRICING } from '@/types/enums';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
+import { CampaignCard } from '@/components/marketing/campaign-card';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/fundraise',
-  title: 'Changi$ha — Fundraising',
+  title: 'Support Harambees & Community Causes in Kenya',
   description:
-    'Support community fundraising campaigns on Kitabu Yetu — weddings, medical appeals, school fees, and community projects across Kenya.',
+    'Give by M-Pesa to harambees and community campaigns reviewed by Kitabu Yetu: medical appeals, school fees, weddings and local projects across Kenya.',
 });
 
 export const dynamic = 'force-dynamic';
 
+/** Mirrors the real lifecycle in campaigns.service: draft → review → active → withdraw. */
+const STEPS = [
+  {
+    title: 'Create it',
+    body: "From your group's account, write the story, set a target and the M-Pesa number that will receive the funds.",
+  },
+  {
+    title: 'We review it',
+    body: 'Kitabu Yetu checks every campaign before it goes public, so donors know it is genuine.',
+  },
+  {
+    title: 'Share and withdraw',
+    body: 'Share the link. Donations arrive by M-Pesa and show on the page; withdraw to M-Pesa as funds come in.',
+  },
+];
+
 /**
- * Real listing of live Changi$ha campaigns (migration 182) — was a static
+ * Real listing of live and past Changi$ha campaigns (migration 182) — was a static
  * "coming soon" page until the product actually existed. Reads via
  * campaignsService.listActiveCampaigns(), which goes through withAdminDb with
  * an explicit `status = 'active'` filter rather than any anon/PostgREST
@@ -26,9 +45,13 @@ export const dynamic = 'force-dynamic';
  */
 export default async function FundraisePage() {
   let campaigns: Campaign[] = [];
+  let past: Campaign[] = [];
   try {
-    campaigns = await campaignsService.listActiveCampaigns();
-  } catch (err) {
+    [campaigns, past] = await Promise.all([
+      campaignsService.listActiveCampaigns(),
+      campaignsService.listPastCampaigns(6),
+    ]);
+  } catch {
     // During build time in CI, the database may not be accessible. Gracefully
     // fall back to an empty list — the page will render the "no campaigns" state.
     // At runtime in production, the database will be available.
@@ -37,65 +60,80 @@ export default async function FundraisePage() {
   return (
     <PageShell
       title="Changi$ha"
-      description="Community fundraising, in the same place your group already keeps its books."
+      description="Raise money for a cause, a project or a member in need — by M-Pesa, in the open, with every shilling recorded."
+      layout="sections"
     >
-      {campaigns.length === 0 ? (
-        <div className="not-prose rounded-lg border border-brand-100 bg-brand-50 px-4 py-6 text-center">
-          <p className="font-semibold text-brand-700">No active campaigns right now.</p>
-          <p className="mt-2 text-sm text-brand-blue-900/60">
-            Check back soon, or{' '}
-            <Link href="/contact" className="font-medium text-brand-700 hover:underline">
-              talk to us
-            </Link>{' '}
-            about starting one for your group.
-          </p>
-        </div>
-      ) : (
-        <div className="not-prose grid gap-5 sm:grid-cols-2">
-          {campaigns.map((c) => {
-            const pct = Math.min(100, Math.round((parseFloat(c.amount_raised) / parseFloat(c.target_amount)) * 100));
-            return (
-              <Link
-                key={c.slug}
-                href={`/fundraise/${c.slug}`}
-                className="group flex flex-col overflow-hidden rounded-lg border border-brand-blue-900/10 bg-white transition-colors hover:border-brand-500/40"
-              >
-                {c.cover_image_url && (
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper-deep">
-                    <Image
-                      src={c.cover_image_url}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="(min-width: 640px) 50vw, 100vw"
-                    />
-                  </div>
-                )}
-                <div className="flex flex-1 flex-col p-6">
-                  <h2 className="font-display text-xl font-normal text-brand-blue-900">{c.title}</h2>
-                  <p className="mt-2 line-clamp-2 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{c.story}</p>
-                  <div className="mt-4">
-                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-brand-blue-900/[0.08]">
-                      <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
-                    </div>
-                    <p className="mt-2 text-xs font-medium text-brand-blue-900/60">
-                      KES {parseFloat(c.amount_raised).toLocaleString()} raised of{' '}
-                      {parseFloat(c.target_amount).toLocaleString()} target
-                    </p>
-                  </div>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
-                    Support this campaign
-                    <ArrowRight
-                      aria-hidden="true"
-                      className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-                    />
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
+      <FinanzaSection labelledBy="campaigns-heading" className="pt-4 lg:pt-8">
+        <FinanzaHeading id="campaigns-heading" pill="Live Campaigns" title="Give to a campaign" className="mb-10" />
+        {campaigns.length === 0 ? (
+          <div className="rounded-lg border border-brand-100 bg-brand-50 px-6 py-10 text-center">
+            <p className="font-display text-xl font-semibold text-finanza-dark">No active campaigns right now.</p>
+            <p className="mt-2 text-finanza-text">
+              Check back soon, or{' '}
+              <Link href={ROUTES.contact} className="font-medium text-brand-500 hover:underline">
+                talk to us
+              </Link>{' '}
+              about starting one for your group.
+            </p>
+          </div>
+        ) : (
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {campaigns.map((c) => (
+              <li key={c.slug}>
+                <CampaignCard campaign={c} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </FinanzaSection>
+
+      {past.length > 0 && (
+        <FinanzaSection labelledBy="past-heading" className="pt-0 lg:pt-0">
+          <FinanzaHeading
+            id="past-heading"
+            pill="Past Fundraisers"
+            title="What communities have raised"
+            lede="Finished campaigns stay here, with what they raised, so every shilling stays on the record."
+            className="mb-10 max-w-3xl"
+          />
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {past.map((c) => (
+              <li key={c.slug}>
+                <CampaignCard campaign={c} ended />
+              </li>
+            ))}
+          </ul>
+        </FinanzaSection>
       )}
+
+      <FinanzaSection labelledBy="how-changisha-heading" className="bg-brand-50/60">
+        <FinanzaHeading
+          id="how-changisha-heading"
+          align="center"
+          pill="How It Works"
+          title="Start a campaign in three steps"
+          className="mb-12"
+        />
+        <ol className="grid gap-6 md:grid-cols-3">
+          {STEPS.map((step, i) => (
+            <li key={step.title} className="rounded-lg border border-brand-100 bg-white p-7">
+              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 font-display text-xl font-bold text-white">
+                {i + 1}
+              </span>
+              <h3 className="mt-5 font-display text-xl font-semibold text-finanza-dark">{step.title}</h3>
+              <p className="mt-2 leading-relaxed text-finanza-text">{step.body}</p>
+            </li>
+          ))}
+        </ol>
+      </FinanzaSection>
+
+      <CtaBand
+        title="Raising money for your group?"
+        subtitle={`No monthly fee. A standard ${CHANGISHA_PRICING.platformFeePct}% platform fee plus the M-Pesa charge, only when you withdraw.`}
+        footnote="Donors pay nothing extra · Every campaign reviewed before it goes live"
+        showPlanPrices={false}
+        primary={{ label: 'See Pricing', href: `${ROUTES.pricing}#changisha` }}
+      />
     </PageShell>
   );
 }

@@ -1,10 +1,13 @@
 import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import Image from 'next/image';
+import { ArrowRight } from 'lucide-react';
 import { PortableText, type PortableTextComponents } from '@portabletext/react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { OG_FALLBACK } from '@/components/marketing/page-metadata';
-import { getPostBySlug, getPosts, urlForImage } from '@/lib/cms/sanity';
+import { getPostBySlug, getPosts, getRelatedPosts, urlForImage } from '@/lib/cms/sanity';
+import { fallbackPhoto } from '@/components/marketing/photos';
 
 interface PostPageProps {
   params: Promise<{ slug: string }>;
@@ -56,6 +59,10 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
  * the fully-static JSON-LD on the homepage, so `<` is escaped before
  * embedding to rule out a `</script>`-breakout edge case in a title/excerpt.
  */
+/** One `<script type="application/ld+json">` per structured-data object,
+ *  rather than a single `@graph`: Google's Rich Results Test validates each
+ *  type independently either way, and separate tags are easier to diff when
+ *  only one of them (say, the FAQ) changes. */
 function StructuredData({
   post,
   url,
@@ -65,22 +72,63 @@ function StructuredData({
   url: string;
   coverImageUrl: string | null;
 }) {
-  const json = {
+  const article = {
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     headline: post.title,
     description: post.seoDescription ?? post.excerpt,
     url,
     ...(post.publishedAt ? { datePublished: post.publishedAt } : {}),
+    ...(post.updatedAt ? { dateModified: post.updatedAt } : {}),
     ...(post.authorName ? { author: { '@type': 'Person', name: post.authorName } } : {}),
     ...(coverImageUrl ? { image: coverImageUrl } : {}),
     publisher: { '@type': 'Organization', name: 'Kitabu Yetu', url: SITE_URL },
   };
+
+  const breadcrumb = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      { '@type': 'ListItem', position: 1, name: 'Resources', item: `${SITE_URL}/resources` },
+      { '@type': 'ListItem', position: 2, name: post.title, item: url },
+    ],
+  };
+
+  const faqPage =
+    post.faq && post.faq.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'FAQPage',
+          mainEntity: post.faq.map((item) => ({
+            '@type': 'Question',
+            name: item.question,
+            acceptedAnswer: { '@type': 'Answer', text: item.answer },
+          })),
+        }
+      : null;
+
+  const howTo =
+    post.howToSteps && post.howToSteps.length > 0
+      ? {
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: post.title,
+          step: post.howToSteps.map((step) => ({ '@type': 'HowToStep', name: step.name, text: step.text })),
+        }
+      : null;
+
+  const graphs = [article, breadcrumb, faqPage, howTo].filter(Boolean);
+
   return (
-    <script
-      type="application/ld+json"
-      dangerouslySetInnerHTML={{ __html: JSON.stringify(json).replace(/</g, '\\u003c') }}
-    />
+    <>
+      {graphs.map((json, i) => (
+        <script
+          key={i}
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(json).replace(/</g, '\\u003c') }}
+        />
+      ))}
+    </>
   );
 }
 
@@ -89,6 +137,47 @@ const FALLBACK_IMAGE_DIMENSIONS = { width: 1200, height: 800 };
 function sanityImageDimensions(ref: unknown): { width: number; height: number } | null {
   const match = typeof ref === 'string' ? /^image-[A-Za-z0-9]+-(\d+)x(\d+)-[a-z0-9]+$/.exec(ref) : null;
   return match ? { width: Number(match[1]), height: Number(match[2]) } : null;
+}
+
+interface TableValue {
+  hasHeaderRow?: boolean;
+  rows?: { cells?: string[] }[];
+}
+
+function ContentTable({ value }: { value: TableValue }) {
+  const rows = value.rows ?? [];
+  if (rows.length === 0) return null;
+  const headerRow = value.hasHeaderRow ? rows[0] : null;
+  const restRows = value.hasHeaderRow ? rows.slice(1) : rows;
+
+  return (
+    <span className="not-prose my-8 block overflow-x-auto rounded-lg border border-brand-100">
+      <table className="w-full text-left text-sm">
+        {headerRow && (
+          <thead>
+            <tr className="bg-brand-50/60">
+              {(headerRow.cells ?? []).map((cell, i) => (
+                <th key={i} className="border-b border-brand-100 px-4 py-2.5 font-semibold text-finanza-dark">
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+        )}
+        <tbody>
+          {restRows.map((row, i) => (
+            <tr key={i} className="border-b border-brand-100 last:border-0">
+              {(row.cells ?? []).map((cell, j) => (
+                <td key={j} className="px-4 py-2.5 text-finanza-text">
+                  {cell}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </span>
+  );
 }
 
 // next/image, not a raw <img>: the CSP's img-src 'self' blocks direct cdn.sanity.io URLs.
@@ -112,8 +201,71 @@ function portableTextComponents(postTitle: string): PortableTextComponents {
           </span>
         );
       },
+      table: ({ value }) => <ContentTable value={value} />,
     },
   };
+}
+
+const PRODUCT_LINK_LABEL: Record<string, string> = {
+  '/bookkeeper': 'See how the Bookkeeper works',
+  '/chama-reminder': 'See how Chama Reminder works',
+  '/fundraise': 'See how Changi$ha works',
+  '/enterprise-solutions': 'See Kitabu Yetu for organizations',
+  '/pricing': 'See pricing',
+};
+
+function ProductCta({ href }: { href: string }) {
+  return (
+    <div className="not-prose my-8 flex flex-col items-start gap-3 rounded-lg border border-brand-500/20 bg-brand-50 p-5 sm:flex-row sm:items-center sm:justify-between">
+      <p className="text-sm font-medium text-finanza-dark">Kitabu Yetu keeps these records for you automatically.</p>
+      <Link
+        href={href}
+        className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-brand-500 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-brand-600"
+      >
+        {PRODUCT_LINK_LABEL[href] ?? 'See how Kitabu Yetu helps'}
+        <ArrowRight aria-hidden="true" className="h-3.5 w-3.5" />
+      </Link>
+    </div>
+  );
+}
+
+function ReviewedOn({ date }: { date: string }) {
+  const formatted = new Date(date).toLocaleDateString('en-KE', { day: 'numeric', month: 'long', year: 'numeric' });
+  return <p className="not-prose text-sm italic text-finanza-text">Last reviewed: {formatted}</p>;
+}
+
+function Faq({ items }: { items: { question: string; answer: string }[] }) {
+  return (
+    <section className="not-prose mt-10 border-t border-brand-100 pt-8">
+      <h2 className="font-display text-2xl font-semibold text-finanza-dark">Frequently asked questions</h2>
+      <dl className="mt-5 space-y-5">
+        {items.map((item) => (
+          <div key={item.question}>
+            <dt className="font-semibold text-finanza-dark">{item.question}</dt>
+            <dd className="mt-1.5 leading-relaxed text-finanza-text">{item.answer}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
+
+function RelatedGuides({ posts }: { posts: { slug: string; title: string; excerpt: string }[] }) {
+  return (
+    <section className="not-prose mt-10 border-t border-brand-100 pt-8">
+      <h2 className="font-display text-2xl font-semibold text-finanza-dark">Read next</h2>
+      <ul className="mt-5 space-y-4">
+        {posts.map((post) => (
+          <li key={post.slug}>
+            <Link href={`/resources/${post.slug}`} className="group block">
+              <span className="font-semibold text-brand-700 group-hover:underline">{post.title}</span>
+              <p className="mt-1 text-sm text-finanza-text">{post.excerpt}</p>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
 }
 
 export default async function PostPage({ params }: PostPageProps) {
@@ -123,12 +275,13 @@ export default async function PostPage({ params }: PostPageProps) {
 
   const coverImageUrl = urlForImage(post.coverImage);
   const url = `${SITE_URL}/resources/${post.slug}`;
+  const relatedPosts = post.relatedSlugs ? await getRelatedPosts(post.relatedSlugs) : [];
 
   return (
-    <PageShell title={post.title} description={post.excerpt}>
+    <PageShell title={post.title} description={post.excerpt} crumbs={[{ label: 'Blog', href: '/resources' }]}>
       <StructuredData post={post} url={url} coverImageUrl={coverImageUrl} />
-      {coverImageUrl && (
-        <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-paper-deep">
+      <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-brand-50/60">
+        {coverImageUrl ? (
           <Image
             src={coverImageUrl}
             alt={post.title}
@@ -137,10 +290,29 @@ export default async function PostPage({ params }: PostPageProps) {
             sizes="(min-width: 768px) 768px, 100vw"
             priority
           />
-        </div>
-      )}
-      {post.authorName && <p className="not-prose text-sm font-medium text-brand-blue-900/50">By {post.authorName}</p>}
-      <PortableText value={post.content} components={portableTextComponents(post.title)} />
+        ) : (
+          // Illustrative stand-in until the post has its own cover image.
+          <Image
+            src={fallbackPhoto(post.slug).src}
+            alt=""
+            fill
+            className="object-cover"
+            style={{ objectPosition: fallbackPhoto(post.slug).position }}
+            sizes="(min-width: 768px) 768px, 100vw"
+            placeholder="blur"
+            priority
+          />
+        )}
+      </div>
+      {post.authorName && <p className="not-prose text-sm font-medium text-finanza-text">By {post.authorName}</p>}
+      {post.reviewedOn && <ReviewedOn date={post.reviewedOn} />}
+      {/* Preflight strips list markers; restore them for article body lists. */}
+      <div className="space-y-5 [&_li::marker]:text-brand-500 [&_li]:pl-1 [&_ol]:list-decimal [&_ol]:space-y-1.5 [&_ol]:pl-6 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-6">
+        <PortableText value={post.content} components={portableTextComponents(post.title)} />
+      </div>
+      {post.productLink && <ProductCta href={post.productLink} />}
+      {post.faq && post.faq.length > 0 && <Faq items={post.faq} />}
+      {relatedPosts.length > 0 && <RelatedGuides posts={relatedPosts} />}
     </PageShell>
   );
 }

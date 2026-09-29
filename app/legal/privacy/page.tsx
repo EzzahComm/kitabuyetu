@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
-import { marked } from 'marked';
-import { PageShell } from '@/components/marketing/page-shell';
+import { LegalDocument } from '@/components/marketing/legal-document';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { ROUTES } from '@/components/marketing/routes';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/legal/privacy',
@@ -591,10 +591,12 @@ Kitabu Yetu is committed to helping community groups and organizations digitize 
  * matters for a product handling real money and personal data).
  */
 export default function PrivacyPage() {
-  const html = marked.parse(PRIVACY_POLICY_MD, { async: false }) as string;
   return (
-    <PageShell title="Privacy Policy" description="Last updated: September 2026">
-      <div dangerouslySetInnerHTML={{ __html: html }} />
-    </PageShell>
+    <LegalDocument
+      title="Privacy Policy"
+      updated="Last updated: September 2026"
+      markdown={PRIVACY_POLICY_MD}
+      href={ROUTES.legalPrivacy}
+    />
   );
 }

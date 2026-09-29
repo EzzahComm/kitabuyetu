@@ -25,7 +25,7 @@
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
 import { ValidationError } from '@/lib/utils/errors';
-import { hashSecret, generateEmailToken } from './group-verification.service';
+import { hashSecret, generateEmailToken, enforceMinDuration } from './group-verification.service';
 import { sendPasswordResetEmail } from './member-email.service';
 import { BCRYPT_ROUNDS } from './members.service';
 
@@ -34,13 +34,21 @@ const GENERIC_ERROR = 'Invalid or expired reset link';
 
 const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'];
 
+// See password-reset.service.ts's RESET_START_MIN_MS — same rationale: the
+// email-send branch is awaited only when a matching staff account exists.
+const RESET_START_MIN_MS = 1500;
+
 function buildResetUrl(token: string): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
   return `${base}/admin-login/reset-password?token=${token}`;
 }
 
-/** Always resolves without error, whether or not the email belongs to a staff account. */
+/** Always resolves without error, whether or not the email belongs to a staff account — by timing or otherwise. */
 export async function startAdminPasswordReset(email: string): Promise<void> {
+  await enforceMinDuration(RESET_START_MIN_MS, () => doStartAdminPasswordReset(email));
+}
+
+async function doStartAdminPasswordReset(email: string): Promise<void> {
   const normalized = email.trim().toLowerCase();
   const token = generateEmailToken();
   const tokenHash = hashSecret(token);

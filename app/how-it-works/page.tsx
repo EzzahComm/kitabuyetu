@@ -14,17 +14,15 @@ import { Video } from '@/components/Video';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
-
-import paymentImg from '../../public/img/fundraise.jpg';
-import recordImg from '../../public/img/bookkeeper.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/how-it-works',
-  title: 'How it works',
+  title: 'How M-Pesa Chama Contributions Get Recorded',
   description:
-    "From an M-Pesa payment to the member's updated balance and the journal entry behind it — how a contribution reaches the group's books.",
+    "From a member's M-Pesa payment to their updated balance and the journal entry behind it: how Kitabu Yetu keeps chama records accurate automatically.",
 });
 
 /**
@@ -37,7 +35,7 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function HowItWorksPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="How it works" title="From member activity to a record the group can trust" titleAs="h1">
@@ -61,8 +59,8 @@ export default function HowItWorksPage() {
 const theFlow = {
   title: 'Three steps, and none of them are yours',
   desc: 'A member pays the way they already pay. Everything after that happens because the payment happened.',
-  image: paymentImg,
-  imageAlt: 'A cashier smiles as a customer holds a phone over a payment reader',
+  image: PHOTOS.youthTech.src,
+  imageAlt: PHOTOS.youthTech.alt,
   bullets: [
     {
       title: 'Member pays',
@@ -85,8 +83,8 @@ const theFlow = {
 const theEdges = {
   title: 'What it will not do',
   desc: "A payment in the wrong member's account is a far worse problem than a payment in a queue.",
-  image: recordImg,
-  imageAlt: 'Three men talking at a shared desk in an open-plan office',
+  image: PHOTOS.vslaReading.src,
+  imageAlt: PHOTOS.vslaReading.alt,
   bullets: [
     {
       title: 'It never guesses',

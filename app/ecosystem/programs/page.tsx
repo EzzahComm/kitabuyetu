@@ -55,10 +55,15 @@ export default async function EcosystemProgramsPage() {
   );
 }
 
-/** Campaign money columns are numeric-as-string over the wire; the card wants numbers. */
+/**
+ * Campaign money columns are numeric-as-string over the wire; the card wants
+ * numbers. Deliberately excludes campaign.id — this crosses into a
+ * 'use client' component, and the raw DB primary key has no reason to reach
+ * an anonymous visitor (the key= above uses campaign.id directly, server-side,
+ * independent of this object).
+ */
 function toProgramProgress(campaign: Campaign) {
   return {
-    id: campaign.id,
     name: campaign.title,
     status: campaign.status,
     target_amount: Number(campaign.target_amount),

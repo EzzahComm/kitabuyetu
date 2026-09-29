@@ -225,10 +225,13 @@ describe('client payload contracts', () => {
       { accountCode: '3001', side: 'credit' as const, amount: 'amount' },
     ];
 
-    // These two are in posting-templates.service.ts's PostingEvent union and in
+    // These are in posting-templates.service.ts's PostingEvent union and in
     // the list the UI renders, but were missing from this enum — so the UI
-    // offered them and the request 400'd.
-    it.each(['loan_disbursement', 'loan_repayment'])('accepts the %s event', (event) => {
+    // offered them and the request 400'd. campaign_withdrawal is the same
+    // drift recurring a third time: added to DEFAULT_TEMPLATES for the
+    // Changi$ha withdrawal feature but not to this enum until this test
+    // caught it.
+    it.each(['loan_disbursement', 'loan_repayment', 'campaign_withdrawal'])('accepts the %s event', (event) => {
       expect(SetPostingTemplateSchema.safeParse({ event, lines }).success).toBe(true);
     });
 

@@ -5,7 +5,11 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 
 export interface ProgramProgress {
-  id: string;
+  // Optional: the ecosystem pages (public, anonymous) deliberately omit this —
+  // the raw campaign UUID has no reason to reach an anonymous visitor. The
+  // (dashboard)/programs page (authenticated, reads the separate phantom
+  // `programs` table) still supplies its own row's id for its own routing.
+  id?: string;
   name: string;
   status: string;
   target_amount?: number;

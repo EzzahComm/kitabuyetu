@@ -101,6 +101,7 @@ export const SetPostingTemplateSchema = z.object({
     'settlement_sweep',
     'vendor_payment',
     'fine_collection',
+    'campaign_withdrawal',
   ]),
   lines: z
     .array(

@@ -11,11 +11,15 @@ import { useCampaign, useCampaignDonations, useSubmitCampaignForReview } from '@
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
+import { toPayoutDestination } from '@/lib/campaigns/payout-destination';
+import { CampaignWithdrawals } from './withdrawals';
+import { PayoutDestinationEditor } from './payout-destination';
 
 export default function CampaignDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { toast } = useToast();
   const canManage = useHasPermission('campaigns.manage');
+  const canManagePayouts = useHasPermission('payouts.manage');
 
   const { data: campaign, isLoading } = useCampaign(id);
   const { data: donations } = useCampaignDonations(id);
@@ -34,6 +38,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
     return <p className="text-sm text-muted-foreground">Loading…</p>;
   }
 
+  const hasPayoutDestination = toPayoutDestination(campaign) !== null;
+
   const progressPct = Math.min(
     100,
     Math.round((parseFloat(campaign.amount_raised) / parseFloat(campaign.target_amount)) * 100),
@@ -48,7 +54,11 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           <div className="flex items-center gap-2">
             <StatusPill status={campaign.status} />
             {canManage && campaign.status === 'draft' && (
-              <Button onClick={onSubmit} disabled={submitForReview.isPending}>
+              <Button
+                onClick={onSubmit}
+                disabled={submitForReview.isPending || !hasPayoutDestination}
+                title={hasPayoutDestination ? undefined : 'Set a payout destination first'}
+              >
                 {submitForReview.isPending ? 'Submitting…' : 'Submit for review'}
               </Button>
             )}
@@ -71,6 +81,8 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           </CardContent>
         </Card>
       )}
+
+      {canManage && campaign.status === 'draft' && <PayoutDestinationEditor campaignId={id} campaign={campaign} />}
 
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
@@ -125,6 +137,10 @@ export default function CampaignDetailPage({ params }: { params: Promise<{ id: s
           )}
         </CardContent>
       </Card>
+
+      {canManagePayouts && (campaign.status === 'active' || campaign.status === 'completed') && (
+        <CampaignWithdrawals campaignId={id} amountRaised={campaign.amount_raised} />
+      )}
 
       <Link
         href="/campaigns"

@@ -1,24 +1,19 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import Image from 'next/image';
-import { ArrowRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { PageShell } from '@/components/marketing/page-shell';
-import { getPosts, urlForImage, type PostCategory } from '@/lib/cms/sanity';
+import { FinanzaSection } from '@/components/marketing/finanza';
+import { NewsletterSignupForm } from '@/components/marketing/newsletter-signup-form';
+import { CATEGORY_LABEL, PostCard } from '@/components/marketing/post-card';
+import { getPosts, type PostCategory } from '@/lib/cms/sanity';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/resources',
-  title: 'Resources',
-  description: 'Guides, case studies and updates on running chamas, VSLAs and community organizations well.',
+  title: 'Chama Guides, Tips & Case Studies',
+  description:
+    'Practical guides on running a chama, table banking group or welfare association in Kenya: contributions, loans, record keeping, rules and more.',
 });
-
-const CATEGORY_LABEL: Record<PostCategory, string> = {
-  blog: 'Blog',
-  guide: 'Guide',
-  'case-study': 'Case study',
-  education: 'Education',
-  announcement: 'Announcement',
-};
 
 interface ResourcesPageProps {
   searchParams: Promise<{ category?: string }>;
@@ -28,56 +23,69 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
   const { category } = await searchParams;
   const posts = await getPosts();
   const filtered = category ? posts.filter((post) => post.category === category) : posts;
+  // Only offer filters for categories that actually have posts.
+  const categories = Array.from(new Set(posts.map((post) => post.category))) as PostCategory[];
+
+  const pill = (active: boolean) =>
+    cn(
+      'rounded-full border px-4 py-1.5 text-sm font-medium transition-colors',
+      active
+        ? 'border-brand-500 bg-brand-500 text-white'
+        : 'border-brand-100 text-finanza-dark hover:border-brand-500 hover:text-brand-500',
+    );
 
   return (
     <PageShell
-      title="Resources"
-      description="Guides, case studies and updates for people running chamas, VSLAs and community organizations."
+      title="Blog & Guides"
+      description="Practical guides, case studies and updates for people running chamas, VSLAs, SACCOs and community organizations."
+      layout="sections"
     >
-      {filtered.length === 0 ? (
-        <p className="not-prose text-brand-blue-900/60">
-          {posts.length === 0 ? 'Nothing published yet — check back soon.' : 'No posts in this category yet.'}
-        </p>
-      ) : (
-        <div className="not-prose grid gap-5 sm:grid-cols-2">
-          {filtered.map((post) => {
-            const coverImageUrl = urlForImage(post.coverImage);
-            return (
+      <FinanzaSection labelledBy="posts-heading" className="pt-4 lg:pt-8">
+        <h2 id="posts-heading" className="sr-only">
+          {category ? `${CATEGORY_LABEL[category as PostCategory] ?? 'Posts'} posts` : 'All posts'}
+        </h2>
+        {categories.length > 1 && (
+          <nav aria-label="Filter by category" className="mb-10 flex flex-wrap gap-2">
+            <Link href="/resources" className={pill(!category)} aria-current={!category ? 'page' : undefined}>
+              All
+            </Link>
+            {categories.map((c) => (
               <Link
-                key={post.slug}
-                href={`/resources/${post.slug}`}
-                className="group flex flex-col overflow-hidden rounded-lg border border-brand-blue-900/10 bg-white transition-colors hover:border-brand-500/40"
+                key={c}
+                href={`/resources?category=${c}`}
+                className={pill(category === c)}
+                aria-current={category === c ? 'page' : undefined}
               >
-                {coverImageUrl && (
-                  <div className="relative aspect-[16/9] w-full overflow-hidden bg-paper-deep">
-                    <Image
-                      src={coverImageUrl}
-                      alt=""
-                      fill
-                      className="object-cover"
-                      sizes="(min-width: 640px) 50vw, 100vw"
-                    />
-                  </div>
-                )}
-                <div className="flex flex-1 flex-col p-6">
-                  <span className="text-[11px] font-medium uppercase tracking-wide text-brand-700">
-                    {CATEGORY_LABEL[post.category]}
-                  </span>
-                  <h2 className="mt-3 font-display text-xl font-normal text-brand-blue-900">{post.title}</h2>
-                  <p className="mt-2 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{post.excerpt}</p>
-                  <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
-                    Read more
-                    <ArrowRight
-                      aria-hidden="true"
-                      className="h-3.5 w-3.5 transition-transform duration-200 group-hover:translate-x-0.5"
-                    />
-                  </span>
-                </div>
+                {CATEGORY_LABEL[c] ?? c}
               </Link>
-            );
-          })}
+            ))}
+          </nav>
+        )}
+
+        {filtered.length === 0 ? (
+          <p className="rounded-lg border border-brand-100 bg-brand-50 px-6 py-10 text-center text-finanza-text">
+            {posts.length === 0 ? 'Nothing published yet — check back soon.' : 'No posts in this category yet.'}
+          </p>
+        ) : (
+          <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {filtered.map((post) => (
+              <li key={post.slug}>
+                <PostCard post={post} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </FinanzaSection>
+
+      <FinanzaSection labelledBy="subscribe-heading" className="bg-brand-50/60">
+        <div className="mx-auto max-w-xl text-center">
+          <h2 id="subscribe-heading" className="font-display text-3xl font-bold text-finanza-dark">
+            New guides in your inbox
+          </h2>
+          <p className="mt-3 text-finanza-text">For treasurers and officials — occasionally, never spam.</p>
+          <NewsletterSignupForm source="resources" className="mx-auto mt-6 max-w-md" />
         </div>
-      )}
+      </FinanzaSection>
     </PageShell>
   );
 }

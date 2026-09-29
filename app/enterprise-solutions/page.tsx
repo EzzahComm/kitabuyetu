@@ -6,10 +6,9 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/enterprise-solutions',
-  title: 'Enterprise',
+  title: 'Multi-Group Management for Institutions & NGOs',
   description:
-    'Kitabu Yetu for institutions managing multiple groups, branches or programs — ' +
-    'portfolio oversight, programs, funding and disbursements, without flattening any group’s own book.',
+    'Kitabu Yetu for SACCOs, NGOs and institutions running many groups or programs: portfolio oversight, funding and disbursements, each group keeping its own book.',
 });
 
 /**
@@ -78,7 +77,7 @@ export default function EnterpriseSolutionsPage() {
         </Link>
         <Link
           href={ROUTES.orgPortal}
-          className="rounded-md border border-brand-blue-900/15 px-5 py-2.5 text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-paper-deep"
+          className="rounded-md border border-brand-100 px-5 py-2.5 text-sm font-semibold text-finanza-dark transition-colors hover:bg-brand-50/60"
         >
           Sign in to the Enterprise portal
         </Link>

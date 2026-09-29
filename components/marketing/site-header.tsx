@@ -3,10 +3,23 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { ChevronDown, Menu, X, ArrowRight } from 'lucide-react';
+import { ChevronDown, Menu, X, ArrowRight, Mail, MapPin, Phone } from 'lucide-react';
 import { BrandLogo } from '@/components/branding/BrandLogo';
 import { cn } from '@/lib/utils';
-import { NAV_ITEMS, ROUTES, isNavGroup, type NavGroup } from './routes';
+import { displayFont } from './display-font';
+import { CONTACT, NAV_ITEMS, ROUTES, isNavGroup, telHref, type NavGroup } from './routes';
+import { SocialLinks } from './social-links';
+
+/** Height of the Finanza top bar (lg+). The fixed nav starts this far down and slides up as it scrolls away. */
+const TOP_BAR_PX = 44;
+
+/**
+ * Exposes the display face at the document root on every page that renders
+ * this header, so public pages without their own font wrapper still set
+ * headings in Jost. The value is next/font's generated family list — static,
+ * build-time output, not user input.
+ */
+const ROOT_FONT_CSS = `html:has([data-marketing-theme]){--font-display:${displayFont.style.fontFamily};}`;
 
 interface SiteHeaderProps {
   /**
@@ -102,15 +115,15 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          'flex items-center gap-1.5 rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
-          transparent ? 'text-white/75 hover:text-white' : 'text-brand-blue-900/70 hover:text-brand-blue-900',
-          active && (transparent ? 'text-white' : 'text-brand-blue-900'),
+          'flex items-center gap-1.5 rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+          transparent ? 'text-white/80 hover:text-white' : 'text-finanza-text hover:text-brand-500',
+          (active || open) && (transparent ? 'text-white' : 'text-brand-500'),
         )}
       >
         {group.label}
         <ChevronDown
           aria-hidden="true"
-          className={cn('h-3.5 w-3.5 transition-transform duration-200', open && 'rotate-180')}
+          className={cn('h-4 w-4 transition-transform duration-300', open && 'rotate-180')}
         />
       </button>
 
@@ -121,24 +134,40 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
           <div
             role="menu"
             aria-label={group.label}
-            className="rounded-lg border border-brand-blue-900/10 bg-white p-2 shadow-xl shadow-brand-blue-900/[0.08]"
+            className="origin-top rounded-lg border border-brand-100 bg-white py-2 shadow-xl shadow-finanza-dark/[0.08] motion-safe:animate-fade-up"
           >
-            {group.items.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                role="menuitem"
-                onClick={() => setOpen(false)}
-                className="block rounded-md px-3.5 py-3 transition-colors hover:bg-paper focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset"
-              >
-                <span className="block text-[0.9375rem] font-medium text-brand-blue-900">{item.label}</span>
-                {item.description && (
-                  <span className="mt-0.5 block text-[0.8125rem] leading-snug text-brand-blue-900/55">
-                    {item.description}
+            {group.items.map((item) => {
+              const current = item.href === pathname;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  role="menuitem"
+                  aria-current={current ? 'page' : undefined}
+                  onClick={() => setOpen(false)}
+                  className={cn(
+                    'block px-4 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500',
+                    current ? 'bg-brand-500' : 'hover:bg-brand-50',
+                  )}
+                >
+                  <span
+                    className={cn('block text-[0.9375rem] font-medium', current ? 'text-white' : 'text-finanza-dark')}
+                  >
+                    {item.label}
                   </span>
-                )}
-              </Link>
-            ))}
+                  {item.description && (
+                    <span
+                      className={cn(
+                        'mt-0.5 block text-[0.8125rem] leading-snug',
+                        current ? 'text-white/80' : 'text-finanza-text/80',
+                      )}
+                    >
+                      {item.description}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
@@ -156,22 +185,22 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="flex w-full items-center justify-between py-3.5 text-base font-medium text-finanza-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         {group.label}
         <ChevronDown
           aria-hidden="true"
-          className={cn('h-5 w-5 text-brand-blue-900/40 transition-transform duration-200', expanded && 'rotate-180')}
+          className={cn('h-5 w-5 text-brand-500 transition-transform duration-200', expanded && 'rotate-180')}
         />
       </button>
       {expanded && (
-        <ul className="space-y-1 pb-4 pl-1">
+        <ul className="space-y-1 pb-3 pl-1">
           {group.items.map((item) => (
             <li key={item.href}>
               <Link
                 href={item.href}
                 onClick={onNavigate}
-                className="block rounded-md px-3 py-2.5 text-base text-brand-blue-900/75 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="block rounded-md px-3 py-2.5 text-[0.9375rem] text-finanza-text hover:bg-brand-50 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
               >
                 {item.label}
               </Link>
@@ -183,20 +212,67 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
   );
 }
 
+/** Finanza's top bar: contact details and social profiles, above the nav on large screens only. */
+function TopBar() {
+  return (
+    <div className="hidden border-b border-brand-500/[0.07] bg-white lg:block" style={{ height: TOP_BAR_PX }}>
+      <div className="mx-auto flex h-full w-full max-w-[82rem] items-center justify-between gap-6 px-5 text-sm text-finanza-text sm:px-8 lg:px-10">
+        <div className="flex items-center gap-6">
+          <span className="flex items-center gap-2">
+            <MapPin aria-hidden="true" className="h-4 w-4 text-brand-500" />
+            {CONTACT.city}
+          </span>
+          <a
+            href={`mailto:${CONTACT.email}`}
+            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            <Mail aria-hidden="true" className="h-4 w-4 text-brand-500" />
+            {CONTACT.email}
+          </a>
+          <a
+            href={telHref(CONTACT.phones[0])}
+            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          >
+            <Phone aria-hidden="true" className="h-4 w-4 text-brand-500" />
+            {CONTACT.phones[0]}
+          </a>
+        </div>
+        <SocialLinks variant="nav" className="gap-1.5 [&_a]:h-7 [&_a]:w-7 [&_span]:h-7 [&_span]:w-7" />
+      </div>
+    </div>
+  );
+}
+
 export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const pathname = usePathname();
+  const headerRef = useRef<HTMLElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
 
+  // One rAF-throttled listener drives both the solid-on-scroll state and the
+  // nav's slide up over the top bar. The slide is written straight to a CSS
+  // variable, so scrolling causes no re-renders.
   useEffect(() => {
-    if (variant !== 'overlay') return;
-    const onScroll = () => setScrolled(window.scrollY > 12);
-    onScroll();
+    const header = headerRef.current;
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const y = window.scrollY;
+      header?.style.setProperty('--topbar-offset', `${Math.max(0, TOP_BAR_PX - y)}px`);
+      setScrolled(y > 12);
+    };
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
     window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, [variant]);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
 
   // The panel is closed by every control inside it (each link, both CTAs and
   // the logo call setOpen(false) on click) rather than by an effect watching
@@ -227,21 +303,28 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
 
   return (
     <>
+      <style dangerouslySetInnerHTML={{ __html: ROOT_FONT_CSS }} />
       {/* Every public page gets the skip link, because every public page uses
           this header. Putting it in the home page alone would have left the
           other pages reachable only by tabbing through the whole menu. */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-brand-blue-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-finanza-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
       >
         Skip to content
       </a>
+
+      {/* In normal flow, not fixed: it adds clearance above every page's own
+          header offset rather than covering any of its content. */}
+      <TopBar />
+
       <header
+        ref={headerRef}
+        data-marketing-theme
         className={cn(
-          'fixed inset-x-0 top-0 z-50 transition-colors duration-300',
-          transparent
-            ? 'bg-transparent'
-            : 'border-b border-brand-blue-900/10 bg-paper/90 backdrop-blur-md supports-[backdrop-filter]:bg-paper/75',
+          'fixed inset-x-0 top-0 z-50 transition-[background-color,box-shadow] duration-300 lg:top-[var(--topbar-offset,44px)]',
+          transparent ? 'bg-transparent' : 'bg-white',
+          scrolled && !transparent && 'shadow-[0_0.5rem_1rem_rgba(1,26,65,0.08)]',
         )}
       >
         <div className="mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10">
@@ -252,11 +335,11 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
               aria-label="Kitabu Yetu — home"
             >
-              <BrandLogo size={34} priority alt="" />
+              <BrandLogo size={36} priority alt="" />
               <span
                 className={cn(
-                  'font-display text-[1.35rem] font-normal tracking-tight transition-colors',
-                  transparent ? 'text-white' : 'text-brand-blue-900',
+                  'font-display text-[1.6rem] font-bold leading-none tracking-tight transition-colors lg:text-[1.85rem]',
+                  transparent ? 'text-white' : 'text-brand-500',
                 )}
               >
                 Kitabu&nbsp;Yetu
@@ -266,7 +349,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             {/* xl, not lg: the seven items need ~700px, so between 1024 and
                 1279px the row overflowed and pushed "Get started" off-screen. */}
             <nav aria-label="Primary" className="hidden xl:block">
-              <ul className="flex items-center gap-8">
+              <ul className="flex items-center gap-7">
                 {NAV_ITEMS.map((entry) => {
                   if (isNavGroup(entry)) {
                     return (
@@ -282,17 +365,12 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                         href={entry.href}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
-                          'relative rounded-sm text-[0.9375rem] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
-                          transparent
-                            ? 'text-white/75 hover:text-white'
-                            : 'text-brand-blue-900/70 hover:text-brand-blue-900',
-                          active && (transparent ? 'text-white' : 'text-brand-blue-900'),
+                          'block rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+                          transparent ? 'text-white/80 hover:text-white' : 'text-finanza-text hover:text-brand-500',
+                          active && (transparent ? 'text-white' : 'text-brand-500'),
                         )}
                       >
                         {entry.label}
-                        {active && (
-                          <span aria-hidden="true" className="absolute -bottom-1.5 left-0 h-px w-full bg-brand-500" />
-                        )}
                       </Link>
                     </li>
                   );
@@ -300,21 +378,21 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               </ul>
             </nav>
 
-            <div className="hidden shrink-0 items-center gap-1 xl:flex">
+            <div className="hidden shrink-0 items-center gap-2 xl:flex">
               <Link
                 href={ROUTES.signIn}
                 className={cn(
-                  'rounded-md px-4 py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+                  'rounded-lg px-4 py-2.5 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
                   transparent
                     ? 'text-white/85 hover:bg-white/10 hover:text-white'
-                    : 'text-brand-blue-900/80 hover:bg-brand-blue-900/[0.05] hover:text-brand-blue-900',
+                    : 'text-finanza-text hover:bg-brand-50 hover:text-brand-500',
                 )}
               >
                 Sign in
               </Link>
               <Link
                 href={ROUTES.startGroup}
-                className="group inline-flex items-center gap-2 rounded-md bg-brand-600 px-5 py-2.5 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-[0.9375rem] font-medium text-white transition-colors duration-300 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Get started
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -328,8 +406,10 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               aria-expanded={open}
               aria-controls="site-menu"
               className={cn(
-                '-mr-2 rounded-md p-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 xl:hidden',
-                transparent ? 'text-white hover:bg-white/10' : 'text-brand-blue-900 hover:bg-brand-blue-900/[0.06]',
+                '-mr-2 rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 xl:hidden',
+                transparent
+                  ? 'border-white/30 text-white hover:bg-white/10'
+                  : 'border-finanza-dark/10 text-finanza-text hover:bg-brand-50',
               )}
             >
               <span className="sr-only">{open ? 'Close menu' : 'Open menu'}</span>
@@ -346,44 +426,50 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
           id="site-menu"
           ref={panelRef}
           hidden={!open}
-          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-brand-blue-900/10 bg-paper lg:max-h-[calc(100dvh-5rem)] xl:hidden"
+          className="max-h-[calc(100dvh-4rem)] overflow-y-auto border-t border-finanza-dark/[0.07] bg-white lg:max-h-[calc(100dvh-5rem-var(--topbar-offset,44px))] xl:hidden"
         >
           <nav aria-label="Primary" className="px-5 py-4 sm:px-8">
-            <ul className="divide-y divide-brand-blue-900/[0.07]">
+            <ul className="divide-y divide-finanza-dark/[0.07]">
               {NAV_ITEMS.map((entry) => {
                 if (isNavGroup(entry)) {
                   return <MobileNavGroup key={entry.label} group={entry} onNavigate={() => setOpen(false)} />;
                 }
+                const active = !entry.href.includes('#') && pathname === entry.href;
                 return (
                   <li key={entry.href}>
                     <Link
                       href={entry.href}
                       onClick={() => setOpen(false)}
-                      className="flex items-center justify-between py-4 text-lg text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'flex items-center justify-between py-3.5 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                        active ? 'text-brand-500' : 'text-finanza-text',
+                      )}
                     >
                       {entry.label}
-                      <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-blue-900/40" />
+                      <ArrowRight aria-hidden="true" className="h-4 w-4 text-brand-500/60" />
                     </Link>
                   </li>
                 );
               })}
             </ul>
-            <div className="mt-6 flex flex-col gap-3 pb-8">
+            <div className="mt-6 flex flex-col gap-3">
               <Link
                 href={ROUTES.startGroup}
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center rounded-md bg-brand-600 px-5 py-3.5 text-base font-semibold text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Get started
               </Link>
               <Link
                 href={ROUTES.signIn}
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center rounded-md border border-brand-blue-900/15 px-5 py-3.5 text-base font-medium text-brand-blue-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center justify-center rounded-lg border border-brand-500 px-5 py-3.5 text-base font-medium text-brand-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Sign in
               </Link>
             </div>
+            <SocialLinks variant="nav" className="mt-6 justify-center pb-8" />
           </nav>
         </div>
       </header>

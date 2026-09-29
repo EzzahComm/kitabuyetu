@@ -3,7 +3,7 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { handleB2CResult, handleBalanceResult, type B2CResultBody } from '@/lib/services/mpesa.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
-import { handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
+import { handleVendorPaymentResult, handleCampaignWithdrawalResult } from '@/lib/services/settlement-callbacks.service';
 import { isValidCallbackToken } from '@/lib/services/daraja.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
@@ -68,6 +68,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         await handleVendorPaymentResult(body as unknown as Record<string, unknown>, callerIp);
       } catch (err) {
         logger.error('[b2c result → vendor payment]', err);
+      }
+
+      try {
+        await handleCampaignWithdrawalResult(body as unknown as Record<string, unknown>, callerIp);
+      } catch (err) {
+        logger.error('[b2c result → campaign withdrawal]', err);
       }
     });
     return ack();

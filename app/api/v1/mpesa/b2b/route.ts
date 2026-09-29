@@ -10,7 +10,11 @@ import { z } from 'zod';
 import { withPermission } from '@/lib/auth/middleware';
 import { initiateB2B, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleB2BResult } from '@/lib/services/mpesa.service';
-import { handleSettlementB2BResult, handleVendorPaymentResult } from '@/lib/services/settlement-callbacks.service';
+import {
+  handleCampaignWithdrawalResult,
+  handleSettlementB2BResult,
+  handleVendorPaymentResult,
+} from '@/lib/services/settlement-callbacks.service';
 import { ok, handleError } from '@/lib/utils/response';
 import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { toMpesaAmount } from '@/lib/utils/currency';
@@ -63,13 +67,14 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
-    // Three handlers, one callback: Daraja gives us only an
+    // Four handlers, one callback: Daraja gives us only an
     // OriginatorConversationID, and it may belong to mpesa_b2b_transactions,
-    // settlement_requests, or vendor_payments. Each handler is a safe no-op
-    // for a row it doesn't own (its own `WHERE originator_conversation_id`
-    // matches nothing), so calling all three is simpler and less brittle
-    // than a lookup-then-dispatch — and each is independently try/caught so
-    // one failing can't starve the others.
+    // settlement_requests, vendor_payments, or campaign_withdrawals (a
+    // Changi$ha payout to a paybill/till). Each handler is a safe no-op for a
+    // row it doesn't own (its own `WHERE originator_conversation_id` matches
+    // nothing), so calling all of them is simpler and less brittle than a
+    // lookup-then-dispatch — and each is independently try/caught so one
+    // failing can't starve the others.
     after(async () => {
       try {
         await handleB2BResult(body, ip);
@@ -87,6 +92,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         await handleVendorPaymentResult(body, ip);
       } catch (err) {
         logger.error('[b2b result → vendor payment]', err);
+      }
+
+      try {
+        await handleCampaignWithdrawalResult(body, ip);
+      } catch (err) {
+        logger.error('[b2b result → campaign withdrawal]', err);
       }
     });
     return ack();

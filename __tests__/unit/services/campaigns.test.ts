@@ -4,7 +4,7 @@
  * can eventually push money into.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
-import { campaignsService } from '@/lib/services/campaigns.service';
+import { isAcceptingDonations, campaignsService } from '@/lib/services/campaigns.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -24,6 +24,24 @@ beforeEach(() => {
 });
 
 const ctx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' };
+
+/** A draft as the DB returns it: payout_method defaults to 'phone' (migration 202), nothing else set. */
+const draftCampaign = {
+  id: 'camp-1',
+  status: 'draft',
+  payout_method: 'phone',
+  payout_phone: null,
+  payout_shortcode: null,
+  payout_account: null,
+  payout_payee_name: null,
+};
+const paybill = {
+  payout_method: 'paybill',
+  payout_phone: null,
+  payout_shortcode: '247247',
+  payout_account: 'PAT-00123',
+  payout_payee_name: 'Kenyatta National Hospital',
+};
 
 describe('campaignsService.createCampaign', () => {
   const input = {
@@ -81,7 +99,7 @@ describe('campaignsService.submitForReview', () => {
   });
 
   it('moves a draft to pending_review', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'draft' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, payout_phone: '254712345678' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'pending_review' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
 
@@ -89,9 +107,122 @@ describe('campaignsService.submitForReview', () => {
     expect(campaign.status).toBe('pending_review');
   });
 
+  it('accepts a complete paybill destination', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, ...paybill }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', status: 'pending_review' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    const campaign = await campaignsService.submitForReview(ctx, 'camp-1');
+    expect(campaign.status).toBe('pending_review');
+  });
+
+  it('rejects a draft with no payout destination set yet', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [draftCampaign] });
+    await expect(campaignsService.submitForReview(ctx, 'camp-1')).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a paybill destination with no account number', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, ...paybill, payout_account: null }] });
+    await expect(campaignsService.submitForReview(ctx, 'camp-1')).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it("throws NotFoundError for a campaign outside the caller's group", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(campaignsService.submitForReview(ctx, 'camp-x')).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe('campaignsService.setPayoutDestination', () => {
+  const ORIGINAL_ENV = { ...process.env };
+  afterEach(() => {
+    process.env = { ...ORIGINAL_ENV };
+  });
+
+  /** SQL params of the UPDATE: [id, method, phone, shortcode, account, payeeName]. */
+  const updateParams = () => mockQuery.mock.calls[1][1];
+
+  it('sets a phone destination and clears every business field', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, ...paybill }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', payout_method: 'phone' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    await campaignsService.setPayoutDestination(ctx, 'camp-1', { method: 'phone', phone: '254712345678' });
+    expect(updateParams()).toEqual(['camp-1', 'phone', '254712345678', null, null, null]);
+  });
+
+  it('sets a paybill destination and clears the phone', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, payout_phone: '254712345678' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', payout_method: 'paybill' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    await campaignsService.setPayoutDestination(ctx, 'camp-1', {
+      method: 'paybill',
+      shortcode: '247247',
+      account: 'PAT-00123',
+      payeeName: 'Kenyatta National Hospital',
+    });
+    expect(updateParams()).toEqual(['camp-1', 'paybill', null, '247247', 'PAT-00123', 'Kenyatta National Hospital']);
+  });
+
+  it('sets a till destination with no account number', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [draftCampaign] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1', payout_method: 'till' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    await campaignsService.setPayoutDestination(ctx, 'camp-1', {
+      method: 'till',
+      shortcode: '5432109',
+      payeeName: 'Umoja Funeral Services',
+    });
+    expect(updateParams()).toEqual(['camp-1', 'till', null, '5432109', null, 'Umoja Funeral Services']);
+  });
+
+  it('audits both the old and the new destination', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, payout_phone: '254712345678' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'camp-1' }] });
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+
+    await campaignsService.setPayoutDestination(ctx, 'camp-1', {
+      method: 'till',
+      shortcode: '5432109',
+      payeeName: 'Umoja Funeral Services',
+    });
+    const [sql, params] = mockQuery.mock.calls[2];
+    expect(sql).toContain('INSERT INTO audit_logs');
+    expect(params[2]).toBe('campaign.set_payout_destination');
+    expect(JSON.parse(params[5])).toMatchObject({ payout_method: 'phone', payout_phone: '254712345678' });
+    expect(JSON.parse(params[6])).toMatchObject({ payout_method: 'till', payout_shortcode: '5432109' });
+  });
+
+  it("refuses the platform's own shortcode before touching the DB", async () => {
+    process.env.MPESA_SHORTCODE = '600999';
+    await expect(
+      campaignsService.setPayoutDestination(ctx, 'camp-1', {
+        method: 'paybill',
+        shortcode: '600999',
+        account: 'X1',
+        payeeName: 'Loop Back',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('refuses to change the destination once the campaign has left draft', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ ...draftCampaign, status: 'active', payout_phone: '254712345678' }] });
+    await expect(
+      campaignsService.setPayoutDestination(ctx, 'camp-1', { method: 'phone', phone: '254799999999' }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).toHaveBeenCalledTimes(1); // never reached the UPDATE
+  });
+
+  it('rejects a member (not an officer)', async () => {
+    await expect(
+      campaignsService.setPayoutDestination({ ...ctx, role: 'member' }, 'camp-1', {
+        method: 'phone',
+        phone: '254712345678',
+      }),
+    ).rejects.toBeInstanceOf(ForbiddenError);
+    expect(mockQuery).not.toHaveBeenCalled();
   });
 });
 
@@ -140,5 +271,30 @@ describe('campaignsService public reads', () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     const campaign = await campaignsService.getPublicCampaignBySlug('nonexistent');
     expect(campaign).toBeNull();
+  });
+
+  it('getPublicCampaignBySlug excludes campaigns past their end date, so they cannot take donations', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await campaignsService.getPublicCampaignBySlug('ended');
+    const [sql] = mockQuery.mock.calls[0];
+    expect(sql).toContain('ends_at IS NULL OR ends_at > NOW()');
+  });
+
+  it('listPastCampaigns reads completed or ended campaigns only', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    await campaignsService.listPastCampaigns(6);
+    const [sql, params] = mockQuery.mock.calls[0];
+    expect(sql).toContain("status = 'completed'");
+    expect(sql).toContain('ends_at <= NOW()');
+    expect(sql).not.toContain("'draft'");
+    expect(params).toEqual([6]);
+  });
+
+  it('isAcceptingDonations matches the SQL rule', () => {
+    const now = new Date('2026-09-29T00:00:00Z');
+    expect(isAcceptingDonations({ status: 'active', ends_at: null }, now)).toBe(true);
+    expect(isAcceptingDonations({ status: 'active', ends_at: '2026-10-01T00:00:00Z' }, now)).toBe(true);
+    expect(isAcceptingDonations({ status: 'active', ends_at: '2026-09-01T00:00:00Z' }, now)).toBe(false);
+    expect(isAcceptingDonations({ status: 'completed', ends_at: null }, now)).toBe(false);
   });
 });

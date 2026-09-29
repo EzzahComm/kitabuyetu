@@ -82,6 +82,18 @@ export interface EligibilityRules {
   rules: EligibilityRule[];
 }
 
+/** What an anonymous visitor may see. Omits eligibility_rules — the internal
+ *  partner-set thresholds/whitelists a public list/detail page never renders
+ *  but would otherwise still ship whole, since anything passed into a
+ *  'use client' component serializes into the page's RSC payload regardless
+ *  of what's actually displayed. */
+export type PublicOpportunity = Omit<Opportunity, 'eligibility_rules'>;
+
+export function toPublicOpportunity(o: Opportunity): PublicOpportunity {
+  const { eligibility_rules: _eligibility_rules, ...rest } = o;
+  return rest;
+}
+
 export interface EligibilityResult {
   matches: boolean;
   failed_rules: string[];

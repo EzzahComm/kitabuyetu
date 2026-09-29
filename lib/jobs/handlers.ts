@@ -370,13 +370,15 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
   const { findStuckDisbursements } = await import('@/lib/services/disbursements.service');
   const { findStuckSettlements } = await import('@/lib/services/settlements.service');
   const { findStuckVendorPayments } = await import('@/lib/services/vendor-payments.service');
+  const { findStuckCampaignWithdrawals } = await import('@/lib/services/campaign-withdrawals.service');
 
-  const [disbursements, settlements, vendorPayments] = await Promise.all([
+  const [disbursements, settlements, vendorPayments, campaignWithdrawals] = await Promise.all([
     findStuckDisbursements(),
     findStuckSettlements(),
     findStuckVendorPayments(),
+    findStuckCampaignWithdrawals(),
   ]);
-  const total = disbursements.count + settlements.count + vendorPayments.count;
+  const total = disbursements.count + settlements.count + vendorPayments.count + campaignWithdrawals.count;
 
   // Money that left the platform and never confirmed. None of these three can
   // auto-resolve — Safaricom offers no query-by-conversation-ID without a
@@ -397,6 +399,7 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
         disbursements: disbursements.count,
         settlements: settlements.count,
         vendorPayments: vendorPayments.count,
+        campaignWithdrawals: campaignWithdrawals.count,
       },
     });
   }
@@ -410,6 +413,7 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
     stuckDisbursements: disbursements.count,
     stuckSettlements: settlements.count,
     stuckVendorPayments: vendorPayments.count,
+    stuckCampaignWithdrawals: campaignWithdrawals.count,
     alerted,
   };
 }

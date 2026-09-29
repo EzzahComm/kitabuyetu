@@ -3,6 +3,7 @@ import Link from 'next/link';
 import React from 'react';
 import type { StaticImageData } from 'next/image';
 import { Container } from '@/components/Container';
+import { btnPrimary } from '@/components/marketing/finanza';
 
 interface BenefitsProps {
   imgPos?: 'left' | 'right';
@@ -26,36 +27,33 @@ interface BenefitsProps {
     };
   };
 }
+
+/** Image beside a heading and icon-circle list — the Finanza about block's feature items. */
 export const Benefits = (props: Readonly<BenefitsProps>) => {
   const { data } = props;
   return (
     <Container className="mb-20 flex flex-wrap gap-y-10 lg:flex-nowrap lg:gap-16">
       <div
-        className={`flex items-center justify-center w-full lg:w-1/2 ${props.imgPos === 'right' ? 'lg:order-1' : ''}`}
+        className={`flex w-full items-center justify-center lg:w-1/2 ${props.imgPos === 'right' ? 'lg:order-1' : ''}`}
       >
-        <div>
-          <Image
-            src={data.image}
-            width={521}
-            height={521}
-            alt={data.imageAlt}
-            className={'object-cover'}
-            placeholder="blur"
-          />
-        </div>
+        <Image
+          src={data.image}
+          width={521}
+          height={521}
+          alt={data.imageAlt}
+          className="aspect-[4/3] w-full rounded-lg object-cover"
+          placeholder="blur"
+        />
       </div>
 
-      <div className={`flex flex-wrap items-center w-full lg:w-1/2 ${data.imgPos === 'right' ? 'lg:justify-end' : ''}`}>
+      <div className={`flex w-full flex-wrap items-center lg:w-1/2 ${data.imgPos === 'right' ? 'lg:justify-end' : ''}`}>
         <div>
-          <div className="mt-4 flex w-full flex-col">
-            <h3 className="max-w-2xl text-3xl font-bold leading-tight tracking-tight text-brand-blue-900 lg:text-4xl dark:text-white">
-              {data.title}
-            </h3>
+          <h3 className="max-w-2xl font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark lg:text-[2.5rem]">
+            {data.title}
+          </h3>
+          <p className="max-w-2xl py-4 text-lg leading-relaxed text-finanza-text">{data.desc}</p>
 
-            <p className="max-w-2xl py-4 text-lg leading-8 text-gray-600 dark:text-gray-300">{data.desc}</p>
-          </div>
-
-          <div className="w-full mt-5">
+          <div className="mt-2 w-full">
             {data.bullets.map((item, index) => (
               <Benefit key={index} title={item.title} icon={item.icon}>
                 {item.desc}
@@ -64,11 +62,8 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
           </div>
 
           {data.cta && (
-            <div className="w-full mt-8">
-              <Link
-                href={data.cta.href}
-                className="inline-flex min-h-12 items-center justify-center rounded-md bg-brand-600 px-6 py-3 text-lg font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:ring-2 focus-visible:ring-brand-500"
-              >
+            <div className="mt-8 w-full">
+              <Link href={data.cta.href} className={btnPrimary}>
                 {data.cta.text}
               </Link>
             </div>
@@ -87,15 +82,15 @@ interface BenefitProps {
 
 function Benefit(props: BenefitProps) {
   return (
-    <div className="mt-8 flex items-start gap-3">
-      <div className="mt-1 flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-md bg-brand-600">
+    <div className="mt-6 flex items-start gap-4">
+      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand-500">
         {React.cloneElement(props.icon, {
-          className: 'h-6 w-6 text-brand-50',
+          className: 'h-5 w-5 text-white',
         })}
       </div>
       <div>
-        <h4 className="text-xl font-medium text-gray-800 dark:text-gray-200">{props.title}</h4>
-        <p className="mt-1 text-gray-500 dark:text-gray-400">{props.children}</p>
+        <h4 className="font-display text-xl font-semibold text-finanza-dark">{props.title}</h4>
+        <p className="mt-1 text-finanza-text">{props.children}</p>
       </div>
     </div>
   );

@@ -5,7 +5,7 @@ import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { ROUTES } from '@/components/marketing/routes';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
@@ -58,20 +58,20 @@ const GUIDES: { title: string; body: string; href: string }[] = [
 
 export default function DocsPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-paper`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
 
       <main id="main" className="flex-1">
-        <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
+        <div className="border-b border-brand-100 bg-white pb-10 pt-24 lg:pb-12 lg:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
+              <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
                 Documentation
               </p>
-              <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                Getting started with <em className="italic font-normal text-brand-600">Kitabu Yetu</em>
+              <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl">
+                Getting started with <em className="not-italic text-brand-500">Kitabu Yetu</em>
               </h1>
-              <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
+              <p className="mt-6 text-lg leading-relaxed text-finanza-text">
                 A written manual and API reference are on the way. In the meantime, here is where to start.
               </p>
             </div>
@@ -84,10 +84,10 @@ export default function DocsPage() {
               <Link
                 key={guide.title}
                 href={guide.href}
-                className="group flex flex-col rounded-lg border border-brand-blue-900/10 bg-white p-6 transition-colors hover:border-brand-500/40"
+                className="group flex flex-col rounded-lg border border-brand-100 bg-white p-6 transition-colors hover:border-brand-500/40"
               >
-                <h2 className="font-display text-xl font-normal text-brand-blue-900">{guide.title}</h2>
-                <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{guide.body}</p>
+                <h2 className="font-display text-xl font-semibold text-finanza-dark">{guide.title}</h2>
+                <p className="mt-2 flex-1 text-[0.9375rem] leading-relaxed text-finanza-text">{guide.body}</p>
                 <span className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-brand-700">
                   Read more
                   <ArrowRight
@@ -99,7 +99,7 @@ export default function DocsPage() {
             ))}
           </div>
 
-          <p className="mt-14 text-[0.9375rem] leading-relaxed text-brand-blue-900/60">
+          <p className="mt-14 text-[0.9375rem] leading-relaxed text-finanza-text">
             Trying to do something specific — set up M-Pesa collections, understand a report, or integrate with the API
             as an enterprise partner?{' '}
             <Link href={ROUTES.support} className="font-medium text-brand-700 hover:underline">

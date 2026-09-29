@@ -32,6 +32,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import { CHANGISHA_PRICING } from '@/types/enums';
 import { ROUTES } from './routes';
 
 /* ────────────────────────────────────────────────────────────────────────────
@@ -535,15 +536,17 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Gift,
     title: 'Fundraise / Changi$ha',
-    body: 'A fundraising platform for organizations, groups, projects and individuals to raise money from members and the public.',
+    body: 'Public fundraising campaigns for groups and community causes, collected by M-Pesa and reviewed by Kitabu Yetu before they go live.',
     points: [
       'Shareable campaign pages with a running total',
-      'M-Pesa collection, reconciled automatically',
-      'A transparent record every contributor can see',
+      'Donations by M-Pesa, recorded automatically',
+      `No monthly fee — ${CHANGISHA_PRICING.platformFeePct}% when you withdraw`,
     ],
     href: ROUTES.fundraise,
-    linkText: 'See what’s coming',
-    status: 'vision',
+    linkText: 'See live campaigns',
+    // Live since migrations 182-201: public campaign pages, M-Pesa donations,
+    // admin review and B2C withdrawals. Pricing from CHANGISHA_PRICING.
+    status: 'live',
   },
   {
     icon: Briefcase,
@@ -832,4 +835,38 @@ export const IMPACT_STATS: ImpactStat[] = [
   { label: 'Transactions processed', value: '—' },
   { label: 'Funds managed', value: '—' },
   { label: 'Communities reached', value: '—' },
+];
+
+/* ── Section 19 — homepage FAQ ────────────────────────────────────────────── */
+
+/**
+ * Every answer repeats wording already verified for /pricing and /support
+ * (their own FAQ arrays), so the homepage cannot promise more than those
+ * pages do. Rendered as FAQPage JSON-LD from this same array.
+ */
+export const HOME_FAQS: [question: string, answer: string][] = [
+  [
+    'Which product should we start with?',
+    'Chama Reminder if you only need to reach members. Kitabu Yetu when you also need to record and reconcile the money.',
+  ],
+  [
+    'Is M-Pesa included?',
+    'Yes. Every Kitabu Yetu plan includes the Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+  ],
+  [
+    'Can members pay by something other than M-Pesa?',
+    'Yes. Record cash, bank or cheque contributions in the ledger — M-Pesa is the only channel that posts automatically.',
+  ],
+  [
+    'Can we bring in our existing records?',
+    'Yes. Every plan supports bulk CSV import for members and past contributions.',
+  ],
+  [
+    "Can another group see our group's records?",
+    "No. Each group's records are isolated by the database itself, not just by the app's screens.",
+  ],
+  [
+    'Is there a free plan or a lock-in?',
+    'Neither. Every plan is paid by M-Pesa, month to month, and you can change plan at any time.',
+  ],
 ];
