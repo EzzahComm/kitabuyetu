@@ -37,6 +37,24 @@ export function generateOtp(): string {
   return String(crypto.randomInt(100_000, 1_000_000)); // 6 digits, zero-padding not needed
 }
 
+/**
+ * Runs `fn` and, if it settles sooner than `minMs`, waits out the remainder
+ * before resolving — so an enumeration-safe flow's fast "no such account"
+ * branch and its slow "sent a real SMS/email" branch take the same
+ * wall-clock time as observed by the caller. Without this, awaiting the
+ * provider call only on the branch that found an account turns "the response
+ * never reveals existence" into a timing oracle that does.
+ */
+export async function enforceMinDuration<T>(minMs: number, fn: () => Promise<T>): Promise<T> {
+  const start = Date.now();
+  const result = await fn();
+  const elapsed = Date.now() - start;
+  if (elapsed < minMs) {
+    await new Promise((resolve) => setTimeout(resolve, minMs - elapsed));
+  }
+  return result;
+}
+
 function verifyUrlFor(token: string): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');
   return `${base}/verify-group/confirm?token=${token}`;
