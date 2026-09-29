@@ -34,10 +34,12 @@ import { BrandLogo } from '@/components/branding/BrandLogo';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
 
-// "Simple First" primary nav (SIMPLIFICATION_AND_RBAC_AUDIT.md §3): 7 primary
-// items max, with Finance and More as collapsible groups (portal-sidebar.tsx's
-// `children` primitive) rather than separate titled sections — replaces the
-// old 4-section (Money/Insights/Engage) flat-20-item layout.
+// Navigation reorganized by user intent (SIMPLIFICATION_AND_RBAC_AUDIT.md §5.1):
+// - 7 primary items max
+// - Finance (6 core items) + Engage (outreach/community) + Advanced (power users)
+//   + Settings (config) as collapsible groups
+// - Replaces the old 4-section (Money/Insights/Engage) flat-20-item layout, and the
+//   cluttered 15-item "More" menu that forced scrolling
 const NAV: PortalNavSection[] = [
   {
     title: null,
@@ -62,8 +64,8 @@ const NAV: PortalNavSection[] = [
       { href: '/reports', label: 'Reports', icon: IconChartBar },
       {
         href: '#',
-        label: 'More',
-        icon: IconDots,
+        label: 'Engage',
+        icon: IconSpeakerphone,
         children: [
           { href: '/meetings', label: 'Meetings', icon: IconCalendar },
           { href: '/crm', label: 'Contacts', icon: IconAddressBook },
@@ -74,10 +76,24 @@ const NAV: PortalNavSection[] = [
           { href: '/sms', label: 'SMS', icon: IconMessage },
           { href: '/whatsapp', label: 'WhatsApp', icon: IconMessage },
           { href: '/email', label: 'Email', icon: IconMail },
+        ],
+      },
+      {
+        href: '#',
+        label: 'Advanced',
+        icon: IconGauge,
+        children: [
           { href: '/investments', label: 'Investments', icon: IconTrendingUp },
           { href: '/credit-scores', label: 'Credit scores', icon: IconGauge },
           { href: '/analytics', label: 'Analytics', icon: IconChartBar },
           { href: '/data-import', label: 'Data import', icon: IconUpload },
+        ],
+      },
+      {
+        href: '#',
+        label: 'Settings',
+        icon: IconSettings,
+        children: [
           { href: '/billing', label: 'Billing', icon: IconReceipt },
           { href: '/settings', label: 'Settings', icon: IconSettings },
         ],

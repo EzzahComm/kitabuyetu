@@ -1,5 +1,3 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import type { PoolClient } from 'pg';
 import { analyticsService, type ExecutiveSummary } from '@/lib/services/analytics.service';
 
 /**
