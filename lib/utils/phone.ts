@@ -97,3 +97,13 @@ export function formatPhoneDisplay(e164: string): string {
   const local = '0' + e164.replace(/^254/, '');
   return local.replace(/(\d{4})(\d{3})(\d{3})/, '$1 $2 $3');
 }
+
+/**
+ * Masks the middle group for display before the recipient has fully proven
+ * ownership of the number (e.g. confirming which phone an OTP was sent to,
+ * from a caller who has only proven email access so far): 0712 ••• 678.
+ */
+export function maskPhoneDisplay(e164: string): string {
+  const [prefix, , suffix] = formatPhoneDisplay(e164).split(' ');
+  return `${prefix} ••• ${suffix}`;
+}

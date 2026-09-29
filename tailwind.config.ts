@@ -1,5 +1,26 @@
 import type { Config } from 'tailwindcss';
+import plugin from 'tailwindcss/plugin';
 import { brandGreen, brandNavy, brandOrange, brandAccent, brandNeutral, brandPaper } from './lib/ui/brand-palette';
+import { finanzaBlue, finanzaDark, finanzaOrange, finanzaText } from './lib/ui/finanza-palette';
+
+type Scale = Record<string | number, string>;
+
+/** '#355EFC' → '53 94 252', the channel form `rgb(var(--x) / <alpha-value>)` needs. */
+const rgbChannels = (hex: string) => {
+  const n = parseInt(hex.slice(1), 16);
+  return `${(n >> 16) & 255} ${(n >> 8) & 255} ${n & 255}`;
+};
+const scaleVars = (name: string, scale: Scale) =>
+  Object.fromEntries(Object.entries(scale).map(([step, hex]) => [`--${name}-${step}`, rgbChannels(hex)]));
+const scaleColors = (name: string, scale: Scale) =>
+  Object.fromEntries(Object.keys(scale).map((step) => [step, `rgb(var(--${name}-${step}) / <alpha-value>)`]));
+
+/**
+ * Any page that renders the marketing header. `brand-*` utilities resolve to
+ * brandGreen everywhere else (the authenticated app is unchanged) and to the
+ * Finanza palette here — see lib/ui/finanza-palette.ts.
+ */
+const MARKETING_SCOPE = 'html:has([data-marketing-theme])';
 
 const config: Config = {
   darkMode: ['class'],
@@ -88,8 +109,13 @@ const config: Config = {
         /*
          * Kitabu Yetu brand system
          */
-        brand: brandGreen,
+        // Green in the app, Finanza blue on the marketing surface (MARKETING_SCOPE).
+        brand: scaleColors('brand-scale', brandGreen),
         'brand-blue': brandNavy,
+        finanza: finanzaBlue,
+        'finanza-orange': finanzaOrange,
+        'finanza-dark': finanzaDark,
+        'finanza-text': finanzaText,
         'brand-accent': brandAccent,
         'brand-neutral': brandNeutral,
         'brand-orange': brandOrange,
@@ -143,7 +169,7 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', 'Inter', 'system-ui', 'sans-serif'],
         // No other var() here: an undefined custom property invalidates the whole declaration.
-        display: ['var(--font-fraunces)', 'Georgia', 'serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
         mono: ['var(--font-dm-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'],
       },
 
@@ -227,7 +253,26 @@ const config: Config = {
     },
   },
 
-  plugins: [],
+  plugins: [
+    plugin(({ addBase }) => {
+      addBase({
+        ':root': scaleVars('brand-scale', brandGreen),
+        // Specificity (0,1,1) beats globals.css's `:root` (0,1,0), so the
+        // shadcn tokens below override regardless of stylesheet order.
+        [MARKETING_SCOPE]: {
+          ...scaleVars('brand-scale', finanzaBlue),
+          '--primary': '228 97% 60%', // #355EFC
+          '--ring': '228 97% 60%',
+          '--accent': '230 87% 93%', // #DFE4FD
+          '--brand': finanzaBlue[500], // globals.css :focus-visible outline
+        },
+        [`${MARKETING_SCOPE} ::selection`]: {
+          background: finanzaBlue[100],
+          color: finanzaDark.DEFAULT,
+        },
+      });
+    }),
+  ],
 };
 
 export default config;

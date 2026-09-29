@@ -35,18 +35,18 @@ The site already carries a Google verification file
 - [ ] **URL Inspection** → paste each URL below → **Request indexing**.
       Google allows ~10 requests a day.
 
-| Priority | URL |
-|---|---|
-| 1 | `https://kitabuyetu.co.ke/` |
-| 2 | `/bookkeeper` |
-| 3 | `/pricing` |
-| 4 | `/chama-reminder` |
-| 5 | `/how-it-works` |
-| 6 | `/products` |
-| 7 | `/fundraise` |
-| 8 | `/enterprise-solutions` |
-| 9 | `/resources` |
-| 10 | `/about` |
+| Priority | URL                         |
+| -------- | --------------------------- |
+| 1        | `https://kitabuyetu.co.ke/` |
+| 2        | `/bookkeeper`               |
+| 3        | `/pricing`                  |
+| 4        | `/chama-reminder`           |
+| 5        | `/how-it-works`             |
+| 6        | `/products`                 |
+| 7        | `/fundraise`                |
+| 8        | `/enterprise-solutions`     |
+| 9        | `/resources`                |
+| 10       | `/about`                    |
 
 - [ ] Check **Settings → Crawl stats** after a week: requests should go to
       `kitabuyetu.co.ke`, not the Vercel address.
@@ -81,13 +81,13 @@ fastest way to fix brand searches that currently return Swahili books.
 
 **Ready-to-paste fields**
 
-| Field | Value |
-|---|---|
-| Primary category | Software company |
+| Field                 | Value                                                             |
+| --------------------- | ----------------------------------------------------------------- |
+| Primary category      | Software company                                                  |
 | Additional categories | Business management consultant · Accounting software (if offered) |
-| Phone | +254 182 625 807 |
-| Email | info@kitabuyetu.co.ke |
-| Service area | Kenya |
+| Phone                 | +254 182 625 807                                                  |
+| Email                 | info@kitabuyetu.co.ke                                             |
+| Service area          | Kenya                                                             |
 
 **Business description** (679/750 characters)
 
@@ -108,15 +108,15 @@ Start with the Kenyan "chama app" roundups — they rank for the exact
 searches Kitabu Yetu wants, and each listing is a relevant backlink. Aim
 for 5 listings in the first month.
 
-| Priority | Where | Type | How to get listed |
-|---|---|---|---|
-| 1 | [Kenyan Fix — List of Chama Management Apps](https://www.kenyanfix.com/list-of-chama-management-apps/) | Roundup (ranks for "chama management software Kenya") | Email the editor with the outreach template below |
-| 2 | [Zenlipa — Best Chama App to Download](https://zenlipa.co.ke/blog/looking-for-the-best-chama-app-to-download-here-s-what-to-know-before-you-choose-one) | Roundup | Outreach email; Zenlipa is a partial competitor, expect a maybe |
-| 3 | [Capterra](https://www.capterra.com/vendors/sign-up) (feeds GetApp, Software Advice) | Software directory | Free vendor listing; M-Changa already listed |
-| 4 | [StartupBlink — Kenya](https://www.startupblink.com/top-startups/kenya) | Startup map | Add startup (free) |
-| 5 | [Startup Map Africa — Kenya fintech](https://startupmapafrica.com/startups/fintech/kenya) | Startup map | Submit a listing |
-| 6 | [Crunchbase](https://www.crunchbase.com) | Company database | Create an organization profile (free) |
-| 7 | [ensun — Fintech in Kenya](https://ensun.io/search/fintech/kenya) | Company search | Claim or submit the company |
+| Priority | Where                                                                                                                                                   | Type                                                  | How to get listed                                               |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
+| 1        | [Kenyan Fix — List of Chama Management Apps](https://www.kenyanfix.com/list-of-chama-management-apps/)                                                  | Roundup (ranks for "chama management software Kenya") | Email the editor with the outreach template below               |
+| 2        | [Zenlipa — Best Chama App to Download](https://zenlipa.co.ke/blog/looking-for-the-best-chama-app-to-download-here-s-what-to-know-before-you-choose-one) | Roundup                                               | Outreach email; Zenlipa is a partial competitor, expect a maybe |
+| 3        | [Capterra](https://www.capterra.com/vendors/sign-up) (feeds GetApp, Software Advice)                                                                    | Software directory                                    | Free vendor listing; M-Changa already listed                    |
+| 4        | [StartupBlink — Kenya](https://www.startupblink.com/top-startups/kenya)                                                                                 | Startup map                                           | Add startup (free)                                              |
+| 5        | [Startup Map Africa — Kenya fintech](https://startupmapafrica.com/startups/fintech/kenya)                                                               | Startup map                                           | Submit a listing                                                |
+| 6        | [Crunchbase](https://www.crunchbase.com)                                                                                                                | Company database                                      | Create an organization profile (free)                           |
+| 7        | [ensun — Fintech in Kenya](https://ensun.io/search/fintech/kenya)                                                                                       | Company search                                        | Claim or submit the company                                     |
 
 **Hold until Changi$ha launches publicly** — these fundraising roundups
 list platforms donors and fundraisers can use today:
@@ -147,9 +147,9 @@ payment for a link — Google treats paid links as spam.
 > whole group, not per member, and it includes SMS reminders and loan
 > tracking.
 >
-> In one line for your list: *Kitabu Yetu: M-Pesa chama management with
+> In one line for your list: _Kitabu Yetu: M-Pesa chama management with
 > automatic bookkeeping and SMS reminders, priced per group rather than
-> per member.* Website: https://kitabuyetu.co.ke
+> per member._ Website: https://kitabuyetu.co.ke
 >
 > I'm happy to set you up with a demo group so you can try it yourself.
 >
@@ -181,13 +181,13 @@ first:
 Indexing shows within 1–2 weeks; rankings for competitive terms take 4–8
 weeks. Check every Monday.
 
-| Week | What to check | Where | Target |
-|---|---|---|---|
-| 1 | Sitemap processed; all 10 main pages indexed | Search Console → Pages | 10/10 indexed |
-| 2 | Brand search "Kitabu Yetu" returns kitabuyetu.co.ke first, above GitHub | Google search, signed out | Position 1 |
-| 4 | Impressions for "chama app", "chama management", "chama software" | Search Console → Performance → Queries | Any impressions; they rise before clicks do |
-| 4 | Listings live | The directory table above | 5 listings |
-| 8 | Average position for chama queries | Search Console → Performance | Top 30, trending up |
+| Week | What to check                                                           | Where                                  | Target                                      |
+| ---- | ----------------------------------------------------------------------- | -------------------------------------- | ------------------------------------------- |
+| 1    | Sitemap processed; all 10 main pages indexed                            | Search Console → Pages                 | 10/10 indexed                               |
+| 2    | Brand search "Kitabu Yetu" returns kitabuyetu.co.ke first, above GitHub | Google search, signed out              | Position 1                                  |
+| 4    | Impressions for "chama app", "chama management", "chama software"       | Search Console → Performance → Queries | Any impressions; they rise before clicks do |
+| 4    | Listings live                                                           | The directory table above              | 5 listings                                  |
+| 8    | Average position for chama queries                                      | Search Console → Performance           | Top 30, trending up                         |
 
 Phase 3 (guides in `/resources` — see
 [phase-3-guide-plan.md](./phase-3-guide-plan.md)) is what moves the week-8

@@ -59,21 +59,21 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
     >
       <div className="not-prose grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">
-          <div className="prose prose-sm max-w-none text-brand-blue-900/75">
+          <div className="prose prose-sm max-w-none text-finanza-text">
             <p>{opportunity.description}</p>
           </div>
 
           {opportunity.terms_summary && (
             <div>
-              <h2 className="font-display text-xl font-normal text-brand-blue-900">Terms</h2>
-              <p className="mt-2 text-sm text-brand-blue-900/70">{opportunity.terms_summary}</p>
+              <h2 className="font-display text-xl font-semibold text-finanza-dark">Terms</h2>
+              <p className="mt-2 text-sm text-finanza-text">{opportunity.terms_summary}</p>
             </div>
           )}
 
           {partner && (
-            <div className="rounded-lg border border-brand-blue-900/10 p-6">
-              <h2 className="font-display text-xl font-normal text-brand-blue-900">About {partner.name}</h2>
-              {partner.description && <p className="mt-2 text-sm text-brand-blue-900/70">{partner.description}</p>}
+            <div className="rounded-lg border border-brand-100 p-6">
+              <h2 className="font-display text-xl font-semibold text-finanza-dark">About {partner.name}</h2>
+              {partner.description && <p className="mt-2 text-sm text-finanza-text">{partner.description}</p>}
               {partner.website_url && (
                 <a
                   href={partner.website_url}
@@ -89,10 +89,10 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
         </div>
 
         <div className="lg:col-span-1">
-          <div className="sticky top-4 space-y-4 rounded-lg border border-brand-blue-900/10 p-6">
+          <div className="sticky top-4 space-y-4 rounded-lg border border-brand-100 p-6">
             <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-brand-blue-900/50">Amount</p>
-              <p className="mt-1 text-lg font-semibold text-brand-blue-900">{amountDisplay}</p>
+              <p className="text-xs font-medium uppercase tracking-wide text-finanza-text">Amount</p>
+              <p className="mt-1 text-lg font-semibold text-finanza-dark">{amountDisplay}</p>
             </div>
 
             {opportunity.application_url ? (
@@ -106,9 +106,7 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
               </a>
             ) : (
               <div>
-                <p className="mb-3 text-sm text-brand-blue-900/60">
-                  Applying requires a group official to be logged in.
-                </p>
+                <p className="mb-3 text-sm text-finanza-text">Applying requires a group official to be logged in.</p>
                 <OpportunityApplicationForm opportunityId={opportunity.id} />
               </div>
             )}

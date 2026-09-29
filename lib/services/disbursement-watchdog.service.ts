@@ -32,10 +32,17 @@ import type { DisbursementWatchdogKind } from '@/lib/queue/qstash';
 // Table/in-flight-status pair per kind. Keyed by the closed
 // DisbursementWatchdogKind union (never user input) — safe to interpolate
 // the table name directly, there is no fourth value this can ever be.
-const SPINE_BY_KIND: Record<DisbursementWatchdogKind, { table: string; inProgressStatus: string }> = {
-  disbursement: { table: 'disbursement_requests', inProgressStatus: 'dispatched' },
-  settlement: { table: 'settlement_requests', inProgressStatus: 'processing' },
-  vendor_payment: { table: 'vendor_payments', inProgressStatus: 'processing' },
+const SPINE_BY_KIND: Record<
+  DisbursementWatchdogKind,
+  { table: string; inProgressStatus: string; amountColumn: string }
+> = {
+  disbursement: { table: 'disbursement_requests', inProgressStatus: 'dispatched', amountColumn: 'amount' },
+  settlement: { table: 'settlement_requests', inProgressStatus: 'processing', amountColumn: 'amount' },
+  vendor_payment: { table: 'vendor_payments', inProgressStatus: 'processing', amountColumn: 'amount' },
+  // campaign_withdrawals has no plain 'amount' column — gross_amount is the
+  // reservation-sized figure (what was actually held against 1001), unlike
+  // net_amount which is only what Daraja was asked to pay out.
+  campaign_withdrawal: { table: 'campaign_withdrawals', inProgressStatus: 'processing', amountColumn: 'gross_amount' },
 };
 
 export interface WatchdogTimeoutResult {
@@ -57,7 +64,7 @@ export async function resolveWatchdogTimeout(
   kind: DisbursementWatchdogKind,
   rowId: string,
 ): Promise<WatchdogTimeoutResult> {
-  const { table, inProgressStatus } = SPINE_BY_KIND[kind];
+  const { table, inProgressStatus, amountColumn } = SPINE_BY_KIND[kind];
 
   return withAdminDb(async (db) => {
     const { rows } = await db.query<{ id: string; group_id: string; amount: string }>(
@@ -65,7 +72,7 @@ export async function resolveWatchdogTimeout(
        SET    status = 'timed_out',
               failure_reason = 'Watchdog timeout: no Daraja result callback received within the wait window'
        WHERE  id = $1 AND status = $2
-       RETURNING id, group_id, amount`,
+       RETURNING id, group_id, ${amountColumn} AS amount`,
       [rowId, inProgressStatus],
     );
     const row = rows[0];
@@ -82,7 +89,9 @@ export async function resolveWatchdogTimeout(
             ? 'disbursement_request'
             : kind === 'settlement'
               ? 'settlement_request'
-              : 'vendor_payment',
+              : kind === 'vendor_payment'
+                ? 'vendor_payment'
+                : 'campaign_withdrawal',
           row.id,
           JSON.stringify({ status: inProgressStatus, amount: row.amount }),
           JSON.stringify({

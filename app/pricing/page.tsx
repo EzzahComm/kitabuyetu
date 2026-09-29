@@ -1,15 +1,14 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Check } from 'lucide-react';
+import { ArrowRight, Check, Gift, MessageSquareText, Network } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { SiteHeader } from '@/components/marketing/site-header';
-import { SiteFooter } from '@/components/marketing/site-footer';
-import { Container } from '@/components/marketing/primitives';
+import { PageShell } from '@/components/marketing/page-shell';
+import { FinanzaHeading, FinanzaSection, IconBadge, btnOutline, btnPrimary } from '@/components/marketing/finanza';
 import { ROUTES } from '@/components/marketing/routes';
-import { fraunces } from '@/components/marketing/fraunces-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
 import {
+  CHANGISHA_PRICING,
   PLAN_MONTHLY_FEES,
   PLAN_SMS_ALLOWANCE,
   PLAN_COPY,
@@ -19,136 +18,95 @@ import {
 } from '@/types/enums';
 
 /**
- * No local price/feature data — everything below is read from the same source
- * of truth the billing page and the M-Pesa callback use (`types/enums.ts`).
- * This used to be a static, hand-maintained array that advertised a free tier
- * and prices (2,500 / 8,000) that disagreed with what the server actually
- * charges — see docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1. A
- * server component importing the real constants directly, rather than a
- * client-side fetch, is what keeps this page correct with zero new public API
- * surface: it re-reads the same module the app itself prices against on every
- * render.
- *
- * Both products are priced here (audit §1.2 / Phase 2). Chama Reminder was
- * sellable server-side since migration 140 but had no public price anywhere.
- *
- * The 2026-08 redesign changed the presentation only. Every number, label and
- * feature bullet still comes from the constants; nothing was retyped.
+ * No local price/feature data — every number below is read from the same
+ * source of truth the billing page, the M-Pesa callback and the Changi$ha
+ * withdrawal service use (`types/enums.ts`). A hand-maintained copy once
+ * advertised a free tier and prices the server did not charge — see
+ * docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1.
  */
 
 export const metadata: Metadata = marketingMetadata({
   path: '/pricing',
   title: 'Chama App Pricing — One Price per Group',
   description:
-    'One monthly price for the whole group, not per member, paid by M-Pesa. See Kitabu Yetu plans for chamas, welfare groups and SMS reminders.',
+    'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising with no monthly fee.',
 });
 
-/** Where a "buy this" click goes. Kitabu Yetu is the default product, so it
- *  needs no query string; Chama Reminder must carry one or `register_group()`
- *  seeds it a chart of accounts it will never use. */
+/** Kitabu Yetu is the default product, so it needs no query string; Chama
+ *  Reminder must carry one or `register_group()` seeds it a chart of accounts
+ *  it will never use. */
 function registerHref(product: SubscriptionProduct): string {
   return product === 'kitabu_yetu' ? ROUTES.startGroup : `${ROUTES.startGroup}?product=${product}`;
 }
 
+const EXAMPLE_WITHDRAWAL = 10_000;
+const exampleFee = (EXAMPLE_WITHDRAWAL * CHANGISHA_PRICING.platformFeePct) / 100;
+
 function PlanGrid({ product }: { product: SubscriptionProduct }) {
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
       {PLAN_COPY[product].map((plan) => {
         const isSelfServe = SELF_SERVE_PLANS.includes(plan.type);
         const featured = plan.type === 'growth';
         const fee = PLAN_MONTHLY_FEES[product][plan.type];
+        // The SMS allowance is read from PLAN_SMS_ALLOWANCE, the same constant
+        // the subscription is created with — never retyped here.
+        const items = [
+          isSelfServe ? `${PLAN_SMS_ALLOWANCE[product][plan.type]} SMS a month` : 'SMS allowance by agreement',
+          ...plan.features,
+        ];
 
         return (
           <div
             key={plan.type}
             className={cn(
-              'relative flex flex-col rounded-2xl p-7',
-              featured
-                ? 'bg-brand-blue-900 text-white ring-1 ring-brand-blue-900'
-                : 'bg-white ring-1 ring-brand-blue-900/[0.09]',
+              'relative flex flex-col rounded-lg border p-7',
+              featured ? 'border-brand-500 bg-brand-500 text-white' : 'border-brand-100 bg-white',
             )}
           >
             {featured && (
-              <span className="absolute -top-3 left-7 rounded-full bg-brand-500 px-3 py-1 font-mono text-[10px] font-semibold uppercase tracking-[0.14em] text-white">
+              <span className="absolute -top-3 left-7 rounded-full bg-finanza-dark px-3 py-1 text-xs font-semibold uppercase tracking-wide text-white">
                 Most popular
               </span>
             )}
-
-            <h3
-              className={cn(
-                'font-mono text-[11px] font-medium uppercase tracking-[0.2em]',
-                featured ? 'text-brand-400' : 'text-brand-700',
-              )}
-            >
+            <h3 className={cn('font-display text-xl font-semibold', featured ? 'text-white' : 'text-finanza-dark')}>
               {plan.label}
             </h3>
-
-            <p className="mt-4">
+            <p className="mt-3">
               {isSelfServe ? (
                 <>
                   <span
                     className={cn(
-                      'font-display text-4xl font-normal tabular-nums',
-                      featured ? 'text-white' : 'text-brand-blue-900',
+                      'font-display text-4xl font-bold tabular-nums',
+                      featured ? 'text-white' : 'text-finanza-dark',
                     )}
                   >
                     KES {fee.toLocaleString()}
                   </span>
-                  <span className={cn('ml-2 text-sm', featured ? 'text-brand-blue-100/70' : 'text-brand-blue-900/60')}>
-                    /month
-                  </span>
+                  <span className={cn('ml-1.5 text-sm', featured ? 'text-white/80' : 'text-finanza-text')}>/month</span>
                 </>
               ) : (
-                <span className="font-display text-3xl font-normal text-brand-blue-900">By agreement</span>
+                <span className="font-display text-3xl font-bold text-finanza-dark">By agreement</span>
               )}
             </p>
-
-            <ul className="mt-7 flex-1 space-y-3">
-              {/* The SMS allowance is read from PLAN_SMS_ALLOWANCE, the same
-                  constant the subscription is created with — never retyped
-                  here. A hand-maintained copy of a plan's numbers is exactly
-                  what made this page advertise prices the server did not
-                  charge (PRODUCT_CONCORDANCE_AUDIT_2026-08 §1.1). */}
-              <li className="flex items-start gap-2.5">
-                <Check
-                  aria-hidden="true"
-                  className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
-                />
-                <span
-                  className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}
-                >
-                  {isSelfServe ? (
-                    <>
-                      <strong className="font-semibold">{PLAN_SMS_ALLOWANCE[product][plan.type]} SMS</strong> included
-                      every month
-                    </>
-                  ) : (
-                    'Negotiated SMS allowance'
-                  )}
-                </span>
-              </li>
-              {plan.features.map((feature) => (
-                <li key={feature} className="flex items-start gap-2.5">
+            <ul className="mt-6 flex-1 space-y-2.5">
+              {items.map((item) => (
+                <li key={item} className="flex items-start gap-2.5 text-[0.9375rem]">
                   <Check
                     aria-hidden="true"
-                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-brand-400' : 'text-brand-700')}
+                    className={cn('mt-0.5 h-4 w-4 shrink-0', featured ? 'text-white' : 'text-brand-500')}
                   />
-                  <span
-                    className={cn('text-[0.9375rem]', featured ? 'text-brand-blue-100/80' : 'text-brand-blue-900/70')}
-                  >
-                    {feature}
-                  </span>
+                  <span className={featured ? 'text-white/90' : 'text-finanza-text'}>{item}</span>
                 </li>
               ))}
             </ul>
-
             <Link
               href={isSelfServe ? registerHref(product) : ROUTES.contact}
               className={cn(
-                'mt-8 inline-flex items-center justify-center rounded-md px-5 py-3 text-[0.9375rem] font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+                'mt-7 inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-2.5 font-medium transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
                 featured
-                  ? 'bg-brand-500 text-white hover:bg-brand-400 focus-visible:ring-offset-brand-blue-900'
-                  : 'bg-brand-blue-900/[0.05] text-brand-blue-900 hover:bg-brand-blue-900/[0.09] focus-visible:ring-offset-paper',
+                  ? 'bg-white text-brand-500 hover:bg-brand-100 focus-visible:ring-white focus-visible:ring-offset-brand-500'
+                  : 'border border-brand-500 text-brand-500 hover:bg-brand-500 hover:text-white focus-visible:ring-brand-500',
               )}
             >
               {isSelfServe ? 'Start your group' : 'Talk to us'}
@@ -163,12 +121,9 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
 const FAQS: [string, string][] = [
   [
     'Is M-Pesa included?',
-    'Yes. Every Kitabu Yetu plan includes the full Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+    'Yes. Every Kitabu Yetu plan includes the Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
   ],
-  [
-    'Can I bring my existing records?',
-    'Yes. Every plan supports bulk CSV import for members and historical contributions.',
-  ],
+  ['Can I bring my existing records?', 'Yes. Every plan supports bulk CSV import for members and past contributions.'],
   [
     'How is our data kept private?',
     "Data is stored on encrypted servers, and each group's records are isolated at the database level. One group can never read another's.",
@@ -179,159 +134,160 @@ const FAQS: [string, string][] = [
   ],
   [
     'What if we use up our SMS?',
-    'Nothing stops. Each plan includes a set number of messages per billing cycle, and the allowance resets at the start of each new cycle. Once it is used up you buy top-up credits from your billing page; purchased credits are used after the included allowance.',
+    'Nothing stops. The allowance renews each billing cycle; in between, buy top-up credits from your billing page.',
   ],
   [
     'Which product should we start with?',
-    'If you only need to reach members — contribution reminders, meeting notices, birthdays — Chama Reminder is enough. Choose Kitabu Yetu when you also need to record and reconcile the money.',
+    'Chama Reminder if you only need to reach members. Kitabu Yetu when you also need to record and reconcile the money.',
   ],
   [
     'Can we move from Chama Reminder to Kitabu Yetu?',
-    'Yes. Buy a Kitabu Yetu plan from your subscription page and your chart of accounts is set up then. Your group, members and message history carry over unchanged.',
+    'Yes. Buy a Kitabu Yetu plan from your subscription page. Your group, members and message history carry over unchanged.',
   ],
   [
-    'Is there a free plan?',
-    'No. Every plan is paid, starting at the Starter price above, and is bought self-service by M-Pesa.',
+    'What does Changi$ha cost?',
+    `No monthly fee. When the group withdraws raised funds, a standard ${CHANGISHA_PRICING.platformFeePct}% platform fee and Safaricom's M-Pesa transfer charge are deducted. Donors pay nothing extra.`,
   ],
+  ['Is there a free plan?', 'No. Every plan is paid, and bought self-service by M-Pesa.'],
 ];
 
 export default function PricingPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-paper`}>
-      <SiteHeader />
+    <PageShell
+      title="Pricing"
+      description="One price a month for the whole group — not per member. Paid by M-Pesa, no lock-in. Every price here is the price the system charges."
+      layout="sections"
+    >
+      <FinanzaSection labelledBy="kitabu-yetu-heading" className="pt-4 lg:pt-8">
+        <FinanzaHeading
+          id="kitabu-yetu-heading"
+          pill="Bookkeeper"
+          title={PRODUCT_LABEL.kitabu_yetu}
+          lede="The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation, member records and reports — SMS included."
+          className="mb-10 max-w-3xl"
+        />
+        <PlanGrid product="kitabu_yetu" />
+        <p className="mt-6 text-sm text-finanza-text">
+          Every plan includes a monthly SMS allowance. Used it up? Top up any time — sending never stops.
+        </p>
+      </FinanzaSection>
 
-      <main id="main" className="flex-1">
-        <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
-          <Container>
-            <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Pricing</p>
-              <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                One price a month, for <em className="italic font-normal text-brand-600">the whole group</em>.
-              </h1>
-              <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
-                Two products, one bill. Take the full book with{' '}
-                <span className="font-medium text-brand-blue-900">{PRODUCT_LABEL.kitabu_yetu}</span>, or SMS reminders
-                on their own with{' '}
-                <Link href="#chama-reminder" className="font-medium text-brand-700 hover:underline">
-                  {PRODUCT_LABEL.chama_reminder}
-                </Link>
-                . Every price below is the price the system actually charges.
-              </p>
+      <FinanzaSection id="chama-reminder" labelledBy="chama-reminder-heading" className="bg-brand-50/60">
+        <FinanzaHeading
+          id="chama-reminder-heading"
+          pill="SMS only"
+          title={PRODUCT_LABEL.chama_reminder}
+          lede={`Reminders, announcements and birthday greetings by SMS — no ledger to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} whenever you're ready; your members come with you.`}
+          className="mb-10 max-w-3xl"
+        />
+        <PlanGrid product="chama_reminder" />
+      </FinanzaSection>
+
+      <FinanzaSection labelledBy="more-heading">
+        <h2 id="more-heading" className="sr-only">
+          Changi$ha and Enterprise
+        </h2>
+        <div className="grid gap-6 lg:grid-cols-2">
+          {/* Changi$ha — priced per withdrawal, from CHANGISHA_PRICING (the withdrawal service's defaults). */}
+          <section
+            id="changisha"
+            aria-labelledby="changisha-heading"
+            className="flex scroll-mt-28 flex-col rounded-lg border border-brand-100 p-8"
+          >
+            <div className="mb-5 flex items-center gap-4">
+              <IconBadge icon={Gift} />
+              <h3 id="changisha-heading" className="font-display text-2xl font-semibold text-finanza-dark">
+                Changi$ha fundraising
+              </h3>
             </div>
-          </Container>
-        </div>
-
-        <Container className="py-14 md:py-20">
-          {/* Stated once, prominently, rather than buried per-plan: the
-              allowance is a monthly grant, not a cap, and running out means
-              buying more rather than being cut off. */}
-          <p className="mb-14 rounded-2xl border border-brand-blue-900/10 bg-white px-6 py-5 text-[0.9375rem] leading-relaxed text-brand-blue-900/70">
-            Every plan includes a monthly SMS allowance, renewed at the start of each billing cycle.{' '}
-            <strong className="font-semibold text-brand-blue-900">
-              Once your included messages are used up you can buy more at any time
-            </strong>{' '}
-            — sending never stops, you simply top up.
-          </p>
-
-          <section aria-labelledby="kitabu-yetu-heading">
-            <div className="mb-8 max-w-3xl">
-              <h2 id="kitabu-yetu-heading" className="font-display text-2xl font-normal text-brand-blue-900">
-                {PRODUCT_LABEL.kitabu_yetu}
-              </h2>
-              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation,
-                member records and reporting — with SMS included.
-              </p>
-            </div>
-            <PlanGrid product="kitabu_yetu" />
-          </section>
-
-          {/* Chama Reminder — the lighter, SMS-only product. */}
-          <section id="chama-reminder" aria-labelledby="chama-reminder-heading" className="mt-24 scroll-mt-28">
-            <div className="mb-8 max-w-3xl">
-              <h2 id="chama-reminder-heading" className="font-display text-2xl font-normal text-brand-blue-900">
-                {PRODUCT_LABEL.chama_reminder}
-              </h2>
-              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                Just the messaging. Keep your member list, send contribution reminders, birthday greetings and group
-                announcements by SMS — no ledger, no accounting to set up. Start here and move to{' '}
-                {PRODUCT_LABEL.kitabu_yetu} whenever your group is ready; your members come with you.
-              </p>
-            </div>
-            <PlanGrid product="chama_reminder" />
-          </section>
-
-          {/* Enterprise — not a self-serve subscription product (it's a plan
-              tier, priced by agreement), so no PlanGrid; static content only. */}
-          <section id="enterprise" aria-labelledby="enterprise-heading" className="mt-24 scroll-mt-28">
-            <div className="max-w-3xl">
-              <h2 id="enterprise-heading" className="font-display text-2xl font-normal text-brand-blue-900">
-                Enterprise
-              </h2>
-              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                For organizations managing many groups at once — portfolio dashboards, multi-group reporting and
-                programme management. Priced by agreement, based on the number of groups and members under your
-                organization.
-              </p>
-            </div>
-            <div className="mt-8 flex flex-col items-start gap-5 rounded-2xl bg-brand-blue-900 p-7 text-white sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <span className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-brand-400">
-                  Enterprise
-                </span>
-                <p className="mt-2 font-display text-2xl font-normal">By agreement</p>
-              </div>
-              <Link
-                href={ROUTES.contact}
-                className="inline-flex shrink-0 items-center justify-center rounded-md bg-brand-500 px-5 py-3 text-[0.9375rem] font-semibold text-white transition-colors hover:bg-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-brand-blue-900"
-              >
-                Talk to us
+            <p className="font-display text-4xl font-bold text-finanza-dark">
+              {CHANGISHA_PRICING.platformFeePct}%
+              <span className="ml-2 text-base font-normal text-finanza-text">of each withdrawal</span>
+            </p>
+            <p className="mt-2 text-finanza-text">No monthly fee. You pay only when you take money out.</p>
+            <ul className="mt-6 flex-1 space-y-2.5 text-[0.9375rem] text-finanza-text">
+              {[
+                'Donors give by M-Pesa and pay nothing extra',
+                "Safaricom's M-Pesa transfer charge is passed on at cost",
+                `Minimum withdrawal KES ${CHANGISHA_PRICING.minWithdrawal.toLocaleString()}, paid out by M-Pesa`,
+                'Every campaign is reviewed by Kitabu Yetu before it goes live',
+              ].map((item) => (
+                <li key={item} className="flex items-start gap-2.5">
+                  <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
+                  {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-6 rounded-lg bg-brand-50 px-4 py-3 text-sm text-finanza-text">
+              Example: withdraw KES {EXAMPLE_WITHDRAWAL.toLocaleString()} and the platform fee is KES{' '}
+              {exampleFee.toLocaleString()}, plus the M-Pesa charge.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link href={ROUTES.fundraise} className={btnPrimary}>
+                See live campaigns
+              </Link>
+              <Link href={ROUTES.contact} className={btnOutline}>
+                Start a campaign
               </Link>
             </div>
           </section>
 
-          {/* Changi$ha — no self-serve campaigns exist yet (see /fundraise),
-              so this is an honest "coming soon" note, not a priced plan. */}
-          <section id="changisha" aria-labelledby="changisha-heading" className="mt-24 scroll-mt-28">
-            <div className="max-w-3xl">
-              <h2 id="changisha-heading" className="font-display text-2xl font-normal text-brand-blue-900">
-                Changi$ha
-              </h2>
-              <p className="mt-3 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                Fundraising for community projects and causes, built on the same platform identity as the rest of Kitabu
-                Yetu.
-              </p>
+          <section
+            id="enterprise"
+            aria-labelledby="enterprise-heading"
+            className="flex scroll-mt-28 flex-col rounded-lg bg-finanza-dark p-8 text-white"
+          >
+            <div className="mb-5 flex items-center gap-4">
+              <IconBadge icon={Network} />
+              <h3 id="enterprise-heading" className="font-display text-2xl font-semibold text-white">
+                Enterprise
+              </h3>
             </div>
-            <div className="mt-8 rounded-2xl border border-dashed border-brand-blue-900/15 bg-white px-6 py-6">
-              <p className="text-[0.9375rem] leading-relaxed text-brand-blue-900/65">
-                <span className="font-semibold text-brand-blue-900">Coming soon.</span> Changi$ha is not yet open for
-                self-serve campaigns — there is nothing to buy here today.{' '}
-                <Link href={ROUTES.fundraise} className="font-medium text-brand-700 hover:underline">
-                  See what&apos;s planned
-                </Link>
-                .
-              </p>
+            <p className="font-display text-4xl font-bold">By agreement</p>
+            <p className="mt-2 flex-1 text-brand-100/85">
+              For organizations managing many groups — portfolio dashboards, multi-group reporting and programme
+              management. Priced on the number of groups and members you oversee.
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link
+                href={ROUTES.contact}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-8 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100"
+              >
+                Talk to us
+              </Link>
+              <Link
+                href={ROUTES.enterprise}
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white/60 px-8 py-3 font-medium text-white transition-colors hover:bg-white/10"
+              >
+                Explore Enterprise <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
             </div>
           </section>
+        </div>
+      </FinanzaSection>
 
-          <section aria-labelledby="faq-heading" className="mt-24">
-            <h2 id="faq-heading" className="font-display text-2xl font-normal text-brand-blue-900">
-              Questions we get asked
-            </h2>
-            <dl className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
-              {FAQS.map(([question, answer]) => (
-                <div key={question} className="border-t border-brand-blue-900/10 pt-6">
-                  <dt className="text-base font-semibold text-brand-blue-900">{question}</dt>
-                  <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{answer}</dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-        </Container>
-      </main>
-
-      <SiteFooter />
+      <FinanzaSection labelledBy="faq-heading" className="bg-brand-50/60">
+        <div className="grid gap-12 lg:grid-cols-[0.8fr_1.2fr]">
+          <FinanzaHeading
+            id="faq-heading"
+            pill="FAQ"
+            title="Pricing questions"
+            lede="Anything else? We answer on WhatsApp and email."
+          />
+          <dl className="grid gap-4">
+            {FAQS.map(([question, answer]) => (
+              <div key={question} className="rounded-lg border border-brand-100 bg-white px-6 py-5">
+                <dt className="flex items-start gap-3 font-display text-lg font-semibold text-finanza-dark">
+                  <MessageSquareText aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-brand-500" />
+                  {question}
+                </dt>
+                <dd className="mt-2 pl-8 leading-relaxed text-finanza-text">{answer}</dd>
+              </div>
+            ))}
+          </dl>
+        </div>
+      </FinanzaSection>
       <JsonLd data={faqPageJsonLd(FAQS)} />
-    </div>
+    </PageShell>
   );
 }

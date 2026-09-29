@@ -27,7 +27,7 @@
 import bcrypt from 'bcryptjs';
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
-import { normalizePhone } from '@/lib/utils/phone';
+import { normalizePhone, maskPhoneDisplay } from '@/lib/utils/phone';
 import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
 import { BCRYPT_ROUNDS, generateTempPassword } from './members.service';
 import { updatePlatformUserRole } from './admin.service';
@@ -437,7 +437,14 @@ export async function getOrgInvitation(token: string): Promise<OrgInvitationRow>
   });
 }
 
-/** Public. Marks the email link as used and sends the SMS OTP — the second, distinct channel. */
+/**
+ * Public. Marks the email link as used and sends the SMS OTP — the second,
+ * distinct channel. Returns a masked phone (0712 ••• 678) for the UI's "we
+ * sent a code to..." display, not the full number: reaching this function
+ * only proves control of the invitation email link, which is a weaker bar
+ * than the OTP step itself proves for the phone, so the full number shouldn't
+ * ride along with something forwardable/loggable before that.
+ */
 export async function confirmOrgInvitationEmail(token: string): Promise<{ phone: string }> {
   const tokenHash = hashSecret(token);
   const otp = generateOtp();
@@ -484,7 +491,7 @@ export async function confirmOrgInvitationEmail(token: string): Promise<{ phone:
     body: `Your Kitabu Yetu staff invite code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
   });
 
-  return { phone };
+  return { phone: maskPhoneDisplay(phone) };
 }
 
 /** Public. */

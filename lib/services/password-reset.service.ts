@@ -15,7 +15,7 @@ import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import { ValidationError } from '@/lib/utils/errors';
-import { hashSecret, generateOtp } from './group-verification.service';
+import { hashSecret, generateOtp, enforceMinDuration } from './group-verification.service';
 import { sendServiceSms } from './notifications.service';
 import { BCRYPT_ROUNDS } from './members.service';
 
@@ -23,8 +23,17 @@ const OTP_TTL_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
 const GENERIC_ERROR = 'Invalid or expired code';
 
-/** Always resolves without error, whether or not the phone is registered — never reveals account existence. */
+// A real attempt sends an SMS (awaited, so its gateway round-trip is part of
+// the response time); a no-such-phone attempt returns after one SELECT. This
+// floor keeps both branches indistinguishable by timing, not just by payload.
+const RESET_START_MIN_MS = 1500;
+
+/** Always resolves without error, whether or not the phone is registered — never reveals account existence, by timing or otherwise. */
 export async function startPasswordReset(phone: string): Promise<void> {
+  await enforceMinDuration(RESET_START_MIN_MS, () => doStartPasswordReset(phone));
+}
+
+async function doStartPasswordReset(phone: string): Promise<void> {
   const normalized = normalizePhone(phone);
   const otp = generateOtp();
   const otpHash = hashSecret(otp);

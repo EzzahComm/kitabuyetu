@@ -17,12 +17,11 @@ import { Benefits } from '@/components/Benefits';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS, PRODUCT_LABEL } from '@/types/enums';
-
-import benefitImg from '../../public/img/chama-reminder.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
@@ -41,18 +40,18 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function ChamaReminderPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
-        <Container className="mb-20 pt-28 md:pt-36">
+        <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">
+            <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
               Chama Reminder
             </p>
-            <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl lg:text-6xl">
-              Keep the group moving <em className="font-normal italic text-brand-600">between meetings</em>.
+            <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
+              Keep the group moving <em className="not-italic text-brand-500">between meetings</em>.
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-brand-blue-900/65">
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
               Contribution reminders, meeting notices, payment confirmations and announcements from one member list,
               with no accounting setup needed.
             </p>
@@ -65,7 +64,7 @@ export default function ChamaReminderPage() {
               </Link>
               <Link
                 href="/bookkeeper"
-                className="inline-flex items-center gap-2 rounded-md border border-brand-blue-900/15 px-7 py-3 text-base font-medium text-brand-blue-900 transition-colors hover:bg-brand-blue-900/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Explore Bookkeeper
               </Link>
@@ -80,12 +79,12 @@ export default function ChamaReminderPage() {
         <Container className="mb-20">
           <div className="grid gap-6 md:grid-cols-2">
             {coreFeatures.map((feature) => (
-              <div key={feature.title} className="rounded-lg border border-brand-blue-900/10 bg-paper-deep p-6">
+              <div key={feature.title} className="rounded-lg border border-brand-100 bg-brand-50/60 p-6">
                 <div className="flex items-start gap-4">
                   <div className="mt-0.5 shrink-0 text-brand-600">{feature.icon}</div>
                   <div>
-                    <h3 className="mb-2 text-xl font-semibold text-brand-blue-900">{feature.title}</h3>
-                    <p className="leading-relaxed text-brand-blue-900/65">{feature.description}</p>
+                    <h3 className="mb-2 text-xl font-semibold text-finanza-dark">{feature.title}</h3>
+                    <p className="leading-relaxed text-finanza-text">{feature.description}</p>
                   </div>
                 </div>
               </div>
@@ -96,19 +95,19 @@ export default function ChamaReminderPage() {
         <Benefits data={keepMembersInformed} />
 
         <Container className="mb-20">
-          <div className="rounded-2xl bg-brand-50/40 p-8 md:p-12">
+          <div className="rounded-lg bg-brand-50/40 p-8 md:p-12">
             <div className="mx-auto max-w-2xl text-center">
-              <h2 className="mb-4 font-display text-3xl font-light tracking-tight text-brand-blue-900">
+              <h2 className="mb-4 font-display text-3xl font-bold text-finanza-dark">
                 Start with messaging, grow to full accounting
               </h2>
-              <p className="mb-8 text-lg leading-relaxed text-brand-blue-900/65">
+              <p className="mb-8 text-lg leading-relaxed text-finanza-text">
                 Chama Reminder is perfect for groups that only need to reach members. Upgrade to Bookkeeper whenever
                 your group is ready — everything comes with you.
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-2">
                 <div className="text-left">
                   <h3 className="mb-3 font-semibold text-brand-700">Start here (Chama Reminder)</h3>
-                  <ul className="space-y-2 text-sm text-brand-blue-900/65">
+                  <ul className="space-y-2 text-sm text-finanza-text">
                     <li>✓ Member list &amp; contacts</li>
                     <li>✓ SMS campaigns &amp; reminders</li>
                     <li>✓ No accounting</li>
@@ -117,7 +116,7 @@ export default function ChamaReminderPage() {
                 </div>
                 <div className="text-left">
                   <h3 className="mb-3 font-semibold text-brand-700">Grow here (Kitabu Yetu)</h3>
-                  <ul className="space-y-2 text-sm text-brand-blue-900/65">
+                  <ul className="space-y-2 text-sm text-finanza-text">
                     <li>✓ Add Bookkeeper accounting</li>
                     <li>✓ Members &amp; history carry over</li>
                     <li>✓ All messaging features stay</li>
@@ -141,24 +140,24 @@ export default function ChamaReminderPage() {
                 className={
                   plan.featured
                     ? 'flex flex-col rounded-lg border-2 border-brand-600 bg-brand-50/60 p-6'
-                    : 'flex flex-col rounded-lg border border-brand-blue-900/12 p-6'
+                    : 'flex flex-col rounded-lg border border-brand-100 p-6'
                 }
               >
                 <div>
-                  <h3 className="text-xl font-semibold text-brand-blue-900">{plan.label}</h3>
+                  <h3 className="text-xl font-semibold text-finanza-dark">{plan.label}</h3>
                   {plan.featured && <p className="mt-1 text-sm font-semibold text-brand-700">Most popular</p>}
                 </div>
 
                 <div className="my-4">
-                  <p className="font-display text-3xl font-normal text-brand-blue-900">{plan.price}</p>
-                  {plan.period && <p className="mt-1 text-sm text-brand-blue-900/55">{plan.period}</p>}
+                  <p className="font-display text-3xl font-semibold text-finanza-dark">{plan.price}</p>
+                  {plan.period && <p className="mt-1 text-sm text-finanza-text">{plan.period}</p>}
                 </div>
 
-                <p className="mb-6 text-sm text-brand-blue-900/65">{plan.sms}</p>
+                <p className="mb-6 text-sm text-finanza-text">{plan.sms}</p>
 
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-brand-blue-900/70">
+                    <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
                       <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
@@ -170,7 +169,7 @@ export default function ChamaReminderPage() {
                   className={
                     plan.featured
                       ? 'w-full rounded-md bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700'
-                      : 'w-full rounded-md border border-brand-blue-900/15 px-4 py-2.5 text-center text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-brand-blue-900/[0.04]'
+                      : 'w-full rounded-md border border-brand-100 px-4 py-2.5 text-center text-sm font-semibold text-finanza-dark transition-colors hover:bg-brand-50'
                   }
                 >
                   {plan.cta}
@@ -178,7 +177,7 @@ export default function ChamaReminderPage() {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-center text-sm text-brand-blue-900/55">
+          <p className="mt-6 text-center text-sm text-finanza-text">
             Every plan is paid and bought self-service by M-Pesa. See{' '}
             <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
               full pricing
@@ -188,18 +187,18 @@ export default function ChamaReminderPage() {
         </Container>
 
         <Container className="mb-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-light tracking-tight text-brand-blue-900">
+          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">
             Perfect for groups that need to reach members
           </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {useCases.map((useCase) => (
               <div
                 key={useCase.name}
-                className="rounded-lg border border-brand-blue-900/10 p-6 transition-shadow hover:shadow-md"
+                className="rounded-lg border border-brand-100 p-6 transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 text-brand-600">{useCase.icon}</div>
-                <h3 className="mb-2 text-lg font-semibold text-brand-blue-900">{useCase.name}</h3>
-                <p className="leading-relaxed text-brand-blue-900/65">{useCase.description}</p>
+                <h3 className="mb-2 text-lg font-semibold text-finanza-dark">{useCase.name}</h3>
+                <p className="leading-relaxed text-finanza-text">{useCase.description}</p>
               </div>
             ))}
           </div>
@@ -260,8 +259,8 @@ const coreFeatures = [
 const keepMembersInformed = {
   title: 'Keep members in the loop',
   desc: 'Reminders that go out on time, messages that reach everyone, and a member list you control.',
-  image: benefitImg,
-  imageAlt: 'One person points at a laptop screen while another uses the trackpad',
+  image: PHOTOS.memberPhone.src,
+  imageAlt: PHOTOS.memberPhone.alt,
   bullets: [
     {
       title: 'A member list that is yours',

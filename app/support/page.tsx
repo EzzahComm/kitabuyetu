@@ -5,7 +5,7 @@ import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
 import { Container } from '@/components/marketing/primitives';
 import { CONTACT, ROUTES, telHref } from '@/components/marketing/routes';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
 
@@ -94,18 +94,20 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
 
 export default function SupportPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-paper`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
 
       <main id="main" className="flex-1">
-        <div className="border-b border-brand-blue-900/10 bg-paper pb-14 pt-28 md:pb-16 md:pt-36">
+        <div className="border-b border-brand-100 bg-white pb-10 pt-24 lg:pb-12 lg:pt-36">
           <Container>
             <div className="max-w-3xl">
-              <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Support</p>
-              <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl">
-                Need a hand with <em className="italic font-normal text-brand-600">your group</em>?
+              <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
+                Support
+              </p>
+              <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl">
+                Need a hand with <em className="not-italic text-brand-500">your group</em>?
               </h1>
-              <p className="mt-6 text-lg leading-relaxed text-brand-blue-900/65">
+              <p className="mt-6 text-lg leading-relaxed text-finanza-text">
                 If you&apos;re a member of a group, your chairperson, secretary or treasurer can often help directly.
                 Otherwise, reach us — real people, not a ticket queue.
               </p>
@@ -117,48 +119,48 @@ export default function SupportPage() {
           <div className="grid gap-5 sm:grid-cols-2">
             <a
               href={`mailto:${CONTACT.email}`}
-              className="group flex items-center gap-4 rounded-2xl border border-brand-blue-900/10 bg-white p-6 transition-colors hover:border-brand-500/40"
+              className="group flex items-center gap-4 rounded-lg border border-brand-100 bg-white p-6 transition-colors hover:border-brand-500/40"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                 <Mail aria-hidden="true" className="h-5 w-5" />
               </span>
               <span>
-                <span className="block text-sm font-semibold text-brand-blue-900">Email us</span>
-                <span className="block text-[0.9375rem] text-brand-blue-900/60">{CONTACT.email}</span>
+                <span className="block text-sm font-semibold text-finanza-dark">Email us</span>
+                <span className="block text-[0.9375rem] text-finanza-text">{CONTACT.email}</span>
               </span>
             </a>
             <a
               href={telHref(CONTACT.phones[0])}
-              className="group flex items-center gap-4 rounded-2xl border border-brand-blue-900/10 bg-white p-6 transition-colors hover:border-brand-500/40"
+              className="group flex items-center gap-4 rounded-lg border border-brand-100 bg-white p-6 transition-colors hover:border-brand-500/40"
             >
               <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-brand-50 text-brand-700">
                 <Phone aria-hidden="true" className="h-5 w-5" />
               </span>
               <span>
-                <span className="block text-sm font-semibold text-brand-blue-900">Call us</span>
-                <span className="block text-[0.9375rem] text-brand-blue-900/60">{CONTACT.phones[0]}</span>
+                <span className="block text-sm font-semibold text-finanza-dark">Call us</span>
+                <span className="block text-[0.9375rem] text-finanza-text">{CONTACT.phones[0]}</span>
               </span>
             </a>
           </div>
 
           {FAQ_CATEGORIES.map((category) => (
             <section key={category.heading} className="mt-16 first:mt-20">
-              <h2 className="font-display text-2xl font-normal text-brand-blue-900">{category.heading}</h2>
+              <h2 className="font-display text-2xl font-semibold text-finanza-dark">{category.heading}</h2>
               <dl className="mt-8 grid gap-x-12 gap-y-8 md:grid-cols-2">
                 {category.items.map(([question, answer]) => (
-                  <div key={question} className="border-t border-brand-blue-900/10 pt-6">
-                    <dt className="text-base font-semibold text-brand-blue-900">{question}</dt>
-                    <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-brand-blue-900/65">{answer}</dd>
+                  <div key={question} className="border-t border-brand-100 pt-6">
+                    <dt className="text-base font-semibold text-finanza-dark">{question}</dt>
+                    <dd className="mt-2.5 text-[0.9375rem] leading-relaxed text-finanza-text">{answer}</dd>
                   </div>
                 ))}
               </dl>
             </section>
           ))}
 
-          <div className="mt-20 rounded-2xl bg-brand-blue-900 px-7 py-8 text-white sm:flex sm:items-center sm:justify-between">
+          <div className="mt-20 rounded-lg bg-finanza-dark px-7 py-8 text-white sm:flex sm:items-center sm:justify-between">
             <div>
-              <p className="font-display text-xl font-normal">Still stuck?</p>
-              <p className="mt-2 text-[0.9375rem] text-brand-blue-100/70">
+              <p className="font-display text-xl font-semibold">Still stuck?</p>
+              <p className="mt-2 text-[0.9375rem] text-brand-100/85">
                 Email or call us directly — see above — or browse{' '}
                 <Link href={ROUTES.resources} className="font-medium text-brand-400 hover:underline">
                   guides in Resources

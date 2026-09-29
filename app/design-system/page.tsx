@@ -23,7 +23,7 @@ import { PageSection, FormActions } from '@/components/shared/page-section';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { PortalSidebar } from '@/components/shared/portal-sidebar';
 import { brandGreen, brandNavy, chartPalette } from '@/lib/ui/tokens';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 
 const trendData = [
   { month: 'Jan', savings: 120000, loans: 40000 },
@@ -64,7 +64,7 @@ export default function DesignSystemPage() {
   const [moneyOpen, setMoneyOpen] = React.useState(false);
 
   return (
-    <div className={`${fraunces.variable} mx-auto max-w-5xl space-y-12 p-6 lg:p-10`}>
+    <div className={`${displayFont.variable} mx-auto max-w-5xl space-y-12 p-6 lg:p-10`}>
       <PageHeader
         title="Kitabu Yetu — Design System"
         description="Living reference for tokens and shared components. Build every portal screen from these primitives."
@@ -100,7 +100,7 @@ export default function DesignSystemPage() {
       <Section id="type" title="Typography">
         <Card>
           <CardContent className="space-y-3 p-6">
-            <p className="font-display text-4xl font-semibold">Display / Fraunces</p>
+            <p className="font-display text-4xl font-semibold">Display / Jost</p>
             <p className="text-3xl font-bold tracking-tight">Heading 1 — Inter Bold</p>
             <p className="text-xl font-semibold">Heading 2 — Inter Semibold</p>
             <p className="text-base">Body — Inter Regular. Build vibrant communities.</p>

@@ -23,12 +23,11 @@ import { Benefits } from '@/components/Benefits';
 import { Cta } from '@/components/Cta';
 import { SiteHeader } from '@/components/marketing/site-header';
 import { SiteFooter } from '@/components/marketing/site-footer';
-import { fraunces } from '@/components/marketing/fraunces-font';
+import { displayFont } from '@/components/marketing/display-font';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { signUpUrl } from '@/lib/app-links';
 import { PLAN_MONTHLY_FEES, PLAN_SMS_ALLOWANCE, PLAN_COPY, SELF_SERVE_PLANS } from '@/types/enums';
-
-import benefitImg from '../../public/img/bookkeeper.jpg';
+import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/bookkeeper',
@@ -57,16 +56,18 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function BookkeeperPage() {
   return (
-    <div className={`${fraunces.variable} flex min-h-screen flex-col bg-white`}>
+    <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1">
-        <Container className="mb-20 pt-28 md:pt-36">
+        <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-brand-700">Bookkeeper</p>
-            <h1 className="mt-5 font-display text-[2.25rem] font-light leading-[1.05] tracking-tight text-brand-blue-900 sm:text-5xl lg:text-6xl">
-              The group book that keeps every shilling <em className="font-normal italic text-brand-600">visible</em>.
+            <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
+              Bookkeeper
+            </p>
+            <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
+              The group book that keeps every shilling <em className="not-italic text-brand-500">visible</em>.
             </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-brand-blue-900/65">
+            <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
               Move from notebooks and spreadsheets to a double-entry record for members, contributions, savings, loans,
               welfare, shares and M-Pesa.
             </p>
@@ -79,7 +80,7 @@ export default function BookkeeperPage() {
               </Link>
               <Link
                 href="/how-it-works"
-                className="inline-flex items-center gap-2 rounded-md border border-brand-blue-900/15 px-7 py-3 text-base font-medium text-brand-blue-900 transition-colors hover:bg-brand-blue-900/[0.04] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 See how it works
               </Link>
@@ -94,12 +95,12 @@ export default function BookkeeperPage() {
         <Container className="mb-20">
           <div className="grid gap-6 md:grid-cols-2">
             {coreFeatures.map((feature) => (
-              <div key={feature.title} className="rounded-lg border border-brand-blue-900/10 bg-paper-deep p-6">
+              <div key={feature.title} className="rounded-lg border border-brand-100 bg-brand-50/60 p-6">
                 <div className="flex items-start gap-4">
                   <div className="mt-0.5 shrink-0 text-brand-600">{feature.icon}</div>
                   <div>
-                    <h3 className="mb-2 text-xl font-semibold text-brand-blue-900">{feature.title}</h3>
-                    <p className="leading-relaxed text-brand-blue-900/65">{feature.description}</p>
+                    <h3 className="mb-2 text-xl font-semibold text-finanza-dark">{feature.title}</h3>
+                    <p className="leading-relaxed text-finanza-text">{feature.description}</p>
                   </div>
                 </div>
               </div>
@@ -121,24 +122,24 @@ export default function BookkeeperPage() {
                 className={
                   plan.featured
                     ? 'flex flex-col rounded-lg border-2 border-brand-600 bg-brand-50/60 p-6'
-                    : 'flex flex-col rounded-lg border border-brand-blue-900/12 p-6'
+                    : 'flex flex-col rounded-lg border border-brand-100 p-6'
                 }
               >
                 <div>
-                  <h3 className="text-xl font-semibold text-brand-blue-900">{plan.label}</h3>
+                  <h3 className="text-xl font-semibold text-finanza-dark">{plan.label}</h3>
                   {plan.featured && <p className="mt-1 text-sm font-semibold text-brand-700">Most popular</p>}
                 </div>
 
                 <div className="my-4">
-                  <p className="font-display text-3xl font-normal text-brand-blue-900">{plan.price}</p>
-                  {plan.period && <p className="mt-1 text-sm text-brand-blue-900/55">{plan.period}</p>}
+                  <p className="font-display text-3xl font-semibold text-finanza-dark">{plan.price}</p>
+                  {plan.period && <p className="mt-1 text-sm text-finanza-text">{plan.period}</p>}
                 </div>
 
-                <p className="mb-6 text-sm text-brand-blue-900/65">{plan.sms}</p>
+                <p className="mb-6 text-sm text-finanza-text">{plan.sms}</p>
 
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-2 text-sm text-brand-blue-900/70">
+                    <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
                       <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
@@ -150,7 +151,7 @@ export default function BookkeeperPage() {
                   className={
                     plan.featured
                       ? 'w-full rounded-md bg-brand-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition-colors hover:bg-brand-700'
-                      : 'w-full rounded-md border border-brand-blue-900/15 px-4 py-2.5 text-center text-sm font-semibold text-brand-blue-900 transition-colors hover:bg-brand-blue-900/[0.04]'
+                      : 'w-full rounded-md border border-brand-100 px-4 py-2.5 text-center text-sm font-semibold text-finanza-dark transition-colors hover:bg-brand-50'
                   }
                 >
                   {plan.cta}
@@ -158,7 +159,7 @@ export default function BookkeeperPage() {
               </div>
             ))}
           </div>
-          <p className="mt-6 text-center text-sm text-brand-blue-900/55">
+          <p className="mt-6 text-center text-sm text-finanza-text">
             Every plan is paid and bought self-service by M-Pesa. See{' '}
             <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
               full pricing
@@ -168,28 +169,26 @@ export default function BookkeeperPage() {
         </Container>
 
         <Container className="mb-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-light tracking-tight text-brand-blue-900">
-            Who uses Bookkeeper?
-          </h2>
+          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">Who uses Bookkeeper?</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {useCases.map((useCase) => (
               <div
                 key={useCase.name}
-                className="rounded-lg border border-brand-blue-900/10 p-6 transition-shadow hover:shadow-md"
+                className="rounded-lg border border-brand-100 p-6 transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 text-brand-600">{useCase.icon}</div>
-                <h3 className="mb-2 text-lg font-semibold text-brand-blue-900">{useCase.name}</h3>
-                <p className="leading-relaxed text-brand-blue-900/65">{useCase.description}</p>
+                <h3 className="mb-2 text-lg font-semibold text-finanza-dark">{useCase.name}</h3>
+                <p className="leading-relaxed text-finanza-text">{useCase.description}</p>
               </div>
             ))}
           </div>
         </Container>
 
         <Container className="mb-20">
-          <div className="rounded-2xl bg-brand-blue-900 p-8 text-white md:p-12">
+          <div className="rounded-lg bg-finanza-dark p-8 text-white md:p-12">
             <div className="mx-auto max-w-2xl text-center">
               <IconPhone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
-              <h2 className="mb-4 font-display text-3xl font-light tracking-tight">Built for M-Pesa</h2>
+              <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
                 Bookkeeper plans include Safaricom Daraja integration — PayBill collections, STK prompts and B2C
                 payouts.
@@ -268,8 +267,8 @@ const coreFeatures = [
 const manageMoney = {
   title: 'Manage your money with confidence',
   desc: 'From the first member to the first dividend, everything your group needs to keep an account it can defend.',
-  image: benefitImg,
-  imageAlt: 'Three men talking at a shared desk in an open-plan office',
+  image: PHOTOS.vslaRecords.src,
+  imageAlt: PHOTOS.vslaRecords.alt,
   bullets: [
     {
       title: 'Members and their money',

@@ -46,7 +46,8 @@ export const ROUTES = {
   ecosystemMarketplace: '/ecosystem/marketplace',
   ecosystemPrograms: '/ecosystem/programs',
 
-  // Legal — stub pages only. See the note on LEGAL_LINKS below for why.
+  // Legal. See the note on LEGAL_ITEMS below for which documents are real policy text.
+  legal: '/legal',
   legalTerms: '/legal/terms',
   legalPrivacy: '/legal/privacy',
   legalDataProtection: '/legal/data-protection',
@@ -62,12 +63,18 @@ export const ROUTES = {
 /** In-page anchors on the home page, referenced from the header and footer —
  *  so the ids are declared once instead of as loose strings in three files. */
 export const SECTION_IDS = {
+  paths: 'who-its-for',
   solution: 'what-it-does',
+  communities: 'communities',
   showcase: 'product',
   howItWorks: 'how-it-works',
   ecosystem: 'ecosystem',
   payments: 'payments',
   pricing: 'pricing',
+  trust: 'security',
+  faq: 'faq',
+  blog: 'blog',
+  campaigns: 'campaigns',
 } as const;
 
 export interface NavLink {
@@ -97,6 +104,7 @@ export const ABOUT_ITEMS: NavLink[] = [
   },
   { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
   { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
+  { label: 'Careers', href: ROUTES.careers, description: 'Open roles, and how to join the team.' },
 ];
 
 export const PRODUCT_ITEMS: NavLink[] = [
@@ -139,7 +147,17 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 
 export const PRICING_ITEMS: NavLink[] = [
   { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
-  { label: 'Chama Reminder', href: ROUTES.pricing, description: 'SMS reminders and group announcements.' },
+  {
+    label: 'Chama Reminder',
+    href: `${ROUTES.pricing}#chama-reminder`,
+    description: 'SMS reminders and group announcements.',
+  },
+  {
+    label: 'Changi$ha',
+    href: `${ROUTES.pricing}#changisha`,
+    description: 'No monthly fee — a small fee per withdrawal.',
+  },
+  { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];
 
 /**
@@ -149,10 +167,12 @@ export const PRICING_ITEMS: NavLink[] = [
  * parallel lists that can drift apart.
  */
 export const NAV_ITEMS: NavEntry[] = [
-  { label: 'Home', href: ROUTES.home },
+  // No "Home" item: the logo links home, and the slot goes to the Marketplace,
+  // which otherwise sat two clicks deep under Ecosystem.
   { label: 'About', items: ABOUT_ITEMS },
   { label: 'Products', items: PRODUCT_ITEMS },
   { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
+  { label: 'Marketplace', href: ROUTES.ecosystemMarketplace },
   { label: 'Pricing', items: PRICING_ITEMS },
   { label: 'Blog', href: ROUTES.resources },
   { label: 'Contact', href: ROUTES.contact },
@@ -175,7 +195,28 @@ export interface FooterColumn {
  * data is a liability, not a marketing choice, so nobody should draft it
  * except counsel or the business owner themself. Do not generate policy
  * language for it.
+ *
+ * Shared by the footer, the /legal hub and each document's "other documents"
+ * rail, so a new policy is published by adding one entry here.
  */
+export const LEGAL_ITEMS: NavLink[] = [
+  {
+    label: 'Terms & Conditions',
+    href: ROUTES.legalTerms,
+    description: 'The agreement that governs using Kitabu Yetu, its payment services and communications.',
+  },
+  {
+    label: 'Privacy Policy',
+    href: ROUTES.legalPrivacy,
+    description: 'What personal information we collect, why, who receives it, and the rights you have over it.',
+  },
+  {
+    label: 'Data Protection',
+    href: ROUTES.legalDataProtection,
+    description: 'Where our Data Protection Act, 2019 registration and compliance programme stands.',
+  },
+];
+
 export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     heading: 'Products',
@@ -200,6 +241,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Team', href: ROUTES.aboutTeam },
       { label: 'Impact', href: ROUTES.aboutImpact },
       { label: 'Careers', href: ROUTES.careers },
+      { label: 'Legal', href: ROUTES.legal },
       { label: 'How it works', href: `/#${SECTION_IDS.howItWorks}` },
       { label: 'Pricing', href: ROUTES.pricing },
       { label: 'Contact', href: ROUTES.contact },
@@ -207,11 +249,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   },
   {
     heading: 'Legal',
-    links: [
-      { label: 'Terms & Conditions', href: ROUTES.legalTerms },
-      { label: 'Privacy Policy', href: ROUTES.legalPrivacy },
-      { label: 'Data Protection', href: ROUTES.legalDataProtection },
-    ],
+    links: LEGAL_ITEMS,
   },
 ];
 
@@ -222,6 +260,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
  */
 export const CONTACT = {
   email: 'info@kitabuyetu.co.ke',
+  careersEmail: 'careers@kitabuyetu.co.ke',
   phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;
@@ -230,3 +269,38 @@ export const CONTACT = {
 export function telHref(phone: string): string {
   return `tel:${phone.replace(/\s/g, '')}`;
 }
+
+/** WhatsApp click-to-chat link for a CONTACT phone (wa.me takes digits only, no +). */
+export function whatsappHref(phone: string, text?: string): string {
+  const base = `https://wa.me/${phone.replace(/\D/g, '')}`;
+  return text ? `${base}?text=${encodeURIComponent(text)}` : base;
+}
+
+export type SocialPlatform = 'facebook' | 'x' | 'linkedin' | 'instagram' | 'youtube' | 'whatsapp';
+
+export interface SocialLink {
+  platform: SocialPlatform;
+  label: string;
+  /** null until the real profile URL is supplied: the icon still renders, but not as a link. */
+  href: string | null;
+}
+
+/**
+ * Social profiles shown in the header, footer and team cards. To publish one,
+ * set its `href` to the full profile URL — nothing else needs to change.
+ */
+export const SOCIAL_LINKS: SocialLink[] = [
+  { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
+  { platform: 'x', label: 'X (Twitter)', href: null },
+  { platform: 'linkedin', label: 'LinkedIn', href: null },
+  { platform: 'instagram', label: 'Instagram', href: null },
+  { platform: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@KitabuYetu' },
+  { platform: 'whatsapp', label: 'WhatsApp', href: whatsappHref(CONTACT.phones[0]) },
+];
+
+/** The founder's own profiles, for the team card — personal, not the company's. Same rule: fill in `href`. */
+export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
+  { platform: 'linkedin', label: 'Polycap Wanyonyi on LinkedIn', href: null },
+  { platform: 'x', label: 'Polycap Wanyonyi on X', href: null },
+  { platform: 'facebook', label: 'Polycap Wanyonyi on Facebook', href: null },
+];

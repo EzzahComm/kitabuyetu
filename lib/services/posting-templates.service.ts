@@ -65,7 +65,8 @@ export type PostingEvent =
   | 'loan_charge'
   | 'settlement_sweep'
   | 'vendor_payment'
-  | 'fine_collection';
+  | 'fine_collection'
+  | 'campaign_withdrawal';
 
 export interface TemplateLine {
   accountCode: string;
@@ -205,6 +206,26 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     lines: [
       { accountCode: '1001', side: 'debit', amount: 'amount' },
       { accountCode: '4004', side: 'credit', amount: 'amount' },
+    ],
+  },
+  // Changi$ha withdrawal monetization. Three pairs, not two — unlike
+  // settlement_sweep/vendor_payment, whose 'fee' line is a real cost the
+  // group incurred moving money it never recognized as extra income. Here,
+  // the group already booked the FULL gross donation as income (4006) at
+  // donation time (mpesa-stk.service.ts's applyCampaignDonationFromSTK), so
+  // the withdrawal must expense both the amount actually paid to the
+  // beneficiary (net) AND the platform's own fee (platformFee) AND the
+  // M-Pesa cost (mpesaCharge) — three debits that together equal the gross
+  // amount being drawn down, closing the campaign's own trial balance:
+  // 4006 credit (raised) − (5005+5006+5001 debits, once fully withdrawn) = 0.
+  campaign_withdrawal: {
+    lines: [
+      { accountCode: '5005', side: 'debit', amount: 'net' },
+      { accountCode: '1001', side: 'credit', amount: 'net' },
+      { accountCode: '5006', side: 'debit', amount: 'platformFee' },
+      { accountCode: '1001', side: 'credit', amount: 'platformFee' },
+      { accountCode: '5001', side: 'debit', amount: 'mpesaCharge' },
+      { accountCode: '1001', side: 'credit', amount: 'mpesaCharge' },
     ],
   },
 };
@@ -575,6 +596,78 @@ export async function postVendorPaymentJournal(
       'vendor_payment.journal_entry_posted',
       'vendor_payment',
       args.vendorPaymentId,
+      JSON.stringify({ journal_entry_id: null }),
+      JSON.stringify({ journal_entry_id: jeId }),
+    ],
+  );
+
+  return jeId;
+}
+
+/**
+ * Posts a Changi$ha withdrawal: DR 5005 (net, the amount paid to the
+ * beneficiary) / DR 5006 (the platform's fee) / DR 5001 (the M-Pesa B2C
+ * cost) — all three credited from 1001 Cash. Unlike
+ * postSettlementSweepJournal/postVendorPaymentJournal's optional fee line,
+ * none of these three lines degrades gracefully if its account is missing:
+ * postSystemJournal's all-or-nothing behavior applies to the whole entry,
+ * which is correct here — dropping just the fee or charge line while still
+ * posting net_amount would silently under-book what left the group's cash
+ * position, corrupting the campaign's own trial balance rather than merely
+ * skipping a nice-to-have breakdown. All three accounts are guaranteed to
+ * exist for every group as of migration 200's backfill, so this is expected
+ * to always succeed.
+ */
+export async function postCampaignWithdrawalJournal(
+  client: PoolClient,
+  args: {
+    groupId: string;
+    campaignWithdrawalId: string;
+    netAmount: number;
+    platformFeeAmount: number;
+    mpesaChargeAmount: number;
+    entryDate: string | Date;
+    reference?: string | null;
+    createdBy: string | null;
+    isTest?: boolean;
+  },
+): Promise<string | null> {
+  const template = await resolvePostingTemplate(client, 'campaign_withdrawal', { groupId: args.groupId });
+  const lines = buildTemplateLines(template, {
+    net: args.netAmount,
+    platformFee: args.platformFeeAmount,
+    mpesaCharge: args.mpesaChargeAmount,
+  });
+  if (lines.length === 0) return null;
+
+  const jeId = await postSystemJournal(
+    client,
+    args.groupId,
+    args.createdBy,
+    `Changi$ha withdrawal — ${args.campaignWithdrawalId}`,
+    lines,
+    {
+      reference: args.reference ?? undefined,
+      entryDate: toDateString(args.entryDate),
+      isTest: args.isTest,
+    },
+  );
+  if (!jeId) return null;
+
+  await client.query(`UPDATE campaign_withdrawals SET journal_entry_id = $1 WHERE id = $2`, [
+    jeId,
+    args.campaignWithdrawalId,
+  ]);
+
+  await client.query(
+    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [
+      args.groupId,
+      args.createdBy,
+      'campaign_withdrawal.journal_entry_posted',
+      'campaign_withdrawal',
+      args.campaignWithdrawalId,
       JSON.stringify({ journal_entry_id: null }),
       JSON.stringify({ journal_entry_id: jeId }),
     ],

@@ -132,7 +132,7 @@ function workflowClient(): WorkflowClient {
   return globalWithWorkflow._kyWorkflowClient;
 }
 
-export type DisbursementWatchdogKind = 'disbursement' | 'settlement' | 'vendor_payment';
+export type DisbursementWatchdogKind = 'disbursement' | 'settlement' | 'vendor_payment' | 'campaign_withdrawal';
 
 export interface DisbursementWatchdogPayload {
   kind: DisbursementWatchdogKind;

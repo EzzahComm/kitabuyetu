@@ -2,23 +2,13 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { IconArrowUpRight } from '@tabler/icons-react';
+import { ArrowUpRight, Briefcase, Clock, MapPin } from 'lucide-react';
 import type { Job } from '@/lib/cms/sanity';
+import { departmentLabel, employmentLabel } from './careers-labels';
+import { CONTACT } from './routes';
 
-const DEPARTMENT_LABEL: Record<string, string> = {
-  'product-and-engineering': 'Product and engineering',
-  'community-and-operations': 'Community and operations',
-  partnerships: 'Partnerships',
-  'customer-experience': 'Customer experience',
-  marketing: 'Marketing',
-};
-
-const EMPLOYMENT_LABEL: Record<Job['employmentType'], string> = {
-  'full-time': 'Full-time',
-  'part-time': 'Part-time',
-  contract: 'Contract',
-  internship: 'Internship',
-};
+const fieldClass =
+  'mt-2 w-full rounded-lg border border-brand-100 bg-white px-4 py-3 font-normal text-finanza-dark outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
 /**
  * Filters client-side rather than via searchParams round-trips — careers
@@ -41,94 +31,100 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
   });
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-trueGray-700 dark:bg-trueGray-900">
-      <div className="grid gap-4 sm:grid-cols-3">
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-          Search jobs
-          <input
-            aria-label="Search jobs"
-            type="search"
-            placeholder="Search roles"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600"
-          />
-        </label>
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-          Department
-          <select
-            aria-label="Filter by department"
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600"
-          >
-            <option value="all">All departments</option>
-            {departments.map((d) => (
-              <option key={d} value={d}>
-                {DEPARTMENT_LABEL[d] ?? d}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-          Location
-          <select
-            aria-label="Filter by location"
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="mt-2 w-full rounded-md border border-gray-300 bg-transparent px-3 py-2 font-normal outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 dark:border-trueGray-600"
-          >
-            <option value="all">All locations</option>
-            {locations.map((l) => (
-              <option key={l} value={l}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
+    <div className="rounded-lg border border-brand-100 bg-white p-6 sm:p-8">
+      {/* Filters only earn their space once there is more than one role to narrow down. */}
+      {jobs.length > 1 && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <label className="text-sm font-medium text-finanza-dark">
+            Search roles
+            <input
+              type="search"
+              placeholder="e.g. engineer"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className={fieldClass}
+            />
+          </label>
+          <label className="text-sm font-medium text-finanza-dark">
+            Department
+            <select value={department} onChange={(e) => setDepartment(e.target.value)} className={fieldClass}>
+              <option value="all">All departments</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>
+                  {departmentLabel(d)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-medium text-finanza-dark">
+            Location
+            <select value={location} onChange={(e) => setLocation(e.target.value)} className={fieldClass}>
+              <option value="all">All locations</option>
+              {locations.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
 
       {filtered.length > 0 ? (
-        <ul className="mt-8 divide-y divide-gray-200 border-t border-gray-200 dark:divide-trueGray-700 dark:border-trueGray-700">
+        <ul className="space-y-4">
           {filtered.map((job) => (
             <li key={job.slug}>
               <Link
                 href={`/careers/${job.slug}`}
-                className="group flex flex-col gap-1 py-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300 sm:flex-row sm:items-center sm:justify-between"
+                className="group flex flex-col gap-4 rounded-lg border border-brand-100 p-5 transition-colors duration-500 hover:border-brand-500 hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span>
-                  <span className="block text-base font-bold text-gray-800 group-hover:text-indigo-600 dark:text-white">
+                  <span className="block font-display text-xl font-semibold text-finanza-dark transition-colors duration-500 group-hover:text-white">
                     {job.title}
                   </span>
-                  <span className="mt-1 block text-sm text-gray-500 dark:text-gray-300">
-                    {DEPARTMENT_LABEL[job.department] ?? job.department} · {job.location} ·{' '}
-                    {EMPLOYMENT_LABEL[job.employmentType]}
+                  {job.summary && (
+                    <span className="mt-1 line-clamp-2 block text-finanza-text transition-colors duration-500 group-hover:text-white/90">
+                      {job.summary}
+                    </span>
+                  )}
+                  <span className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-sm text-finanza-text transition-colors duration-500 group-hover:text-white/90">
+                    <span className="inline-flex items-center gap-1.5">
+                      <Briefcase aria-hidden="true" className="h-4 w-4" />
+                      {departmentLabel(job.department)}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <MapPin aria-hidden="true" className="h-4 w-4" />
+                      {job.location}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5">
+                      <Clock aria-hidden="true" className="h-4 w-4" />
+                      {employmentLabel(job.employmentType)}
+                    </span>
                   </span>
                 </span>
-                <IconArrowUpRight
-                  aria-hidden="true"
-                  className="mt-2 h-5 w-5 shrink-0 text-gray-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5 group-hover:text-indigo-600 sm:mt-0"
-                />
+                <span className="inline-flex shrink-0 items-center gap-1.5 font-medium text-brand-500 transition-colors duration-500 group-hover:text-white">
+                  View role <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+                </span>
               </Link>
             </li>
           ))}
         </ul>
       ) : (
-        <div className="mt-8 border-t border-gray-200 pt-8 text-center dark:border-trueGray-700">
-          <h3 className="text-xl font-bold text-gray-800 dark:text-white">
+        <div className="py-6 text-center">
+          <h3 className="font-display text-2xl font-semibold text-finanza-dark">
             {jobs.length === 0 ? 'No open roles right now' : 'No roles match these filters'}
           </h3>
-          <p className="mx-auto mt-3 max-w-md leading-7 text-gray-500 dark:text-gray-300">
+          <p className="mx-auto mt-3 max-w-md leading-relaxed text-finanza-text">
             {jobs.length === 0
               ? 'We do not have a published vacancy today. We would still like to hear from people who understand this work.'
               : 'Try a different search, department or location.'}
           </p>
           {jobs.length === 0 && (
             <a
-              href="mailto:careers@kitabuyetu.co.ke"
-              className="mt-5 inline-flex items-center gap-2 font-semibold text-indigo-600 hover:text-indigo-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-300"
+              href={`mailto:${CONTACT.careersEmail}`}
+              className="mt-5 inline-flex items-center gap-1.5 font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
             >
-              Introduce yourself <IconArrowUpRight className="h-4 w-4" aria-hidden="true" />
+              Introduce yourself <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             </a>
           )}
         </div>

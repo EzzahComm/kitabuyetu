@@ -19,8 +19,13 @@ import type { PoolClient } from 'pg';
 import { logger } from '@/lib/logger';
 import { assertSafaricomIp } from './daraja.service';
 import { computeB2BCharge, computeB2CCharge } from './mpesa-charges.service';
-import { postSettlementSweepJournal, postVendorPaymentJournal } from './posting-templates.service';
+import {
+  postSettlementSweepJournal,
+  postVendorPaymentJournal,
+  postCampaignWithdrawalJournal,
+} from './posting-templates.service';
 import { notifyDisbursementCallback } from '@/lib/queue/qstash';
+import { payoutChannel, type PayoutMethod } from '@/lib/campaigns/payout-destination';
 
 // What to tell the disbursement watchdog once a handler's transaction
 // commits — fired AFTER withAdminDb resolves, never from inside it. Same
@@ -284,5 +289,137 @@ export async function handleVendorPaymentResult(body: Record<string, unknown>, c
 
   if (watchdogNotify) {
     await notifyDisbursementCallback('vendor_payment', watchdogNotify.rowId, watchdogNotify.eventData);
+  }
+}
+
+/**
+ * Changi$ha withdrawal result callback — for both channels: a phone payout
+ * reports on the B2C route, a paybill/till payout (migration 202) on the B2B
+ * route, and both routes call this. A given withdrawal's
+ * originator_conversation_id only ever matches one of them.
+ *
+ * Unlike handleVendorPaymentResult, the M-Pesa charge is NOT recomputed
+ * here: it was already computed and locked in at request time
+ * (campaign-withdrawals.service.ts), because net_amount — the figure
+ * actually sent to Daraja — depended on knowing it in advance. Recomputing
+ * it now (a live balance could theoretically differ from the tier-table
+ * lookup at request time) would let this journal's numbers drift from what
+ * the beneficiary was actually promised on the request screen.
+ */
+export async function handleCampaignWithdrawalResult(body: Record<string, unknown>, callerIp: string): Promise<void> {
+  assertSafaricomIp(callerIp);
+  const parsed = parseResult(body);
+  if (!parsed) return;
+  const rawBody = JSON.stringify(body);
+
+  const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
+    const { rows } = await db.query<{
+      id: string;
+      group_id: string;
+      campaign_id: string;
+      payout_method: PayoutMethod;
+      gross_amount: string;
+      platform_fee_amount: string;
+      mpesa_charge_amount: string;
+      net_amount: string;
+    }>(
+      `SELECT id, group_id, campaign_id, payout_method, gross_amount, platform_fee_amount,
+              mpesa_charge_amount, net_amount
+       FROM   campaign_withdrawals
+       WHERE  originator_conversation_id = $1 AND status = 'processing'
+       FOR UPDATE`,
+      [parsed.origId],
+    );
+    const row = rows[0];
+    if (!row) return undefined; // not a campaign withdrawal, or already settled
+
+    if (!parsed.success) {
+      await db.query(
+        `UPDATE campaign_withdrawals
+         SET    status = 'failed', failure_reason = $2, completed_at = NOW()
+         WHERE  id = $1`,
+        [row.id, parsed.desc.slice(0, 500)],
+      );
+
+      await db.query(
+        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [
+          row.group_id,
+          null, // system-triggered (Daraja callback)
+          'campaignWithdrawal.failed',
+          'campaign_withdrawal',
+          row.id,
+          JSON.stringify({ status: 'processing' }),
+          JSON.stringify({ status: 'failed', failure_reason: parsed.desc.slice(0, 500) }),
+        ],
+      );
+
+      await db.query(
+        `INSERT INTO failed_payment_logs
+           (group_id, transaction_type, reference_id, failure_reason, failure_code, raw_data)
+         VALUES ($1,$2,$3,$4,$5,$6)`,
+        [row.group_id, payoutChannel(row.payout_method), parsed.origId, parsed.desc, String(parsed.code), rawBody],
+      );
+      await releaseCashReservation(db, row.group_id, row.gross_amount);
+      return { rowId: row.id, eventData: { status: 'failed', failureReason: parsed.desc } };
+    }
+
+    const jeId = await postCampaignWithdrawalJournal(db, {
+      groupId: row.group_id,
+      campaignWithdrawalId: row.id,
+      netAmount: parseFloat(row.net_amount),
+      platformFeeAmount: parseFloat(row.platform_fee_amount),
+      mpesaChargeAmount: parseFloat(row.mpesa_charge_amount),
+      entryDate: new Date(),
+      reference: parsed.receipt ?? parsed.origId,
+      createdBy: null,
+    });
+    if (!jeId) {
+      // The money already moved — a missing chart account is a
+      // reconciliation gap to surface, never a reason to mark the
+      // withdrawal failed.
+      logger.error('[campaign-withdrawals] withdrawal completed but GL posting was skipped', {
+        campaignWithdrawalId: row.id,
+        groupId: row.group_id,
+      });
+    }
+
+    await db.query(
+      `UPDATE campaign_withdrawals
+       SET    status = 'completed', completed_at = NOW()
+       WHERE  id = $1`,
+      [row.id],
+    );
+
+    // Platform revenue recognized only once the money actually moved —
+    // matches migration 125's organization_ledger 'fee' row, written at
+    // settlement time, not at request time.
+    await db.query(
+      `INSERT INTO platform_revenue (group_id, kind, amount, reference_type, reference_id, description)
+       VALUES ($1, 'transaction_fee', $2, 'campaign_withdrawal', $3, $4)`,
+      [row.group_id, row.platform_fee_amount, row.id, `Changi$ha platform fee — campaign ${row.campaign_id}`],
+    );
+
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+      [
+        row.group_id,
+        null, // system-triggered (Daraja callback)
+        'campaignWithdrawal.completed',
+        'campaign_withdrawal',
+        row.id,
+        JSON.stringify({ status: 'processing' }),
+        JSON.stringify({ status: 'completed', receipt: parsed.receipt }),
+      ],
+    );
+
+    await releaseCashReservation(db, row.group_id, row.gross_amount);
+    return { rowId: row.id, eventData: { status: 'completed', receipt: parsed.receipt } };
+  });
+
+  if (watchdogNotify) {
+    await notifyDisbursementCallback('campaign_withdrawal', watchdogNotify.rowId, watchdogNotify.eventData);
   }
 }
