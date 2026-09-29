@@ -5,6 +5,8 @@ import { ShieldCheck } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CampaignDonateForm } from '@/components/marketing/campaign-donate-form';
 import { campaignsService, isAcceptingDonations } from '@/lib/services/campaigns.service';
+import { getPublicCampaignStatement, type PublicCampaignStatement } from '@/lib/services/campaign-statement.service';
+import { CampaignStatement } from '@/components/marketing/campaign-statement';
 import { fallbackPhoto } from '@/components/marketing/photos';
 import { ROUTES } from '@/components/marketing/routes';
 import Link from 'next/link';
@@ -37,6 +39,13 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
   const photo = fallbackPhoto(campaign.slug);
 
   const donationCount = await campaignsService.getPublicDonationCount(campaign.id);
+  // The statement is supplementary: if it fails to load, the campaign page still renders.
+  let statement: PublicCampaignStatement | null = null;
+  try {
+    statement = await getPublicCampaignStatement(campaign.id);
+  } catch {
+    statement = null;
+  }
   const pct = Math.min(
     100,
     Math.round((parseFloat(campaign.amount_raised) / parseFloat(campaign.target_amount)) * 100),
@@ -81,6 +90,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       <div className="not-prose grid gap-8 lg:grid-cols-[1.6fr_1fr]">
         <div className="space-y-5 text-base leading-relaxed text-finanza-text">
           <p style={{ whiteSpace: 'pre-wrap' }}>{campaign.story}</p>
+          {statement && <CampaignStatement statement={statement} />}
         </div>
 
         <div className="space-y-5 lg:sticky lg:top-28 lg:self-start">
