@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -12,6 +12,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
+import {
+  GroupFinanceFields,
+  GroupRegistrationFields,
+  useCertificateFile,
+} from '@/components/groups/signup-extras-fields';
 import { configureApiClient, api, ApiError } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
 import { formatMembershipNo } from '@/lib/utils/membership-no';
@@ -22,6 +27,11 @@ import type { SubscriptionProduct } from '@/types/enums';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
 // manually for now — single shared types lib is a Phase F cleanup.
+// An unpicked <select> submits "" (its "— Optional —" entry), which a bare
+// z.enum().optional() rejects — silently, since these fields show no error text.
+const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), z.enum(values as unknown as [T[number], ...T[number][]]).optional());
+
 const schema = z
   .object({
     // Identity
@@ -54,24 +64,22 @@ const schema = z
     villageEstate: z.string().max(200).optional().or(z.literal('')),
 
     // Purpose + cadence (optional in Phase D MVP; required later by activation gate)
-    primaryObjective: z
-      .enum([
-        'savings',
-        'table_banking',
-        'welfare',
-        'women_empowerment',
-        'youth_development',
-        'agriculture',
-        'business_investment',
-        'housing',
-        'education',
-        'health',
-        'community_development',
-        'other',
-      ])
-      .optional(),
-    meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
-    meetingDay: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
+    primaryObjective: optionalEnum([
+      'savings',
+      'table_banking',
+      'welfare',
+      'women_empowerment',
+      'youth_development',
+      'agriculture',
+      'business_investment',
+      'housing',
+      'education',
+      'health',
+      'community_development',
+      'other',
+    ]),
+    meetingFrequency: optionalEnum(['weekly', 'biweekly', 'monthly']),
+    meetingDay: optionalEnum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']),
     meetingTime: z
       .string()
       .regex(/^\d{2}:\d{2}$/, 'HH:MM')
@@ -82,6 +90,22 @@ const schema = z
     agreeToTerms: z.boolean().refine((v) => v === true, {
       message: 'You must accept the terms and conditions',
     }),
+
+    // Group finances — feeds contribution-plan.service.ts; drives the
+    // monthly arrears/balance SMS. Only rendered (and required) for
+    // kitabu_yetu — chama_reminder has no GL. Kept optional in the shared
+    // schema since a chama_reminder submit never includes them.
+    monthlyContribution: z.coerce.number().min(0).optional(),
+    welfareAmount: z.coerce.number().min(0).optional(),
+
+    // Government registration — optional, never blocks sign-up. The number is
+    // part of this form; a certificate PDF (if any) is held outside the form
+    // (useCertificateFile) and sent as a multipart part of the sign-up request.
+    // No `.default()` on the flag: useForm's own `defaultValues` supplies
+    // `false`, and ZodDefault's asymmetric input/output type does not unify with
+    // zodResolver's Resolver<T> under @hookform/resolvers v5.
+    isGovernmentRegistered: z.boolean(),
+    registrationNumber: z.string().max(100).optional().or(z.literal('')),
   })
   .refine((d) => d.password === d.confirm, {
     message: 'Passwords do not match',
@@ -154,6 +178,7 @@ function RegisterForm() {
   const { login } = useAuth();
   const { toast } = useToast();
   const [counties, setCounties] = useState<County[]>([]);
+  const certificate = useCertificateFile();
 
   // /register?product=chama_reminder is the standalone acquisition entry point.
   // Anything else — including a tampered value — falls back to kitabu_yetu, and
@@ -165,11 +190,14 @@ function RegisterForm() {
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { groupType: 'chama', creatorRole: 'chairperson' },
+    defaultValues: { groupType: 'chama', creatorRole: 'chairperson', isGovernmentRegistered: false },
   });
+
+  const isGovernmentRegistered = useWatch({ control, name: 'isGovernmentRegistered' });
 
   useEffect(() => {
     configureApiClient({ getToken: () => null, onUnauthorized: () => {} });
@@ -192,12 +220,31 @@ function RegisterForm() {
   const onSubmit = async (values: FormValues) => {
     try {
       const { confirm: _unused, agreeToTerms: _terms, ...body } = values;
-      const data = (await authApi.register({ ...body, product })) as Awaited<ReturnType<typeof authApi.register>> & {
+      const payload = { ...body, product };
+      // The certificate travels WITH the sign-up request (multipart) rather than
+      // as a follow-up call: a brand-new group cannot call any other tenant route
+      // yet — pending verification, then unsubscribed. It is only sent when the
+      // group is marked registered, since the input is hidden otherwise.
+      const attachment = values.isGovernmentRegistered ? certificate.file : null;
+      const data = (await (attachment
+        ? authApi.registerWithCertificate(payload, attachment)
+        : authApi.register(payload))) as Awaited<ReturnType<typeof authApi.register>> & {
         groupCode?: string;
         membershipNo?: string;
         signupProduct?: SubscriptionProduct;
       };
       login(data);
+
+      // A certificate that could not be saved never blocks the sign-up itself;
+      // say so and point at where to add it.
+      if (data.certificateUploaded === false) {
+        toast({
+          variant: 'destructive',
+          title: 'Your group was created, but the certificate was not saved',
+          description: `${data.certificateNote ?? ''} You can add it later from Settings.`.trim(),
+        });
+      }
+
       // The Membership Number is the member's payment account number — the
       // only payment identifier we ever show (payment architecture §1.1).
       toast({
@@ -307,6 +354,14 @@ function RegisterForm() {
             </div>
           </div>
 
+          {/* ─── Government registration (optional — never blocks sign-up) ─── */}
+          <GroupRegistrationFields
+            register={register}
+            titleClassName={sectionTitle}
+            registered={isGovernmentRegistered}
+            certificate={certificate}
+          />
+
           {/* ─── Location ─── */}
           <p className={sectionTitle}>Location</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -377,6 +432,14 @@ function RegisterForm() {
             </div>
           </div>
 
+          {/* ─── Group finances ─── */}
+          {/* chama_reminder has no GL — contribution/welfare tracking makes
+              no sense there, so this section (and the values it collects)
+              simply doesn't exist for that product. */}
+          {product === 'kitabu_yetu' && (
+            <GroupFinanceFields register={register} errors={errors} titleClassName={sectionTitle} />
+          )}
+
           {/* ─── About you ─── */}
           <p className={sectionTitle}>About you</p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -446,7 +509,11 @@ function RegisterForm() {
                   Terms & Conditions
                 </Link>
                 {' and '}
-                <Link href="/legal#data-protection" target="_blank" className="text-brand-600 hover:underline font-medium">
+                <Link
+                  href="/legal#data-protection"
+                  target="_blank"
+                  className="text-brand-600 hover:underline font-medium"
+                >
                   Data Protection Policy
                 </Link>
               </span>

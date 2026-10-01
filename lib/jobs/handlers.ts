@@ -9,6 +9,7 @@ import { emitSmsBulkActivity } from '@/lib/notifications';
 import type { Job } from './types';
 import { pool } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
+import type { ContributionStatementRow } from '@/lib/sms/contribution-statement';
 
 export interface HandlerResult {
   message: string;
@@ -769,49 +770,89 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
 }
 
 async function handleContributionReminders(job: Job): Promise<HandlerResult> {
-  const { renderTemplate } = await import('@/lib/sms/templates');
+  const { platformPaybill } = await import('@/lib/sms/templates');
   const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { buildStatementMessage } = await import('@/lib/sms/contribution-statement');
 
-  // Active members of active groups who recorded NO completed contribution
-  // in the previous calendar month. NOT EXISTS keeps the planner using
-  // idx_contributions_member_id (member_id, status, contribution_date is
-  // already covered well enough at our cardinality). gm.id doubles as the
-  // reminder's reference_id — a missed month has no row of its own to
-  // reference, so the stable membership row stands in, with the actual
-  // period folded into reminder_stage so each month is a distinct claim.
-  const { rows } = await pool.query<{
-    membership_id: string;
-    group_id: string;
-    member_id: string;
-    phone: string;
-    first_name: string;
-    group_name: string;
-    last_month: string;
-    period_key: string;
-  }>(
-    `SELECT gm.id AS membership_id,
-            gm.group_id,
-            gm.member_id,
-            m.phone,
-            m.first_name,
-            g.name AS group_name,
-            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'Mon YYYY') AS last_month,
-            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'YYYY-MM')  AS period_key
-       FROM group_members gm
-       JOIN members m ON m.id = gm.member_id
-       JOIN groups  g ON g.id = gm.group_id
-      WHERE gm.status = 'active'
-        AND g.status  = 'active'
-        AND m.phone IS NOT NULL AND m.phone <> ''
-        AND NOT EXISTS (
-          SELECT 1 FROM contributions c
-           WHERE c.group_id  = gm.group_id
-             AND c.member_id = gm.member_id
-             AND c.status    = 'completed'
-             AND c.contribution_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
-             AND c.contribution_date <  date_trunc('month', CURRENT_DATE)
-        )
-      ORDER BY gm.group_id, gm.member_id
+  // Active members of active groups whose group has configured a
+  // contribution_plan policy (lib/services/contribution-plan.service.ts —
+  // monthlyContribution and/or welfareAmount > 0), and who are running a
+  // real balance: for each closed calendar month since the LATER of (their
+  // join date, the plan's effective_from — capped at 24 months back so an
+  // old plan doesn't manufacture years of phantom arrears), the shortfall
+  // between what the plan expects and what contributions/welfare_pool_
+  // contributions actually show as paid that month. A group that never
+  // configured amounts contributes zero rows here — the CTE's own filter
+  // excludes it before any per-member arithmetic runs.
+  const { rows } = await pool.query<ContributionStatementRow>(
+    `WITH plans AS (
+       SELECT p.group_id,
+              COALESCE((p.value->>'monthlyContribution')::numeric, 0) AS monthly_contribution,
+              COALESCE((p.value->>'welfareAmount')::numeric, 0)       AS welfare_amount,
+              p.effective_from
+         FROM policies p
+        WHERE p.is_active AND p.domain = 'contribution_plan' AND p.policy_key = 'amounts'
+          AND p.group_id IS NOT NULL
+          AND (COALESCE((p.value->>'monthlyContribution')::numeric, 0) > 0
+               OR COALESCE((p.value->>'welfareAmount')::numeric, 0) > 0)
+     ),
+     candidates AS (
+       SELECT gm.id AS membership_id, gm.group_id, gm.member_id, gm.membership_no, gm.joined_at,
+              m.phone, m.first_name, g.name AS group_name,
+              pl.monthly_contribution, pl.welfare_amount, pl.effective_from
+         FROM group_members gm
+         JOIN members m  ON m.id = gm.member_id
+         JOIN groups  g  ON g.id = gm.group_id
+         JOIN plans   pl ON pl.group_id = gm.group_id
+        WHERE gm.status = 'active'
+          AND g.status  = 'active'
+          AND m.phone IS NOT NULL AND m.phone <> ''
+     ),
+     bounds AS (
+       SELECT c.*,
+              GREATEST(
+                date_trunc('month', GREATEST(c.joined_at::timestamptz, c.effective_from)),
+                date_trunc('month', CURRENT_DATE) - INTERVAL '24 months'
+              ) AS start_month,
+              date_trunc('month', CURRENT_DATE) - INTERVAL '1 month' AS last_month
+         FROM candidates c
+     ),
+     months AS (
+       SELECT b.membership_id, gs.month_start
+         FROM bounds b
+         CROSS JOIN LATERAL generate_series(b.start_month, b.last_month, INTERVAL '1 month') AS gs(month_start)
+        WHERE b.start_month <= b.last_month
+     ),
+     contrib_paid AS (
+       SELECT member_id, group_id, date_trunc('month', contribution_date) AS month_start, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed'
+          AND group_id IN (SELECT group_id FROM plans)
+          AND contribution_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '24 months'
+        GROUP BY 1, 2, 3
+     ),
+     welfare_paid AS (
+       SELECT member_id, group_id,
+              date_trunc('month', COALESCE(make_date(period_year, period_month, 1), created_at::date)) AS month_start,
+              SUM(amount) AS paid
+         FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+          AND created_at >= date_trunc('month', CURRENT_DATE) - INTERVAL '25 months'
+        GROUP BY 1, 2, 3
+     )
+     SELECT b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name,
+            COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)::text AS outstanding_contribution,
+            COUNT(*) FILTER (WHERE b.monthly_contribution > 0 AND COALESCE(cp.paid, 0) < b.monthly_contribution)::int AS contribution_months,
+            COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0)::text AS outstanding_welfare,
+            COUNT(*) FILTER (WHERE b.welfare_amount > 0 AND COALESCE(wp.paid, 0) < b.welfare_amount)::int AS welfare_months
+       FROM bounds b
+       JOIN months mo ON mo.membership_id = b.membership_id
+       LEFT JOIN contrib_paid cp ON cp.member_id = b.member_id AND cp.group_id = b.group_id AND cp.month_start = mo.month_start
+       LEFT JOIN welfare_paid wp ON wp.member_id = b.member_id AND wp.group_id = b.group_id AND wp.month_start = mo.month_start
+      GROUP BY b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name
+     HAVING COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)
+          + COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0) > 0
+      ORDER BY b.group_id, b.member_id
       LIMIT 1000`,
   );
 
@@ -819,9 +860,8 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
     return { message: 'Contribution reminders: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
   }
 
-  const template =
-    'Dear {{first_name}}, our records show no contribution for {{group_name}} in {{last_month}}. ' +
-    'Kindly contribute when you can. Thank you.';
+  const paybill = platformPaybill();
+  const periodKey = new Date().toISOString().slice(0, 7); // YYYY-MM — re-sends monthly while arrears persist.
 
   let sent = 0,
     skipped = 0,
@@ -831,14 +871,10 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
       groupId: r.group_id,
       memberId: r.member_id,
       phone: r.phone,
-      body: renderTemplate(template, {
-        first_name: r.first_name,
-        group_name: r.group_name,
-        last_month: r.last_month,
-      }),
-      referenceType: 'contribution_reminder',
+      body: buildStatementMessage(r, paybill),
+      referenceType: 'contribution_statement',
       referenceId: r.membership_id,
-      reminderStage: `missing_contribution:${r.period_key}`,
+      reminderStage: `balance:${periodKey}`,
       jobExecutionId: job.id,
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
       // bundled allowance now exists, so this real send-path bills.

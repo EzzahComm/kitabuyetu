@@ -12,7 +12,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -20,6 +20,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PageHeader } from '@/components/shared/page-header';
+import {
+  GroupFinanceFields,
+  GroupRegistrationFields,
+  useCertificateFile,
+} from '@/components/groups/signup-extras-fields';
 import { useAuth } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { api } from '@/lib/api/client';
@@ -32,6 +37,11 @@ import type { CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema'
 // Mirrors lib/validators/auth.schema.ts's shared groupDetailsFields — kept in
 // sync manually, same convention app/(auth)/register/page.tsx's own schema
 // comment already documents for this codebase.
+// An unpicked <select> submits "" (its "— Optional —" entry), which a bare
+// z.enum().optional() rejects — silently, since these fields show no error text.
+const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
+  z.preprocess((v) => (v === '' ? undefined : v), z.enum(values as unknown as [T[number], ...T[number][]]).optional());
+
 const schema = z.object({
   product: z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
   groupName: z.string().min(3, 'Group name must be at least 3 characters'),
@@ -45,29 +55,34 @@ const schema = z.object({
   subCountyText: z.string().max(80).optional().or(z.literal('')),
   wardText: z.string().max(100).optional().or(z.literal('')),
   villageEstate: z.string().max(200).optional().or(z.literal('')),
-  primaryObjective: z
-    .enum([
-      'savings',
-      'table_banking',
-      'welfare',
-      'women_empowerment',
-      'youth_development',
-      'agriculture',
-      'business_investment',
-      'housing',
-      'education',
-      'health',
-      'community_development',
-      'other',
-    ])
-    .optional(),
-  meetingFrequency: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
-  meetingDay: z.enum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']).optional(),
+  primaryObjective: optionalEnum([
+    'savings',
+    'table_banking',
+    'welfare',
+    'women_empowerment',
+    'youth_development',
+    'agriculture',
+    'business_investment',
+    'housing',
+    'education',
+    'health',
+    'community_development',
+    'other',
+  ]),
+  meetingFrequency: optionalEnum(['weekly', 'biweekly', 'monthly']),
+  meetingDay: optionalEnum(['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']),
   meetingTime: z
     .string()
     .regex(/^\d{2}:\d{2}$/, 'HH:MM')
     .optional()
     .or(z.literal('')),
+  // Group finances + registration: same fields and reasoning as the schema in
+  // app/(auth)/register/page.tsx. The certificate PDF is held outside the form
+  // (useCertificateFile) and sent as a multipart part of the request.
+  monthlyContribution: z.coerce.number().min(0).optional(),
+  welfareAmount: z.coerce.number().min(0).optional(),
+  isGovernmentRegistered: z.boolean(),
+  registrationNumber: z.string().max(100).optional().or(z.literal('')),
 });
 
 type FormValues = z.infer<typeof schema>;
@@ -79,6 +94,8 @@ interface County {
 
 const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm';
 
+const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-muted-foreground pt-2';
+
 const PRODUCT_LABELS: Record<FormValues['product'], string> = {
   kitabu_yetu: 'Kitabu Yetu — full accounting, contributions, loans',
   chama_reminder: 'Chama Reminder — SMS reminders only',
@@ -89,15 +106,25 @@ export default function CreateAdditionalGroupPage() {
   const { login } = useAuth();
   const { toast } = useToast();
   const [counties, setCounties] = useState<County[]>([]);
+  const certificate = useCertificateFile();
 
   const {
     register,
     handleSubmit,
+    control,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { groupType: 'chama', creatorRole: 'chairperson', product: 'kitabu_yetu' },
+    defaultValues: {
+      groupType: 'chama',
+      creatorRole: 'chairperson',
+      product: 'kitabu_yetu',
+      isGovernmentRegistered: false,
+    },
   });
+
+  const product = useWatch({ control, name: 'product' });
+  const isGovernmentRegistered = useWatch({ control, name: 'isGovernmentRegistered' });
 
   useEffect(() => {
     api
@@ -110,8 +137,22 @@ export default function CreateAdditionalGroupPage() {
 
   const onSubmit = async (values: FormValues) => {
     try {
-      const data = await authApi.createGroup(values as CreateAdditionalGroupPayload);
+      const payload = values as CreateAdditionalGroupPayload;
+      // The certificate travels WITH the request (multipart): the new group cannot
+      // call any other tenant route yet. Only sent when the group is marked
+      // registered, since the input is hidden otherwise.
+      const attachment = values.isGovernmentRegistered ? certificate.file : null;
+      const data = attachment
+        ? await authApi.createGroupWithCertificate(payload, attachment)
+        : await authApi.createGroup(payload);
       login(data);
+      if (data.certificateUploaded === false) {
+        toast({
+          variant: 'destructive',
+          title: 'Your group was created, but the certificate was not saved',
+          description: `${data.certificateNote ?? ''} You can add it later from Settings.`.trim(),
+        });
+      }
       toast({
         title: `${values.product === 'chama_reminder' ? 'Chama Reminder' : 'Kitabu Yetu'} group created`,
         description: `${data.groupCode} is ready. Switch between your groups any time from the sidebar.`,
@@ -208,6 +249,19 @@ export default function CreateAdditionalGroupPage() {
                 <Input id="villageEstate" {...register('villageEstate')} placeholder="Optional" />
               </div>
             </div>
+
+            {/* Kitabu Yetu only — Chama Reminder has no ledger to track contributions against. */}
+            {product === 'kitabu_yetu' && (
+              <GroupFinanceFields register={register} errors={errors} titleClassName={sectionTitle} />
+            )}
+
+            {/* Optional, never blocks creating the group. */}
+            <GroupRegistrationFields
+              register={register}
+              titleClassName={sectionTitle}
+              registered={isGovernmentRegistered}
+              certificate={certificate}
+            />
 
             <div className="flex gap-2 pt-2">
               <Button type="submit" loading={isSubmitting}>

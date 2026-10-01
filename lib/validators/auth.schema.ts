@@ -87,6 +87,29 @@ const groupDetailsFields = {
     .regex(/^\d{2}:\d{2}(:\d{2})?$/, 'Time must be HH:MM')
     .optional()
     .or(z.literal('')),
+
+  // Group finances (contribution-plan.service.ts's 'contribution_plan'
+  // policy domain). Optional at the schema level — a chama_reminder signup
+  // has no GL and never shows this section, and a caller hitting the RPC
+  // directly without it just leaves the plan unconfigured (0/0, editable
+  // later from Settings). The register/create-group routes write these,
+  // non-fatally, right after the group RPC returns.
+  monthlyContribution: z.coerce.number().min(0).optional(),
+  welfareAmount: z.coerce.number().min(0).optional(),
+
+  // Government registration (groups.is_government_registered /
+  // registration_number / registration_certificate_url — columns from
+  // migrations 033 and 074, written by lib/services/group-signup-extras.ts).
+  // Entirely optional and non-blocking: never required to complete sign-up,
+  // and can be added or changed later from Settings. The certificate PDF is
+  // not part of this JSON: when attached, the request is multipart and the
+  // PDF travels in its own field (lib/utils/signup-request.ts). Either the
+  // number or the certificate is enough; neither is ever required.
+  //
+  // A strict boolean on purpose: z.coerce.boolean() turns the string "false"
+  // into true, which would silently mark a group registered.
+  isGovernmentRegistered: z.boolean().default(false),
+  registrationNumber: z.string().max(100).optional().or(z.literal('')),
 } as const;
 
 // Mirrors the public.register_group RPC signature + the v2 workflow spec.
