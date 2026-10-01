@@ -9,8 +9,8 @@
     --ink: #0b1220;
     --ink-muted: #526171;
     --line: #dfe7e1;
-    --brand: #007004;
-    --brand-strong: #005703;
+    --brand: #0b7a51; /* brandGreen[700] */
+    --brand-strong: #085f3f; /* brandGreen[800] */
 
     /* shadcn/Tailwind tokens — every file under components/ui/* (button,
        card, badge, dialog, dropdown-menu, input, select, switch, table,
@@ -24,27 +24,28 @@
        (reminder)) in production since that day — an undefined custom
        property makes `hsl(var(--x))` invalid, which the browser just
        drops, so these classes rendered with no background/border/radius.
-       Restored verbatim; the hex anchors (#3CB043 green / #0B3C88 navy)
-       still match the single source of truth, lib/ui/brand-palette.ts. */
+       Restored verbatim. Each brand value is commented with the
+       lib/ui/brand-palette.ts step it encodes (the single source of truth);
+       update both together. */
     --background: 0 0% 100%;
     --foreground: 217 85% 11%;
     --card: 0 0% 100%;
     --card-foreground: 217 85% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 217 85% 11%;
-    --primary: 124 42% 46%; /* #3CB043 — brand green */
+    --primary: 158 80% 35%; /* #12A06B — brandGreen[500] */
     --primary-foreground: 0 0% 100%;
     --secondary: 210 40% 98%;
     --secondary-foreground: 217 85% 29%;
     --muted: 210 40% 96.1%;
     --muted-foreground: 215.4 16.3% 46.9%;
-    --accent: 129 45% 94%;
+    --accent: 150 50% 95%; /* #EAF8F1 — brandGreen[50] */
     --accent-foreground: 217 85% 29%;
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 0 0% 100%;
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 124 42% 46%;
+    --ring: 158 80% 35%; /* brandGreen[500] */
     --radius: 0.5rem;
   }
 
@@ -60,8 +61,8 @@
   }
 
   ::selection {
-    background: #ccffce;
-    color: #002e02;
+    background: #cdf5e3; /* brandGreen[100] */
+    color: #05412b; /* brandGreen[900] */
   }
 
   :focus-visible {
@@ -93,7 +94,7 @@
     --card-foreground: 210 40% 98%;
     --popover: 217 85% 8%;
     --popover-foreground: 210 40% 98%;
-    --primary: 124 50% 55%; /* lighter green for contrast on dark */
+    --primary: 156 64% 48%; /* #2CC98B — brandGreen[400], lighter for contrast on dark */
     --primary-foreground: 217 85% 6%;
     --secondary: 217 32% 17.5%;
     --secondary-foreground: 210 40% 98%;
@@ -105,7 +106,7 @@
     --destructive-foreground: 0 0% 100%;
     --border: 217 32% 17.5%;
     --input: 217 32% 17.5%;
-    --ring: 124 50% 55%;
+    --ring: 156 64% 48%; /* brandGreen[400] */
   }
 }
 

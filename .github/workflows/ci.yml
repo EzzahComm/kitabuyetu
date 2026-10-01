@@ -134,6 +134,12 @@ jobs:
       - name: Format check (prettier)
         run: npm run format:check
 
+      # ── Brand ─────────────────────────────────────────────────────────────
+      # Logo files must match lib/ui/brand-mark.ts, and retired brand values
+      # (old raster logo, its colours) must not come back. See docs/BRANDING.md.
+      - name: Brand check
+        run: npm run brand:check
+
       # ── Type check ────────────────────────────────────────────────────────
       - name: Type check (tsc --noEmit)
         run: npm run typecheck

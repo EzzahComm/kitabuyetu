@@ -23,6 +23,8 @@ export { ThemeProvider } from './ThemeProvider';
 
 // Brand Components
 export { BrandLogo } from './branding/BrandLogo';
+export { BrandMark } from './branding/BrandMark';
+export { BrandLockup, BrandWordmark } from './branding/BrandLockup';
 export { Container } from './Container';
 export { SectionTitle } from './SectionTitle';
 export { Cta } from './Cta';

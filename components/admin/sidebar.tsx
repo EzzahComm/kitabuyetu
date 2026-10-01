@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
+import { BrandWordmark } from '@/components/branding/BrandLockup';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 
 const NAV: PortalNavSection[] = [
@@ -114,9 +115,11 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
           </Link>
         ) : (
           <Link href="/admin" className="flex items-center gap-2.5 min-w-0" aria-label="Kitabu Yetu admin home">
-            <BrandLogo size={28} alt="Kitabu Yetu" />
+            <BrandLogo size={28} alt="" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate leading-none">Kitabu Yetu</p>
+              <p className="truncate leading-none">
+                <BrandWordmark fontSize={15} />
+              </p>
               <p className="text-[10px] text-brand-blue-500 font-medium tracking-wide mt-0.5">ADMIN CONSOLE</p>
             </div>
           </Link>

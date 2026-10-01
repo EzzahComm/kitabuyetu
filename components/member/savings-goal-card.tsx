@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { formatKES, formatDate } from '@/lib/utils';
+import { brandGreen } from '@/lib/ui/brand-palette';
 import type { MemberGoal } from '@/lib/services/member-goals.service';
 
 interface SavingsGoalCardProps {
@@ -33,7 +34,7 @@ export function SavingsGoalCard({ goal, onLogProgress, onEdit, onDelete }: Savin
 
   return (
     <div className="flex items-center gap-4 rounded-2xl border bg-card p-4">
-      <ProgressRing value={pct} size={64} color={done ? '#16A34A' : '#3CB043'}>
+      <ProgressRing value={pct} size={64} color={done ? '#16A34A' : brandGreen[500]}>
         <span className="text-sm font-bold text-foreground">{pct}%</span>
       </ProgressRing>
       <div className="min-w-0 flex-1">
