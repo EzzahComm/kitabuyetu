@@ -1,6 +1,14 @@
 import type { Config } from 'tailwindcss';
 import plugin from 'tailwindcss/plugin';
-import { brandGreen, brandNavy, brandOrange, brandAccent, brandNeutral, brandPaper, taglineColor } from './lib/ui/brand-palette';
+import {
+  brandGreen,
+  brandNavy,
+  brandOrange,
+  brandAccent,
+  brandNeutral,
+  brandPaper,
+  taglineColor,
+} from './lib/ui/brand-palette';
 import { finanzaBlue, finanzaDark, finanzaOrange, finanzaText } from './lib/ui/finanza-palette';
 
 type Scale = Record<string | number, string>;
