@@ -30,7 +30,7 @@ import {
   IconChartDots,
 } from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { BrandLogo } from '@/components/branding/BrandLogo';
+import { BrandLockup } from '@/components/branding/BrandLockup';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
 
@@ -130,11 +130,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       isActive={isActive}
       logo={() => (
         <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
-          {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
-          <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
-            <BrandLogo size={28} alt="Kitabu Yetu" />
-          </div>
-          <span className="font-bold text-sm truncate">Kitabu Yetu</span>
+          <BrandLockup size={28} tone="dark" />
         </Link>
       )}
       preNav={isTenantUser(user) ? <GroupSwitcher /> : null}

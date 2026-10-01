@@ -1,14 +1,16 @@
 import type { MetadataRoute } from 'next';
+import { BRAND_TAGLINE } from '@/lib/ui/brand-mark';
+import { finanzaDark } from '@/lib/ui/finanza-palette';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'Kitabu Yetu — Build Vibrant Communities',
+    name: `Kitabu Yetu — ${BRAND_TAGLINE}`,
     short_name: 'Kitabu Yetu',
     description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
     start_url: '/dashboard',
     display: 'standalone',
     background_color: '#F8FAFC', // neutral brand background
-    theme_color: '#0B3C88', // brand navy
+    theme_color: finanzaDark.DEFAULT, // brand-kit navy
     orientation: 'portrait',
     categories: ['finance', 'business', 'productivity'],
     icons: [

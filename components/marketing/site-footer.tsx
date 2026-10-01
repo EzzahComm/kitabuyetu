@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { ChevronRight, Mail, MapPin, Phone } from 'lucide-react';
-import { BrandLogo } from '@/components/branding/BrandLogo';
+import { BrandLockup } from '@/components/branding/BrandLockup';
 import { BackToTop } from './back-to-top';
 import { NewsletterSignupForm } from './newsletter-signup-form';
 import { Container } from './primitives';
@@ -48,10 +48,7 @@ export function SiteFooter() {
                 className="mb-5 inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4 focus-visible:ring-offset-finanza-dark"
                 aria-label="Kitabu Yetu — home"
               >
-                <span className="rounded-md bg-white p-1">
-                  <BrandLogo size={30} alt="" />
-                </span>
-                <span className="font-display text-2xl font-bold tracking-tight text-white">Kitabu&nbsp;Yetu</span>
+                <BrandLockup size={48} tone="dark" tagline />
               </Link>
               <p className="text-[0.9375rem] leading-relaxed">
                 Simple books. Stronger groups. Vibrant communities — digital tools for groups and organizations across

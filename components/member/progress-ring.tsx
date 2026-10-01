@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { brandGreen } from '@/lib/ui/brand-palette';
 
 interface ProgressRingProps {
   /** 0–100. */
@@ -20,8 +21,8 @@ export function ProgressRing({
   value,
   size = 64,
   stroke = 6,
-  color = '#3CB043',
-  trackColor = '#EAF7EC',
+  color = brandGreen[500],
+  trackColor = brandGreen[50],
   children,
   className,
 }: ProgressRingProps) {
