@@ -446,7 +446,11 @@ function RegisterForm() {
                   Terms & Conditions
                 </Link>
                 {' and '}
-                <Link href="/legal#data-protection" target="_blank" className="text-brand-600 hover:underline font-medium">
+                <Link
+                  href="/legal#data-protection"
+                  target="_blank"
+                  className="text-brand-600 hover:underline font-medium"
+                >
                   Data Protection Policy
                 </Link>
               </span>

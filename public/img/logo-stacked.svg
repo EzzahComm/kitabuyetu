@@ -1,4 +1,4 @@
-<svg width="200" height="240" viewBox="0 0 200 240" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="200" height="280" viewBox="0 0 200 280" fill="none" xmlns="http://www.w3.org/2000/svg">
   <!-- Three-dot group mark -->
   <g id="dots">
     <!-- Left green dot -->
@@ -21,21 +21,21 @@
     <line x1="100" y1="50" x2="100" y2="125" stroke="#3CB043" stroke-width="2"/>
   </g>
 
-  <!-- Wordmark text -->
+  <!-- Wordmark text (stacked) -->
   <g id="wordmark">
-    <text x="100" y="155" font-family="Inter, sans-serif" font-size="32" font-weight="700"
+    <text x="100" y="160" font-family="Inter, sans-serif" font-size="32" font-weight="700"
           text-anchor="middle" fill="#3CB043" letter-spacing="-1">
       KITABU
     </text>
-    <text x="100" y="185" font-family="Inter, sans-serif" font-size="32" font-weight="700"
+    <text x="100" y="200" font-family="Inter, sans-serif" font-size="32" font-weight="700"
           text-anchor="middle" fill="#F97316" letter-spacing="-1">
       YETU
     </text>
   </g>
 
-  <!-- Tagline -->
+  <!-- Tagline (below stacked wordmark) -->
   <g id="tagline">
-    <text x="100" y="220" font-family="Open Sans, sans-serif" font-size="11" font-weight="600"
+    <text x="100" y="250" font-family="Open Sans, sans-serif" font-size="11" font-weight="600"
           text-anchor="middle" fill="#355EFC" letter-spacing="1.5" text-transform="uppercase">
       COMMUNITY FINANCE
     </text>
