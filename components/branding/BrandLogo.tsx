@@ -13,6 +13,10 @@ interface BrandLogoProps {
   className?: string;
   /** Override the rendered alt text. */
   alt?: string;
+  /** Use SVG format instead of PNG. Useful for scalable logos. */
+  useSvg?: boolean;
+  /** Logo variant to use. */
+  variant?: 'full' | 'icon' | 'horizontal' | 'stacked';
 }
 
 /**
@@ -23,6 +27,9 @@ interface BrandLogoProps {
  * the visual marks dominate; the wordmark/tagline become decorative. Consumers that
  * want a separate text wordmark next to the logo (e.g. navbar) can render their own
  * <span>Kitabu Yetu</span> alongside this component.
+ *
+ * Logo v3 features: three-dot group mark above open book, green and orange wordmark,
+ * and uppercase tagline. See docs/BRANDING.md for complete specification.
  */
 export function BrandLogo({
   size = 36,
@@ -30,10 +37,29 @@ export function BrandLogo({
   priority = false,
   className,
   alt = 'Kitabu Yetu Logo',
+  useSvg = false,
+  variant = 'full',
 }: BrandLogoProps): React.ReactElement {
+  const getLogoPath = () => {
+    if (useSvg) {
+      switch (variant) {
+        case 'icon':
+          return '/img/logo-icon.svg';
+        case 'horizontal':
+          return '/img/logo-horizontal.svg';
+        case 'stacked':
+          return '/img/logo-stacked.svg';
+        case 'full':
+        default:
+          return '/img/logo.svg';
+      }
+    }
+    return '/brand/kitabu-yetu-logo.png';
+  };
+
   const img = (
     <Image
-      src="/brand/kitabu-yetu-logo.png"
+      src={getLogoPath()}
       alt={alt}
       width={size}
       height={size}

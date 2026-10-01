@@ -81,6 +81,18 @@ export const brandPaper = {
   deep: '#F8FAFC',
 } as const;
 
+/** Tagline and accent color used in marketing and branding contexts.
+ *  Matches Kitabu Yetu Logo v3 specification:
+ *  - Light backgrounds: #355EFC
+ *  - Navy backgrounds: #8DA6FF
+ *  - Blue backgrounds: white
+ */
+export const taglineColor = {
+  light: '#355EFC',
+  navy: '#8DA6FF',
+  blue: '#FFFFFF',
+} as const;
+
 /** Convenience aliases for the spec's named neutral/accent tokens. */
 export const brandAccent = brandGreen[50];
 export const brandNeutral = '#F8FAFC';
