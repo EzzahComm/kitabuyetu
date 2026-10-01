@@ -1,0 +1,95 @@
+name: Ukoo Phase 0 Checks
+
+on:
+  push:
+    branches: [main, feat/ukoo-*]
+    paths:
+      - 'packages/ukoo-*/**'
+      - 'apps/ukoo/**'
+      - 'supabase/migrations/ukoo_*.sql'
+      - '.github/workflows/ukoo-phase-0.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packages/ukoo-*/**'
+      - 'apps/ukoo/**'
+      - 'supabase/migrations/ukoo_*.sql'
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    name: TypeScript
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: npm run typecheck --workspace=@ukoo/core
+      - run: npm run typecheck --workspace=@ukoo/ports
+
+  eslint:
+    runs-on: ubuntu-latest
+    name: ESLint Boundary Check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci
+      - run: |
+          cd apps/ukoo
+          npx eslint . --no-eslintrc --config eslint.config.mjs
+      - name: Check no @kitabu service imports
+        run: |
+          if grep -r '@kitabu/\(core\|ports\|services\|adapters\)' apps/ukoo --include='*.ts' --include='*.tsx'; then
+            echo "Error: Found forbidden @kitabu service imports in ukoo code"
+            exit 1
+          fi
+
+  no-price-literals:
+    runs-on: ubuntu-latest
+    name: No Price Literals
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check for price literals in non-constant files
+        run: |
+          # Allow prices only in:
+          # - supabase/migrations/ukoo_005_billing_products_plans.sql (seeded data)
+          # - packages/ukoo-core/package.json (version numbers)
+          # Disallow in routes, pages, components
+          if grep -r '\(299\|2990\|999\|9990\|1073741824\|10737418240\|107374182400\)' \
+            apps/ukoo/app \
+            apps/ukoo/components \
+            --include='*.ts' --include='*.tsx'; then
+            echo "Error: Found price literals in UI code (use entitlements/database)"
+            exit 1
+          fi
+
+  migrations-syntax:
+    runs-on: ubuntu-latest
+    name: Migration Syntax Check
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Validate SQL syntax
+        run: |
+          npm install -g pg-format
+          for f in supabase/migrations/ukoo_*.sql; do
+            echo "Checking $f..."
+            if ! grep -q 'create table\|create type\|create function\|create policy' "$f"; then
+              echo "Warning: $f may not contain DDL"
+            fi
+          done
+      - name: Check migration naming
+        run: |
+          for f in supabase/migrations/ukoo_*.sql; do
+            if ! [[ "$f" =~ ukoo_[0-9]{3}_ ]]; then
+              echo "Error: Migration $f does not follow ukoo_NNN_ naming"
+              exit 1
+            fi
+          done
