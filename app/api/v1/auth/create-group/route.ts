@@ -9,6 +9,8 @@ import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
+import { applyGroupSignupExtras } from '@/lib/services/group-signup-extras';
+import { certificateOutcome, checkCertificate, readSignupBody } from '@/lib/utils/signup-request';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -46,7 +48,13 @@ interface CreateAdditionalGroupResult {
 export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
-      const input = CreateAdditionalGroupSchema.parse(await req.json());
+      // JSON, or multipart when the registrant attached a registration certificate.
+      const { body, certificateFile } = await readSignupBody(req);
+      const input = CreateAdditionalGroupSchema.parse(body);
+
+      // An unusable attachment never blocks creating the group (see /auth/register).
+      const certificateAttached = Boolean(input.isGovernmentRegistered && certificateFile && certificateFile.size > 0);
+      const attached = certificateAttached ? await checkCertificate(certificateFile) : {};
 
       const rpcPayload = {
         groupName: input.groupName,
@@ -70,6 +78,22 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
         return rows[0].create_additional_group;
       });
+
+      // Same non-fatal optional writes as /auth/register.
+      const extras = await applyGroupSignupExtras(
+        {
+          product: result.signup_product,
+          groupId: result.group_id,
+          memberId: result.member_id,
+          role: result.group_role,
+          monthlyContribution: input.monthlyContribution,
+          welfareAmount: input.welfareAmount,
+          isGovernmentRegistered: input.isGovernmentRegistered,
+          registrationNumber: input.registrationNumber,
+          certificate: attached.certificate,
+        },
+        'create-group',
+      );
 
       await emitActivity({
         type: ActivityEventType.GROUP_CREATED,
@@ -128,6 +152,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode: string;
         groupStatus: string;
         signupProduct: SubscriptionProduct;
+        /** Present only when a certificate was attached: whether it was saved, and why not. */
+        certificateUploaded?: boolean;
+        certificateNote?: string;
       } = {
         accessToken,
         refreshToken,
@@ -151,6 +178,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode: result.member_code,
         groupStatus: result.group_status,
         signupProduct: result.signup_product,
+        ...certificateOutcome(certificateAttached, attached.rejected, extras.certificateStored),
       };
 
       return created(response);

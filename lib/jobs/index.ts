@@ -525,9 +525,11 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
 
     // ── 1st of month 08:00 EAT — contribution-reminders ──
-    // Nudge members who didn't contribute in the previous calendar
-    // month. Dedup keyed at month granularity so even repeated
-    // 5-min ticks within the same hour won't re-enqueue.
+    // SMS each member in arrears (per their group's configured
+    // contribution-plan.service.ts amounts) their outstanding
+    // contribution/welfare balance and where to pay. Dedup keyed at month
+    // granularity so even repeated 5-min ticks within the same hour won't
+    // re-enqueue.
     queued.notify_contribution_reminders = await safe(
       'notify_contribution_reminders',
       {},
