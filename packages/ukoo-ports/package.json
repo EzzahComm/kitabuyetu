@@ -1,0 +1,19 @@
+{
+  "name": "@ukoo/ports",
+  "version": "0.0.1",
+  "description": "Ukoo Yetu port interfaces for external services",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["ukoo", "ports", "interfaces"],
+  "author": "Ukoo Yetu Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  },
+  "exports": {
+    ".": "./dist/index.js"
+  }
+}

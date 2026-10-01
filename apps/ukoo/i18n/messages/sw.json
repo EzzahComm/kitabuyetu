@@ -1,0 +1,34 @@
+{
+  "app": {
+    "title": "Ukoo Yetu",
+    "description": "Mti wa Ukoo na Nasaba"
+  },
+  "nav": {
+    "tree": "Mti",
+    "feed": "Habari",
+    "stories": "Hadithi",
+    "gatherings": "Matukio",
+    "me": "Mimi"
+  },
+  "auth": {
+    "sign_in": "Ingia",
+    "sign_up": "Jiandikishe",
+    "continue_with_email": "Endelea na Barua"
+  },
+  "privacy": {
+    "living_private": "Hemebe",
+    "living_family": "Ukoo",
+    "deceased_family": "Ukoo",
+    "deceased_public": "Hadharani"
+  },
+  "relationships": {
+    "parent": "Mzazi",
+    "child": "Mwana",
+    "sibling": "Mkubwa au Mdogo",
+    "grandparent": "Babu au Bibi",
+    "grandchild": "Mjukuu",
+    "spouse": "Mume au Mke",
+    "cousin": "Fuzzy",
+    "relative": "Muuongo"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "app": {
+    "title": "Ukoo Yetu",
+    "description": "Family Tree & Genealogy"
+  },
+  "nav": {
+    "tree": "Tree",
+    "feed": "Feed",
+    "stories": "Stories",
+    "gatherings": "Gatherings",
+    "me": "Me"
+  },
+  "auth": {
+    "sign_in": "Sign In",
+    "sign_up": "Sign Up",
+    "continue_with_email": "Continue with Email"
+  },
+  "privacy": {
+    "living_private": "Private",
+    "living_family": "Family",
+    "deceased_family": "Family",
+    "deceased_public": "Public"
+  },
+  "relationships": {
+    "parent": "Parent",
+    "child": "Child",
+    "sibling": "Sibling",
+    "grandparent": "Grandparent",
+    "grandchild": "Grandchild",
+    "spouse": "Spouse",
+    "cousin": "Cousin",
+    "relative": "Relative"
+  }
+}

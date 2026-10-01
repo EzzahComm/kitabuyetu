@@ -1,0 +1,26 @@
+{
+  "name": "@ukoo/core",
+  "version": "0.0.1",
+  "description": "Ukoo Yetu domain logic and types",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": ["ukoo", "family-tree", "genealogy"],
+  "author": "Ukoo Yetu Contributors",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "fast-check": "^3.14.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./types": "./dist/types/index.js",
+    "./utils": "./dist/util/index.js"
+  }
+}
