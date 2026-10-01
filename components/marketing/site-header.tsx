@@ -336,13 +336,23 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               aria-label="Kitabu Yetu — home"
             >
               <BrandLogo size={36} priority alt="" />
-              <span
-                className={cn(
-                  'font-display text-[1.6rem] font-bold leading-none tracking-tight transition-colors lg:text-[1.85rem]',
-                  transparent ? 'text-white' : 'text-brand-500',
-                )}
-              >
-                Kitabu&nbsp;Yetu
+              <span className="flex flex-col">
+                <span
+                  className={cn(
+                    'font-display text-[1.6rem] font-bold leading-none tracking-tight transition-colors lg:text-[1.85rem]',
+                    transparent ? 'text-white' : 'text-brand-500',
+                  )}
+                >
+                  Kitabu&nbsp;Yetu
+                </span>
+                <small
+                  className={cn(
+                    'mt-1.5 block max-w-[12rem] truncate text-[0.625rem] font-medium uppercase tracking-wide transition-colors sm:max-w-none sm:text-center lg:text-[0.6875rem]',
+                    transparent ? 'text-white/70' : 'text-finanza-text/70',
+                  )}
+                >
+                  Smart Group-Management Tools &bull; Build Vibrant Communities
+                </small>
               </span>
             </Link>
 
