@@ -93,8 +93,12 @@ describe('Relationship Calculator', () => {
     });
 
     it('describes ancestor-descendant', () => {
+      // A is D's grandparent two generations up; describeRelationship
+      // describes the second argument's role relative to the first (same
+      // convention as the parent-child test above), so D is labeled A's
+      // grandchild, not the reverse.
       const rel = describeRelationship(graph, 'A', 'D', 'en');
-      expect(rel).toMatch(/grandparent|ancestor/);
+      expect(rel).toMatch(/grandchild|descendant/);
     });
 
     it('describes sibling relationship in Swahili', () => {

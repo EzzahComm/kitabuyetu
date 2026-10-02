@@ -46,6 +46,18 @@ export function getAllAncestors(graph: AncestryGraph, personId: string): string[
 }
 
 export function getDistance(graph: AncestryGraph, from: string, to: string): number | null {
+  // `to` may be either an ancestor or a descendant of `from` — try walking up
+  // via parent edges first, then down via child edges, since a single BFS
+  // can't follow both without conflating unrelated branches of the tree.
+  return bfsDistance(graph, from, to, 'up') ?? bfsDistance(graph, from, to, 'down');
+}
+
+function bfsDistance(
+  graph: AncestryGraph,
+  from: string,
+  to: string,
+  direction: 'up' | 'down'
+): number | null {
   const queue: [string, number][] = [[from, 0]];
   const visited = new Set<string>();
 
@@ -55,8 +67,11 @@ export function getDistance(graph: AncestryGraph, from: string, to: string): num
     if (visited.has(current)) continue;
     visited.add(current);
 
-    const parents = graph.edges.filter(e => e.child === current).map(e => e.parent);
-    queue.push(...parents.map(p => [p, dist + 1] as [string, number]));
+    const next =
+      direction === 'up'
+        ? graph.edges.filter(e => e.child === current).map(e => e.parent)
+        : graph.edges.filter(e => e.parent === current).map(e => e.child);
+    queue.push(...next.map(n => [n, dist + 1] as [string, number]));
   }
 
   return null;
@@ -73,15 +88,18 @@ export function describeRelationship(
   const bAncestors = getAllAncestors(graph, bId);
   const bDescendants = getAllDescendants(graph, bId);
 
-  // Direct relationships
+  // Direct relationships. The returned word always describes bId's role
+  // relative to aId ("bId is aId's ___"): if bId is aId's ancestor, bId gets
+  // an ancestor-word (parent/grandparent); if aId is bId's ancestor, bId —
+  // the descendant — gets a descendant-word (child/grandchild).
   if (aAncestors.includes(bId)) {
     const dist = getDistance(graph, bId, aId) || 1;
-    return formatAncestralRelation(dist, 'descendant', locale);
+    return formatAncestralRelation(dist, 'ancestor', locale);
   }
 
   if (bAncestors.includes(aId)) {
     const dist = getDistance(graph, aId, bId) || 1;
-    return formatAncestralRelation(dist, 'ancestor', locale);
+    return formatAncestralRelation(dist, 'descendant', locale);
   }
 
   // Sibling/cousin

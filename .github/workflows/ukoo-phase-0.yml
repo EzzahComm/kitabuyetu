@@ -57,8 +57,11 @@ jobs:
           # Allow prices only in:
           # - supabase/migrations/20261001000400_210_ukoo_billing_products_plans.sql (seeded data)
           # - packages/ukoo-core/package.json (version numbers)
-          # Disallow in routes, pages, components
-          if grep -r '\(299\|2990\|999\|9990\|1073741824\|10737418240\|107374182400\)' \
+          # Disallow in routes, pages, components.
+          # -P + word boundaries + a negative lookbehind for '#' so this
+          # doesn't also fire on hex colors like '#999' (a CSS gray, not a
+          # price) wherever one happens to contain these digits.
+          if LC_ALL=C.UTF-8 grep -rP '(?<!#)\b(299|2990|999|9990|1073741824|10737418240|107374182400)\b' \
             apps/ukoo/app \
             apps/ukoo/components \
             --include='*.ts' --include='*.tsx'; then
