@@ -11,6 +11,8 @@ import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
+import { applyGroupSignupExtras } from '@/lib/services/group-signup-extras';
+import { certificateOutcome, checkCertificate, readSignupBody } from '@/lib/utils/signup-request';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -47,10 +49,16 @@ interface RegisterGroupResult {
 export async function POST(req: NextRequest): Promise<Response> {
   let stage: Stage = 'parse_body';
   try {
-    const body = await req.json();
+    // JSON, or multipart when the registrant attached a registration certificate.
+    const { body, certificateFile } = await readSignupBody(req);
 
     stage = 'validate_input';
     const input = RegisterSchema.parse(body);
+
+    // An unusable attachment never blocks sign-up: registration data is optional
+    // and can be supplied later, so a bad file is dropped and reported back.
+    const certificateAttached = Boolean(input.isGovernmentRegistered && certificateFile && certificateFile.size > 0);
+    const attached = certificateAttached ? await checkCertificate(certificateFile) : {};
 
     stage = 'normalize_phone';
     const phone = normalizePhone(input.phone);
@@ -103,6 +111,23 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
       return { result: rpc, membershipNo: gm[0]?.membership_no ?? null };
     });
+
+    // Optional contribution plan + registration details (number, certificate):
+    // separate non-fatal writes after the RPC's own transaction has committed.
+    const extras = await applyGroupSignupExtras(
+      {
+        product: input.product,
+        groupId: result.group_id,
+        memberId: result.member_id,
+        role: result.group_role,
+        monthlyContribution: input.monthlyContribution,
+        welfareAmount: input.welfareAmount,
+        isGovernmentRegistered: input.isGovernmentRegistered,
+        registrationNumber: input.registrationNumber,
+        certificate: attached.certificate,
+      },
+      'register',
+    );
 
     // Administrator alerts (after the registration transaction committed). Never
     // includes the password or any credential; the phone/email are the
@@ -180,6 +205,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       membershipNo?: string;
       groupStatus: string;
       signupProduct: SubscriptionProduct;
+      /** Present only when a certificate was attached: whether it was saved, and why not. */
+      certificateUploaded?: boolean;
+      certificateNote?: string;
     } = {
       accessToken,
       refreshToken,
@@ -210,6 +238,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // distinguishing a standalone Chama Reminder signup from an unpaid
       // Kitabu Yetu one.
       signupProduct: input.product,
+      ...certificateOutcome(certificateAttached, attached.rejected, extras.certificateStored),
     };
 
     return created(response);
