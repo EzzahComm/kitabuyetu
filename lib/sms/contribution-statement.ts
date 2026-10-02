@@ -21,6 +21,16 @@ export interface ContributionStatementRow {
   contribution_months: number;
   outstanding_welfare: string;
   welfare_months: number;
+  /** Lifetime totals paid to this group — uncapped, unlike the arrears figures above. */
+  total_contributed: string;
+  total_welfare_contributed: string;
+  /**
+   * Group-wide (not per-member) — contributions + welfare collected, minus
+   * SMS usage cost and subscription fees paid. The same figure for every
+   * member of a given group. Can be negative if the group has spent more on
+   * platform costs than it has collected.
+   */
+  group_balance: string;
 }
 
 function kes(amount: number): string {
@@ -36,18 +46,28 @@ function kes(amount: number): string {
 export function buildStatementMessage(r: ContributionStatementRow, paybill: string): string {
   const contributionDue = parseFloat(r.outstanding_contribution);
   const welfareDue = parseFloat(r.outstanding_welfare);
+  const contributionPaid = parseFloat(r.total_contributed);
+  const welfarePaid = parseFloat(r.total_welfare_contributed);
+  const groupBalance = parseFloat(r.group_balance);
   const account = r.membership_no?.trim() || null;
 
   let text = `Dear ${r.first_name}, ${r.group_name} balance update:`;
   if (contributionDue > 0) {
-    text += ` Contribution arrears KES ${kes(contributionDue)} (${r.contribution_months} mo).`;
+    text += ` Contribution arrears KES ${kes(contributionDue)} (${r.contribution_months} mo, KES ${kes(contributionPaid)} paid to date).`;
   }
   if (welfareDue > 0) {
-    text += ` Welfare arrears KES ${kes(welfareDue)} (${r.welfare_months} mo).`;
+    text += ` Welfare arrears KES ${kes(welfareDue)} (${r.welfare_months} mo, KES ${kes(welfarePaid)} paid to date).`;
   }
 
   text += ` Pay via M-Pesa Paybill ${paybill}`;
-  if (!account) return `${text}.`;
-  if (contributionDue > 0 && welfareDue > 0) return `${text}, Acc ${account} (contribution) or ${account}-W (welfare).`;
-  return welfareDue > 0 ? `${text}, Acc ${account}-W.` : `${text}, Acc ${account}.`;
+  if (account) {
+    text +=
+      contributionDue > 0 && welfareDue > 0
+        ? `, Acc ${account} (contribution) or ${account}-W (welfare)`
+        : welfareDue > 0
+          ? `, Acc ${account}-W`
+          : `, Acc ${account}`;
+  }
+  text += `. Group balance KES ${kes(groupBalance)}.`;
+  return text;
 }

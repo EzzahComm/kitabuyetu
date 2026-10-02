@@ -68,6 +68,16 @@ async function activateGroup(groupId: string): Promise<void> {
   await rawQuery(`UPDATE groups SET status = 'active' WHERE id = $1`, [groupId]);
 }
 
+/** Pins the active subscription's fee and start date for a deterministic group-balance expectation. */
+async function setSubscriptionFee(groupId: string, monthlyFee: number, startedMonthsAgo: number): Promise<void> {
+  await rawQuery(
+    `UPDATE subscriptions
+        SET monthly_fee = $2, started_at = date_trunc('month', now()) - make_interval(months => $3::int)
+      WHERE group_id = $1 AND status = 'active'`,
+    [groupId, monthlyFee, startedMonthsAgo],
+  );
+}
+
 /** A plan whose first counted month is `startedMonthsAgo` months back (a whole month, so it counts in full). */
 async function setPlan(
   groupId: string,
@@ -201,13 +211,13 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
     const paybill = platformPaybill();
     const none = await membershipOf(groupId, behindNothingPaid);
     const nothingPaid = statementFor(await phoneOf(behindNothingPaid));
-    expect(nothingPaid).toContain('Contribution arrears KES 3,000 (3 mo).');
+    expect(nothingPaid).toContain('Contribution arrears KES 3,000 (3 mo, KES 0 paid to date).');
     expect(nothingPaid).toContain(`Paybill ${paybill}, Acc ${none.no}.`);
     expect(nothingPaid).not.toMatch(/welfare/i);
 
     const partly = await membershipOf(groupId, behindPartlyPaid);
     const partlyPaid = statementFor(await phoneOf(behindPartlyPaid));
-    expect(partlyPaid).toContain('Contribution arrears KES 2,400 (3 mo).');
+    expect(partlyPaid).toContain('Contribution arrears KES 2,400 (3 mo, KES 600 paid to date).');
     expect(partlyPaid).toContain(`Acc ${partly.no}.`);
   });
 
@@ -228,7 +238,7 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
     expect(result).toMatchObject({ attempted: 1, sent: 1 });
     const membership = await membershipOf(groupId, behind);
     const message = statementFor(await phoneOf(behind));
-    expect(message).toContain('Welfare arrears KES 200 (1 mo).');
+    expect(message).toContain('Welfare arrears KES 200 (1 mo, KES 200 paid to date).');
     expect(message).toContain(`Acc ${membership.no}-W.`);
     expect(message).not.toMatch(/contribution/i);
   });
@@ -244,8 +254,8 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
 
     const membership = await membershipOf(groupId, behind);
     const message = statementFor(await phoneOf(behind));
-    expect(message).toContain('Contribution arrears KES 1,000 (2 mo).');
-    expect(message).toContain('Welfare arrears KES 200 (2 mo).');
+    expect(message).toContain('Contribution arrears KES 1,000 (2 mo, KES 0 paid to date).');
+    expect(message).toContain('Welfare arrears KES 200 (2 mo, KES 0 paid to date).');
     expect(message).toContain(`Acc ${membership.no} (contribution) or ${membership.no}-W (welfare).`);
   });
 
@@ -280,8 +290,55 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
 
     await handleJob(await makeJob());
 
-    expect(statementFor(await phoneOf(lateJoiner))).toContain('Contribution arrears KES 1,000 (1 mo).');
-    expect(statementFor(await phoneOf(officerId))).toContain('Contribution arrears KES 4,000 (4 mo).');
+    expect(statementFor(await phoneOf(lateJoiner))).toContain(
+      'Contribution arrears KES 1,000 (1 mo, KES 0 paid to date).',
+    );
+    expect(statementFor(await phoneOf(officerId))).toContain(
+      'Contribution arrears KES 4,000 (4 mo, KES 0 paid to date).',
+    );
+  });
+
+  it('paid-to-date is a lifetime total, not capped by the 24-month arrears window', async () => {
+    await resetDatabase();
+    const { groupId, memberIds } = await setupGroup(1);
+    const [behind] = memberIds;
+    await setPlan(groupId, { monthlyContribution: 1000, welfareAmount: 0 }, 2);
+    await setJoined(groupId, 36); // joined 3 years ago, well before the 24-month arrears cap
+    // Two real payments: one inside the arrears-scan window, one 30 months back —
+    // outside it, so the windowed arrears arithmetic never sees it, but the
+    // lifetime paid-to-date figure must still include it.
+    await pay(groupId, behind, 600, 1);
+    await pay(groupId, behind, 5000, 30);
+
+    await handleJob(await makeJob());
+
+    const message = statementFor(await phoneOf(behind));
+    // Arrears still computed only over the 2 closed months the plan counts.
+    expect(message).toContain('Contribution arrears KES 1,400 (2 mo, KES 5,600 paid to date).');
+  });
+
+  it('group balance is contributions + welfare in, minus SMS cost and subscription fees, group-wide', async () => {
+    await resetDatabase();
+    const { groupId, memberIds } = await setupGroup(1);
+    const [behind] = memberIds;
+    await setPlan(groupId, { monthlyContribution: 100, welfareAmount: 0 }, 1); // 1 closed month
+    await setJoined(groupId, 6);
+    await pay(groupId, behind, 60, 1); // owes 40 still — stays a candidate; counts toward group income too
+    await setSubscriptionFee(groupId, 1000, 2); // started 2 whole months ago -> 3 months billed = 3000
+    // One real SMS usage row: 10 credits deducted, none from the free
+    // allowance -> 10 paid credits at the group's 0.90 sms_rate (set by
+    // provisionBilling) = 9.
+    await rawQuery(
+      `INSERT INTO sms_usage_logs (group_id, recipient_phone, message_text, credits_deducted, credits_from_allowance, status)
+       VALUES ($1, '254700000000', 'test', 10, 0, 'delivered')`,
+      [groupId],
+    );
+
+    await handleJob(await makeJob());
+
+    const message = statementFor(await phoneOf(behind));
+    // 60 (contributions) + 0 (welfare) - 9 (10 paid credits x 0.90 sms_rate) - 3000 (subscription) = -2949.
+    expect(message).toMatch(/Group balance KES -2,949\.$/);
   });
 
   it('sends once per month: a second run skips everyone and never bills twice', async () => {
