@@ -70,6 +70,31 @@ COMMENT ON COLUMN organization_group_access.status IS
 COMMENT ON COLUMN organization_group_access.granted_by IS
   'Set at approval time (same actor as reviewed_by for an approved row). NULL while pending or rejected.';
 
+-- The pre-existing RLS policies only anticipated a group-initiated grant:
+-- INSERT allowed only a chairperson (or super_admin), and — more
+-- importantly — UPDATE allowed a chairperson to update their OWN group's
+-- row, which would let one self-approve a pending request if this table
+-- were ever reached outside organization_group_links.service.ts (which
+-- bypasses RLS via withAdminDb for every write today — not exploitable
+-- through current application code, but RLS is meant to be the real
+-- backstop here, same principle organization_subscriptions' own policy
+-- comment states, not something that holds only by application convention).
+--
+-- Fixed to match this migration's actual model: either side may INSERT a
+-- request, but UPDATE (status transitions — approve/reject) is
+-- super_admin-only. SELECT already correctly covered both sides; untouched.
+DROP POLICY organization_group_access_insert ON organization_group_access;
+CREATE POLICY organization_group_access_insert ON organization_group_access
+  FOR INSERT WITH CHECK (
+    is_super_admin()
+    OR (group_id = app_current_group_id() AND app_current_role() = 'chairperson')
+    OR (organization_id = app_current_organization_id() AND app_current_role() = 'organization_coordinator')
+  );
+
+DROP POLICY organization_group_access_update ON organization_group_access;
+CREATE POLICY organization_group_access_update ON organization_group_access
+  FOR UPDATE USING (is_super_admin());
+
 -- ═══ PART 2: register_organization() ═════════════════════════════════════════
 
 CREATE OR REPLACE FUNCTION public.register_organization(p_payload JSONB)

@@ -349,6 +349,22 @@ export const UpdateReportScheduleSchema = z.object({
   isActive: z.boolean().optional(),
 });
 
+// ─── Group↔organization link requests (migration 206) ────────────────────────
+
+/** Group side: chairperson requests a link, by the organization's name. */
+export const RequestOrganizationLinkSchema = z.object({
+  organizationName: z.string().min(3).max(255),
+});
+
+/** Organization side: coordinator requests a link, by the group's code (KY0000001 style). */
+export const RequestGroupLinkSchema = z.object({
+  groupCode: z.string().regex(/^KY[0-9]{7}$/i, 'Group code looks like KY0000001'),
+});
+
+export const RejectOrgGroupLinkSchema = z.object({
+  reason: z.string().min(3).max(500),
+});
+
 export type DepositInput = z.infer<typeof DepositSchema>;
 export type CreateProgramInput = z.infer<typeof CreateProgramSchema>;
 export type CapitalAdjustmentInput = z.infer<typeof CapitalAdjustmentSchema>;

@@ -78,6 +78,37 @@ export const GROUP_TYPE_LABELS: Record<GroupType, string> = {
 export const GROUP_TYPES = Object.keys(GROUP_TYPE_LABELS) as [GroupType, ...GroupType[]];
 export type OrganizationAccessLevel = 'read' | 'report';
 
+// Must match the organization_type Postgres enum exactly (migration 050
+// broadened this from NGO-specific to any institution type — 'ngo' is one
+// value among these, never the implicit default. See
+// register_organization()'s own validation: organizationType is required,
+// with no fallback).
+export type OrganizationType =
+  | 'bank'
+  | 'sacco'
+  | 'foundation'
+  | 'ngo'
+  | 'government'
+  | 'cooperative'
+  | 'faith_based'
+  | 'other';
+
+export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
+  sacco: 'SACCO',
+  ngo: 'NGO',
+  foundation: 'Foundation',
+  cooperative: 'Cooperative',
+  bank: 'Bank',
+  government: 'Government body',
+  faith_based: 'Faith-Based Organization',
+  other: 'Other',
+};
+
+export const ORGANIZATION_TYPES = Object.keys(ORGANIZATION_TYPE_LABELS) as [
+  OrganizationType,
+  ...OrganizationType[],
+];
+
 export const ROLE_HIERARCHY: Record<MemberRole | PlatformRole, number> = {
   super_admin: 100,
   chairperson: 80,
