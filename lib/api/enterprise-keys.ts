@@ -42,4 +42,14 @@ export const enterpriseKeys = {
   branding: () => [...enterpriseKeys.all, 'branding'] as const,
   smsCredits: () => [...enterpriseKeys.all, 'sms-credits'] as const,
   plan: () => [...enterpriseKeys.all, 'plan'] as const,
+  // Distinct from `programs`/`programGroups` above, which are funding_programs
+  // (budget/disbursement). groupPrograms is the unrelated recruitment/
+  // membership "Programs" feature (migration 206) — same collision risk as
+  // the route path and permission strings, see feedback_funding_programs_is_money_only.
+  groupPrograms: () => [...enterpriseKeys.all, 'group-programs'] as const,
+  groupProgram: (id: string) => [...enterpriseKeys.all, 'group-programs', id] as const,
+  groupProgramApplications: (programId: string) =>
+    [...enterpriseKeys.all, 'group-programs', programId, 'applications'] as const,
+  groupProgramInvitations: (programId: string) =>
+    [...enterpriseKeys.all, 'group-programs', programId, 'invitations'] as const,
 };
