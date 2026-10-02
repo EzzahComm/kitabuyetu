@@ -19,6 +19,7 @@ export type ProgramStatus = 'draft' | 'published' | 'paused' | 'closed' | 'archi
 export interface ProgramRow {
   id: string;
   organizationId: string;
+  organizationName: string;
   name: string;
   slug: string;
   description: string | null;
@@ -36,12 +37,14 @@ export interface ProgramRow {
 }
 
 const ROW_SELECT = `
-  SELECT id, organization_id AS "organizationId", name, slug, description, objectives,
-         target_beneficiaries AS "targetBeneficiaries", eligibility_criteria AS "eligibilityCriteria",
-         geographic_coverage AS "geographicCoverage", application_requirements AS "applicationRequirements",
-         status, starts_on AS "startsOn", ends_on AS "endsOn",
-         created_by AS "createdBy", created_at AS "createdAt", updated_at AS "updatedAt"
-  FROM   programs
+  SELECT p.id, p.organization_id AS "organizationId", o.name AS "organizationName", p.name, p.slug,
+         p.description, p.objectives, p.target_beneficiaries AS "targetBeneficiaries",
+         p.eligibility_criteria AS "eligibilityCriteria", p.geographic_coverage AS "geographicCoverage",
+         p.application_requirements AS "applicationRequirements", p.status,
+         p.starts_on AS "startsOn", p.ends_on AS "endsOn",
+         p.created_by AS "createdBy", p.created_at AS "createdAt", p.updated_at AS "updatedAt"
+  FROM   programs p
+  JOIN   organizations o ON o.id = p.organization_id
 `;
 
 function slugify(name: string): string {
@@ -207,7 +210,7 @@ export const programsService = {
          VALUES ($1, 'program.create', 'program', $2, jsonb_build_object('name', $3::text))`,
         [ctx.userId, rows[0].id, input.name],
       );
-      const { rows: full } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE id = $1`, [rows[0].id]);
+      const { rows: full } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE p.id = $1`, [rows[0].id]);
       return full[0];
     });
   },
@@ -242,7 +245,7 @@ export const programsService = {
         )
         .join(', ');
       await client.query(`UPDATE programs SET ${setClause} WHERE id = $1`, [id, ...keys.map((k) => fields[k])]);
-      const { rows } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE id = $1`, [id]);
+      const { rows } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE p.id = $1`, [id]);
       return rows[0];
     });
   },
@@ -260,7 +263,7 @@ export const programsService = {
          VALUES ($1, 'program.status_change', 'program', $2, jsonb_build_object('status', $3::text), jsonb_build_object('status', $4::text))`,
         [ctx.userId, id, existing.status, to],
       );
-      const { rows } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE id = $1`, [id]);
+      const { rows } = await client.query<ProgramRow>(`${ROW_SELECT} WHERE p.id = $1`, [id]);
       return rows[0];
     });
   },
@@ -270,34 +273,51 @@ export const programsService = {
     if (!ctx.organizationId) throw new ForbiddenError('Organization context is required');
     return withDb(ctx, async (client) => {
       const { rows } = await client.query<ProgramRow>(
-        `${ROW_SELECT} WHERE organization_id = $1 ORDER BY created_at DESC`,
+        `${ROW_SELECT} WHERE p.organization_id = $1 ORDER BY p.created_at DESC`,
         [ctx.organizationId],
       );
       return rows;
     });
   },
 
-  /** Published programs, discoverable by any group — group-side browse. */
-  async listPublished(ctx: TenantContext): Promise<ProgramRow[]> {
-    return withDb(ctx, async (client) => {
+  /**
+   * Published programs, discoverable by any group — group-side browse.
+   * Uses withAdminDb rather than withDb: organizations_select's RLS policy
+   * only admits super_admin or the owning organization_coordinator, so a
+   * plain tenant role joining to `organizations` under RLS would get every
+   * row filtered out and see an empty list. The `programs` row itself is
+   * still hard-filtered to status = 'published' here, which is exactly what
+   * programs_select's own RLS policy already grants any tenant role anyway —
+   * this only fixes the join's visibility, it doesn't widen program access.
+   */
+  async listPublished(_ctx: TenantContext): Promise<ProgramRow[]> {
+    return withAdminDb(async (client) => {
       const { rows } = await client.query<ProgramRow>(
-        `${ROW_SELECT} WHERE status = 'published' ORDER BY created_at DESC`,
+        `${ROW_SELECT} WHERE p.status = 'published' ORDER BY p.created_at DESC`,
       );
       return rows;
     });
   },
 
+  /**
+   * withAdminDb for the same organizations-join reason as listPublished
+   * above — so the authorization that RLS would otherwise provide is done
+   * explicitly here instead: published rows are visible to anyone, a
+   * non-published row only to super_admin or the row's OWN organization's
+   * coordinator (checked by organizationId, not just role — a different
+   * org's coordinator must not see this org's draft programs).
+   */
   async getProgram(ctx: TenantContext, id: string): Promise<ProgramRow> {
-    const { rows } = await withDb(ctx, (client) => client.query<ProgramRow>(`${ROW_SELECT} WHERE id = $1`, [id]));
+    const { rows } = await withAdminDb((client) => client.query<ProgramRow>(`${ROW_SELECT} WHERE p.id = $1`, [id]));
     if (!rows[0]) throw new NotFoundError('Program', id);
-    // Draft/paused/closed/archived programs are only visible to their own
-    // organization or super_admin — RLS already enforces this at the row
-    // level, but a group hitting a draft program's id gets a clean 404
-    // here instead of relying solely on "RLS returned zero rows".
-    if (rows[0].status !== 'published' && ctx.role !== 'organization_coordinator' && ctx.role !== 'super_admin') {
-      throw new NotFoundError('Program', id);
+    const row = rows[0];
+    if (row.status !== 'published') {
+      const isOwningCoordinator = ctx.role === 'organization_coordinator' && row.organizationId === ctx.organizationId;
+      if (ctx.role !== 'super_admin' && !isOwningCoordinator) {
+        throw new NotFoundError('Program', id);
+      }
     }
-    return rows[0];
+    return row;
   },
 
   async assertOwnedByOrganization(ctx: TenantContext, programId: string): Promise<void> {
