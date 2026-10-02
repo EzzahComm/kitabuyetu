@@ -71,12 +71,24 @@ export async function POST(req: NextRequest): Promise<Response> {
         product: input.product,
       };
 
-      const result = await withAdminDb(async (client) => {
+      const { result, permissions } = await withAdminDb(async (client) => {
         const { rows } = await client.query<{ create_additional_group: CreateAdditionalGroupResult }>(
           'SELECT create_additional_group($1::uuid, $2::jsonb) AS create_additional_group',
           [auth.userId, JSON.stringify(rpcPayload)],
         );
-        return rows[0].create_additional_group;
+        const rpc = rows[0].create_additional_group;
+        // Permissions resolved here too (RBAC activation, same lookup as
+        // login) — signAccessToken doesn't derive them itself, and omitting
+        // them leaves every withPermission check failing until the member's
+        // next login/refresh (see /auth/register's own fix for this).
+        const { rows: gm } = await client.query<{ permissions: string[] }>(
+          `SELECT COALESCE(r.permissions, '{}') AS permissions
+           FROM group_members gm
+           LEFT JOIN roles r ON r.id = gm.role_id
+           WHERE gm.group_id = $1 AND gm.member_id = $2`,
+          [rpc.group_id, rpc.member_id],
+        );
+        return { result: rpc, permissions: gm[0]?.permissions ?? [] };
       });
 
       // Same non-fatal optional writes as /auth/register.
@@ -120,6 +132,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         role: result.group_role as MemberRole,
         personId: result.person_id,
         groupStatus: result.group_status,
+        permissions,
       });
       const { token: refreshToken } = signRefreshToken(result.member_id, 'tenant', result.group_id);
 
