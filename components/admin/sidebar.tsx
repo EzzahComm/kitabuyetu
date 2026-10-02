@@ -26,6 +26,7 @@ import {
   Mail,
   Briefcase,
   UserPlus,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -59,6 +60,7 @@ const NAV: PortalNavSection[] = [
       { href: '/admin/ecosystem/partners', label: 'Partners', icon: Handshake },
       { href: '/admin/ecosystem/opportunities', label: 'Opportunities', icon: Store },
       { href: '/admin/ecosystem/applications', label: 'Applications', icon: ClipboardList },
+      { href: '/admin/organization-group-links', label: 'Group-Org Links', icon: Link2 },
       { href: '/admin/campaigns', label: 'Changi$ha', icon: HeartHandshake },
     ],
   },

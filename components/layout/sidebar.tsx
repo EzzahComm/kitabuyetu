@@ -28,6 +28,7 @@ import {
   IconBolt,
   IconTimeline,
   IconChartDots,
+  IconBuilding,
 } from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -113,6 +114,7 @@ const NAV: ConfigNavSection[] = [
         children: [
           { href: '/billing', label: 'Billing', icon: IconReceipt },
           { href: '/settings', label: 'Settings', icon: IconSettings },
+          { href: '/settings/organization', label: 'Organization', icon: IconBuilding },
         ],
       },
     ],
