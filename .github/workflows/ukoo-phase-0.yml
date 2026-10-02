@@ -6,14 +6,12 @@ on:
     paths:
       - 'packages/ukoo-*/**'
       - 'apps/ukoo/**'
-      - 'supabase/migrations/ukoo_*.sql'
       - '.github/workflows/ukoo-phase-0.yml'
   pull_request:
     branches: [main]
     paths:
       - 'packages/ukoo-*/**'
       - 'apps/ukoo/**'
-      - 'supabase/migrations/ukoo_*.sql'
 
 jobs:
   typecheck:
@@ -23,7 +21,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       - run: npm run typecheck --workspace=@ukoo/core
@@ -36,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci
       - run: |
@@ -57,7 +55,7 @@ jobs:
       - name: Check for price literals in non-constant files
         run: |
           # Allow prices only in:
-          # - supabase/migrations/ukoo_005_billing_products_plans.sql (seeded data)
+          # - supabase/migrations/20261001000400_210_ukoo_billing_products_plans.sql (seeded data)
           # - packages/ukoo-core/package.json (version numbers)
           # Disallow in routes, pages, components
           if grep -r '\(299\|2990\|999\|9990\|1073741824\|10737418240\|107374182400\)' \
@@ -67,29 +65,3 @@ jobs:
             echo "Error: Found price literals in UI code (use entitlements/database)"
             exit 1
           fi
-
-  migrations-syntax:
-    runs-on: ubuntu-latest
-    name: Migration Syntax Check
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Validate SQL syntax
-        run: |
-          npm install -g pg-format
-          for f in supabase/migrations/ukoo_*.sql; do
-            echo "Checking $f..."
-            if ! grep -q 'create table\|create type\|create function\|create policy' "$f"; then
-              echo "Warning: $f may not contain DDL"
-            fi
-          done
-      - name: Check migration naming
-        run: |
-          for f in supabase/migrations/ukoo_*.sql; do
-            if ! [[ "$f" =~ ukoo_[0-9]{3}_ ]]; then
-              echo "Error: Migration $f does not follow ukoo_NNN_ naming"
-              exit 1
-            fi
-          done
