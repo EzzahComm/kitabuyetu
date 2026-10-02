@@ -104,10 +104,7 @@ export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
   other: 'Other',
 };
 
-export const ORGANIZATION_TYPES = Object.keys(ORGANIZATION_TYPE_LABELS) as [
-  OrganizationType,
-  ...OrganizationType[],
-];
+export const ORGANIZATION_TYPES = Object.keys(ORGANIZATION_TYPE_LABELS) as [OrganizationType, ...OrganizationType[]];
 
 export const ROLE_HIERARCHY: Record<MemberRole | PlatformRole, number> = {
   super_admin: 100,

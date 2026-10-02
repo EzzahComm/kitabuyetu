@@ -152,7 +152,11 @@ export const RegisterOrganizationSchema = z.object({
     errorMap: () => ({ message: 'Choose the type of organization' }),
   }),
   registrationNumber: z.string().max(100).optional().or(z.literal('')),
-  organizationPhone: z.string().refine((v) => !v || isValidKenyanPhone(v), 'Invalid Kenyan phone number').optional().or(z.literal('')),
+  organizationPhone: z
+    .string()
+    .refine((v) => !v || isValidKenyanPhone(v), 'Invalid Kenyan phone number')
+    .optional()
+    .or(z.literal('')),
   organizationEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
   county: z.string().max(80).optional().or(z.literal('')),
   address: z.string().max(255).optional().or(z.literal('')),

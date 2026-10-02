@@ -146,7 +146,9 @@ export const organizationGroupLinksService = {
   /** Platform admin: every link awaiting review. */
   async listPendingRequests(): Promise<OrgGroupLinkRow[]> {
     return withAdminDb(async (client) => {
-      const { rows } = await client.query<OrgGroupLinkRow>(`${ROW_SELECT} WHERE oga.status = 'pending' ORDER BY oga.requested_at ASC`);
+      const { rows } = await client.query<OrgGroupLinkRow>(
+        `${ROW_SELECT} WHERE oga.status = 'pending' ORDER BY oga.requested_at ASC`,
+      );
       return rows;
     });
   },

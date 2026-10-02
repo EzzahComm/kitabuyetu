@@ -95,10 +95,7 @@ export default function GroupOrganizationLinkPage() {
                 placeholder="e.g. Nairobi SACCO Federation"
               />
             </div>
-            <Button
-              onClick={() => request.mutate()}
-              disabled={organizationName.trim().length < 3 || request.isPending}
-            >
+            <Button onClick={() => request.mutate()} disabled={organizationName.trim().length < 3 || request.isPending}>
               {request.isPending ? 'Sending…' : 'Request link'}
             </Button>
           </CardContent>

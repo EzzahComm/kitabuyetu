@@ -109,8 +109,8 @@ export default function RegisterOrganizationPage() {
       <CardHeader>
         <CardTitle>Set up your Enterprise account</CardTitle>
         <CardDescription>
-          For institutions overseeing multiple groups — SACCOs, NGOs, foundations and other organizations. Your
-          account is active immediately.
+          For institutions overseeing multiple groups — SACCOs, NGOs, foundations and other organizations. Your account
+          is active immediately.
         </CardDescription>
       </CardHeader>
       <CardContent>

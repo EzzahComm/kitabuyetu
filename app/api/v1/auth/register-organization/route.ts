@@ -13,12 +13,7 @@ import { assignOrganizationPlan } from '@/lib/services/organization-plan.service
 
 const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
 
-type Stage =
-  | 'validate_input'
-  | 'normalize_phone'
-  | 'hash_password'
-  | 'call_register_organization_rpc'
-  | 'assign_plan';
+type Stage = 'validate_input' | 'normalize_phone' | 'hash_password' | 'call_register_organization_rpc' | 'assign_plan';
 
 interface RegisterOrganizationResult {
   success: true;

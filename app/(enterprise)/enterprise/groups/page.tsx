@@ -50,7 +50,10 @@ export default function EnterpriseGroupsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Groups" description="Groups linked to your organization. A platform admin reviews every request." />
+      <PageHeader
+        title="Groups"
+        description="Groups linked to your organization. A platform admin reviews every request."
+      />
 
       <Card>
         <CardHeader>
@@ -60,7 +63,12 @@ export default function EnterpriseGroupsPage() {
         <CardContent className="flex items-end gap-3">
           <div className="flex-1 space-y-1.5">
             <Label htmlFor="groupCode">Group code</Label>
-            <Input id="groupCode" value={groupCode} onChange={(e) => setGroupCode(e.target.value)} placeholder="KY0000001" />
+            <Input
+              id="groupCode"
+              value={groupCode}
+              onChange={(e) => setGroupCode(e.target.value)}
+              placeholder="KY0000001"
+            />
           </div>
           <Button onClick={() => request.mutate()} disabled={groupCode.trim().length < 9 || request.isPending}>
             {request.isPending ? 'Sending…' : 'Request link'}
