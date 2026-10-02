@@ -89,7 +89,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     };
 
     stage = 'call_register_group_rpc';
-    const { result, membershipNo } = await withAdminDb(async (client) => {
+    const { result, membershipNo, permissions } = await withAdminDb(async (client) => {
       const { rows } = await client.query<{ register_group: RegisterGroupResult }>(
         'SELECT register_group($1::jsonb) AS register_group',
         [JSON.stringify(rpcPayload)],
@@ -97,11 +97,18 @@ export async function POST(req: NextRequest): Promise<Response> {
       const rpc = rows[0].register_group;
       // The Membership Number is allocated by the group_members INSERT trigger
       // (migration 056) inside the RPC; the RPC's JSONB result predates it.
-      const { rows: gm } = await client.query<{ membership_no: string }>(
-        `SELECT membership_no FROM group_members WHERE group_id = $1 AND member_id = $2`,
+      // Permissions are resolved here too (RBAC activation, same lookup as
+      // login) — signAccessToken doesn't derive them itself, and omitting
+      // them leaves every withPermission check failing with "Missing
+      // permission" until the member's next login/refresh.
+      const { rows: gm } = await client.query<{ membership_no: string; permissions: string[] }>(
+        `SELECT gm.membership_no, COALESCE(r.permissions, '{}') AS permissions
+         FROM group_members gm
+         LEFT JOIN roles r ON r.id = gm.role_id
+         WHERE gm.group_id = $1 AND gm.member_id = $2`,
         [rpc.group_id, rpc.member_id],
       );
-      return { result: rpc, membershipNo: gm[0]?.membership_no ?? null };
+      return { result: rpc, membershipNo: gm[0]?.membership_no ?? null, permissions: gm[0]?.permissions ?? [] };
     });
 
     // Administrator alerts (after the registration transaction committed). Never
@@ -147,6 +154,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       role: result.group_role as MemberRole,
       personId: result.person_id,
       groupStatus: result.group_status,
+      permissions,
     });
     // Pin the new group to the refresh token (audit C-1) — registration's
     // session must revalidate THIS membership on refresh, same as login.

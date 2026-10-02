@@ -30,9 +30,22 @@ import {
   IconChartDots,
 } from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
+import { useHasPermission } from '@/lib/auth/use-permission';
 import { BrandLockup } from '@/components/branding/BrandLockup';
-import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
+import { PortalSidebar, type PortalNavItem, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
+
+/** Local-only field: a nav item with `requires` is rendered disabled (same
+ *  treatment as `soon`, minus the badge) for anyone lacking that permission —
+ *  it never reaches PortalSidebar, which has no permission concept. */
+type ConfigNavItem = Omit<PortalNavItem, 'children'> & {
+  requires?: string;
+  children?: ConfigNavItem[];
+};
+interface ConfigNavSection {
+  title: string | null;
+  items: ConfigNavItem[];
+}
 
 // Navigation reorganized by user intent (SIMPLIFICATION_AND_RBAC_AUDIT.md §5.1):
 // - 7 primary items max
@@ -40,7 +53,7 @@ import { GroupSwitcher } from './group-switcher';
 //   + Settings (config) as collapsible groups
 // - Replaces the old 4-section (Money/Insights/Engage) flat-20-item layout, and the
 //   cluttered 15-item "More" menu that forced scrolling
-const NAV: PortalNavSection[] = [
+const NAV: ConfigNavSection[] = [
   {
     title: null,
     items: [
@@ -53,12 +66,16 @@ const NAV: PortalNavSection[] = [
         label: 'Finance',
         icon: IconWallet,
         children: [
-          { href: '/mpesa', label: 'M-Pesa', icon: IconDeviceMobile },
-          { href: '/treasury', label: 'Treasury', icon: IconVault },
+          // M-Pesa and Treasury both read from the mpesa.view-gated
+          // transactions/balance endpoints — member/secretary roles never
+          // hold that permission (verified against roles.permissions), so
+          // the link is disabled rather than leading to a 403 on arrival.
+          { href: '/mpesa', label: 'M-Pesa', icon: IconDeviceMobile, requires: 'mpesa.view' },
+          { href: '/treasury', label: 'Treasury', icon: IconVault, requires: 'mpesa.view' },
           { href: '/welfare', label: 'Welfare', icon: IconHeart },
           { href: '/shares', label: 'Shares', icon: IconCoins },
           { href: '/dividends', label: 'Dividends', icon: IconReceipt },
-          { href: '/accounting', label: 'Accounting', icon: IconBook },
+          { href: '/accounting', label: 'Accounting', icon: IconBook, requires: 'accounting.manage' },
         ],
       },
       { href: '/reports', label: 'Reports', icon: IconChartBar },
@@ -83,7 +100,7 @@ const NAV: PortalNavSection[] = [
         label: 'Advanced',
         icon: IconGauge,
         children: [
-          { href: '/investments', label: 'Investments', icon: IconTrendingUp },
+          { href: '/investments', label: 'Investments', icon: IconTrendingUp, requires: 'investments.view' },
           { href: '/credit-scores', label: 'Credit scores', icon: IconGauge },
           { href: '/analytics', label: 'Analytics', icon: IconChartBar },
           { href: '/data-import', label: 'Data import', icon: IconUpload },
@@ -107,9 +124,29 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+// Every `requires` value used in NAV above needs its own hook call (rules of
+// hooks forbid calling useHasPermission in a loop), resolved into this map.
+function usePermissionMap(): Record<string, boolean> {
+  return {
+    'mpesa.view': useHasPermission('mpesa.view'),
+    'accounting.manage': useHasPermission('accounting.manage'),
+    'investments.view': useHasPermission('investments.view'),
+  };
+}
+
+function resolveNav(sections: ConfigNavSection[], granted: Record<string, boolean>): PortalNavSection[] {
+  const resolveItem = (item: ConfigNavItem): PortalNavItem => ({
+    ...item,
+    disabled: item.disabled || (item.requires ? !granted[item.requires] : false),
+    children: item.children?.map(resolveItem),
+  });
+  return sections.map((s) => ({ ...s, items: s.items.map(resolveItem) }));
+}
+
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const granted = usePermissionMap();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
@@ -118,7 +155,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   // portal at /enterprise/funding, where the rest of the organization surface
   // lives — this is the GROUP portal, and a funder's view of their programs
   // was never a group-scoped screen.
-  const sections = NAV;
+  const sections = resolveNav(NAV, granted);
 
   return (
     <PortalSidebar
