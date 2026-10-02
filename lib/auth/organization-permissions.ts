@@ -25,6 +25,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.profile.view',
   'organization.branding.manage',
   'organization.groups.view',
+  'organization.groups.manage',
   'organization.members.view',
   'organization.audit_logs.view',
   'organization.reports.view',

@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
-import { GROUP_TYPES } from '@/types/enums';
+import { GROUP_TYPES, ORGANIZATION_TYPES } from '@/types/enums';
 
 // Identifier may be either a Kenyan phone number or an email address.
 // The login route detects which by the presence of '@'.
@@ -138,6 +138,45 @@ export const RegisterSchema = z.object({
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
+// Mirrors the public.register_organization RPC (migration 206) — Enterprise
+// self-serve signup. organizationType has no default (see the RPC's own
+// comment: 'ngo' is 1 of 8 organization_type values, never implicit).
+// email is REQUIRED here unlike RegisterSchema's — organization-coordinator
+// login is email-only (AdminLoginSchema below), never phone, so a
+// coordinator without an email could never sign back in.
+// planType excludes 'premium_plus', which requires custom hand-entered
+// terms (assignOrganizationPlan) and stays a "Talk to us" sales conversation.
+export const RegisterOrganizationSchema = z.object({
+  organizationName: z.string().min(3, 'Organization name must be at least 3 characters').max(255),
+  organizationType: z.enum(ORGANIZATION_TYPES, {
+    errorMap: () => ({ message: 'Choose the type of organization' }),
+  }),
+  registrationNumber: z.string().max(100).optional().or(z.literal('')),
+  organizationPhone: z
+    .string()
+    .refine((v) => !v || isValidKenyanPhone(v), 'Invalid Kenyan phone number')
+    .optional()
+    .or(z.literal('')),
+  organizationEmail: z.string().email('Invalid email address').optional().or(z.literal('')),
+  county: z.string().max(80).optional().or(z.literal('')),
+  address: z.string().max(255).optional().or(z.literal('')),
+
+  planType: z.enum(['starter', 'growth', 'premium'], {
+    errorMap: () => ({ message: 'Choose a plan' }),
+  }),
+
+  // First coordinator (the account signing up)
+  firstName: z.string().min(2).max(100),
+  lastName: z.string().min(2).max(100),
+  phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
+  email: z.string().email('A work email is required to sign in to the Enterprise portal'),
+  password: z
+    .string()
+    .min(8, 'Password must be at least 8 characters')
+    .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
+    .regex(/[0-9]/, 'Password must contain at least one number'),
+});
+
 // Mirrors the public.create_additional_group RPC (migration 147). Group-only
 // — no person/KYC fields, since an authenticated caller already has an
 // identity; the route resolves it server-side from the verified session, the
@@ -257,5 +296,6 @@ export type AdminResetPasswordInput = z.infer<typeof AdminResetPasswordSchema>;
 // .default() is optional on the wire but present after parsing, so the
 // server-side *Input aliases above are the wrong shape for a caller.
 export type RegisterPayload = z.input<typeof RegisterSchema>;
+export type RegisterOrganizationPayload = z.input<typeof RegisterOrganizationSchema>;
 export type CreateAdditionalGroupPayload = z.input<typeof CreateAdditionalGroupSchema>;
 export type ChangePasswordPayload = z.input<typeof ChangePasswordSchema>;

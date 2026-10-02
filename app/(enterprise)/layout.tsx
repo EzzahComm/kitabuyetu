@@ -15,6 +15,7 @@ import {
   Menu,
   Building2,
   Receipt,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -54,6 +55,7 @@ const NAV: PortalNavSection[] = [
     title: 'Operations',
     items: [
       { href: '/enterprise/members', label: 'Members', icon: Users2 },
+      { href: '/enterprise/groups', label: 'Groups', icon: Link2 },
       { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
       // Deliberately separate from Funding Portal: that page is the org's
       // CAPITAL wallet (donor contributions, grants, disbursements) — SMS
