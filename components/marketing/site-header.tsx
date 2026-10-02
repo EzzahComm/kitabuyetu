@@ -336,7 +336,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               aria-label="Kitabu Yetu — home"
             >
               {/* Over the hero photo the header is transparent, so the lockup takes the kit's dark-ground colourway. */}
-              <BrandLockup size={40} tone={transparent ? 'dark' : 'light'} />
+              <BrandLockup size={40} tone={transparent ? 'dark' : 'light'} tagline />
             </Link>
 
             {/* xl, not lg: the seven items need ~700px, so between 1024 and
