@@ -98,6 +98,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     ? await safe('email_campaign_drain', {}, { priority: 5, dedup_key: 'email_campaign_drain' })
     : null;
 
+  // Same claim-and-send idiom, for the platform-level newsletter digest
+  // (lib/services/newsletter-digest.service.ts) instead of a group's own
+  // email_campaigns — see that service's sendDigest()/drainDigestRecipients().
+  queued.newsletter_digest_drain = (await hasPendingDigestRecipients())
+    ? await safe('newsletter_digest_drain', {}, { priority: 5, dedup_key: 'newsletter_digest_drain' })
+    : null;
+
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
   //
   // These four claim whatever is due at the moment they run. Two queued copies
@@ -643,6 +650,22 @@ async function hasDueEmailSchedule(): Promise<boolean> {
   try {
     const { rows } = await withAdminDb((db) =>
       db.query(`SELECT 1 FROM email_schedules WHERE is_active = true AND next_run_at <= NOW() LIMIT 1`),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function hasPendingDigestRecipients(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM newsletter_digest_recipients ndr
+         JOIN newsletter_digests nd ON nd.id = ndr.digest_id
+         WHERE ndr.status = 'pending' AND nd.status = 'sending'
+         LIMIT 1`,
+      ),
     );
     return rows.length > 0;
   } catch {

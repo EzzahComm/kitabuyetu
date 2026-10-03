@@ -65,6 +65,11 @@ import type {
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
 import type {
+  NewsletterDigest,
+  MarketingTemplateKey,
+  MarketingTemplateSummary,
+} from '@/lib/services/newsletter-digest.service';
+import type {
   createEmployee,
   listEmployees,
   getEmployeeById,
@@ -1063,6 +1068,50 @@ export function useNewsletterSubscribers() {
     queryKey: ['admin', 'newsletter'],
     queryFn: () =>
       adminFetch<{ subscribers: NewsletterSubscriberList; stats: NewsletterStatsResult }>('/api/admin/newsletter'),
+  });
+}
+
+export function useNewsletterDigests() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'digests'],
+    queryFn: () => adminFetch<NewsletterDigest[]>('/api/admin/newsletter/digest'),
+  });
+}
+
+export function useMarketingTemplates() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'templates'],
+    queryFn: () => adminFetch<MarketingTemplateSummary[]>('/api/admin/newsletter/digest/templates'),
+  });
+}
+
+export function useComposeNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (templateKey: MarketingTemplateKey) =>
+      adminFetch<NewsletterDigest>('/api/admin/newsletter/digest', { method: 'POST', json: { templateKey } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useUpdateNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, subject, htmlBody }: { id: string; subject: string; htmlBody: string }) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}`, {
+        method: 'PATCH',
+        json: { subject, htmlBody },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useSendNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}/send`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
   });
 }
 
