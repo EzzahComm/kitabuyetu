@@ -47,8 +47,8 @@ export default function AuditLogsPage() {
     to,
   });
   // Backend already supports groupId filtering (app/api/admin/audit-logs/route.ts
-  // → listAuditLogs) — this dropdown was the only missing piece
-  // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). id+name only — this picker never
+  // → listAuditLogs) - this dropdown was the only missing piece
+  // (SUPER_ADMIN_PLATFORM_AUDIT.md §2.14). id+name only - this picker never
   // reads any of listGroups' per-row aggregates (docs/audits/optimization-2026-09).
   const { data: groupOptionsData } = useAdminGroupOptions();
   const groupOptions: { id: string; name: string }[] = groupOptionsData ?? [];
@@ -62,7 +62,7 @@ export default function AuditLogsPage() {
     <div className="space-y-5">
       <PageHeader
         title="Audit Logs"
-        description={`Immutable record of all platform data changes — ${total.toLocaleString()} entries`}
+        description={`Immutable record of all platform data changes - ${total.toLocaleString()} entries`}
       />
 
       {/* Filters */}
@@ -189,21 +189,21 @@ export default function AuditLogsPage() {
           {
             key: 'group_name',
             header: 'Group',
-            render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.group_name ?? '—'}</span>,
+            render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.group_name ?? '-'}</span>,
           },
           {
             key: 'record_id',
             header: 'Record ID',
             render: (log) => (
               <span className="font-mono text-xs text-muted-foreground truncate max-w-[120px] inline-block align-bottom">
-                {log.record_id ? log.record_id.substring(0, 8) + '…' : '—'}
+                {log.record_id ? log.record_id.substring(0, 8) + '…' : '-'}
               </span>
             ),
           },
           {
             key: 'ip_address',
             header: 'IP Address',
-            render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.ip_address ?? '—'}</span>,
+            render: (log) => <span className="font-mono text-xs text-muted-foreground">{log.ip_address ?? '-'}</span>,
           },
           {
             key: 'created_at',

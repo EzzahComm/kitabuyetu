@@ -45,7 +45,7 @@ export function ApplicationForm({ jobSlug, jobTitle }: ApplicationFormProps) {
       <div role="status" className="rounded-lg border border-brand-500 bg-brand-50 p-6">
         <p className="font-display text-xl font-semibold text-finanza-dark">Application received</p>
         <p className="mt-1 text-finanza-text">
-          Thanks for applying for {jobTitle} — our team will be in touch if there&rsquo;s a fit.
+          Thanks for applying for {jobTitle} - our team will be in touch if there&rsquo;s a fit.
         </p>
       </div>
     );

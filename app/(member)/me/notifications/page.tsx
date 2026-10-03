@@ -13,7 +13,7 @@ import { smsApi } from '@/lib/api/endpoints';
 import { useMyNotifications, useMarkNotificationRead, useMarkAllNotificationsRead } from '@/hooks/use-member';
 
 /**
- * Self-service SMS opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — the platform
+ * Self-service SMS opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) - the platform
  * had a working optOut() function honoured by every send path, but nothing
  * ever called it, so members had no way to actually stop receiving SMS.
  * Scoped to this member's phone + their active group.

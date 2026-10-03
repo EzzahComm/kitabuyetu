@@ -78,7 +78,7 @@ const PREVIEW_VISIBLE_ROWS = 25;
 export default function MembersImportPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [job, setJob] = useState<ImportJob | null>(null);
-  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — see data-import/page.tsx; this is
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 - see data-import/page.tsx; this is
   // the sibling native-confirm() rollback guard.
   const [rollbackOpen, setRollbackOpen] = useState(false);
   const { toast } = useToast();
@@ -139,7 +139,7 @@ export default function MembersImportPage() {
       await api.delete<void>(`/import/${job.id}`);
       toast({ title: 'Preview discarded' });
     } catch {
-      // Cancel is best-effort — even if the call fails, the user wants out.
+      // Cancel is best-effort - even if the call fails, the user wants out.
     }
     setJob(null);
     setPhase('idle');
@@ -275,7 +275,7 @@ function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; ca
             <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-3 font-medium">Drag &amp; drop your CSV here</p>
             <p className="text-sm text-muted-foreground">or click to browse</p>
-            <p className="mt-3 text-xs text-muted-foreground">Maximum 5MB · up to 5000 rows · CSV only</p>
+            <p className="mt-3 text-xs text-muted-foreground">Maximum 5MB - up to 5000 rows - CSV only</p>
             {!canPreview && (
               <p className="mt-2 text-xs text-amber-600">Requires secretary, treasurer, or chairperson role.</p>
             )}
@@ -354,7 +354,7 @@ function PreviewView({
         <StatCard title="Valid" value={job.valid_rows} />
         {/* Not converted: color here is a real signal (turns red only when
             error_rows > 0), which StatCard's plain string|number value can't
-            express — kept on SummaryCard per the component-reference skip rule. */}
+            express - kept on SummaryCard per the component-reference skip rule. */}
         <SummaryCard label="Errors" value={job.error_rows} valueClass={hasErrors ? 'text-red-600' : ''} />
       </div>
 
@@ -417,8 +417,8 @@ function PreviewView({
                   render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' '),
                 },
                 { key: 'role', header: 'Role', render: (r) => <Badge variant="secondary">{r.role}</Badge> },
-                { key: 'email', header: 'Email', render: (r) => r.email ?? '—' },
-                { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '—' },
+                { key: 'email', header: 'Email', render: (r) => r.email ?? '-' },
+                { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '-' },
                 {
                   key: 'warnings',
                   header: 'Warnings',
@@ -426,14 +426,14 @@ function PreviewView({
                     r.warnings.length > 0 ? (
                       <span className="text-amber-600">{r.warnings.join('; ')}</span>
                     ) : (
-                      <span className="text-muted-foreground">—</span>
+                      <span className="text-muted-foreground">-</span>
                     ),
                 },
               ]}
             />
             {hiddenCount > 0 && (
               <p className="mt-3 text-xs text-muted-foreground">
-                …and {hiddenCount} more row(s). They’ll all be imported on confirm.
+                …and {hiddenCount} more row(s). They'll all be imported on confirm.
               </p>
             )}
           </CardContent>
@@ -495,7 +495,7 @@ function ResultView({
         <div className="grid gap-3 md:grid-cols-3">
           <StatCard title="Imported" value={job.imported ?? job.created_member_ids.length} />
           <StatCard title="Skipped" value={job.skipped ?? 0} />
-          {/* Not converted: amber only when error_rows > 0 — same real-signal
+          {/* Not converted: amber only when error_rows > 0 - same real-signal
               exception as the preview view above. */}
           <SummaryCard label="Errors" value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
         </div>

@@ -29,7 +29,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
   const { user, logout, refreshToken } = useAuth();
   const { resolvedTheme, setTheme } = useTheme();
   // next-themes can't know the resolved theme until after hydration (it
-  // reads localStorage/matchMedia client-side) — rendering the icon before
+  // reads localStorage/matchMedia client-side) - rendering the icon before
   // that would mismatch server vs. client markup. useSyncExternalStore's
   // getServerSnapshot/getSnapshot split gives an SSR-safe "have we mounted
   // yet" read without a setState-in-an-effect render round-trip.
@@ -57,7 +57,7 @@ export function AdminTopbar({ onMenuClick }: AdminTopbarProps) {
         <Menu size={18} />
       </button>
 
-      {/* Global search — opens the ⌘K command palette */}
+      {/* Global search - opens the ⌘K command palette */}
       <SearchTrigger variant="admin" onOpen={openCommandPalette} placeholder="Search organizations, users, tickets…" />
 
       <div className="flex items-center gap-2 ml-auto">

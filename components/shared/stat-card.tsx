@@ -4,7 +4,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 
 /** Icon-bubble tint. Default `brand` is the app's primary green; the rest exist
- *  so a KPI row can encode category (money / risk / people) at a glance —
+ *  so a KPI row can encode category (money / risk / people) at a glance -
  *  absorbed from the retired admin `MetricCard`
  *  (UX_UI_OPTIMIZATION_AUDIT_2026-08.md H1). */
 const accentMap = {
@@ -27,7 +27,7 @@ interface StatCardProps {
   /** Renders a skeleton in place of the value while the source query is in flight. */
   loading?: boolean;
   /** Makes the whole tile a drill-down target. Renders a real <button>, so it is
-   *  keyboard-focusable — `MetricCard` used a click-handler <div>, which was not. */
+   *  keyboard-focusable - `MetricCard` used a click-handler <div>, which was not. */
   onClick?: () => void;
   className?: string;
   /** Escape hatch for the bubble background only; wins over `accent` via twMerge. */
@@ -84,7 +84,7 @@ export function StatCard({
   );
 
   // Card renders a <div> and has no asChild, so an interactive tile is a real
-  // <button> carrying the same card classes — keyboard-focusable and
+  // <button> carrying the same card classes - keyboard-focusable and
   // Enter/Space-activatable, which the click-handler <div> it replaces was not.
   if (onClick) {
     return (

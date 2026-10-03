@@ -17,7 +17,7 @@ type Step = 'choose' | 'email-sent' | 'sms-code';
 
 /**
  * §4A registrant verification. Shown to a signed-in member whose group is
- * still `pending_verification` — every feature route 403s for them
+ * still `pending_verification` - every feature route 403s for them
  * server-side (proxy.ts) until this completes.
  */
 export default function VerifyGroupPage() {
@@ -38,7 +38,7 @@ export default function VerifyGroupPage() {
    *
    * Resolved at redirect time rather than through useEntitlements, because for
    * most of this page's life the group is still pending_verification and every
-   * such request 403s server-side — a hook here would fire a doomed call on
+   * such request 403s server-side - a hook here would fire a doomed call on
    * mount. Falls back to the plain role-based path if the lookup fails, which
    * is the pre-migration-140 behaviour.
    *
@@ -91,7 +91,7 @@ export default function VerifyGroupPage() {
     try {
       const data = await authApi.verifyComplete(code);
       // login() writes the new token to localStorage synchronously, and the api
-      // client reads it from there — so the entitlements lookup inside
+      // client reads it from there - so the entitlements lookup inside
       // goToPortal runs as the now-verified group.
       login(data);
       toast({ title: 'Group verified!', description: 'Welcome aboard.' });
@@ -108,7 +108,7 @@ export default function VerifyGroupPage() {
       <CardHeader>
         <CardTitle>Verify your group</CardTitle>
         <CardDescription>
-          {"You're almost done — verify "}
+          {"You're almost done - verify "}
           <strong>{user.groupName}</strong>
           {' to unlock your dashboard.'}
         </CardDescription>

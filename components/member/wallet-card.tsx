@@ -13,7 +13,7 @@ interface WalletCardProps {
 }
 
 /**
- * Wallet hero — the first thing a member sees. Big, calm, trustworthy: total
+ * Wallet hero - the first thing a member sees. Big, calm, trustworthy: total
  * savings front and centre, a privacy toggle to hide the figure in public, and
  * three supporting stats. Brand-navy gradient signals "this is your money,
  * safe here".

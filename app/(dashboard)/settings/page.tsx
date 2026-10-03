@@ -104,7 +104,7 @@ export default function SettingsPage() {
   const certificate = useCertificateFile();
   const [certUploading, setCertUploading] = useState(false);
 
-  // Seed both finance cards from the server once, on mount — these are
+  // Seed both finance cards from the server once, on mount - these are
   // group-scoped settings that need a real fetch, unlike Profile/Password
   // above which only ever read from the already-loaded auth context.
   useEffect(() => {
@@ -113,7 +113,7 @@ export default function SettingsPage() {
       .plan()
       .then((res) => resetPlan(res.plan))
       .catch(() => {
-        /* non-fatal — the form just keeps its 0/0 defaults */
+        /* non-fatal - the form just keeps its 0/0 defaults */
       });
     groupRegistrationApi
       .get()
@@ -125,7 +125,7 @@ export default function SettingsPage() {
         setCertificateUrl(res.certificateUrl);
       })
       .catch(() => {
-        /* non-fatal — the form just keeps its "not registered" defaults */
+        /* non-fatal - the form just keeps its "not registered" defaults */
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTenant]);
@@ -180,7 +180,7 @@ export default function SettingsPage() {
   const onPasswordChange = async (values: PasswordForm) => {
     if (!user) return;
     try {
-      // Real endpoint as of CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md — this used
+      // Real endpoint as of CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md - this used
       // to PATCH /members/[id] with fields that schema ignores, so it always
       // reported success without changing anything.
       await authApi.changePassword({
@@ -205,14 +205,14 @@ export default function SettingsPage() {
 
       {membershipNo && (
         // Payment instructions (payment architecture §1.7): the Membership
-        // Number is the member's PayBill account number — the ONLY payment
+        // Number is the member's PayBill account number - the ONLY payment
         // identifier we ever show. member_code never appears here.
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Payment account</CardTitle>
             <CardDescription>
               Pay via M-Pesa PayBill{PAYBILL ? ` ${PAYBILL}` : ''} using this account number
-              {isTenantUser(user) ? ` — payments go to ${user.groupName}` : ''}
+              {isTenantUser(user) ? ` - payments go to ${user.groupName}` : ''}
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -271,7 +271,7 @@ export default function SettingsPage() {
           <CardHeader>
             <CardTitle className="text-base">Group registration</CardTitle>
             <CardDescription>
-              Optional — add this now or later. It never affects your group&apos;s ability to onboard members or
+              Optional - add this now or later. It never affects your group&apos;s ability to onboard members or
               subscribe.
               {!canEditRegistration && ' Only the group chairperson can change it.'}
             </CardDescription>
@@ -312,7 +312,7 @@ export default function SettingsPage() {
                     View current certificate
                   </a>{' '}
                   {canEditRegistration && (
-                    <span className="text-muted-foreground">— uploading a new file replaces it.</span>
+                    <span className="text-muted-foreground">- uploading a new file replaces it.</span>
                   )}
                 </p>
               ) : (

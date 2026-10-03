@@ -9,7 +9,7 @@ import { CONTACT, LEGAL_ITEMS, ROUTES } from './routes';
 /* ────────────────────────────────────────────────────────────────────────────
  * Layout for a published policy (Terms, Privacy): the owner-supplied markdown
  * rendered unchanged, with every heading given a stable anchor and the h2s
- * collected into an "On this page" rail. This file only presents the text —
+ * collected into an "On this page" rail. This file only presents the text -
  * it never adds, reorders or rewords a clause.
  * ──────────────────────────────────────────────────────────────────────────── */
 

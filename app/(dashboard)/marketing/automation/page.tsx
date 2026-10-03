@@ -19,7 +19,7 @@ function RulesList({ channel }: { channel?: AutomationChannel }) {
     return (
       <Card>
         <CardContent className="py-16 text-center text-sm text-muted-foreground">
-          No automation rules yet. Create one to send an SMS or email automatically when something happens — a
+          No automation rules yet. Create one to send an SMS or email automatically when something happens - a
           contribution lands, a loan is approved, a meeting is scheduled.
         </CardContent>
       </Card>
@@ -42,7 +42,7 @@ export default function AutomationRulesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Automation"
-        description="WHEN something happens, automatically THEN send an SMS or email — contribution receipts, loan updates, meeting reminders, and more, without an officer sending them by hand."
+        description="WHEN something happens, automatically THEN send an SMS or email - contribution receipts, loan updates, meeting reminders, and more, without an officer sending them by hand."
         actions={canManage ? <RuleFormDialog /> : undefined}
       />
 

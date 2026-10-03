@@ -12,14 +12,14 @@ import { configureApiClient } from '@/lib/api/client';
 import { useUnreadNotificationCount } from '@/hooks/use-member';
 
 /**
- * Member self-service shell — mobile-first by construction.
+ * Member self-service shell - mobile-first by construction.
  *
  * Content is constrained to a phone-width column (max-w-md) and centred on
  * larger screens, so the same layout reads naturally on a feature-ish Android
  * phone and on a desktop. A sticky top bar carries the greeting + sync status;
  * a fixed bottom tab bar carries primary navigation.
  *
- * Auth guard mirrors app/(dashboard)/layout.tsx exactly — see that file for
+ * Auth guard mirrors app/(dashboard)/layout.tsx exactly - see that file for
  * the reasoning behind each check (backoffice sessions never render here,
  * pending_verification groups get bounced to /verify-group, etc.).
  */
@@ -82,7 +82,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
           {
             // UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1 (C3): /me now
             // defaults for plain members, but the reverse path must stay
-            // reachable — an officer viewing a group where they hold plain
+            // reachable - an officer viewing a group where they hold plain
             // 'member' status, or a member who just wants the full app,
             // shouldn't be stuck here with no way out.
           }
@@ -108,7 +108,7 @@ export default function MemberLayout({ children }: { children: React.ReactNode }
           </Link>
         </header>
 
-        {/* Scrollable content — bottom padding clears the fixed tab bar */}
+        {/* Scrollable content - bottom padding clears the fixed tab bar */}
         <main className="flex-1 px-4 pb-24 pt-4">{children}</main>
 
         <MemberBottomNav />

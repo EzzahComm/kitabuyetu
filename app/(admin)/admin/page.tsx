@@ -96,8 +96,8 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Groups"
-          value={isLoading ? '—' : parseInt(g.total ?? '0').toLocaleString()}
-          description={`${g.active ?? 0} active · ${g.new_this_month ?? 0} new this month`}
+          value={isLoading ? '-' : parseInt(g.total ?? '0').toLocaleString()}
+          description={`${g.active ?? 0} active - ${g.new_this_month ?? 0} new this month`}
           icon={Building2}
           accent="blue"
           loading={isLoading}
@@ -105,7 +105,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Total Members"
-          value={isLoading ? '—' : parseInt(m.total ?? '0').toLocaleString()}
+          value={isLoading ? '-' : parseInt(m.total ?? '0').toLocaleString()}
           description={`${m.new_this_month ?? 0} joined this month`}
           icon={Users}
           accent="purple"
@@ -114,7 +114,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Monthly Recurring Revenue"
-          value={isLoading ? '—' : formatKES(mrr)}
+          value={isLoading ? '-' : formatKES(mrr)}
           description={`${s.active_subscriptions ?? 0} active subscriptions`}
           icon={CreditCard}
           accent="green"
@@ -123,7 +123,7 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Platform Revenue"
-          value={isLoading ? '—' : formatKES(parseFloat(r.this_month ?? '0'))}
+          value={isLoading ? '-' : formatKES(parseFloat(r.this_month ?? '0'))}
           description={`${formatKES(parseFloat(r.this_week ?? '0'))} this week`}
           icon={TrendingUp}
           accent="orange"
@@ -136,7 +136,7 @@ export default function AdminDashboardPage() {
         <StatCard
           title="Organizations"
           value={o.total ?? 0}
-          description={`${o.active ?? 0} active · ${o.new_this_month ?? 0} new`}
+          description={`${o.active ?? 0} active - ${o.new_this_month ?? 0} new`}
           icon={Layers}
           accent="blue"
           onClick={() => router.push('/admin/organizations')}
@@ -256,7 +256,7 @@ export default function AdminDashboardPage() {
                     <div className="flex-1 min-w-0">
                       <span className="font-medium text-foreground capitalize">{a.action.toLowerCase()}</span>{' '}
                       <span className="text-muted-foreground">{a.table_name}</span>
-                      {a.group_name && <span className="text-muted-foreground"> · {a.group_name}</span>}
+                      {a.group_name && <span className="text-muted-foreground"> - {a.group_name}</span>}
                     </div>
                     <span className="text-muted-foreground shrink-0">{formatDate(a.created_at)}</span>
                   </div>
@@ -310,7 +310,7 @@ export default function AdminDashboardPage() {
               {parseInt(t.sla_breached ?? '0') === 0 && parseInt(t.open ?? '0') === 0 && (
                 <Alert>
                   <CheckCircle2 size={14} />
-                  <AlertTitle>All tickets resolved — queue clear</AlertTitle>
+                  <AlertTitle>All tickets resolved - queue clear</AlertTitle>
                 </Alert>
               )}
 

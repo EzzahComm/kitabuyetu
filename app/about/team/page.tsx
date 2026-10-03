@@ -14,7 +14,7 @@ export const metadata: Metadata = marketingMetadata({
 
 /**
  * Only the founder is named here, with a real photo. Everyone else stays
- * unnamed until there's an approved bio and headshot for them too —
+ * unnamed until there's an approved bio and headshot for them too -
  * inventing named staff with fabricated headshots would misrepresent real
  * humans behind the product, which is worse than describing the team's
  * discipline in the aggregate, as the rest of this page still does. The
@@ -45,7 +45,7 @@ export default function TeamPage() {
           />
           <p>
             Kitabu Yetu is built by a small team based in Nairobi, working close to the chamas, SACCOs and welfare
-            groups the platform serves — the same groups whose treasurers still balance a paper book by hand, or a
+            groups the platform serves - the same groups whose treasurers still balance a paper book by hand, or a
             spreadsheet three officers share by WhatsApp.
           </p>
           <p>
@@ -54,8 +54,8 @@ export default function TeamPage() {
             ledger as much as it governs this page.
           </p>
           <p>
-            A platform that treats a chama&apos;s books with the same rigor a bank applies to its own — double-entry
-            accounting, an audit trail, role-based approvals — while staying simple enough that a group&apos;s first
+            A platform that treats a chama&apos;s books with the same rigor a bank applies to its own - double-entry
+            accounting, an audit trail, role-based approvals - while staying simple enough that a group&apos;s first
             contribution is recorded the same day it registers.
           </p>
           <p>

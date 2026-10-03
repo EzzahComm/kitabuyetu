@@ -13,7 +13,7 @@ import { getErrorMessage } from '@/lib/utils';
 type Status = 'checking' | 'success' | 'error';
 
 /**
- * §4A public email-link landing page. No session is assumed — the click may
+ * §4A public email-link landing page. No session is assumed - the click may
  * happen on a different device/browser than the one that registered, and
  * the token itself is the proof of possession.
  */

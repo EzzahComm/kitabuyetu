@@ -6,7 +6,7 @@
  * Shows the active membership (group, role, Membership Number) and, for
  * multi-group members, expands to list every active membership with its
  * Membership Number and a lazy-loaded savings snapshot. Selecting one calls
- * /auth/switch-group, which mints a NEW session for that membership — the
+ * /auth/switch-group, which mints a NEW session for that membership - the
  * previous session stays valid on other devices (independent lineages).
  */
 import { useCallback, useState } from 'react';
@@ -56,7 +56,7 @@ export function GroupSwitcher() {
         const data = await authApi.switchGroup(item.groupId);
         login(data); // new session replaces the stored one
         setOpen(false);
-        setItems(null); // stale isCurrent flags — refetch next open
+        setItems(null); // stale isCurrent flags - refetch next open
         // Switching groups can change the PRODUCT too, not just the role.
         router.push(await resolvePostLoginPath(data.member.groupRole));
         router.refresh();
@@ -87,7 +87,7 @@ export function GroupSwitcher() {
             </p>
             <p className="text-xs text-gray-400 capitalize">{user.groupRole.replace('_', ' ')}</p>
             {user.membershipNo && (
-              // The Membership Number is the member's PayBill account number —
+              // The Membership Number is the member's PayBill account number -
               // pinned here so the active membership is always unambiguous
               // (payment architecture §8). Legacy sessions without it re-gain
               // the line at next login.
@@ -125,7 +125,7 @@ export function GroupSwitcher() {
                   <p className="text-[11px] text-gray-400 capitalize">
                     {item.role.replace('_', ' ')}
                     {item.membershipNo && (
-                      <span className="font-mono text-gray-500"> · {formatMembershipNo(item.membershipNo)}</span>
+                      <span className="font-mono text-gray-500"> - {formatMembershipNo(item.membershipNo)}</span>
                     )}
                   </p>
                   <p className="text-[11px] text-gray-500">
@@ -139,7 +139,7 @@ export function GroupSwitcher() {
           ))}
           {/*
             Was dead-end text ("Join another to switch here") with no actual
-            way to join anything — this is that capability, for real, always
+            way to join anything - this is that capability, for real, always
             visible rather than only when items.length === 1: an existing
             member can found an ADDITIONAL group (Kitabu Yetu or Chama
             Reminder) under their current identity without a new phone

@@ -20,11 +20,11 @@ import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/a
  * the consumer /login.
  *
  * Split from organization staff login (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md):
- * this page now only accepts super_admin/support accounts — organization
+ * this page now only accepts super_admin/support accounts - organization
  * staff sign in at /enterprise/login instead (both share the state machine
  * via useBackofficeLogin + the backoffice-login-forms components; only
  * `surface`, redirect target, and visual variant differ). super_admin
- * passes on either surface — see SURFACE_ALLOWED_ROLES in
+ * passes on either surface - see SURFACE_ALLOWED_ROLES in
  * app/api/v1/auth/admin/login/route.ts.
  */
 export default function AdminLoginPage() {

@@ -6,7 +6,7 @@ interface SectionTitleProps {
   preTitle?: string;
   title?: string;
   align?: 'left' | 'center';
-  /** Render the title as <h1> instead of <h2> — use on the first heading of a page that has no <h1> of its own. */
+  /** Render the title as <h1> instead of <h2> - use on the first heading of a page that has no <h1> of its own. */
   titleAs?: 'h1' | 'h2';
   children?: React.ReactNode;
 }

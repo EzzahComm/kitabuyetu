@@ -18,7 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import type { Tone } from '@/lib/ui/tokens';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 - recharts is code-split out of
 // this page's initial bundle; it's only needed once history has >1 point.
 const ScoreHistoryChart = dynamic(() => import('./_charts').then((m) => m.ScoreHistoryChart), { ssr: false });
 
@@ -74,12 +74,12 @@ const COMPONENT_LABEL: Record<string, string> = {
 };
 const COMPONENT_HINT: Record<string, string> = {
   contribution_consistency: '% of last 12 months with at least one completed contribution',
-  loan_repayment: '% of repayments paid on or before due date · defaults cap at 30',
-  savings_growth: 'Last 12 months total vs prior 12 months · ratio × 50',
+  loan_repayment: '% of repayments paid on or before due date - defaults cap at 30',
+  savings_growth: 'Last 12 months total vs prior 12 months - ratio × 50',
   share_ownership: 'Percentile rank of shares held among shareholders',
   dividend_participation: 'Received at least one paid dividend in last 12 months',
   meeting_attendance: '% of meetings attended in last 12 months (excused excluded)',
-  welfare_participation: 'Contributed to welfare pool in last 12 months · 100/40 binary',
+  welfare_participation: 'Contributed to welfare pool in last 12 months - 100/40 binary',
   leadership_role: 'Officer role (admin/treasurer/secretary) = 100, member = 50',
 };
 
@@ -128,7 +128,7 @@ export default function CreditScoreDetailPage() {
   };
 
   if (latestQ.isLoading) {
-    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 — a bare centred spinner gave no
+    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 - a bare centred spinner gave no
     // hint of the shape about to appear; every other list/detail surface in the
     // app uses Skeleton placeholders that match the eventual layout.
     return (
@@ -144,7 +144,7 @@ export default function CreditScoreDetailPage() {
     );
   }
 
-  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M1 — "never scored" is specifically the
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M1 - "never scored" is specifically the
   // service's NotFoundError (404). Any other failure (403, 500, network) is a
   // real error and must not masquerade as a business state with a
   // "Recompute now" call to action that will fail the same way.
@@ -272,7 +272,7 @@ function ScoreDetail({ latest, history }: { latest: CreditScore; history: Credit
 
       <p className="text-xs text-muted-foreground">
         Last computed {new Date(latest.computed_at).toLocaleString()}.
-        {history.length > 0 && ` · ${history.length} snapshot(s) on record.`}
+        {history.length > 0 && ` - ${history.length} snapshot(s) on record.`}
       </p>
     </>
   );
@@ -316,6 +316,6 @@ function formatRawValue(v: unknown): string {
     if (Number.isInteger(v)) return v.toString();
     return v.toFixed(2);
   }
-  if (v === null) return '—';
+  if (v === null) return '-';
   return String(v);
 }

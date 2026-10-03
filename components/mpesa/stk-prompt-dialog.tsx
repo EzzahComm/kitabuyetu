@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * In-context M-Pesa STK Push dialog — the "Request payment" flow.
+ * In-context M-Pesa STK Push dialog - the "Request payment" flow.
  *
  * Used from the dashboard (with a member picker) and the member detail page
  * (member preset). Keeps the user inside the current page: confirm details →
@@ -54,7 +54,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   const [failReason, setFailReason] = useState<string | null>(null);
   const pollGen = useRef(0); // invalidates in-flight polls on close/retry
 
-  // Member picker (dashboard mode only) — active members with a phone.
+  // Member picker (dashboard mode only) - active members with a phone.
   const { data: membersData, isLoading: loadingMembers } = useQuery({
     queryKey: ['members', 'stk-picker'],
     queryFn: () => membersApi.list({ page: 1, limit: 100, status: 'active' }),
@@ -97,7 +97,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
   }
 
   function onPaymentCompleted() {
-    // Refresh everything the payment touches — no manual reload needed.
+    // Refresh everything the payment touches - no manual reload needed.
     qc.invalidateQueries({ queryKey: ['contributions'] });
     qc.invalidateQueries({ queryKey: ['dashboard'] });
     qc.invalidateQueries({ queryKey: ['members'] });
@@ -126,13 +126,13 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
           return;
         }
       } catch {
-        // transient — keep polling
+        // transient - keep polling
       }
     }
     if (pollGen.current === gen) {
       setStep('failed');
       setFailReason(
-        'No confirmation received yet. If the member completed the payment it will still be recorded automatically — check the transactions list shortly before retrying.',
+        'No confirmation received yet. If the member completed the payment it will still be recorded automatically - check the transactions list shortly before retrying.',
       );
     }
   }
@@ -197,7 +197,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                   <option value="">{loadingMembers ? 'Loading members…' : 'Select a member…'}</option>
                   {pickable.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.first_name} {m.last_name} — {m.phone}
+                      {m.first_name} {m.last_name} - {m.phone}
                     </option>
                   ))}
                 </select>
@@ -231,7 +231,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Category: <span className="font-medium text-foreground">Contribution</span> · Ref: CONTRIB. The payment
+              Category: <span className="font-medium text-foreground">Contribution</span> - Ref: CONTRIB. The payment
               posts to savings and the ledger automatically on confirmation.
             </p>
           </div>
@@ -245,12 +245,12 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
                 {step === 'sending' ? 'Sending STK prompt…' : `Waiting for ${payerName ?? phone} to enter their PIN…`}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                {amountOk ? `${formatKES(amt)} · ` : ''}
+                {amountOk ? `${formatKES(amt)} - ` : ''}
                 {phone}
                 {reference && (
                   <>
                     {' '}
-                    · Ref <span className="font-mono">{reference.slice(-10)}</span>
+                    - Ref <span className="font-mono">{reference.slice(-10)}</span>
                   </>
                 )}
               </p>
@@ -294,7 +294,7 @@ export function StkPromptDialog({ open, onClose, member }: StkPromptDialogProps)
           )}
           {(step === 'sending' || step === 'waiting') && (
             <Button variant="outline" onClick={resetAndClose}>
-              Close — keep processing
+              Close - keep processing
             </Button>
           )}
           {step === 'completed' && <Button onClick={resetAndClose}>Done</Button>}

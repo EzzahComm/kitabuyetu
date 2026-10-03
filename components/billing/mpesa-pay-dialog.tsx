@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import type { StkCheckout } from '@/hooks/use-stk-checkout';
 
 /**
- * The M-Pesa prompt dialog. Presentation only — every piece of state and the
+ * The M-Pesa prompt dialog. Presentation only - every piece of state and the
  * whole payment loop live in useStkCheckout, so plan purchase, SMS top-up and
  * the Chama Reminder subscribe page all show the user the same thing.
  */

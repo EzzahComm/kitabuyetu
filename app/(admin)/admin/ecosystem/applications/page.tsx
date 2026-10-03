@@ -85,8 +85,8 @@ export default function AdminEcosystemApplicationsPage() {
                     <Badge variant={STATUS_VARIANT[a.application_status]}>{a.application_status}</Badge>
                   </div>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    Contact: {a.contact_member_name} · {a.contact_member_phone}
-                    {a.contact_member_email ? ` · ${a.contact_member_email}` : ''}
+                    Contact: {a.contact_member_name} - {a.contact_member_phone}
+                    {a.contact_member_email ? ` - ${a.contact_member_email}` : ''}
                   </p>
                   {a.message && (
                     <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">&ldquo;{a.message}&rdquo;</p>

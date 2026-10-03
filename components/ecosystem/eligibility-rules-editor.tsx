@@ -10,12 +10,12 @@ import type { EligibilityRule } from '@/lib/services/ecosystem.service';
 
 /**
  * Authors eligibility_rules for an opportunity. `field` is never a free-text
- * input — it's implied by the rule `type`, since GroupEligibilityData
+ * input - it's implied by the rule `type`, since GroupEligibilityData
  * (ecosystem.service.ts) only ever exposes four attributes (created_at,
  * type, cash_balance, county), one per rule type. A free-text field name
  * would let an admin author a rule against a property that doesn't exist,
  * which evaluateRule() would just silently fail (caught, logged, counted as
- * a failed rule) — this editor makes that class of mistake structurally
+ * a failed rule) - this editor makes that class of mistake structurally
  * impossible instead of catching it after the fact.
  */
 
@@ -24,7 +24,7 @@ const RULE_TYPES: { value: EligibilityRule['type']; label: string; field: string
   { value: 'enum_whitelist', label: 'Group type', field: 'type' },
   { value: 'geo', label: 'County', field: 'county' },
   { value: 'financial', label: 'Group balance (contributions + shares − loans)', field: 'cash_balance' },
-  { value: 'external_check', label: 'External check (not yet available — always passes)', field: '' },
+  { value: 'external_check', label: 'External check (not yet available - always passes)', field: '' },
 ];
 
 function newRule(type: EligibilityRule['type']): EligibilityRule {
@@ -59,7 +59,7 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
     <div className="space-y-3">
       <Label>Eligibility rules (optional)</Label>
       <p className="text-xs text-muted-foreground">
-        A group that doesn&rsquo;t meet these can still apply — this is shown to them as guidance, not a hard block.
+        A group that doesn&rsquo;t meet these can still apply - this is shown to them as guidance, not a hard block.
       </p>
 
       {value.map((rule) => (
@@ -130,7 +130,7 @@ export function EligibilityRulesEditor({ value, onChange }: Props) {
 
             {rule.type === 'geo' && (
               <Input
-                placeholder="Counties, comma-separated — e.g. Nairobi, Kiambu, Machakos"
+                placeholder="Counties, comma-separated - e.g. Nairobi, Kiambu, Machakos"
                 value={(rule.values ?? []).join(', ')}
                 onChange={(e) =>
                   updateRule(rule.id, {

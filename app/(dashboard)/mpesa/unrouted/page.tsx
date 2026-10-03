@@ -120,7 +120,7 @@ export default function UnroutedPage() {
           ))}
         </div>
       ) : isError ? (
-        // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C2 — a failed fetch used to render
+        // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C2 - a failed fetch used to render
         // "All receipts are routed", telling a treasurer there is nothing to
         // reconcile when in fact nothing loaded.
         <Card>
@@ -156,8 +156,8 @@ export default function UnroutedPage() {
                     <Badge variant="warning">{REASON_LABEL[row.reason] ?? row.reason}</Badge>
                   </div>
                   <p className="text-sm text-muted-foreground">
-                    {row.phone} · Receipt {row.receipt}
-                    {row.bill_ref ? ` · Ref ${row.bill_ref}` : ''}
+                    {row.phone} - Receipt {row.receipt}
+                    {row.bill_ref ? ` - Ref ${row.bill_ref}` : ''}
                   </p>
                   <p className="text-xs text-muted-foreground">{formatDate(row.created_at)}</p>
                 </div>
@@ -183,7 +183,7 @@ export default function UnroutedPage() {
                 </p>
                 <p className="text-muted-foreground">
                   Receipt {active.receipt}
-                  {active.bill_ref ? ` · Ref ${active.bill_ref}` : ''}
+                  {active.bill_ref ? ` - Ref ${active.bill_ref}` : ''}
                 </p>
               </div>
               <div className="space-y-1">
@@ -196,7 +196,7 @@ export default function UnroutedPage() {
                   <option value="">Select member…</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.first_name} {m.last_name} — {m.phone}
+                      {m.first_name} {m.last_name} - {m.phone}
                     </option>
                   ))}
                 </select>

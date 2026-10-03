@@ -18,7 +18,7 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem/marketplace',
-  title: 'Marketplace — Grants, Loans & Services for Groups',
+  title: 'Marketplace - Grants, Loans & Services for Groups',
   description:
     'Grants, loans, insurance, training and services from partners, offered to chamas, SACCOs and community groups on Kitabu Yetu.',
 });
@@ -41,7 +41,7 @@ const TYPE_LABEL = Object.fromEntries(OFFER_TYPES.map((t) => [t.type, t.label.re
 
 function amountLabel(o: PublicOpportunity): string | null {
   if (o.amount_min && o.amount_max) {
-    return `${o.currency} ${o.amount_min.toLocaleString()} – ${o.amount_max.toLocaleString()}`;
+    return `${o.currency} ${o.amount_min.toLocaleString()} - ${o.amount_max.toLocaleString()}`;
   }
   if (o.amount_min) return `From ${o.currency} ${o.amount_min.toLocaleString()}`;
   return null;
@@ -52,9 +52,9 @@ async function MarketplacePage() {
   try {
     opportunities = await withAdminDb((db) => listPublishedOpportunities(db));
   } catch {
-    // Database unreachable (build or preview) — render the empty state rather than fail the page.
+    // Database unreachable (build or preview) - render the empty state rather than fail the page.
   }
-  // Anonymous, public page — strip internal-only fields (eligibility_rules)
+  // Anonymous, public page - strip internal-only fields (eligibility_rules)
   // before they're ever in scope here, in case a future edit passes one of
   // these into a client component or otherwise serializes it whole.
   const published: PublicOpportunity[] = opportunities.map(toPublicOpportunity);
@@ -62,7 +62,7 @@ async function MarketplacePage() {
   return (
     <PageShell
       title="Marketplace"
-      description="Grants, loans, insurance, training and services from partners — offered to groups that keep their books on Kitabu Yetu."
+      description="Grants, loans, insurance, training and services from partners - offered to groups that keep their books on Kitabu Yetu."
       crumbs={[{ label: 'Ecosystem', href: ROUTES.ecosystem }]}
       layout="sections"
     >
@@ -77,7 +77,7 @@ async function MarketplacePage() {
           <div className="rounded-lg border border-brand-100 bg-brand-50 px-6 py-10 text-center">
             <p className="font-display text-xl font-semibold text-finanza-dark">No offers are open right now.</p>
             <p className="mx-auto mt-2 max-w-xl text-finanza-text">
-              We are onboarding partners. Keep your group&apos;s records up to date — a clean record is what makes a
+              We are onboarding partners. Keep your group&apos;s records up to date - a clean record is what makes a
               group ready when offers open.
             </p>
           </div>
@@ -161,7 +161,7 @@ async function MarketplacePage() {
 
       <CtaBand
         title="Get your group marketplace-ready"
-        subtitle="Offers go to groups with clear records — start keeping yours on Kitabu Yetu."
+        subtitle="Offers go to groups with clear records - start keeping yours on Kitabu Yetu."
       />
     </PageShell>
   );

@@ -14,7 +14,7 @@ export interface PortalNavItem {
   icon: React.ElementType;
   badge?: number;
   /**
-   * Turns this item into a collapsible group instead of a direct link —
+   * Turns this item into a collapsible group instead of a direct link -
    * SIMPLIFICATION_AND_RBAC_AUDIT.md §3's "More"/overflow primitive.
    * `href` is ignored for a group (nothing to navigate to); it stays
    * required on the type so every item can still be used as a plain link
@@ -22,7 +22,7 @@ export interface PortalNavItem {
    */
   children?: PortalNavItem[];
   /**
-   * Renders the item as a non-interactive "Soon" row instead of a link — shows
+   * Renders the item as a non-interactive "Soon" row instead of a link - shows
    * the planned IA without a dead destination. Ported from the enterprise
    * portal's own sidebar when it merged in here
    * (UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4).
@@ -42,7 +42,7 @@ export interface PortalNavSection {
 }
 
 /**
- * Shared shell for the admin (light) and dashboard (dark) sidebars — the
+ * Shared shell for the admin (light) and dashboard (dark) sidebars - the
  * mobile-overlay / active-link / sign-out mechanics were fully duplicated
  * between them. Every class below is variant-keyed verbatim from the two
  * originals so the merge is invisible: the admin console keeps its collapse

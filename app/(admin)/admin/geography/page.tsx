@@ -221,7 +221,7 @@ export default function GeographyPage() {
                           {isOpen ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </TableCell>
                         <TableCell className="font-medium text-foreground">{county.county_name}</TableCell>
-                        <TableCell className="text-muted-foreground">{county.region ?? '—'}</TableCell>
+                        <TableCell className="text-muted-foreground">{county.region ?? '-'}</TableCell>
                         <TableCell className="text-right font-medium">{county.group_count}</TableCell>
                         <TableCell className="text-right font-medium">
                           {Number(county.member_count).toLocaleString()}

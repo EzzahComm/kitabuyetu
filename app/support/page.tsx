@@ -16,7 +16,7 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 /**
- * Grounded in what the platform actually does — no invented features, no
+ * Grounded in what the platform actually does - no invented features, no
  * promised troubleshooting steps for things that don't exist (an API, a
  * self-serve export tool, etc.). See app/docs/page.tsx for why there's no
  * public API reference here: there is no public API.
@@ -27,14 +27,14 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
     items: [
       [
         'I forgot my password.',
-        'Contact support directly with your registered phone number so we can help you regain access — there is no self-serve password reset by email yet.',
+        'Contact support directly with your registered phone number so we can help you regain access - there is no self-serve password reset by email yet.',
       ],
       [
         'I belong to more than one group. Do I need separate accounts?',
         'No. One login can belong to more than one group or organization; switch between them from inside the app once signed in.',
       ],
       [
-        "I'm a member, not an officer — what can I see?",
+        "I'm a member, not an officer - what can I see?",
         'Members can see their own contribution, loan and welfare history. Editing group records is limited to the chairperson, treasurer and secretary roles.',
       ],
     ],
@@ -48,11 +48,11 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
       ],
       [
         'How long does a contribution take to show up after paying?',
-        "Usually within seconds — Safaricom's payment confirmation arrives, and Kitabu Yetu posts it to your group's ledger automatically. If it's been more than a few minutes, contact support with the confirmation code.",
+        "Usually within seconds - Safaricom's payment confirmation arrives, and Kitabu Yetu posts it to your group's ledger automatically. If it's been more than a few minutes, contact support with the confirmation code.",
       ],
       [
         'Can members pay by something other than M-Pesa?',
-        'A group can record cash, bank transfer or cheque contributions directly in the ledger as well — M-Pesa is the only channel that posts automatically.',
+        'A group can record cash, bank transfer or cheque contributions directly in the ledger as well - M-Pesa is the only channel that posts automatically.',
       ],
     ],
   },
@@ -65,7 +65,7 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
       ],
       [
         "Can another group see our group's records?",
-        "No. Each group's records are isolated at the database level — this is enforced by the database itself, not just by the app's screens.",
+        "No. Each group's records are isolated at the database level - this is enforced by the database itself, not just by the app's screens.",
       ],
       [
         'Who can add or remove members?',
@@ -78,11 +78,11 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
     items: [
       [
         'Can we change plan later?',
-        'Yes. Buy a different plan by M-Pesa at any time from your billing page and it activates immediately — there is no lock-in period.',
+        'Yes. Buy a different plan by M-Pesa at any time from your billing page and it activates immediately - there is no lock-in period.',
       ],
       [
         'What happens if we run out of SMS credits?',
-        'Sending never stops outright — once your included monthly allowance is used up, you top up credits from your billing page, and purchased credits are drawn on after the included allowance.',
+        'Sending never stops outright - once your included monthly allowance is used up, you top up credits from your billing page, and purchased credits are drawn on after the included allowance.',
       ],
       [
         'Is there a free plan?',
@@ -109,7 +109,7 @@ export default function SupportPage() {
               </h1>
               <p className="mt-6 text-lg leading-relaxed text-finanza-text">
                 If you&apos;re a member of a group, your chairperson, secretary or treasurer can often help directly.
-                Otherwise, reach us — real people, not a ticket queue.
+                Otherwise, reach us - real people, not a ticket queue.
               </p>
             </div>
           </Container>
@@ -161,7 +161,7 @@ export default function SupportPage() {
             <div>
               <p className="font-display text-xl font-semibold">Still stuck?</p>
               <p className="mt-2 text-[0.9375rem] text-brand-100/85">
-                Email or call us directly — see above — or browse{' '}
+                Email or call us directly - see above - or browse{' '}
                 <Link href={ROUTES.resources} className="font-medium text-brand-400 hover:underline">
                   guides in Resources
                 </Link>

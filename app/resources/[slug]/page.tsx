@@ -55,7 +55,7 @@ export async function generateMetadata({ params }: PostPageProps): Promise<Metad
 
 /**
  * BlogPosting structured data. Sanity Studio editors are trusted staff, not
- * public visitors, but the fields still originate outside this file — unlike
+ * public visitors, but the fields still originate outside this file - unlike
  * the fully-static JSON-LD on the homepage, so `<` is escaped before
  * embedding to rule out a `</script>`-breakout edge case in a title/excerpt.
  */

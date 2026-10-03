@@ -15,7 +15,7 @@ const SUB_TABS = [
   { key: 'compose', label: 'Compose', icon: Send },
   { key: 'scheduled', label: 'Scheduled', icon: Clock },
   // A Chama Reminder group sends, so it owes its members the same right to
-  // object as any other group — and with no inbound STOP handling, an officer
+  // object as any other group - and with no inbound STOP handling, an officer
   // recording the request is the only way it can be honoured
   // (SMS-REAUDIT-2026-09-02 F1).
   // Chama Reminder IS the automations product, so its history and its failed

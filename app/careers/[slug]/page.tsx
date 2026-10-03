@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   const { slug } = await params;
   const job = await getJobBySlug(slug);
   if (!job) return { title: 'Careers' };
-  const title = `${job.title} — Careers`;
+  const title = `${job.title} - Careers`;
   const url = `${SITE_URL}/careers/${job.slug}`;
   return {
     title,
@@ -44,7 +44,7 @@ export async function generateMetadata({ params }: JobPageProps): Promise<Metada
   };
 }
 
-/** JobPosting structured data — see the resources/[slug] page for the escaping rationale. */
+/** JobPosting structured data - see the resources/[slug] page for the escaping rationale. */
 function StructuredData({ job, url }: { job: NonNullable<Awaited<ReturnType<typeof getJobBySlug>>>; url: string }) {
   const json = {
     '@context': 'https://schema.org',

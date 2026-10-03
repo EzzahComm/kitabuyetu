@@ -120,7 +120,7 @@ function DigestComposer() {
               <Label>Preview</Label>
               {/* Sandboxed with no `allow-scripts`/`allow-same-origin` so an
                   admin editing raw HTML here can't have it execute in this
-                  page — the browser enforces that, not string filtering. */}
+                  page - the browser enforces that, not string filtering. */}
               <iframe
                 title="Digest preview"
                 sandbox=""
@@ -215,7 +215,7 @@ export default function NewsletterAdminPage() {
     <div className="space-y-5">
       <PageHeader
         title="Newsletter"
-        description="Public marketing-site subscribers — captured from the site footer and content pages."
+        description="Public marketing-site subscribers - captured from the site footer and content pages."
         actions={
           <Button variant="outline" size="sm" onClick={onExport} disabled={exporting || !subscribers.length}>
             {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
@@ -240,7 +240,7 @@ export default function NewsletterAdminPage() {
             <p className="p-6 text-sm text-muted-foreground">Loading…</p>
           ) : subscribers.length === 0 ? (
             <p className="p-16 text-center text-sm text-muted-foreground">
-              No subscribers yet — the signup form is live in the site footer and on the Resources pages.
+              No subscribers yet - the signup form is live in the site footer and on the Resources pages.
             </p>
           ) : (
             <Table>
@@ -257,7 +257,7 @@ export default function NewsletterAdminPage() {
                 {subscribers.map((s) => (
                   <TableRow key={s.id}>
                     <TableCell className="font-medium">{s.email}</TableCell>
-                    <TableCell>{s.name ?? '—'}</TableCell>
+                    <TableCell>{s.name ?? '-'}</TableCell>
                     <TableCell className="text-muted-foreground">{s.source}</TableCell>
                     <TableCell>{formatDate(s.subscribed_at)}</TableCell>
                     <TableCell>

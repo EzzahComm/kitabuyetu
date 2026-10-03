@@ -112,7 +112,7 @@ export default function MembersPage() {
         Object.entries(values).filter(([, v]) => v !== '' && v !== undefined),
         // The form schema is a superset-shaped mirror of CreateMemberSchema and
         // every required field is required in both, so the stripped object is a
-        // valid payload — but Object.entries erases that, hence the assertion.
+        // valid payload - but Object.entries erases that, hence the assertion.
       ) as unknown as CreateMemberPayload;
       await createMember.mutateAsync(body);
       toast({ title: 'Member added successfully' });
@@ -167,7 +167,7 @@ export default function MembersPage() {
     setBulkBusy(false);
     toast({
       title: `${action === 'archive' ? 'Archived' : 'Restored'} ${success} of ${ids.length}`,
-      description: failed > 0 ? `${failed} failed — check the audit log.` : undefined,
+      description: failed > 0 ? `${failed} failed - check the audit log.` : undefined,
       variant: failed > 0 ? 'destructive' : 'default',
     });
   };
@@ -214,7 +214,7 @@ export default function MembersPage() {
       key: 'occupation',
       header: 'Occupation',
       hideBelow: 'md' as const,
-      render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '—'}</span>,
+      render: (row: GroupMemberRow) => <span className="text-sm">{row.occupation ?? '-'}</span>,
     },
     {
       key: 'groupRole',
@@ -292,7 +292,7 @@ export default function MembersPage() {
         </select>
       </div>
 
-      {/* Bulk action bar — only when at least one row is selected */}
+      {/* Bulk action bar - only when at least one row is selected */}
       {selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 py-2.5 rounded-md border bg-accent flex-wrap">
           <p className="text-sm flex-1">
@@ -382,7 +382,7 @@ export default function MembersPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   defaultValue=""
                 >
-                  <option value="">— Optional —</option>
+                  <option value="">- Optional -</option>
                   {countyList.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}

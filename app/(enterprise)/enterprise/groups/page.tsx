@@ -106,7 +106,7 @@ function GroupLinkList({ title, items, empty }: { title: string; items: OrgGroup
                 <p className="font-medium">{l.groupName}</p>
                 <p className="text-xs text-muted-foreground">
                   requested {formatDate(l.requestedAt)}
-                  {l.status === 'rejected' && l.rejectionReason ? ` · ${l.rejectionReason}` : ''}
+                  {l.status === 'rejected' && l.rejectionReason ? ` - ${l.rejectionReason}` : ''}
                 </p>
               </div>
               <Badge variant={STATUS_VARIANT[l.status]}>{STATUS_LABEL[l.status]}</Badge>

@@ -5,7 +5,7 @@ import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 /**
- * Themed Recharts kit — public API.
+ * Themed Recharts kit - public API.
  *
  * Recharts itself lives in ./charts-impl and is loaded lazily here via
  * `next/dynamic` ({ ssr: false }), so the ~360 KB library is split into an
@@ -47,7 +47,7 @@ interface ChartCardProps {
 }
 
 /**
- * Card shell that sizes any chart consistently. Recharts-free — the chart
+ * Card shell that sizes any chart consistently. Recharts-free - the chart
  * (a lazy `TrendChart`/`BarSeriesChart`/`DonutChart`) is passed as children and
  * fills the fixed-height box via its own ResponsiveContainer.
  */

@@ -35,7 +35,7 @@ import { downloadAuthenticated } from '@/lib/utils/download';
 import { getErrorMessage } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts is code-split out of
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 - recharts is code-split out of
 // this page's initial bundle; it's only needed once the summary loads.
 const ContributionsChart = dynamic(() => import('./_charts').then((m) => m.ContributionsChart), { ssr: false });
 const RepaymentsChart = dynamic(() => import('./_charts').then((m) => m.RepaymentsChart), { ssr: false });
@@ -216,14 +216,14 @@ export default function AnalyticsPage() {
             <StatCard
               title="Loan portfolio"
               value={fmtMoney(s.loans.outstandingBalance)}
-              description={`${fmtInt(s.loans.activeCount)} active · ${fmtInt(s.loans.overdueCount)} overdue`}
+              description={`${fmtInt(s.loans.activeCount)} active - ${fmtInt(s.loans.overdueCount)} overdue`}
               icon={Landmark}
             />
 
             <StatCard
               title="Share capital"
               value={fmtMoney(s.shares.shareCapital)}
-              description={`${fmtInt(s.shares.sharesIssued)} shares · ${fmtInt(s.shares.shareholders)} holders`}
+              description={`${fmtInt(s.shares.sharesIssued)} shares - ${fmtInt(s.shares.shareholders)} holders`}
               icon={Coins}
             />
             <StatCard
@@ -242,7 +242,7 @@ export default function AnalyticsPage() {
             />
             <StatCard
               title="Avg credit score"
-              value={s.creditScores.scoredMembers > 0 ? Number(s.creditScores.averageOverall).toFixed(0) : '—'}
+              value={s.creditScores.scoredMembers > 0 ? Number(s.creditScores.averageOverall).toFixed(0) : '-'}
               description={`${fmtInt(s.creditScores.scoredMembers)} scored`}
               icon={BarChart2}
             />
@@ -336,7 +336,7 @@ export default function AnalyticsPage() {
               <CardContent>
                 <div className="h-64">
                   {s.creditScores.scoredMembers === 0 ? (
-                    <EmptyChart label="No scores computed yet — visit /credit-scores to recompute." />
+                    <EmptyChart label="No scores computed yet - visit /credit-scores to recompute." />
                   ) : (
                     <CreditTierChart byTier={s.creditScores.byTier} />
                   )}
@@ -377,15 +377,15 @@ export default function AnalyticsPage() {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            Generated {new Date(s.generatedAt).toLocaleString()} ·
+            Generated {new Date(s.generatedAt).toLocaleString()} -
             <Link href="/credit-scores" className="ml-1 text-primary hover:underline">
               credit scores
             </Link>{' '}
-            ·
+            -
             <Link href="/shares" className="ml-1 text-primary hover:underline">
               shares ledger
             </Link>{' '}
-            ·
+            -
             <Link href="/dividends" className="ml-1 text-primary hover:underline">
               dividends
             </Link>

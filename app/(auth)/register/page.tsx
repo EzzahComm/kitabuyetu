@@ -26,9 +26,9 @@ import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 import type { SubscriptionProduct } from '@/types/enums';
 
 // Mirrors lib/validators/auth.schema.ts (RegisterSchema). Kept in sync
-// manually for now — single shared types lib is a Phase F cleanup.
-// An unpicked <select> submits "" (its "— Optional —" entry), which a bare
-// z.enum().optional() rejects — silently, since these fields show no error text.
+// manually for now - single shared types lib is a Phase F cleanup.
+// An unpicked <select> submits "" (its "- Optional -" entry), which a bare
+// z.enum().optional() rejects - silently, since these fields show no error text.
 const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
   z.preprocess((v) => (v === '' ? undefined : v), z.enum(values as unknown as [T[number], ...T[number][]]).optional());
 
@@ -36,7 +36,7 @@ const schema = z
   .object({
     // Identity
     groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-    // Must match the group_type Postgres enum EXACTLY — derived from the shared
+    // Must match the group_type Postgres enum EXACTLY - derived from the shared
     // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
     groupType: z.enum(GROUP_TYPES),
 
@@ -52,7 +52,7 @@ const schema = z
       .regex(/[0-9]/, 'Needs a number'),
     confirm: z.string(),
 
-    // Governance — registrant must hold one of the three mandatory roles.
+    // Governance - registrant must hold one of the three mandatory roles.
     creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
       errorMap: () => ({ message: 'Select your role' }),
     }),
@@ -91,14 +91,14 @@ const schema = z
       message: 'You must accept the terms and conditions',
     }),
 
-    // Group finances — feeds contribution-plan.service.ts; drives the
+    // Group finances - feeds contribution-plan.service.ts; drives the
     // monthly arrears/balance SMS. Only rendered (and required) for
-    // kitabu_yetu — chama_reminder has no GL. Kept optional in the shared
+    // kitabu_yetu - chama_reminder has no GL. Kept optional in the shared
     // schema since a chama_reminder submit never includes them.
     monthlyContribution: z.coerce.number().min(0).optional(),
     welfareAmount: z.coerce.number().min(0).optional(),
 
-    // Government registration — optional, never blocks sign-up. The number is
+    // Government registration - optional, never blocks sign-up. The number is
     // part of this form; a certificate PDF (if any) is held outside the form
     // (useCertificateFile) and sent as a multipart part of the sign-up request.
     // No `.default()` on the flag: useForm's own `defaultValues` supplies
@@ -153,7 +153,7 @@ const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-brand-
 /**
  * One form for both products, not two.
  *
- * register_group() validates the same fields regardless of product — the only
+ * register_group() validates the same fields regardless of product - the only
  * Kitabu-Yetu-flavoured field is countyId, and that is a client-side nicety
  * rather than an RPC requirement. A second, divergent signup form would be a
  * permanent sync liability for one saved field, so the product changes the copy
@@ -181,7 +181,7 @@ function RegisterForm() {
   const certificate = useCertificateFile();
 
   // /register?product=chama_reminder is the standalone acquisition entry point.
-  // Anything else — including a tampered value — falls back to kitabu_yetu, and
+  // Anything else - including a tampered value - falls back to kitabu_yetu, and
   // the server's own enum does the same.
   const product: SubscriptionProduct =
     searchParams.get('product') === 'chama_reminder' ? 'chama_reminder' : 'kitabu_yetu';
@@ -207,7 +207,7 @@ function RegisterForm() {
       .get<County[]>('/jurisdictions/counties')
       .then(setCounties)
       .catch((err) => {
-        // Non-fatal — the form still renders, the user just can't pick a county.
+        // Non-fatal - the form still renders, the user just can't pick a county.
         // Surface a small banner so they know to retry.
         toast({
           variant: 'destructive',
@@ -223,7 +223,7 @@ function RegisterForm() {
       const payload = { ...body, product };
       // The certificate travels WITH the sign-up request (multipart) rather than
       // as a follow-up call: a brand-new group cannot call any other tenant route
-      // yet — pending verification, then unsubscribed. It is only sent when the
+      // yet - pending verification, then unsubscribed. It is only sent when the
       // group is marked registered, since the input is hidden otherwise.
       const attachment = values.isGovernmentRegistered ? certificate.file : null;
       const data = (await (attachment
@@ -245,7 +245,7 @@ function RegisterForm() {
         });
       }
 
-      // The Membership Number is the member's payment account number — the
+      // The Membership Number is the member's payment account number - the
       // only payment identifier we ever show (payment architecture §1.1).
       toast({
         title: product === 'chama_reminder' ? 'Welcome to Chama Reminder!' : 'Welcome to Kitabu Yetu!',
@@ -263,7 +263,7 @@ function RegisterForm() {
       );
     } catch (err) {
       // A duplicate phone means this person already has an account somewhere
-      // on the platform — register_group() always creates a brand-new one, so
+      // on the platform - register_group() always creates a brand-new one, so
       // it can never be the fix here. Point them at logging in instead of a
       // dead-end error; "Create another group" (from their dashboard once
       // logged in) is the real path to founding this second group.
@@ -276,15 +276,15 @@ function RegisterForm() {
         // "Failed to fetch"). register_group() had already committed the group,
         // so the retry hits the members.phone UNIQUE constraint. Telling that
         // person to create another group would give them a second, duplicate
-        // group. Lead with logging in — which recovers the group they already
-        // made, verification screen and all — and mention the second-group path
+        // group. Lead with logging in - which recovers the group they already
+        // made, verification screen and all - and mention the second-group path
         // only as the follow-on.
         toast({
           variant: 'destructive',
           title: 'This phone number already has an account',
           description: (
             <>
-              If your last attempt showed an error, your group may already have been created —{' '}
+              If your last attempt showed an error, your group may already have been created -{' '}
               <Link href="/login" className="underline">
                 log in
               </Link>{' '}
@@ -310,7 +310,7 @@ function RegisterForm() {
         <CardTitle>{copy.title}</CardTitle>
         <CardDescription>
           {/* "Free for up to 10 members" used to sit here. Migration 139
-              retired the free tier — every plan is paid — so that line was
+              retired the free tier - every plan is paid - so that line was
               promising something the product no longer does. */}
           {copy.subtitle}
         </CardDescription>
@@ -331,7 +331,7 @@ function RegisterForm() {
                   The values were corrected to real enum members once already
                   (PR #95, after "organization_group" 500'd every signup) but
                   the labels were left behind in two separate copies of this
-                  list — so "Organization" stayed on screen long after the bug
+                  list - so "Organization" stayed on screen long after the bug
                   behind it was fixed. One map now feeds both dropdowns. */}
               <select {...register('groupType')} className={selectCls}>
                 {GROUP_TYPES.map((t) => (
@@ -344,7 +344,7 @@ function RegisterForm() {
             <div className="space-y-1.5">
               <Label>Primary objective</Label>
               <select {...register('primaryObjective')} className={selectCls} defaultValue="">
-                <option value="">— Optional —</option>
+                <option value="">- Optional -</option>
                 {OBJECTIVES.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -354,7 +354,7 @@ function RegisterForm() {
             </div>
           </div>
 
-          {/* ─── Government registration (optional — never blocks sign-up) ─── */}
+          {/* ─── Government registration (optional - never blocks sign-up) ─── */}
           <GroupRegistrationFields
             register={register}
             titleClassName={sectionTitle}
@@ -374,7 +374,7 @@ function RegisterForm() {
                 {counties.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
-                    {c.region ? ` — ${c.region}` : ''}
+                    {c.region ? ` - ${c.region}` : ''}
                   </option>
                 ))}
               </select>
@@ -408,7 +408,7 @@ function RegisterForm() {
             <div className="space-y-1.5">
               <Label>Frequency</Label>
               <select {...register('meetingFrequency')} className={selectCls} defaultValue="">
-                <option value="">—</option>
+                <option value="">-</option>
                 <option value="weekly">Weekly</option>
                 <option value="biweekly">Biweekly</option>
                 <option value="monthly">Monthly</option>
@@ -417,7 +417,7 @@ function RegisterForm() {
             <div className="space-y-1.5">
               <Label>Day</Label>
               <select {...register('meetingDay')} className={selectCls} defaultValue="">
-                <option value="">—</option>
+                <option value="">-</option>
                 {DAYS.map((d) => (
                   <option key={d.value} value={d.value}>
                     {d.label}
@@ -433,7 +433,7 @@ function RegisterForm() {
           </div>
 
           {/* ─── Group finances ─── */}
-          {/* chama_reminder has no GL — contribution/welfare tracking makes
+          {/* chama_reminder has no GL - contribution/welfare tracking makes
               no sense there, so this section (and the values it collects)
               simply doesn't exist for that product. */}
           {product === 'kitabu_yetu' && (

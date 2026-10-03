@@ -81,7 +81,7 @@ export default function AccountingPage() {
   const from = `${now.getFullYear()}-01-01`;
   const to = `${now.getFullYear()}-12-31`;
 
-  // Each hook fires only when its own tab is actually open — previously all
+  // Each hook fires only when its own tab is actually open - previously all
   // 9 fired unconditionally on every /accounting load, 13 SQL statements
   // across 9 withDb() calls regardless of which of 8 tabs was visible
   // (docs/audits/optimization-2026-09).
@@ -163,7 +163,7 @@ export default function AccountingPage() {
    * Found by the post-M3 client/server contract sweep. This used to post
    * `{ memo, lines }`, but `CreateJournalSchema` (lib/validators/accounting.schema.ts)
    * requires `entryDate` (a date string) and `description` (min 3) and knows
-   * nothing about `memo` — so **every "Post journal" click 400'd**. Manual
+   * nothing about `memo` - so **every "Post journal" click 400'd**. Manual
    * journal entry has never worked from this UI. It went unnoticed because
    * `accountingApi.createJournal` takes `body: unknown`, so TypeScript could
    * not compare the payload against the schema; the typed `CreateJournalInput`
@@ -274,7 +274,7 @@ export default function AccountingPage() {
                       className: 'text-right',
                       render: (row) => {
                         const debit = parseFloat(row.totalDebits);
-                        return debit > 0 ? formatKES(debit) : '—';
+                        return debit > 0 ? formatKES(debit) : '-';
                       },
                     },
                     {
@@ -283,7 +283,7 @@ export default function AccountingPage() {
                       className: 'text-right',
                       render: (row) => {
                         const credit = parseFloat(row.totalCredits);
-                        return credit > 0 ? formatKES(credit) : '—';
+                        return credit > 0 ? formatKES(credit) : '-';
                       },
                     },
                   ]}
@@ -310,7 +310,7 @@ export default function AccountingPage() {
                 header: 'Reference',
                 render: (j) => <span className="font-mono text-xs">{j.reference ?? j.id.slice(0, 8)}</span>,
               },
-              { key: 'memo', header: 'Memo', className: 'max-w-[200px] truncate', render: (j) => j.memo ?? '—' },
+              { key: 'memo', header: 'Memo', className: 'max-w-[200px] truncate', render: (j) => j.memo ?? '-' },
               {
                 key: 'status',
                 header: 'Status',
@@ -337,7 +337,7 @@ export default function AccountingPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Profit &amp; Loss — {now.getFullYear()}</CardTitle>
+                <CardTitle className="text-base">Profit &amp; Loss - {now.getFullYear()}</CardTitle>
               </CardHeader>
               <CardContent>
                 <pre className="text-xs whitespace-pre-wrap">{JSON.stringify(pnl, null, 2)}</pre>
@@ -359,7 +359,7 @@ export default function AccountingPage() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-base">
-                  Balance Sheet — as of {balanceSheet ? formatDate(balanceSheet.asOf) : ''}
+                  Balance Sheet - as of {balanceSheet ? formatDate(balanceSheet.asOf) : ''}
                 </CardTitle>
               </CardHeader>
               <CardContent className="overflow-x-auto p-0">
@@ -424,11 +424,11 @@ export default function AccountingPage() {
             </Card>
           )}
 
-          {/* Statement of Changes in Equity — audit §12 */}
+          {/* Statement of Changes in Equity - audit §12 */}
           {equityChanges ? (
             <Card className="mt-4">
               <CardHeader>
-                <CardTitle className="text-base">Statement of Changes in Equity — {now.getFullYear()}</CardTitle>
+                <CardTitle className="text-base">Statement of Changes in Equity - {now.getFullYear()}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
                   Movement per equity account this year. The period&apos;s net surplus of{' '}
                   <span className="font-mono">{formatKES(parseFloat(equityChanges.periodNetProfit))}</span> remains in
@@ -490,9 +490,9 @@ export default function AccountingPage() {
           ) : (
             <Card>
               <CardHeader>
-                <CardTitle className="text-base">Cash Flow Statement — {now.getFullYear()}</CardTitle>
+                <CardTitle className="text-base">Cash Flow Statement - {now.getFullYear()}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Direct method over the Cash and Bank accounts. Member lending is classified as operating — it is the
+                  Direct method over the Cash and Bank accounts. Member lending is classified as operating - it is the
                   group&apos;s principal revenue-producing activity.
                 </p>
               </CardHeader>
@@ -559,7 +559,7 @@ export default function AccountingPage() {
                     {cashFlow && !cashFlow.reconciles && (
                       <tr className="border-t">
                         <td colSpan={2} className="px-4 py-2 text-xs text-destructive">
-                          Opening + net change does not equal closing — some cash movement could not be classified.
+                          Opening + net change does not equal closing - some cash movement could not be classified.
                           Contact support.
                         </td>
                       </tr>
@@ -603,7 +603,7 @@ export default function AccountingPage() {
                     header: 'Period',
                     render: (p) => (
                       <span className="font-mono text-xs">
-                        {formatDate(p.period_start)} – {formatDate(p.period_end)}
+                        {formatDate(p.period_start)} - {formatDate(p.period_end)}
                       </span>
                     ),
                   },
@@ -619,21 +619,21 @@ export default function AccountingPage() {
                   {
                     key: 'closed_by',
                     header: 'Closed by',
-                    render: (p) => <span className="text-xs text-muted-foreground">{p.closed_by ?? '—'}</span>,
+                    render: (p) => <span className="text-xs text-muted-foreground">{p.closed_by ?? '-'}</span>,
                   },
                   {
                     key: 'closed_at',
                     header: 'Closed at',
                     render: (p) => (
                       <span className="text-xs text-muted-foreground">
-                        {p.closed_at ? formatDate(p.closed_at) : '—'}
+                        {p.closed_at ? formatDate(p.closed_at) : '-'}
                       </span>
                     ),
                   },
                   {
                     key: 'reopen_reason',
                     header: 'Reopen reason',
-                    render: (p) => <span className="text-xs text-muted-foreground">{p.reopen_reason ?? '—'}</span>,
+                    render: (p) => <span className="text-xs text-muted-foreground">{p.reopen_reason ?? '-'}</span>,
                   },
                   {
                     key: 'actions',
@@ -701,7 +701,7 @@ export default function AccountingPage() {
               <CardTitle className="text-base">Approval policies</CardTitle>
               <p className="text-sm text-muted-foreground mt-1">
                 Thresholds above which a different officer must approve. Each one shows where its current value comes
-                from — override it here to set your own group-specific limit.
+                from - override it here to set your own group-specific limit.
               </p>
             </CardHeader>
             <CardContent className="overflow-x-auto p-0">
@@ -738,7 +738,7 @@ export default function AccountingPage() {
                               variant={p.source === 'group' ? 'success' : 'outline'}
                               className="text-xs capitalize"
                             >
-                              {p.source === 'group' ? 'Your override' : `Inherited — ${p.source}`}
+                              {p.source === 'group' ? 'Your override' : `Inherited - ${p.source}`}
                             </Badge>
                           </td>
                           <td className="px-4 py-2">
@@ -839,7 +839,7 @@ export default function AccountingPage() {
                           <option value="">Select account…</option>
                           {(accounts ?? []).map((a) => (
                             <option key={a.id} value={a.id}>
-                              {a.account_code} — {a.name}
+                              {a.account_code} - {a.name}
                             </option>
                           ))}
                         </select>
@@ -1034,7 +1034,7 @@ interface TemplateLineUI {
 
 /**
  * Posting templates (audit §29.9): which accounts each system-posted business
- * event debits/credits. Only the account can be remapped — the entry
+ * event debits/credits. Only the account can be remapped - the entry
  * structure (sides, amount roles) is locked server-side, so an override can
  * never unbalance an entry.
  */
@@ -1050,7 +1050,7 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
       <CardHeader>
         <CardTitle className="text-base">Posting templates</CardTitle>
         <p className="text-sm text-muted-foreground mt-1">
-          Which accounts each automatic posting hits. You can point an event at a different account in your chart — the
+          Which accounts each automatic posting hits. You can point an event at a different account in your chart - the
           debit/credit structure itself is fixed, so entries always balance.
         </p>
       </CardHeader>
@@ -1085,7 +1085,7 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
                     <td className="px-4 py-2 whitespace-nowrap">{POSTING_EVENT_LABELS[t.event] ?? t.event}</td>
                     <td className="px-4 py-2">
                       <Badge variant={t.source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
-                        {t.source === 'group' ? 'Your override' : `Inherited — ${t.source}`}
+                        {t.source === 'group' ? 'Your override' : `Inherited - ${t.source}`}
                       </Badge>
                     </td>
                     <td className="px-4 py-2">
@@ -1108,11 +1108,11 @@ function PostingTemplatesCard({ accounts }: { accounts: Account[] }) {
                               className="flex h-8 w-full min-w-56 rounded-md border border-input bg-background px-2 py-1 text-xs"
                             >
                               {!accounts.some((a) => a.account_code === line.accountCode) && (
-                                <option value={line.accountCode}>{line.accountCode} — (not in your chart)</option>
+                                <option value={line.accountCode}>{line.accountCode} - (not in your chart)</option>
                               )}
                               {accounts.map((a) => (
                                 <option key={a.id} value={a.account_code}>
-                                  {a.account_code} — {a.name}
+                                  {a.account_code} - {a.name}
                                 </option>
                               ))}
                             </select>
@@ -1195,12 +1195,12 @@ function LoanTermsCard() {
           <CardTitle className="text-base">Loan terms</CardTitle>
           {source && (
             <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
-              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+              {source === 'group' ? 'Your override' : `Inherited - ${source}`}
             </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          Default lending terms offered on new loan applications. Advisory — officers can adjust each loan individually.
+          Default lending terms offered on new loan applications. Advisory - officers can adjust each loan individually.
         </p>
       </CardHeader>
       <CardContent>
@@ -1214,7 +1214,7 @@ function LoanTermsCard() {
               <div className="space-y-1">
                 {/* Per year, not per month. This field seeds every loan the
                     group creates, so a wrong unit here misprices all of them at
-                    once rather than one — see migration 167. */}
+                    once rather than one - see migration 167. */}
                 <Label>Interest rate (% per year)</Label>
                 <Input
                   type="number"
@@ -1263,7 +1263,7 @@ function LoanTermsCard() {
                   value={form.termOptions}
                   onChange={(e) => setEdits({ ...form, termOptions: e.target.value })}
                 />
-                {/* Unlike the rate, this one is enforced — worth saying so
+                {/* Unlike the rate, this one is enforced - worth saying so
                     plainly on the screen that sets it. */}
                 <p className="text-xs text-muted-foreground">
                   The loan form offers exactly these lengths and applications are held to them. Leave blank to allow any
@@ -1315,7 +1315,7 @@ function LoanTermsCard() {
 /**
  * Group savings limits (SavingsPolicy 'limits'). Unlike LoanTermsCard/
  * FineScheduleCard, there is no retired group_constitutions column behind
- * this — §22 found min/max contribution and grace period simply didn't
+ * this - §22 found min/max contribution and grace period simply didn't
  * exist as a feature. Advisory only: pre-fills/annotates the contribution
  * form; contributions.service.ts's create() is unchanged and still accepts
  * any positive amount.
@@ -1346,12 +1346,12 @@ function SavingsPolicyCard() {
           <CardTitle className="text-base">Savings limits</CardTitle>
           {source && (
             <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
-              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+              {source === 'group' ? 'Your override' : `Inherited - ${source}`}
             </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          Guidance shown on the contribution form. Advisory — treasurers can still record any positive amount.
+          Guidance shown on the contribution form. Advisory - treasurers can still record any positive amount.
         </p>
       </CardHeader>
       <CardContent>
@@ -1427,7 +1427,7 @@ function SavingsPolicyCard() {
 
 /**
  * Group fine schedule (FinePolicy 'schedule', migrated from the retired
- * group_constitutions table). Advisory reference tariff per offence —
+ * group_constitutions table). Advisory reference tariff per offence -
  * nothing auto-charges these amounts.
  */
 function FineScheduleCard() {
@@ -1450,12 +1450,12 @@ function FineScheduleCard() {
           <CardTitle className="text-base">Fine schedule</CardTitle>
           {source && (
             <Badge variant={source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
-              {source === 'group' ? 'Your override' : `Inherited — ${source}`}
+              {source === 'group' ? 'Your override' : `Inherited - ${source}`}
             </Badge>
           )}
         </div>
         <p className="text-sm text-muted-foreground mt-1">
-          Reference tariff per offence, used when raising a fine payment request. Advisory — amounts are set per
+          Reference tariff per offence, used when raising a fine payment request. Advisory - amounts are set per
           request.
         </p>
       </CardHeader>

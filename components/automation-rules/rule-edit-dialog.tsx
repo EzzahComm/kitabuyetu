@@ -86,7 +86,7 @@ export function RuleEditDialog({ rule, open, onOpenChange }: Props) {
             <div>
               <p className="text-sm font-medium">{rule.is_active ? 'Active' : 'Paused'}</p>
               <p className="text-xs text-muted-foreground">
-                {rule.channel === 'sms' ? 'SMS' : 'Email'} · fires on {rule.event_type}
+                {rule.channel === 'sms' ? 'SMS' : 'Email'} - fires on {rule.event_type}
               </p>
             </div>
             <Switch checked={rule.is_active} onCheckedChange={onToggleActive} disabled={updateRule.isPending} />
@@ -159,7 +159,7 @@ export function RuleEditDialog({ rule, open, onOpenChange }: Props) {
   );
 }
 
-/** Daily send cap for an email rule — e.g. "at most 1 marketing email per recipient per day". */
+/** Daily send cap for an email rule - e.g. "at most 1 marketing email per recipient per day". */
 function FrequencyCapSection({ ruleId, open }: { ruleId: string; open: boolean }) {
   const { toast } = useToast();
   const { data: caps } = useFrequencyCaps(ruleId, open);

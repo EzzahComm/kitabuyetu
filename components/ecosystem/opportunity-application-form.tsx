@@ -41,7 +41,7 @@ export function OpportunityApplicationForm({
   const { toast } = useToast();
 
   // Advisory only, and only worth checking for a visitor who's actually
-  // logged in as a group official — an anonymous visitor gets the plain
+  // logged in as a group official - an anonymous visitor gets the plain
   // form with no eligibility fetch (and no 401 noise) at all.
   useEffect(() => {
     if (!getStoredAccessToken()) return;
@@ -52,7 +52,7 @@ export function OpportunityApplicationForm({
         if (!cancelled) setEligibility(result);
       })
       .catch(() => {
-        /* silent — this is advisory, not required for the form to work */
+        /* silent - this is advisory, not required for the form to work */
       });
     return () => {
       cancelled = true;
@@ -70,7 +70,7 @@ export function OpportunityApplicationForm({
 
     try {
       // The `api` client (not a raw fetch) is what actually attaches the
-      // group's Bearer token from localStorage — a raw fetch() here used to
+      // group's Bearer token from localStorage - a raw fetch() here used to
       // send no Authorization header at all, so proxy.ts's JWT check
       // rejected every submission with 401 before the route handler ever
       // ran, regardless of whether the visitor was logged in. Confirmed via
@@ -130,7 +130,7 @@ export function OpportunityApplicationForm({
                 <li key={r.id}>{r.error_message || r.name}</li>
               ))}
             </ul>
-            <p className="mt-1 text-xs">You can still apply — the partner makes the final call.</p>
+            <p className="mt-1 text-xs">You can still apply - the partner makes the final call.</p>
           </div>
         ))}
       <div>

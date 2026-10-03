@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 /**
  * Composed skeleton loaders for the common page shapes. Using shared skeletons
  * (instead of ad-hoc spinners) keeps perceived performance high and layout
- * shift low — the skeleton matches the final content's footprint.
+ * shift low - the skeleton matches the final content's footprint.
  */
 
 /** A grid of stat-card placeholders. */
@@ -25,7 +25,7 @@ export function StatCardsSkeleton({ count = 4, className }: { count?: number; cl
   );
 }
 
-/** Table placeholder — header row + N body rows. */
+/** Table placeholder - header row + N body rows. */
 export function TableSkeleton({ rows = 6, cols = 4, className }: { rows?: number; cols?: number; className?: string }) {
   return (
     <div className={cn('overflow-hidden rounded-md border', className)}>

@@ -46,12 +46,12 @@ export function SiteFooter() {
               <Link
                 href={ROUTES.home}
                 className="mb-5 inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4 focus-visible:ring-offset-finanza-dark"
-                aria-label="Kitabu Yetu — home"
+                aria-label="Kitabu Yetu - home"
               >
                 <BrandLockup size={48} tone="dark" tagline />
               </Link>
               <p className="text-[0.9375rem] leading-relaxed">
-                Simple books. Stronger groups. Vibrant communities — digital tools for groups and organizations across
+                Simple books. Stronger groups. Vibrant communities - digital tools for groups and organizations across
                 East Africa.
               </p>
               <ul className="mt-5 space-y-2.5 text-[0.9375rem]">
@@ -93,7 +93,7 @@ export function SiteFooter() {
             <div className="lg:col-span-12 lg:max-w-md xl:col-span-3 xl:max-w-none">
               <h2 className={headingClass}>Newsletter</h2>
               <p className="mb-4 text-[0.9375rem] leading-relaxed">
-                Guides for treasurers and officials, product news and ecosystem opportunities — occasionally, never
+                Guides for treasurers and officials, product news and ecosystem opportunities - occasionally, never
                 spam.
               </p>
               <NewsletterSignupForm source="footer" appearance="inset" className="text-[0.9375rem] text-white" />
@@ -135,10 +135,10 @@ export function SiteFooter() {
               EZZAHCOMM
             </a>
             {/* Required attribution: the Finanza template is CC BY 4.0 (HTML Codex). It may only be removed
-                after purchasing their credit-removal licence — https://htmlcodex.com/credit-removal */}
+                after purchasing their credit-removal licence - https://htmlcodex.com/credit-removal */}
             <span className="text-brand-100/60">
               {' '}
-              · Template by{' '}
+              - Template by{' '}
               <a
                 href="https://htmlcodex.com"
                 target="_blank"

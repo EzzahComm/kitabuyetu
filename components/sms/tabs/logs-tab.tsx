@@ -99,7 +99,7 @@ export function LogsTab() {
             key: 'sentAt',
             header: 'Sent At',
             render: (l) => (
-              <span className="text-xs text-muted-foreground">{l.sent_at ? formatDate(l.sent_at) : '—'}</span>
+              <span className="text-xs text-muted-foreground">{l.sent_at ? formatDate(l.sent_at) : '-'}</span>
             ),
           },
           {

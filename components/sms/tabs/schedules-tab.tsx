@@ -197,7 +197,7 @@ export function SchedulesTab() {
             header: 'Cron / Next Run',
             render: (s) => (
               <span className="text-xs text-muted-foreground font-mono">
-                {s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '—')}
+                {s.cron_expression ?? (s.next_run_at ? formatDate(s.next_run_at) : '-')}
               </span>
             ),
           },
@@ -205,7 +205,7 @@ export function SchedulesTab() {
             key: 'lastRun',
             header: 'Last Run',
             render: (s) => (
-              <span className="text-xs text-muted-foreground">{s.last_run_at ? formatDate(s.last_run_at) : '—'}</span>
+              <span className="text-xs text-muted-foreground">{s.last_run_at ? formatDate(s.last_run_at) : '-'}</span>
             ),
           },
           {

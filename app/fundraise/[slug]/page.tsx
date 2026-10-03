@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: CampaignPageProps): Promise<M
   if (!campaign) return { title: 'Changi$ha' };
   return marketingMetadata({
     path: `/fundraise/${slug}`,
-    title: `${campaign.title} — Changi$ha`,
+    title: `${campaign.title} - Changi$ha`,
     description: campaign.story.slice(0, 160),
     image: campaign.cover_image_url,
   });
@@ -107,7 +107,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
               <div className="h-full rounded-full bg-brand-500" style={{ width: `${pct}%` }} />
             </div>
             <p className="mt-2 text-sm font-medium text-finanza-text">
-              {pct}% funded · {donationCount} {donationCount === 1 ? 'supporter' : 'supporters'}
+              {pct}% funded - {donationCount} {donationCount === 1 ? 'supporter' : 'supporters'}
             </p>
           </div>
 

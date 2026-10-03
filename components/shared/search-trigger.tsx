@@ -4,7 +4,7 @@ import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 /**
- * The ⌘K command-palette trigger shared by the admin and dashboard topbars —
+ * The ⌘K command-palette trigger shared by the admin and dashboard topbars -
  * the one genuinely identical block between them (the rest of each topbar
  * intentionally differs). Variant classes are verbatim from the originals:
  * admin uses hardcoded gray palette classes, dashboard uses theme tokens.

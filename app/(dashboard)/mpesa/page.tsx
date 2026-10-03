@@ -77,13 +77,13 @@ export default function MpesaPage() {
       header: 'Amount',
       render: (r: MpesaTxn) => <span className="font-semibold">{formatKES(Number(r.amount))}</span>,
     },
-    { key: 'phone', header: 'Phone', render: (r: MpesaTxn) => r.phone_number ?? '—' },
+    { key: 'phone', header: 'Phone', render: (r: MpesaTxn) => r.phone_number ?? '-' },
     {
       key: 'receipt',
       header: 'Receipt',
-      render: (r: MpesaTxn) => r.mpesa_receipt_number ?? <span className="text-muted-foreground">—</span>,
+      render: (r: MpesaTxn) => r.mpesa_receipt_number ?? <span className="text-muted-foreground">-</span>,
     },
-    { key: 'ref', header: 'Reference', render: (r: MpesaTxn) => r.reference ?? '—' },
+    { key: 'ref', header: 'Reference', render: (r: MpesaTxn) => r.reference ?? '-' },
     {
       key: 'status',
       header: 'Status',

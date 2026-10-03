@@ -6,7 +6,7 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Lucide icon shown in the tinted circle. */
   icon?: LucideIcon;
   title: string;
-  /** Short guidance — what this area is for or why it's empty. */
+  /** Short guidance - what this area is for or why it's empty. */
   description?: string;
   /** Primary action (e.g. a <Button>). Rendered prominently. */
   action?: React.ReactNode;
@@ -14,14 +14,14 @@ interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   secondaryAction?: React.ReactNode;
   /** Compact spacing for inline / in-card use. */
   size?: 'sm' | 'md';
-  /** 'error' swaps the icon tint to a danger color — a genuine fetch/permission
+  /** 'error' swaps the icon tint to a danger color - a genuine fetch/permission
    *  failure reads very differently from "there's nothing here yet" and
    *  shouldn't look identical (UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1). */
   variant?: 'empty' | 'error';
 }
 
 /**
- * Empty-state with educational guidance — used wherever a list, table, or panel
+ * Empty-state with educational guidance - used wherever a list, table, or panel
  * has no data yet. Pairs an icon, a one-line title, supportive copy, and an
  * optional CTA so low-literacy users always know the next step.
  */

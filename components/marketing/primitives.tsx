@@ -8,7 +8,7 @@ import { Reveal } from './reveal';
  * Everything public composes from these four pieces, so the vertical rhythm,
  * the measure, and the heading scale are decided ONCE here rather than being
  * retyped as ad-hoc `py-20 md:py-32` / `max-w-7xl px-4 sm:px-6 lg:px-8` pairs
- * in every section — which is exactly how the previous landing page ended up
+ * in every section - which is exactly how the previous landing page ended up
  * with three different heading sizes and two different container widths that
  * all looked almost right.
  * ──────────────────────────────────────────────────────────────────────────── */
@@ -20,13 +20,13 @@ export function Container({ children, className }: { children: ReactNode; classN
 
 /**
  * Section grounds. The page alternates `paper` (white) with `paper-deep` (a
- * cool #F8FAFC) and drops to `ink` for the two navy moments — M-Pesa and
- * Enterprise — plus the final call to action.
+ * cool #F8FAFC) and drops to `ink` for the two navy moments - M-Pesa and
+ * Enterprise - plus the final call to action.
  *
  * `paper` and `white` resolve to the SAME colour since the ground moved from
  * cream to white (2026-08-26). `white` is kept only so existing callers keep
  * compiling; prefer `paper` for the marketing ground and `paper-deep` for the
- * step down. Two adjacent sections must never share a tone — that is the only
+ * step down. Two adjacent sections must never share a tone - that is the only
  * thing separating them, as this site uses no section borders.
  */
 export type SectionTone = 'paper' | 'paper-deep' | 'white' | 'ink';
@@ -40,7 +40,7 @@ const TONE_CLASS: Record<SectionTone, string> = {
 
 interface SectionProps {
   children: ReactNode;
-  /** Anchor target — also what the header's in-page links point at. */
+  /** Anchor target - also what the header's in-page links point at. */
   id?: string;
   tone?: SectionTone;
   /** Removes the standard vertical padding when a section paints its own. */
@@ -179,7 +179,7 @@ export function RevealedHeading(props: SectionHeadingProps) {
 }
 
 /**
- * The ledger-entry number that labels showcase rows and process steps —
+ * The ledger-entry number that labels showcase rows and process steps -
  * `01`, `02`, … set in the mono face at display size.
  */
 export function EntryNumber({ n, tone = 'light' }: { n: number; tone?: 'dark' | 'light' }) {

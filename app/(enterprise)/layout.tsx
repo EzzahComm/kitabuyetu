@@ -23,7 +23,7 @@ import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 
 /**
- * B2B Enterprise portal shell — corporate, desktop-first, dense.
+ * B2B Enterprise portal shell - corporate, desktop-first, dense.
  *
  * Distinct from the consumer member portal (mobile-first) and the backoffice
  * (gray/red staff console): this is a customer-facing partner workspace, so it
@@ -31,12 +31,12 @@ import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal
  *
  * Gated behind the same organization_coordinator/super_admin backoffice roles
  * that `assertOrganizationCoordinator()` enforces server-side for every
- * /api/v1/organization/* route — mirrors (admin)/layout.tsx's ADMIN_ROLES guard.
+ * /api/v1/organization/* route - mirrors (admin)/layout.tsx's ADMIN_ROLES guard.
  */
 const ENTERPRISE_ROLES = ['organization_coordinator', 'super_admin'] as const;
 type EnterpriseRole = (typeof ENTERPRISE_ROLES)[number];
 
-// `soon` items show the planned IA without dead links — they render disabled
+// `soon` items show the planned IA without dead links - they render disabled
 // with a "Soon" pill until their screen ships (PortalSidebar honours the flag).
 const NAV: PortalNavSection[] = [
   {
@@ -57,13 +57,13 @@ const NAV: PortalNavSection[] = [
     items: [
       { href: '/enterprise/members', label: 'Members', icon: Users2 },
       { href: '/enterprise/groups', label: 'Groups', icon: Link2 },
-      // Recruitment/membership programs (migration 206) — groups apply or
+      // Recruitment/membership programs (migration 206) - groups apply or
       // are invited. Unrelated to Funding Portal's own "programs"
       // (funding_programs, a budget concept) just above.
       { href: '/enterprise/programs', label: 'Programs', icon: ClipboardList },
       { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
       // Deliberately separate from Funding Portal: that page is the org's
-      // CAPITAL wallet (donor contributions, grants, disbursements) — SMS
+      // CAPITAL wallet (donor contributions, grants, disbursements) - SMS
       // credits are their own wallet with no GL posting and nothing to do
       // with disbursement capacity. Mirrors the group side, which manages
       // its own SMS credits on a dedicated Billing page too, not folded
@@ -101,7 +101,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
     }
     if (!ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole)) {
       // Genuinely authenticated-but-denied (e.g. a support-role backoffice
-      // user without enterprise access) — /unauthorized, not back to the
+      // user without enterprise access) - /unauthorized, not back to the
       // login page they just came from.
       router.replace('/unauthorized');
     }
@@ -129,7 +129,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
 
   return (
     <div className="flex h-screen overflow-hidden bg-muted/30">
-      {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4 — this portal used to hand-roll
+      {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md H4 - this portal used to hand-roll
           its own drawer/backdrop. It now shares PortalSidebar with (dashboard)
           and (admin), so a11y/focus work lands here too. Side effect worth
           noting: the shared footer gives the enterprise portal a Sign out
@@ -169,7 +169,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
           >
             <Menu size={18} />
           </button>
-          {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md M4 — the notification bell that
+          {/* UX_UI_OPTIMIZATION_AUDIT_2026-08.md M4 - the notification bell that
               used to sit here had no handler and a permanently-lit unread dot,
               and this portal has no notifications route to send anyone to. A
               control that always looks like it has news and never does is worse

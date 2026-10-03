@@ -63,7 +63,7 @@ const TIER_LABEL: Record<Tier, string> = {
 };
 // Reliability-tier → StatusPill tone mapping. Kept in sync with the same
 // tiers on the member detail page (credit-scores/[memberId]) and the risk
-// analytics page (analytics/risk) — a severity gradient from favorable to
+// analytics page (analytics/risk) - a severity gradient from favorable to
 // unfavorable, since none of these tier names are in the shared STATUS_TONE
 // map (only "high_risk" is, coincidentally already 'negative').
 const TIER_TONE: Record<Tier, Tone> = {
@@ -79,7 +79,7 @@ export default function CreditScoresPage() {
   const qc = useQueryClient();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
-  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — was a native window.confirm().
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 - was a native window.confirm().
   const [recomputeOpen, setRecomputeOpen] = useState(false);
   const [page, setPage] = useState(1);
 
@@ -121,7 +121,7 @@ export default function CreditScoresPage() {
       );
       toast({
         title: `Recomputed ${result.recomputed} member(s)`,
-        description: result.failed.length > 0 ? `${result.failed.length} failed — check the audit log.` : undefined,
+        description: result.failed.length > 0 ? `${result.failed.length} failed - check the audit log.` : undefined,
         variant: result.failed.length > 0 ? 'destructive' : 'default',
       });
       await Promise.all([
@@ -153,20 +153,20 @@ export default function CreditScoresPage() {
       />
 
       <div className="grid gap-3 md:grid-cols-4">
-        <StatCard title="Avg overall score" value={summaryQ.isLoading ? '—' : (summary?.averageOverall ?? '—')} />
+        <StatCard title="Avg overall score" value={summaryQ.isLoading ? '-' : (summary?.averageOverall ?? '-')} />
         <StatCard
           title="Members scored"
-          value={summaryQ.isLoading ? '—' : `${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`}
+          value={summaryQ.isLoading ? '-' : `${summary?.scoredMembers ?? 0} / ${summary?.totalMembers ?? 0}`}
         />
         <StatCard
           title="Excellent / Good"
-          value={summaryQ.isLoading ? '—' : `${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`}
-          description={`${summary?.byTier.excellent ?? 0} excellent · ${summary?.byTier.good ?? 0} good`}
+          value={summaryQ.isLoading ? '-' : `${(summary?.byTier.excellent ?? 0) + (summary?.byTier.good ?? 0)}`}
+          description={`${summary?.byTier.excellent ?? 0} excellent - ${summary?.byTier.good ?? 0} good`}
         />
         <StatCard
           title="Poor / High risk"
-          value={summaryQ.isLoading ? '—' : `${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`}
-          description={`${summary?.byTier.poor ?? 0} poor · ${summary?.byTier.high_risk ?? 0} high risk`}
+          value={summaryQ.isLoading ? '-' : `${(summary?.byTier.poor ?? 0) + (summary?.byTier.high_risk ?? 0)}`}
+          description={`${summary?.byTier.poor ?? 0} poor - ${summary?.byTier.high_risk ?? 0} high risk`}
         />
       </div>
 
@@ -240,7 +240,7 @@ export default function CreditScoresPage() {
         {policyQ.data && (
           <div className="flex items-center justify-between px-4 pb-4">
             <Badge variant={policyQ.data.source === 'group' ? 'success' : 'outline'} className="text-xs capitalize">
-              {policyQ.data.source === 'group' ? 'Your override' : `Inherited — ${policyQ.data.source}`}
+              {policyQ.data.source === 'group' ? 'Your override' : `Inherited - ${policyQ.data.source}`}
             </Badge>
             <Button
               size="sm"

@@ -5,8 +5,8 @@
  *
  * Split out of tabs.tsx rather than appended to it: that file was already
  * ~900 lines and holds the *messaging* tabs (compose, campaigns, templates,
- * schedules, logs). These two answer a different question — not "send
- * something" but "what happened, and what still needs a decision" — and the
+ * schedules, logs). These two answer a different question - not "send
+ * something" but "what happened, and what still needs a decision" - and the
  * re-audit is likely to add more of them.
  *
  * Both are here because the endpoints behind them shipped in #130 with no UI
@@ -31,7 +31,7 @@ import { SectionHeader } from '@/components/shared/dashboard-sections';
  * Failed messages, and the manual retry.
  *
  * The retry service and route shipped without a listing beside them, so
- * nothing could learn an id to retry — the capability existed and was
+ * nothing could learn an id to retry - the capability existed and was
  * unreachable. Seven messages sat permanently undelivered on the day this was
  * written, every one past `max_retries` and so abandoned by the 5-minute sweep
  * for good.
@@ -60,7 +60,7 @@ export function FailuresTab() {
       // means the recipient has since opted out, was correctly not messaged,
       // and was not charged.
       if (res.status === 'suppressed') {
-        toast({ title: 'Not sent — recipient has opted out', description: 'Resolved, and nothing was charged.' });
+        toast({ title: 'Not sent - recipient has opted out', description: 'Resolved, and nothing was charged.' });
       } else if (res.status === 'resolved') {
         toast({ title: 'Message delivered' });
       } else {
@@ -98,7 +98,7 @@ export function FailuresTab() {
           {
             key: 'reason',
             header: 'Why it failed',
-            render: (f) => <span className="text-xs text-muted-foreground">{f.failure_reason ?? '—'}</span>,
+            render: (f) => <span className="text-xs text-muted-foreground">{f.failure_reason ?? '-'}</span>,
           },
           {
             key: 'attempts',
@@ -107,7 +107,7 @@ export function FailuresTab() {
             render: (f) => (
               <span className="text-xs text-muted-foreground">
                 {f.retry_count}/{f.max_retries}
-                {f.exhausted && <span className="ml-1 text-rose-600">· given up</span>}
+                {f.exhausted && <span className="ml-1 text-rose-600">- given up</span>}
               </span>
             ),
           },
@@ -146,7 +146,7 @@ export function FailuresTab() {
  * reached, or why a particular member heard nothing.
  *
  * SUPPRESSED rows are shown, not filtered. A suppressed row is the record that
- * someone opted out and was honoured — the single most useful row here when
+ * someone opted out and was honoured - the single most useful row here when
  * answering a member who asks what you have been sending them.
  */
 export function ReminderHistoryTab() {
@@ -196,7 +196,7 @@ export function ReminderHistoryTab() {
           {
             key: 'member',
             header: 'Member',
-            render: (r) => <span className="text-xs">{r.member_name ?? '—'}</span>,
+            render: (r) => <span className="text-xs">{r.member_name ?? '-'}</span>,
           },
           {
             key: 'what',
@@ -204,7 +204,7 @@ export function ReminderHistoryTab() {
             hideBelow: 'sm',
             render: (r) => (
               <span className="text-xs text-muted-foreground">
-                {r.reference_type.replace(/_/g, ' ')} · {r.reminder_stage.replace(/_/g, ' ')}
+                {r.reference_type.replace(/_/g, ' ')} - {r.reminder_stage.replace(/_/g, ' ')}
               </span>
             ),
           },
@@ -219,7 +219,7 @@ export function ReminderHistoryTab() {
             hideBelow: 'md',
             // For a suppressed row this carries the reason the member was NOT
             // contacted, which is the point of showing those rows at all.
-            render: (r) => <span className="text-xs text-muted-foreground">{r.reason ?? r.channel ?? '—'}</span>,
+            render: (r) => <span className="text-xs text-muted-foreground">{r.reason ?? r.channel ?? '-'}</span>,
           },
           {
             key: 'when',

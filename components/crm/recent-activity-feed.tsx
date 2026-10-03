@@ -17,7 +17,7 @@ export function RecentActivityFeed() {
           <p className="text-sm text-muted-foreground">Loading…</p>
         ) : !activities || activities.length === 0 ? (
           <p className="text-sm text-muted-foreground">
-            Nothing logged yet — calls, notes, and stage changes will show up here.
+            Nothing logged yet - calls, notes, and stage changes will show up here.
           </p>
         ) : (
           <div className="max-h-[32rem] space-y-3 overflow-y-auto">
@@ -36,7 +36,7 @@ export function RecentActivityFeed() {
                     ) : (
                       a.contact_name
                     )}
-                    {a.opportunity_title && ` · ${a.opportunity_title}`}
+                    {a.opportunity_title && ` - ${a.opportunity_title}`}
                   </p>
                 )}
                 {a.body && <p className="mt-1 text-sm">{a.body}</p>}

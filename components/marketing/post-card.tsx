@@ -17,7 +17,7 @@ function formatDate(iso: string | null): string | null {
   return new Date(iso).toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' });
 }
 
-/** One blog/resources card — shared by /resources and the home page's latest-posts strip. */
+/** One blog/resources card - shared by /resources and the home page's latest-posts strip. */
 export function PostCard({ post, headingAs: Heading = 'h3' }: { post: Post; headingAs?: 'h2' | 'h3' }) {
   const cover = urlForImage(post.coverImage);
   const date = formatDate(post.publishedAt);
@@ -27,7 +27,7 @@ export function PostCard({ post, headingAs: Heading = 'h3' }: { post: Post; head
       className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
-        {/* alt="" — the card link already carries the title. Posts without a cover get a registry photo. */}
+        {/* alt="" - the card link already carries the title. Posts without a cover get a registry photo. */}
         {cover ? (
           <Image
             src={cover}

@@ -20,7 +20,7 @@ interface SavingsGoalCardProps {
 }
 
 /**
- * Savings-goal card — a progress ring plus the human framing members actually
+ * Savings-goal card - a progress ring plus the human framing members actually
  * care about: "how much more to go". Turns an abstract balance into a tangible,
  * motivating target. Action affordances (log progress/edit/delete) are
  * optional so the same card works read-only (e.g. the home page's top-goal
@@ -49,7 +49,7 @@ export function SavingsGoalCard({ goal, onLogProgress, onEdit, onDelete }: Savin
         <p className="mt-1 text-xs font-medium text-brand-600">
           {done
             ? '🎉 Goal reached!'
-            : `${formatKES(remaining)} to go · by ${goal.deadline ? formatDate(goal.deadline) : 'Ongoing'}`}
+            : `${formatKES(remaining)} to go - by ${goal.deadline ? formatDate(goal.deadline) : 'Ongoing'}`}
         </p>
       </div>
       {hasActions && (

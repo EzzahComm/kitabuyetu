@@ -26,7 +26,7 @@ export default function EmailLogsPage() {
   const meta = data?.meta;
 
   function fmt(d: string | null) {
-    if (!d) return '—';
+    if (!d) return '-';
     return new Date(d).toLocaleString('en-KE', { dateStyle: 'short', timeStyle: 'short' });
   }
 
@@ -123,7 +123,7 @@ export default function EmailLogsPage() {
                 key: 'subject',
                 header: 'Subject',
                 className: 'max-w-[200px] truncate text-sm',
-                render: (log: EmailLog) => log.subject ?? '—',
+                render: (log: EmailLog) => log.subject ?? '-',
               },
               {
                 key: 'template_key',
@@ -134,7 +134,7 @@ export default function EmailLogsPage() {
                       {log.template_key}
                     </Badge>
                   ) : (
-                    '—'
+                    '-'
                   ),
               },
               {
@@ -146,14 +146,14 @@ export default function EmailLogsPage() {
                 key: 'provider',
                 header: 'Provider',
                 className: 'text-xs text-muted-foreground',
-                render: (log: EmailLog) => log.provider ?? '—',
+                render: (log: EmailLog) => log.provider ?? '-',
               },
               { key: 'sent_at', header: 'Sent', className: 'text-xs', render: (log: EmailLog) => fmt(log.sent_at) },
               {
                 key: 'opened_at',
                 header: 'Opened',
                 className: 'text-xs',
-                render: (log: EmailLog) => (log.opened_at ? fmt(log.opened_at) : '—'),
+                render: (log: EmailLog) => (log.opened_at ? fmt(log.opened_at) : '-'),
               },
             ]}
           />

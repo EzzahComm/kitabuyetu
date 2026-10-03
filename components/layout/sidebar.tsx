@@ -38,7 +38,7 @@ import { PortalSidebar, type PortalNavItem, type PortalNavSection } from '@/comp
 import { GroupSwitcher } from './group-switcher';
 
 /** Local-only field: a nav item with `requires` is rendered disabled (same
- *  treatment as `soon`, minus the badge) for anyone lacking that permission —
+ *  treatment as `soon`, minus the badge) for anyone lacking that permission -
  *  it never reaches PortalSidebar, which has no permission concept. */
 type ConfigNavItem = Omit<PortalNavItem, 'children'> & {
   requires?: string;
@@ -69,7 +69,7 @@ const NAV: ConfigNavSection[] = [
         icon: Wallet,
         children: [
           // M-Pesa and Treasury both read from the mpesa.view-gated
-          // transactions/balance endpoints — member/secretary roles never
+          // transactions/balance endpoints - member/secretary roles never
           // hold that permission (verified against roles.permissions), so
           // the link is disabled rather than leading to a 403 on arrival.
           { href: '/mpesa', label: 'M-Pesa', icon: Smartphone, requires: 'mpesa.view' },
@@ -88,7 +88,7 @@ const NAV: ConfigNavSection[] = [
         children: [
           { href: '/meetings', label: 'Meetings', icon: Calendar },
           // Recruitment/membership programs an organization runs (migration
-          // 206) — distinct from the public /ecosystem/programs campaign
+          // 206) - distinct from the public /ecosystem/programs campaign
           // pages and from the org-side Funding Portal's own "programs"
           // (funding_programs, a budget concept).
           { href: '/programs', label: 'Programs', icon: ListChecks },
@@ -161,7 +161,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   // The Funding Portal used to be appended here as an "Ecosystem" section for
   // organization_coordinator. It has moved to the Organizations (enterprise)
   // portal at /enterprise/funding, where the rest of the organization surface
-  // lives — this is the GROUP portal, and a funder's view of their programs
+  // lives - this is the GROUP portal, and a funder's view of their programs
   // was never a group-scoped screen.
   const sections = resolveNav(NAV, granted);
 

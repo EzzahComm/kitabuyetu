@@ -91,7 +91,7 @@ export default function InvestmentsPage() {
 
   const roi = summary?.roi ?? 0;
   // With nothing revalued and no returns recorded, every holding is carried at
-  // cost and the ROI formula yields exactly 0% — which reads as a real
+  // cost and the ROI formula yields exactly 0% - which reads as a real
   // measurement rather than "no data yet". Show a dash until there is
   // something to measure.
   const roiMeasurable = summary?.roiMeasurable ?? false;
@@ -122,7 +122,7 @@ export default function InvestmentsPage() {
         row.current_value ? (
           <span className="font-semibold text-sm text-green-600">{formatKES(row.current_value)}</span>
         ) : (
-          <span className="text-sm text-muted-foreground" title="Not revalued yet — shown at cost">
+          <span className="text-sm text-muted-foreground" title="Not revalued yet - shown at cost">
             {formatKES(row.principal_amount)}
           </span>
         ),
@@ -141,7 +141,7 @@ export default function InvestmentsPage() {
         Number(row.total_expenses ?? 0) > 0 ? (
           <span className="text-sm text-amber-700">{formatKES(row.total_expenses)}</span>
         ) : (
-          <span className="text-muted-foreground text-sm">—</span>
+          <span className="text-muted-foreground text-sm">-</span>
         ),
     },
     {
@@ -195,7 +195,7 @@ export default function InvestmentsPage() {
         />
         {/* Not converted to StatCard: ROI's sign is a real positive/negative
             signal (colored value text + swapped Trending icon), which
-            StatCard's plain string|number value can't represent — see
+            StatCard's plain string|number value can't represent - see
             component-reference guidance to skip rather than force this. */}
         <Card>
           <CardContent className="pt-5">
@@ -213,7 +213,7 @@ export default function InvestmentsPage() {
               </div>
             ) : (
               <div className="mt-1">
-                <p className="text-2xl font-bold text-muted-foreground">—</p>
+                <p className="text-2xl font-bold text-muted-foreground">-</p>
                 <p className="text-xs text-muted-foreground">
                   Update a value, or record a return or expense, to measure
                 </p>
@@ -262,7 +262,7 @@ export default function InvestmentsPage() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
               <Label>Investment Name</Label>
-              <Input {...form.register('name')} placeholder="e.g. Nairobi Land Plot — Ruai" />
+              <Input {...form.register('name')} placeholder="e.g. Nairobi Land Plot - Ruai" />
               {form.formState.errors.name && (
                 <p className="text-xs text-destructive">{form.formState.errors.name.message as string}</p>
               )}

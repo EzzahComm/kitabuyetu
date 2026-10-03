@@ -81,7 +81,7 @@ export default function CrmContactDetailPage() {
     <div className="space-y-6">
       <PageHeader
         title={contact.name}
-        description={`${contact.contact_type.replace('_', ' ')}${[contact.email, contact.phone].filter(Boolean).length ? ' · ' + [contact.email, contact.phone].filter(Boolean).join(' · ') : ''}`}
+        description={`${contact.contact_type.replace('_', ' ')}${[contact.email, contact.phone].filter(Boolean).length ? ' - ' + [contact.email, contact.phone].filter(Boolean).join(' - ') : ''}`}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -237,7 +237,7 @@ export default function CrmContactDetailPage() {
                 <div>
                   <p className="text-sm font-medium">Marketing consent</p>
                   <p className="text-xs text-muted-foreground">
-                    {contact.marketing_opt_in ? 'Opted in' : 'Not opted in — cannot be targeted by any campaign'}
+                    {contact.marketing_opt_in ? 'Opted in' : 'Not opted in - cannot be targeted by any campaign'}
                   </p>
                 </div>
                 <Switch

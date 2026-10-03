@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { statusTone, tone as toneMap, type Tone } from '@/lib/ui/tokens';
 
 interface StatusPillProps extends React.HTMLAttributes<HTMLSpanElement> {
-  /** Domain status string — mapped to a tone via STATUS_TONE (loans, M-Pesa, KYC…). */
+  /** Domain status string - mapped to a tone via STATUS_TONE (loans, M-Pesa, KYC…). */
   status: string;
   /** Override the auto-derived tone. */
   tone?: Tone;

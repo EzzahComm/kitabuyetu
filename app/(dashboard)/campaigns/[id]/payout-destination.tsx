@@ -16,13 +16,13 @@ import {
 } from '@/lib/campaigns/payout-destination';
 
 const METHODS: { value: PayoutMethod; label: string; hint: string }[] = [
-  { value: 'phone', label: 'M-Pesa phone', hint: 'Paid to a person’s phone (B2C)' },
+  { value: 'phone', label: 'M-Pesa phone', hint: 'Paid to a person's phone (B2C)' },
   { value: 'paybill', label: 'Paybill', hint: 'Paid to a business account, e.g. a hospital or school' },
   { value: 'till', label: 'Till (Buy Goods)', hint: 'Paid to a business till number' },
 ];
 
 /**
- * Where withdrawn funds go — editable only while the campaign is a draft
+ * Where withdrawn funds go - editable only while the campaign is a draft
  * (campaignsService.setPayoutDestination enforces that server-side).
  */
 export function PayoutDestinationEditor({ campaignId, campaign }: { campaignId: string; campaign: PayoutFields }) {
@@ -68,7 +68,7 @@ export function PayoutDestinationEditor({ campaignId, campaign }: { campaignId: 
       </CardHeader>
       <CardContent className="space-y-4">
         <p className="text-sm text-muted-foreground">
-          Where withdrawn funds are sent once this campaign is live — a phone, or a business paybill or till so the
+          Where withdrawn funds are sent once this campaign is live - a phone, or a business paybill or till so the
           money goes straight to the hospital, school or supplier. Required before submitting for review, and can only
           be changed while still a draft.
         </p>

@@ -27,12 +27,12 @@ import { useAdminSearch } from '@/hooks/use-admin';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
 
 /**
- * Global ⌘K / Ctrl-K command palette for the backoffice — a configuration
+ * Global ⌘K / Ctrl-K command palette for the backoffice - a configuration
  * wrapper around the shared shell in components/shared/command-palette.tsx.
  * Only the command set and the open-event name are backoffice-specific; the
  * Dialog/keyboard-nav/filter mechanics live in the shared shell.
  *
- * The "Go to" static nav was the only thing this palette ever showed — the
+ * The "Go to" static nav was the only thing this palette ever showed - the
  * shell's own query state is now threaded through so a real cross-entity
  * search (SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3) can inject a live "Search
  * results" group on top of it.
@@ -194,7 +194,7 @@ function useAdminCommandGroups(query: string): CommandPaletteGroup[] {
         (m): CommandPaletteCommand => ({
           id: `member-${m.id}`,
           label: `${m.first_name} ${m.last_name}`,
-          hint: m.group_name ? `Member · ${m.group_name}` : 'Member',
+          hint: m.group_name ? `Member - ${m.group_name}` : 'Member',
           icon: Users,
           keywords: `${m.phone ?? ''} ${m.member_code ?? ''}`,
           run: m.group_id ? go(`/admin/groups/${m.group_id}/members/${m.id}`) : go('/admin/users'),

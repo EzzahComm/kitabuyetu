@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { useAdminAnalytics } from '@/hooks/use-admin';
 import { formatKES } from '@/lib/utils';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — recharts (~90KB gzipped) is
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 - recharts (~90KB gzipped) is
 // code-split out of the initial bundle; it's only needed once data loads.
 const GrowthChart = dynamic(() => import('./_charts').then((m) => m.GrowthChart), {
   ssr: false,
@@ -34,8 +34,8 @@ export default function AnalyticsPage() {
         description="Aggregate insights across all groups and financial activity"
       />
 
-      {/* Growth chart — note: this tracks groups, not organizations (a
-          distinct entity — see organizations count on the main dashboard) */}
+      {/* Growth chart - note: this tracks groups, not organizations (a
+          distinct entity - see organizations count on the main dashboard) */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">

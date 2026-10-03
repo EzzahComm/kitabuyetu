@@ -4,7 +4,7 @@ import { PageHeader } from '@/components/shared/page-header';
 import { PlanPurchase, useCurrentPlanSummary } from '@/components/billing/plan-purchase';
 
 /**
- * The only page a Chama Reminder group can reach before it has paid — the
+ * The only page a Chama Reminder group can reach before it has paid - the
  * layout's own carve-out, mirroring the server's: a lock that also blocks
  * paying is an outage, not a business model.
  */

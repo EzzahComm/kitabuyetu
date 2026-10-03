@@ -4,7 +4,7 @@ import { useEffect, useRef, type ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
 /** Tags this wrapper is allowed to render as. Kept to a closed set so the
- *  `as 'div'` cast below stays honest — every member takes the same
+ *  `as 'div'` cast below stays honest - every member takes the same
  *  HTMLElement props and ref. */
 type RevealTag = 'div' | 'li' | 'section' | 'article' | 'figure' | 'p' | 'span';
 
@@ -17,7 +17,7 @@ interface RevealProps {
 }
 
 /** Literal class names, written out so Tailwind's content scanner generates
- *  them — they are added from JS, never rendered into JSX. */
+ *  them - they are added from JS, never rendered into JSX. */
 const HIDDEN_CLASS = 'opacity-0';
 const REVEAL_CLASS = 'motion-safe:animate-fade-up';
 
@@ -26,7 +26,7 @@ const REVEAL_CLASS = 'motion-safe:animate-fade-up';
  * its only two client components.
  *
  * The previous landing page marked all twelve sections `'use client'` purely
- * so each could call framer-motion's `whileInView` — roughly 50 KB of JS
+ * so each could call framer-motion's `whileInView` - roughly 50 KB of JS
  * shipped to every visitor to fade some headings in. framer-motion was
  * imported by nothing else in the app (twelve files, all of them landing
  * sections), so this replaces the whole dependency on the public surface with
@@ -34,7 +34,7 @@ const REVEAL_CLASS = 'motion-safe:animate-fade-up';
  * component.
  *
  * It drives the element through `classList` rather than React state. That is
- * not a shortcut around `react-hooks/set-state-in-effect` — a purely visual
+ * not a shortcut around `react-hooks/set-state-in-effect` - a purely visual
  * class toggle IS the "update an external system" case effects are for, and
  * doing it this way means a page with sixty of these performs exactly zero
  * re-renders while you scroll.
@@ -44,7 +44,7 @@ const REVEAL_CLASS = 'motion-safe:animate-fade-up';
  *  1. The server-rendered markup is VISIBLE. Nothing is hidden until the
  *     client has mounted and confirmed it can un-hide it again, so a JS
  *     failure, a crawler, or a browser without IntersectionObserver sees the
- *     full page rather than a blank one — the standard failure mode of
+ *     full page rather than a blank one - the standard failure mode of
  *     reveal-on-scroll.
  *  2. Content already on screen at mount is left alone. Fading in what the
  *     user is already looking at reads as a flash, not a reveal; only content

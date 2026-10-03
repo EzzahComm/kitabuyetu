@@ -22,7 +22,7 @@ const MAP_URL = `https://www.google.com/maps/search/?api=1&query=${encodeURIComp
  * Finanza's contact.html: form on the left, location on the right. The
  * template embeds a Google Map iframe there; this site's CSP has no
  * frame-src for Google (default-src 'self'), and loosening a security header
- * for decoration isn't worth it — so the right column is a location card that
+ * for decoration isn't worth it - so the right column is a location card that
  * opens Maps in a new tab instead.
  */
 export default function ContactPage() {
@@ -30,7 +30,7 @@ export default function ContactPage() {
   return (
     <PageShell
       title="Contact Us"
-      description="Questions about your group, a demo, or a partnership — reach us directly."
+      description="Questions about your group, a demo, or a partnership - reach us directly."
       layout="sections"
     >
       <FinanzaSection labelledBy="contact-heading" className="pt-8 lg:pt-12">
@@ -45,7 +45,7 @@ export default function ContactPage() {
             </h2>
             <p className="mb-8 leading-relaxed text-finanza-text">
               Already using Kitabu Yetu and need help with your account? Your group&apos;s chairperson, secretary, or
-              treasurer can also reach us on your behalf — or see{' '}
+              treasurer can also reach us on your behalf - or see{' '}
               <Link href={ROUTES.support} className="font-medium text-brand-500 hover:text-brand-700">
                 Support
               </Link>

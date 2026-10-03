@@ -5,7 +5,7 @@ import { ROUTES } from '@/components/marketing/routes';
 import { FinanzaSection, btnOutline, btnPrimary } from '@/components/marketing/finanza';
 
 /**
- * Global 404 — Next.js renders this for any route that matches no page
+ * Global 404 - Next.js renders this for any route that matches no page
  * anywhere in the app (root-level, outside every route group). No auth
  * context is available here, so this never assumes a signed-in user.
  * Laid out as the Finanza template's 404.html.

@@ -13,7 +13,7 @@ import type { FeatureUsage } from '@/lib/services/sms-analytics.service';
  *
  * §18 governs the wording here: "The customer should never have to understand
  * the underlying billing complexity." So this says Credits, Used, Remaining and
- * Low Balance — and never wallet, ledger, reservation, settlement, drawdown or
+ * Low Balance - and never wallet, ledger, reservation, settlement, drawdown or
  * provider cost. Those are real concepts in the code underneath and belong in
  * the admin surface, not in front of a chama treasurer.
  */
@@ -65,7 +65,7 @@ export function SmsCreditsPanel() {
             {isLoading ? (
               <div className="mt-2 h-9 w-32 animate-pulse rounded bg-muted" />
             ) : (
-              <p className="mt-1 text-4xl font-bold text-foreground">{balance?.toLocaleString() ?? '—'}</p>
+              <p className="mt-1 text-4xl font-bold text-foreground">{balance?.toLocaleString() ?? '-'}</p>
             )}
             {/* The breakdown matters: a group on a plan it has not topped up
                 sees its whole balance come from the bundled allowance, and
@@ -75,7 +75,7 @@ export function SmsCreditsPanel() {
               {data && data.allowanceRemaining > 0 && (
                 <>
                   {' '}
-                  · {data.allowanceRemaining.toLocaleString()} included in your plan
+                  - {data.allowanceRemaining.toLocaleString()} included in your plan
                   {data.purchasedBalance > 0 && <> + {Math.floor(data.purchasedBalance).toLocaleString()} purchased</>}
                 </>
               )}
@@ -93,21 +93,21 @@ export function SmsCreditsPanel() {
         <StatCard
           icon={<MessageSquare size={15} />}
           label="Used this month"
-          value={data ? Math.round(data.usageThisMonth).toLocaleString() : '—'}
+          value={data ? Math.round(data.usageThisMonth).toLocaleString() : '-'}
           hint={data ? `${Math.round(data.usageLastMonth).toLocaleString()} last month` : undefined}
         />
         <StatCard
           icon={<TrendingDown size={15} />}
           label="Expected each month"
-          // Null means "we have nothing to base this on" — saying 0 would look
+          // Null means "we have nothing to base this on" - saying 0 would look
           // like a claim rather than an absence.
-          value={data?.projectedMonthly != null ? Math.round(data.projectedMonthly).toLocaleString() : '—'}
+          value={data?.projectedMonthly != null ? Math.round(data.projectedMonthly).toLocaleString() : '-'}
           hint={data?.projectedMonthly == null ? 'Not enough activity yet' : 'Based on recent sending'}
         />
         <StatCard
           icon={<CalendarClock size={15} />}
           label="Credits should last"
-          value={data?.daysRemaining != null ? `~${data.daysRemaining} days` : '—'}
+          value={data?.daysRemaining != null ? `~${data.daysRemaining} days` : '-'}
           hint={data?.daysRemaining == null ? 'Not enough activity yet' : undefined}
         />
       </div>
@@ -120,7 +120,7 @@ export function SmsCreditsPanel() {
               ? // Honesty rather than a silent bucket: notification_type is only
                 // ~5% populated, because the column postdates most sending. Calling
                 // that "Other" would imply we know and are not saying.
-                'Messages sent before we started recording categories appear as “Earlier messages”.'
+                'Messages sent before we started recording categories appear as "Earlier messages".'
               : undefined
           }
         />

@@ -25,10 +25,10 @@ Kitabu Yetu is a digital platform designed to help community groups, organizatio
 
 The Platform may provide services and products including:
 
-* **Bookkeeper** — digital group administration and financial record management;
-* **Chama Reminder** — SMS and other communication tools for group reminders and notifications;
-* **Fundraise / Changi$ha** — fundraising and campaign-related services;
-* **Enterprise** — tools for organizations managing multiple groups or community programmes; and
+* **Bookkeeper** - digital group administration and financial record management;
+* **Chama Reminder** - SMS and other communication tools for group reminders and notifications;
+* **Fundraise / Changi$ha** - fundraising and campaign-related services;
+* **Enterprise** - tools for organizations managing multiple groups or community programmes; and
 * Other products, integrations, features, and services that may be introduced from time to time.
 
 Kitabu Yetu may be operated by Kitabu Yetu, its affiliates, employees, contractors, technology providers, payment partners, communication providers, and other authorized service providers.
@@ -442,7 +442,7 @@ Kitabu Yetu is built to help community groups and organizations keep their recor
 
 /**
  * Published terms, supplied verbatim by the business owner (not drafted by
- * an engineering session — a wrong or invented agreement for a product that
+ * an engineering session - a wrong or invented agreement for a product that
  * moves real money is a liability, not a content choice, so this text is
  * never generated here).
  */

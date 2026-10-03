@@ -587,7 +587,7 @@ Kitabu Yetu is committed to helping community groups and organizations digitize 
 
 /**
  * Published policy, supplied verbatim by the business owner (not drafted by
- * an engineering session — see the Terms page for why that distinction
+ * an engineering session - see the Terms page for why that distinction
  * matters for a product handling real money and personal data).
  */
 export default function PrivacyPage() {

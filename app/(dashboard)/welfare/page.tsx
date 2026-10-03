@@ -83,7 +83,7 @@ export default function WelfarePage() {
   });
   const { data: poolData } = useWelfarePool();
   // pageSize is not a param the members API accepts (silently dropped by
-  // zod's non-strict parse, leaving `limit` at its default of 20) — matches
+  // zod's non-strict parse, leaving `limit` at its default of 20) - matches
   // the working contributions/page.tsx precedent (docs/audits/
   // optimization-2026-09).
   const { data: membersData } = useMembers({ limit: 100, status: 'active' });
@@ -126,7 +126,7 @@ export default function WelfarePage() {
   const openReview = (row: WelfareRequestRow) => {
     setReviewRow(row);
     // Default to approving the full request; the officer edits this down for a
-    // partial award. Never 0 — see onApprove.
+    // partial award. Never 0 - see onApprove.
     setApproveAmount(String(Number(row.amount_requested)));
     setRejectReason('');
   };
@@ -138,7 +138,7 @@ export default function WelfarePage() {
 
   /**
    * UX_UI_OPTIMIZATION_AUDIT_2026-08.md M3. This previously called
-   * `onApprove(reviewId, 0)` — and 0 does not fail silently or record a zero
+   * `onApprove(reviewId, 0)` - and 0 does not fail silently or record a zero
    * award: ReviewWelfareRequestSchema declares `amountApproved` as
    * `.positive().optional()`, so 0 is rejected by the validator and the
    * request 400s. The Quick Review approve button could never approve
@@ -451,7 +451,7 @@ export default function WelfarePage() {
         </DialogContent>
       </Dialog>
 
-      {/* Quick review dialog — UX_UI_OPTIMIZATION_AUDIT_2026-08.md M3.
+      {/* Quick review dialog - UX_UI_OPTIMIZATION_AUDIT_2026-08.md M3.
           Was two bare buttons that fired immediately: approve sent a hardcoded
           0 (which the API rejects outright) and reject sent a hardcoded
           reason. Both decisions now require an explicit, typed input. */}
@@ -471,7 +471,7 @@ export default function WelfarePage() {
               <div className="rounded-lg border bg-muted/40 p-3 text-sm">
                 <p className="font-medium">{reviewRow.title}</p>
                 <p className="text-xs text-muted-foreground capitalize">
-                  {reviewRow.request_type?.replace('_', ' ')} · {reviewRow.member_name}
+                  {reviewRow.request_type?.replace('_', ' ')} - {reviewRow.member_name}
                 </p>
                 <dl className="mt-2 flex items-center justify-between gap-4">
                   <dt className="text-muted-foreground">Requested</dt>
@@ -508,7 +508,7 @@ export default function WelfarePage() {
                   onChange={(e) => setRejectReason(e.target.value)}
                   placeholder="Why is this request being declined?"
                 />
-                <p className="text-xs text-muted-foreground">Required to reject — recorded on the request.</p>
+                <p className="text-xs text-muted-foreground">Required to reject - recorded on the request.</p>
               </div>
             </div>
 

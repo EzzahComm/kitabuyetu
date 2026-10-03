@@ -120,7 +120,7 @@ export function GroupFinanceFields<T extends SignupExtrasFields>({
         </div>
         <p className="text-xs text-muted-foreground sm:col-span-2">
           What each member owes your group every month. Members who fall behind get a monthly SMS showing their balance
-          and where to pay — you can change these anytime in Settings.
+          and where to pay - you can change these anytime in Settings.
         </p>
       </div>
     </>
@@ -171,7 +171,7 @@ export function GroupRegistrationFields<T extends SignupExtrasFields>({
             {certificate.error && <p className="text-xs text-destructive">{certificate.error}</p>}
           </div>
           <p className="text-xs text-muted-foreground sm:col-span-2">
-            Add the number, the certificate, or both — whichever you have to hand now. You can add or change this later
+            Add the number, the certificate, or both - whichever you have to hand now. You can add or change this later
             from Settings.
           </p>
         </div>

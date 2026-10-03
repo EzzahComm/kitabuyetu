@@ -194,22 +194,22 @@ export default function SharesPage() {
           <div className="grid gap-3 md:grid-cols-4">
             <StatCard
               title="Share capital"
-              value={summaryQ.isLoading ? '—' : fmtMoney(summary?.totalShareCapital)}
+              value={summaryQ.isLoading ? '-' : fmtMoney(summary?.totalShareCapital)}
               icon={Coins}
             />
             <StatCard
               title="Shares issued"
-              value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalShares ?? 0)}
+              value={summaryQ.isLoading ? '-' : fmtInt(summary?.totalShares ?? 0)}
               icon={TrendingUp}
             />
             <StatCard
               title="Shareholders"
-              value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalShareholders ?? 0)}
+              value={summaryQ.isLoading ? '-' : fmtInt(summary?.totalShareholders ?? 0)}
               icon={Users}
             />
             <StatCard
               title="Share classes"
-              value={summaryQ.isLoading ? '—' : fmtInt(summary?.totalClasses ?? 0)}
+              value={summaryQ.isLoading ? '-' : fmtInt(summary?.totalClasses ?? 0)}
               icon={Layers}
             />
           </div>
@@ -414,7 +414,7 @@ export default function SharesPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              // Auth'd download — JWT is in localStorage,
+                              // Auth'd download - JWT is in localStorage,
                               // a plain <a target=_blank> would 401.
                               downloadAuthenticated(`/api/v1/shares/transactions/${t.id}/certificate`, {
                                 fallbackFilename: `share-certificate-${t.certificate_serial}.pdf`,
@@ -433,7 +433,7 @@ export default function SharesPage() {
                             {t.certificate_serial}
                           </button>
                         ) : (
-                          <span className="text-muted-foreground">—</span>
+                          <span className="text-muted-foreground">-</span>
                         )}
                       </span>
                     ),
@@ -529,7 +529,7 @@ function NewTransactionDialog({
   });
   const type = useWatch({ control, name: 'type' });
 
-  // Member list for picker. Cap at 200 active members — typeahead is a P2 feature.
+  // Member list for picker. Cap at 200 active members - typeahead is a P2 feature.
   const membersQ = useQuery<{ items: MemberRow[] }>({
     queryKey: ['shares', 'member-picker'],
     queryFn: () => api.get<{ items: MemberRow[] }>('/members?status=active&limit=200'),
@@ -593,10 +593,10 @@ function NewTransactionDialog({
                 {...register('shareClassId')}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="">— Select —</option>
+                <option value="">- Select -</option>
                 {classes.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.name} ({c.code}) — {fmtMoney(c.current_value ?? c.par_value)}
+                    {c.name} ({c.code}) - {fmtMoney(c.current_value ?? c.par_value)}
                   </option>
                 ))}
               </select>
@@ -612,7 +612,7 @@ function NewTransactionDialog({
                 {...register('memberId')}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="">— Select —</option>
+                <option value="">- Select -</option>
                 {members.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.first_name} {m.last_name} ({m.phone})
@@ -630,7 +630,7 @@ function NewTransactionDialog({
                   {...register('counterpartyMemberId')}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">— Select —</option>
+                  <option value="">- Select -</option>
                   {members.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.first_name} {m.last_name} ({m.phone})
@@ -680,7 +680,7 @@ function NewTransactionDialog({
                   {...register('paymentMethod')}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                 >
-                  <option value="">— Select —</option>
+                  <option value="">- Select -</option>
                   <option value="mpesa">M-Pesa</option>
                   <option value="cash">Cash</option>
                   <option value="bank_transfer">Bank transfer</option>

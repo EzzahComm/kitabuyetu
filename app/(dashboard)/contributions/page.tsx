@@ -23,7 +23,7 @@ import type { Contribution } from '@/types/db.types';
 type ContributionRow = Contribution & { member_name: string };
 
 // Fields match CreateContributionSchema (lib/validators/contribution.schema.ts)
-// exactly — the form previously sent periodMonth/periodYear (fields that
+// exactly - the form previously sent periodMonth/periodYear (fields that
 // don't exist on that schema, silently dropped by zod) and never sent the
 // required contributionDate, so every submission 400'd server-side.
 const schema = z.object({
@@ -168,14 +168,14 @@ export default function ContributionsPage() {
                   const last = m.last_name ?? '';
                   const phone = m.phone ?? '';
                   // Identify members by name + Membership Number (the only
-                  // public payment identifier) — never member_code/UUIDs.
+                  // public payment identifier) - never member_code/UUIDs.
                   const acct = m.membership_no ?? '';
                   const label = `${first} ${last}`.trim() || acct || 'Member';
                   return (
                     <option key={m.id} value={m.id}>
                       {label}
                       {acct ? ` (${acct})` : ''}
-                      {phone ? ` — ${phone}` : ''}
+                      {phone ? ` - ${phone}` : ''}
                     </option>
                   );
                 })}
@@ -193,7 +193,7 @@ export default function ContributionsPage() {
                 {!errors.amount && limits && (limits.minContribution > 0 || limits.maxContribution !== null) && (
                   <p className="text-xs text-muted-foreground">
                     Group guidance: {formatKES(limits.minContribution)}
-                    {limits.maxContribution !== null ? ` – ${formatKES(limits.maxContribution)}` : '+'}
+                    {limits.maxContribution !== null ? ` - ${formatKES(limits.maxContribution)}` : '+'}
                   </p>
                 )}
               </div>

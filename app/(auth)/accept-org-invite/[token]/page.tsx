@@ -18,7 +18,7 @@ type Step = 'loading' | 'otp' | 'password' | 'success' | 'declined' | 'error';
 /**
  * Public, unauthenticated (a visitor with only the emailed link, no
  * session). Visiting this page IS the "click the link" proof of inbox
- * control — it auto-confirms and sends the SMS OTP the moment the
+ * control - it auto-confirms and sends the SMS OTP the moment the
  * invitation is still at status='invited'. Reloading mid-flow (status
  * already 'otp_sent'/'verified') resumes at the right step instead of
  * re-sending unnecessarily.
@@ -263,7 +263,7 @@ function AcceptInviteBody() {
         open={declineOpen}
         onOpenChange={setDeclineOpen}
         title="Decline this invitation?"
-        description="You won't be added as staff for this organization. This can't be undone from this page — you'd need a new invitation to join later."
+        description="You won't be added as staff for this organization. This can't be undone from this page - you'd need a new invitation to join later."
         confirmLabel="Decline invitation"
         variant="danger"
         onConfirm={declineInvite}

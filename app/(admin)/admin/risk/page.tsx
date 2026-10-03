@@ -80,7 +80,7 @@ export default function RiskDashboardPage() {
   const alerts = data?.alerts ?? [];
   const kyc = data?.kyc ?? [];
   // kyc.length is the unfiltered fetched-groups array (currently capped at
-  // 12, no status filter) — data.summary.pendingKyc is the real, already-
+  // 12, no status filter) - data.summary.pendingKyc is the real, already-
   // computed count of groups actually pending KYC. Once the platform exceeds
   // 12 groups the two permanently diverge (docs/audits/optimization-2026-09).
   const pendingKyc = data?.summary.pendingKyc ?? 0;
@@ -91,7 +91,7 @@ export default function RiskDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header — matches the backoffice header pattern */}
+      {/* Header - matches the backoffice header pattern */}
       <PageHeader
         title="Risk & Fraud"
         description="Platform-wide risk posture, live fraud signals, and the KYC verification queue"
@@ -106,28 +106,28 @@ export default function RiskDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Open fraud alerts"
-          value={isLoading ? '—' : openAlerts}
+          value={isLoading ? '-' : openAlerts}
           description={isLoading ? 'Loading…' : `${alerts.length} in feed`}
           icon={AlertTriangle}
           accent="red"
         />
         <StatCard
           title="Flagged volume"
-          value={isLoading ? '—' : formatKES(flaggedVolume)}
+          value={isLoading ? '-' : formatKES(flaggedVolume)}
           description={isLoading ? 'Loading…' : 'Under review'}
           icon={Banknote}
           accent="orange"
         />
         <StatCard
           title="KYC pending"
-          value={isLoading ? '—' : pendingKyc}
+          value={isLoading ? '-' : pendingKyc}
           description={isLoading ? 'Loading…' : `${highRiskKyc} high-risk`}
           icon={UserCheck}
           accent="blue"
         />
         <StatCard
           title="Platform risk"
-          value={isLoading ? '—' : (data?.summary.platformRisk ?? 'Moderate')}
+          value={isLoading ? '-' : (data?.summary.platformRisk ?? 'Moderate')}
           description={isLoading ? 'Loading…' : 'Composite signal'}
           icon={ShieldCheck}
           accent="green"
@@ -140,7 +140,7 @@ export default function RiskDashboardPage() {
         <Card className="lg:col-span-2">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-semibold text-foreground">Risk heatmap</CardTitle>
-            <p className="text-xs text-muted-foreground">Risk score (0–100) by segment and dimension</p>
+            <p className="text-xs text-muted-foreground">Risk score (0-100) by segment and dimension</p>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <table className="w-full border-separate border-spacing-1 text-sm">
@@ -164,7 +164,7 @@ export default function RiskDashboardPage() {
                       <td key={i} className="p-0">
                         <div
                           className={`flex h-9 items-center justify-center rounded-md text-xs font-semibold tabular-nums ${heatmapCellClass(score)}`}
-                          title={`${row.segment} · ${RISK_DIMENSIONS[i]}: ${score}/100`}
+                          title={`${row.segment} - ${RISK_DIMENSIONS[i]}: ${score}/100`}
                         >
                           {score}
                         </div>
@@ -203,7 +203,7 @@ export default function RiskDashboardPage() {
         </ChartCard>
       </div>
 
-      {/* Governance alerts — real rows raised by the health-scoring engine
+      {/* Governance alerts - real rows raised by the health-scoring engine
           (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) when a group's metric lands
           in amber/red; acknowledge/resolve here actually mutate governance_alerts. */}
       <Card>
@@ -250,7 +250,7 @@ export default function RiskDashboardPage() {
                     <span className="truncate text-sm font-semibold text-foreground">{a.group_name as string}</span>
                   </div>
                   <p className="mt-1 truncate text-xs text-muted-foreground">
-                    {a.metric_name as string} · {a.message as string}
+                    {a.metric_name as string} - {a.message as string}
                   </p>
                 </div>
                 {a.status !== 'resolved' && (
@@ -337,10 +337,10 @@ export default function RiskDashboardPage() {
                         <span className="truncate text-sm font-semibold text-foreground">{a.type}</span>
                       </div>
                       <p className="mt-1 truncate text-xs text-muted-foreground">
-                        {a.org} · {a.detail}
+                        {a.org} - {a.detail}
                       </p>
                       <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-                        {a.id} · {ago(a.ago)}
+                        {a.id} - {ago(a.ago)}
                       </p>
                     </div>
                     <MoneyDisplay amount={a.amount} size="sm" color="red" className="shrink-0" />
@@ -351,7 +351,7 @@ export default function RiskDashboardPage() {
                       variant="outline"
                       className="h-7 text-xs"
                       disabled
-                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
+                      title="Not yet wired to a backend action - coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
                     >
                       <Eye size={12} className="mr-1" /> Escalate
                     </Button>
@@ -360,7 +360,7 @@ export default function RiskDashboardPage() {
                       variant="ghost"
                       className="h-7 text-xs text-muted-foreground"
                       disabled
-                      title="Not yet wired to a backend action — coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
+                      title="Not yet wired to a backend action - coming with the governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.11)"
                     >
                       Dismiss
                     </Button>
@@ -417,7 +417,7 @@ export default function RiskDashboardPage() {
                       />
                     </div>
                     <p className="truncate text-xs text-muted-foreground">
-                      {k.docType} · {k.org} · {k.submitted}
+                      {k.docType} - {k.org} - {k.submitted}
                     </p>
                   </div>
                   <div className="flex shrink-0 gap-1">
@@ -426,7 +426,7 @@ export default function RiskDashboardPage() {
                       variant="outline"
                       className="h-9 w-9 text-green-600 hover:bg-green-50"
                       disabled
-                      title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
+                      title={`Not yet wired to a backend action for ${k.name} - coming with the governance/health-monitoring engine`}
                       aria-label={`Approve ${k.name} (not yet available)`}
                     >
                       <Check size={14} />
@@ -436,7 +436,7 @@ export default function RiskDashboardPage() {
                       variant="outline"
                       className="h-9 w-9 text-red-600 hover:bg-red-50"
                       disabled
-                      title={`Not yet wired to a backend action for ${k.name} — coming with the governance/health-monitoring engine`}
+                      title={`Not yet wired to a backend action for ${k.name} - coming with the governance/health-monitoring engine`}
                       aria-label={`Reject ${k.name} (not yet available)`}
                     >
                       <X size={14} />
@@ -453,7 +453,7 @@ export default function RiskDashboardPage() {
         <Info size={14} className="mt-0.5 shrink-0" />
         <span>
           The risk feed renders real data from the platform dashboard endpoint, but the Escalate/Dismiss/Approve/Reject
-          actions above are not yet wired to a backend mutation — they&apos;re disabled until the
+          actions above are not yet wired to a backend mutation - they&apos;re disabled until the
           governance/health-monitoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) provides real alert rows to act on.
         </span>
       </div>

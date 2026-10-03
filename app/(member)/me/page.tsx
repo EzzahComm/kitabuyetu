@@ -75,12 +75,12 @@ export default function MemberHomePage() {
         shares={wallet.data.shares}
         thisMonth={wallet.data.thisMonth}
         loanBalance={wallet.data.loanBalance}
-        memberNo={memberNo ?? '—'}
+        memberNo={memberNo ?? '-'}
       />
 
       <QuickActions actions={actions} />
 
-      {/* Loan repayment nudge — only shown when there's an active loan */}
+      {/* Loan repayment nudge - only shown when there's an active loan */}
       {activeLoan && (
         <Card>
           <CardContent className="p-4">
@@ -100,7 +100,7 @@ export default function MemberHomePage() {
             </div>
             <Progress value={activeLoan.progress} className="mt-3" />
             <p className="mt-2 text-xs text-muted-foreground">
-              {activeLoan.progress}% repaid · next payment{' '}
+              {activeLoan.progress}% repaid - next payment{' '}
               <span className="money font-semibold text-foreground">{formatKES(activeLoan.nextAmount)}</span>
             </p>
           </CardContent>
@@ -160,7 +160,7 @@ export default function MemberHomePage() {
         </Link>
       )}
 
-      {/* Money flows — preview only for now, see warning copy below */}
+      {/* Money flows - preview only for now, see warning copy below */}
       <MoneyActionDialog
         open={flow === 'contribute'}
         onOpenChange={(o) => !o && setFlow(null)}
@@ -170,7 +170,7 @@ export default function MemberHomePage() {
           { label: 'To', value: groupName ?? 'your group' },
           { label: 'Type', value: 'Contribution' },
         ]}
-        warning="Preview only — this doesn't move money yet. Contact your treasurer to record a real payment."
+        warning="Preview only - this doesn't move money yet. Contact your treasurer to record a real payment."
         confirmLabel="Send M-Pesa request"
         onConfirm={() => new Promise((r) => setTimeout(r, 1200))}
       />
@@ -186,7 +186,7 @@ export default function MemberHomePage() {
             value: formatKES(Math.max(0, (activeLoan?.balance ?? 0) - (activeLoan?.nextAmount ?? 0))),
           },
         ]}
-        warning="Preview only — this doesn't move money yet. Contact your treasurer to record a real payment."
+        warning="Preview only - this doesn't move money yet. Contact your treasurer to record a real payment."
         confirmLabel="Pay now"
         onConfirm={() => new Promise((r) => setTimeout(r, 1200))}
       />

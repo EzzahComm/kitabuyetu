@@ -101,7 +101,7 @@ export default function GoalsPage() {
         <EmptyState
           icon={Target}
           title="No goals yet"
-          description="Set a target — school fees, stock, an emergency fund — and we'll help you track every step."
+          description="Set a target - school fees, stock, an emergency fund - and we'll help you track every step."
           action={
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" /> Create a goal

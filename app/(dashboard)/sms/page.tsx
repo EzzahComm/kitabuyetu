@@ -41,7 +41,7 @@ export default function SmsPage() {
         ))}
       </div>
 
-      {/* Spec §13 — the customer-facing credits view, above the working tabs. */}
+      {/* Spec §13 - the customer-facing credits view, above the working tabs. */}
       <SmsCreditsPanel />
 
       {tab === 'compose' && <ComposeTab />}

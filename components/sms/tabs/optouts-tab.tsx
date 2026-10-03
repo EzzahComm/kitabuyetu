@@ -52,7 +52,7 @@ export function OptOutsTab() {
 
       <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
         A member can ask any officer to stop messaging them. Record it here and this group will not send to that number
-        again — automated reminders included. Opting out is per group, because each group messages separately.
+        again - automated reminders included. Opting out is per group, because each group messages separately.
       </div>
 
       <div className="bg-card rounded-xl border p-5 space-y-3">
@@ -114,7 +114,7 @@ export function OptOutsTab() {
             header: 'Recorded',
             render: (o) => (
               <span className="text-xs text-muted-foreground">
-                {formatDate(o.optedOutAt)} · {o.source === 'officer' ? 'by an officer' : o.source}
+                {formatDate(o.optedOutAt)} - {o.source === 'officer' ? 'by an officer' : o.source}
               </span>
             ),
           },
@@ -122,7 +122,7 @@ export function OptOutsTab() {
             key: 'note',
             header: 'Note',
             hideBelow: 'sm',
-            render: (o) => <span className="text-xs text-muted-foreground">{o.note ?? '—'}</span>,
+            render: (o) => <span className="text-xs text-muted-foreground">{o.note ?? '-'}</span>,
           },
           {
             key: 'actions',

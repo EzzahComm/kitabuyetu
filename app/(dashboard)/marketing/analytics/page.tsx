@@ -41,7 +41,7 @@ export default function MarketingAnalyticsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Marketing analytics"
-        description="Campaign delivery, automation health, and pipeline snapshot across SMS and email — separate from financial reporting."
+        description="Campaign delivery, automation health, and pipeline snapshot across SMS and email - separate from financial reporting."
         actions={
           <select
             value={days}
@@ -72,21 +72,21 @@ export default function MarketingAnalyticsPage() {
             <StatCard
               title="SMS campaigns"
               value={fmtInt(a.sms.campaigns)}
-              description={`${fmtInt(a.sms.sent)}/${fmtInt(a.sms.recipients)} sent · ${pct(a.sms.deliveryRate)} delivery`}
+              description={`${fmtInt(a.sms.sent)}/${fmtInt(a.sms.recipients)} sent - ${pct(a.sms.deliveryRate)} delivery`}
               icon={MessageSquare}
               accent="blue"
             />
             <StatCard
               title="Email campaigns"
               value={fmtInt(a.email.campaigns)}
-              description={`${fmtInt(a.email.sent)}/${fmtInt(a.email.recipients)} sent · ${pct(a.email.deliveryRate)} delivery`}
+              description={`${fmtInt(a.email.sent)}/${fmtInt(a.email.recipients)} sent - ${pct(a.email.deliveryRate)} delivery`}
               icon={Mail}
               accent="purple"
             />
             <StatCard
               title="Automation sends"
               value={fmtInt(a.automation.sent)}
-              description={`${fmtInt(a.automation.failed)} failed · ${fmtInt(a.automation.suppressed)} suppressed`}
+              description={`${fmtInt(a.automation.failed)} failed - ${fmtInt(a.automation.suppressed)} suppressed`}
               icon={Zap}
               accent="orange"
             />
@@ -102,7 +102,7 @@ export default function MarketingAnalyticsPage() {
           <div className="grid gap-3 lg:grid-cols-3">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <CardTitle className="text-base">Automation volume — SMS vs email</CardTitle>
+                <CardTitle className="text-base">Automation volume - SMS vs email</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="h-64">

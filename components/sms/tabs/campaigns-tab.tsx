@@ -166,7 +166,7 @@ export function CampaignsTab() {
             header: 'Scheduled',
             render: (c) => (
               <span className="text-muted-foreground text-xs">
-                {c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '—'}
+                {c.scheduled_at ? formatDate(c.scheduled_at) : c.completed_at ? formatDate(c.completed_at) : '-'}
               </span>
             ),
           },

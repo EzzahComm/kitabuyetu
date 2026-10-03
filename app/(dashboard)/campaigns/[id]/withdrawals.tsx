@@ -23,7 +23,7 @@ import { describePayoutDestination } from '@/lib/campaigns/payout-destination';
 
 /**
  * Withdrawal request + maker-checker approval, same shape as the treasury
- * page's SettlementsTab/VendorPaymentsTab — a second officer must approve
+ * page's SettlementsTab/VendorPaymentsTab - a second officer must approve
  * before anything reaches Daraja.
  */
 export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: string; amountRaised: string }) {
@@ -41,7 +41,7 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
   const onRequest = async () => {
     try {
       await requestMut.mutateAsync(Number(amount));
-      toast({ title: 'Withdrawal requested', description: 'Funds reserved — awaiting a second officer’s approval.' });
+      toast({ title: 'Withdrawal requested', description: 'Funds reserved - awaiting a second officer's approval.' });
       setRequestOpen(false);
       setAmount('');
     } catch (e) {
@@ -120,7 +120,7 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               key: 'completed_at',
               header: 'Completed',
               className: 'text-muted-foreground',
-              render: (r: CampaignWithdrawalRow) => (r.completed_at ? formatDate(r.completed_at) : '—'),
+              render: (r: CampaignWithdrawalRow) => (r.completed_at ? formatDate(r.completed_at) : '-'),
             },
             {
               key: 'actions',

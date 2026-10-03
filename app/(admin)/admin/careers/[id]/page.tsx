@@ -102,7 +102,7 @@ export default function CareersApplicationDetailPage() {
 
       <PageHeader
         title={application.applicant_name}
-        description={`Applied for ${application.job_title} · ${formatDateTime(application.created_at)}`}
+        description={`Applied for ${application.job_title} - ${formatDateTime(application.created_at)}`}
         actions={
           !isTerminal && (
             <Dialog

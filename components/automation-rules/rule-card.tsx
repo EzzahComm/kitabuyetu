@@ -50,7 +50,7 @@ export function RuleCard({ rule, canManage }: Props) {
   // This is the group portal (components/layout/sidebar.tsx): a rule is only
   // editable here when it belongs to THIS group. An organization-wide or
   // platform-default rule is inherited and shown read-only, matching the
-  // ownership check automation-rules.service.ts enforces server-side —
+  // ownership check automation-rules.service.ts enforces server-side -
   // otherwise Edit/pause controls would render for a rule a PATCH then 404s.
   const isOwnRule = isTenantUser(user) && rule.group_id === user.groupId;
 
@@ -79,7 +79,7 @@ export function RuleCard({ rule, canManage }: Props) {
             <span className="font-medium text-foreground">{describeRecipient(rule.recipient_spec)}</span>.
           </p>
           {!rule.group_id && !rule.organization_id && (
-            <p className="mt-1 text-xs text-muted-foreground">Platform default — inherited, not editable here.</p>
+            <p className="mt-1 text-xs text-muted-foreground">Platform default - inherited, not editable here.</p>
           )}
           {!rule.group_id && rule.organization_id && (
             <p className="mt-1 text-xs text-muted-foreground">Organization-wide rule.</p>

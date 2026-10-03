@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useAdminBilling } from '@/hooks/use-admin';
 import { formatKES, formatDate } from '@/lib/utils';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 — code-split recharts out of the
+// OPTIMIZATION_CLEANUP_AUDIT.md Medium #26 - code-split recharts out of the
 // initial bundle for this rarely-visited admin page.
 const RevenueByPlanChart = dynamic(() => import('./_charts').then((m) => m.RevenueByPlanChart), {
   ssr: false,
@@ -80,7 +80,7 @@ export default function BillingAdminPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Monthly Recurring Revenue"
-          value={isLoading ? '—' : formatKES(mrr)}
+          value={isLoading ? '-' : formatKES(mrr)}
           description={`${summary.active_subscriptions ?? 0} active subscriptions`}
           icon={CreditCard}
           className="border-green-200"
@@ -88,7 +88,7 @@ export default function BillingAdminPage() {
         />
         <StatCard
           title="Active Subscriptions"
-          value={isLoading ? '—' : (summary.active_subscriptions ?? 0)}
+          value={isLoading ? '-' : (summary.active_subscriptions ?? 0)}
           description={`${summary.suspended_subscriptions ?? 0} suspended`}
           icon={CheckCircle2}
           className="border-blue-200"
@@ -96,7 +96,7 @@ export default function BillingAdminPage() {
         />
         <StatCard
           title="Expired"
-          value={isLoading ? '—' : (summary.expired_subscriptions ?? 0)}
+          value={isLoading ? '-' : (summary.expired_subscriptions ?? 0)}
           description="Need renewal or follow-up"
           icon={Clock}
           className="border-amber-200"
@@ -104,7 +104,7 @@ export default function BillingAdminPage() {
         />
         <StatCard
           title="Overdue Invoices"
-          value={isLoading ? '—' : (summary.overdue_count ?? 0)}
+          value={isLoading ? '-' : (summary.overdue_count ?? 0)}
           description="Outstanding balances"
           icon={AlertCircle}
           className="border-red-200"
@@ -171,7 +171,7 @@ export default function BillingAdminPage() {
                       <p className="text-sm font-medium text-foreground truncate">{inv.group_name}</p>
                       <div className="flex items-center gap-2 mt-0.5">
                         <span className="text-xs text-muted-foreground">{inv.invoice_number}</span>
-                        <span className="text-xs text-muted-foreground">·</span>
+                        <span className="text-xs text-muted-foreground">-</span>
                         <span
                           className={`text-xs ${new Date(inv.due_date) < new Date() ? 'text-red-600 font-semibold' : 'text-muted-foreground'}`}
                         >
@@ -208,13 +208,13 @@ export default function BillingAdminPage() {
               {
                 key: 'group_name',
                 header: 'Organization',
-                render: (p) => <span className="font-medium text-foreground">{p.group_name ?? '—'}</span>,
+                render: (p) => <span className="font-medium text-foreground">{p.group_name ?? '-'}</span>,
               },
               {
                 key: 'invoice_number',
                 header: 'Invoice',
                 render: (p) => (
-                  <span className="text-muted-foreground text-xs font-mono">{p.invoice_number ?? '—'}</span>
+                  <span className="text-muted-foreground text-xs font-mono">{p.invoice_number ?? '-'}</span>
                 ),
               },
               {
@@ -228,7 +228,7 @@ export default function BillingAdminPage() {
                 header: 'Method',
                 render: (p) => (
                   <span className="text-xs text-muted-foreground capitalize">
-                    {p.payment_method?.replace('_', ' ') ?? '—'}
+                    {p.payment_method?.replace('_', ' ') ?? '-'}
                   </span>
                 ),
               },

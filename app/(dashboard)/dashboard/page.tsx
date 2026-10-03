@@ -50,7 +50,7 @@ interface TaskRowProps {
   label: string;
   preview?: string[];
   cta: string;
-  /** Navigates — mutually exclusive with onAction. */
+  /** Navigates - mutually exclusive with onAction. */
   href?: string;
   /** Runs in place instead of navigating (e.g. "Remind" sends SMS directly). */
   onAction?: () => void;
@@ -136,7 +136,7 @@ export default function DashboardPage() {
   const [stkOpen, setStkOpen] = useState(false);
   const remindNonContributors = useRemindNonContributors();
 
-  // This page is the officer dashboard — reachable by secretary, treasurer
+  // This page is the officer dashboard - reachable by secretary, treasurer
   // and chairperson (see lib/auth/post-login-path.ts), NOT just treasurer+.
   // Secretary holds none of the financial-view permissions below, so those
   // queries must be gated client-side rather than fired unconditionally:
@@ -216,7 +216,7 @@ export default function DashboardPage() {
     enabled: canViewReports,
   });
 
-  // Total Savings / Outstanding Loans / This Month's Contributions — all
+  // Total Savings / Outstanding Loans / This Month's Contributions - all
   // three already computed by the executive-analytics endpoint (built for
   // /analytics), just not previously surfaced on the dashboard.
   const {
@@ -245,7 +245,7 @@ export default function DashboardPage() {
   });
 
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C5: this page previously had zero
-  // loading/error handling across any of its 9 independent queries — the
+  // loading/error handling across any of its 9 independent queries - the
   // initial fetch and a total fetch failure both rendered an identical
   // confident "All clear," "No contributions yet," and KES 0 stat cards.
   // A full per-section skeleton/error split isn't practical (many stats are
@@ -267,9 +267,9 @@ export default function DashboardPage() {
   const isDashboardLoading = dashboardQueries.some((q) => q.isLoading);
   const erroredDashboardQueries = dashboardQueries.filter((q) => q.isError);
 
-  // Sections this role's permissions don't cover (secretary, most commonly —
+  // Sections this role's permissions don't cover (secretary, most commonly -
   // see the useHasPermission block above). This is a permanent, expected
-  // state, not a fetch failure — those queries are `enabled: false` and never
+  // state, not a fetch failure - those queries are `enabled: false` and never
   // reach erroredDashboardQueries, so it gets its own calm, non-destructive
   // note instead of being lumped into the red "couldn't load" banner above.
   const hiddenSections = [
@@ -287,7 +287,7 @@ export default function DashboardPage() {
   const welfareBalance = poolData?.summary?.balance ?? 0;
 
   const cashBalance = Number((trialBalance ?? []).find((l) => l.accountCode === '1001')?.netBalance ?? 0);
-  // 4005 External Funding — capital received from partner organizations
+  // 4005 External Funding - capital received from partner organizations
   // (income-type, so the trial balance already presents it as a positive).
   const externalFunding = Number((trialBalance ?? []).find((l) => l.accountCode === '4005')?.netBalance ?? 0);
 
@@ -295,7 +295,7 @@ export default function DashboardPage() {
 
   const totalSavings = Number(execSummary?.contributions.totalAmount ?? 0);
   const outstandingLoans = Number(execSummary?.loans.outstandingBalance ?? 0);
-  // monthlyBuckets is ordered ASC over the trailing 12 months — the last
+  // monthlyBuckets is ordered ASC over the trailing 12 months - the last
   // bucket is the current (possibly partial) calendar month.
   const thisMonthContribs = Number(execSummary?.contributions.monthlyBuckets.at(-1)?.amount ?? 0);
   const upcomingRepaymentList = upcomingRepayments ?? [];
@@ -332,7 +332,7 @@ export default function DashboardPage() {
         description={isTenantUser(user) ? user.groupName : 'Financial overview'}
         actions={
           <>
-            {/* Opens the in-dashboard STK Push flow — no page navigation. */}
+            {/* Opens the in-dashboard STK Push flow - no page navigation. */}
             <Button size="sm" className="gap-1.5 h-9" onClick={() => setStkOpen(true)}>
               <Smartphone size={15} /> Request payment
             </Button>
@@ -350,7 +350,7 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4" />
           <AlertTitle>Couldn&apos;t load dashboard data</AlertTitle>
           <AlertDescription>
-            Some dashboard data couldn&apos;t load — figures below may be incomplete.{' '}
+            Some dashboard data couldn&apos;t load - figures below may be incomplete.{' '}
             {getErrorMessage(erroredDashboardQueries[0].error)}
           </AlertDescription>
         </Alert>
@@ -361,7 +361,7 @@ export default function DashboardPage() {
           <AlertCircle className="h-4 w-4 text-muted-foreground" />
           <AlertTitle className="text-foreground">Limited access</AlertTitle>
           <AlertDescription>
-            Your role doesn&apos;t have access to {hiddenSections.join(', ')} — related figures aren&apos;t shown below.
+            Your role doesn&apos;t have access to {hiddenSections.join(', ')} - related figures aren&apos;t shown below.
           </AlertDescription>
         </Alert>
       )}
@@ -373,7 +373,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Zone 1 — Needs you now */}
+      {/* Zone 1 - Needs you now */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
@@ -390,7 +390,7 @@ export default function DashboardPage() {
           {taskCount === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2 text-center">
               <CheckCircle2 size={28} className="text-green-500" />
-              <p className="text-sm text-muted-foreground">All clear — nothing needs your attention</p>
+              <p className="text-sm text-muted-foreground">All clear - nothing needs your attention</p>
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -403,7 +403,7 @@ export default function DashboardPage() {
                   preview={unroutedList
                     .slice(0, 3)
                     .map(
-                      (u) => `${u.receipt ?? 'Receipt'} — ${formatKES(u.amount ?? 0)}${u.phone ? ` · ${u.phone}` : ''}`,
+                      (u) => `${u.receipt ?? 'Receipt'} - ${formatKES(u.amount ?? 0)}${u.phone ? ` - ${u.phone}` : ''}`,
                     )}
                   href="/mpesa/unrouted"
                   cta="Resolve"
@@ -415,7 +415,7 @@ export default function DashboardPage() {
                   tone="orange"
                   count={pendingLoanList.length}
                   label={`loan${pendingLoanList.length !== 1 ? 's' : ''} awaiting approval`}
-                  preview={pendingLoanList.map((l) => `${l.member_name} — ${formatKES(l.principal_amount)}`)}
+                  preview={pendingLoanList.map((l) => `${l.member_name} - ${formatKES(l.principal_amount)}`)}
                   href="/loans"
                   cta="Review"
                 />
@@ -427,7 +427,7 @@ export default function DashboardPage() {
                   count={pendingWelfareList.length}
                   label={`welfare request${pendingWelfareList.length !== 1 ? 's' : ''} to review`}
                   preview={pendingWelfareList.map(
-                    (w) => `${w.member_name} — ${w.title} (${formatKES(w.amount_requested)})`,
+                    (w) => `${w.member_name} - ${w.title} (${formatKES(w.amount_requested)})`,
                   )}
                   href="/welfare"
                   cta="Review"
@@ -464,8 +464,8 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Zone 2 — Money at a glance. Cash/M-Pesa and External funding need
-          reports.view (trial balance); Welfare fund needs welfare.view —
+      {/* Zone 2 - Money at a glance. Cash/M-Pesa and External funding need
+          reports.view (trial balance); Welfare fund needs welfare.view -
           both omitted rather than shown as a misleading KES 0 for roles
           (e.g. secretary) that don't hold them. */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -536,7 +536,7 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Zone 2b — Upcoming loan repayments */}
+      {/* Zone 2b - Upcoming loan repayments */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center gap-2">
@@ -554,7 +554,7 @@ export default function DashboardPage() {
                   <div>
                     <p className="font-medium">{r.member_name}</p>
                     <p className="text-xs text-muted-foreground">
-                      Due {formatDate(r.due_date)} · Installment #{r.installment_number}
+                      Due {formatDate(r.due_date)} - Installment #{r.installment_number}
                     </p>
                   </div>
                   <p className="font-semibold">{formatKES(r.total_due)}</p>
@@ -565,7 +565,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Zone 3 — Recent activity */}
+      {/* Zone 3 - Recent activity */}
       <Card>
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">

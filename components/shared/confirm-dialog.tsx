@@ -18,7 +18,7 @@ interface ConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   title: string;
   description?: React.ReactNode;
-  /** Called on confirm. May be async — the button shows a spinner until it settles. */
+  /** Called on confirm. May be async - the button shows a spinner until it settles. */
   onConfirm: () => void | Promise<void>;
   confirmLabel?: string;
   cancelLabel?: string;
@@ -97,7 +97,7 @@ interface MoneyActionDialogProps {
 /**
  * High-confidence confirmation for money movements. Surfaces the amount in
  * large type, an itemised summary, and a trust/warning line so the user can
- * verify every detail before funds move — the moment that most needs clarity.
+ * verify every detail before funds move - the moment that most needs clarity.
  */
 export function MoneyActionDialog({
   open,

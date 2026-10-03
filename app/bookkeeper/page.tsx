@@ -37,7 +37,7 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 /**
- * Kitabu Yetu Bookkeeper — the flagship product page.
+ * Kitabu Yetu Bookkeeper - the flagship product page.
  *
  * Built out from the UI template's layout, but three things in that template
  * are deliberately NOT reproduced here:
@@ -48,7 +48,7 @@ export const metadata: Metadata = marketingMetadata({
  *  2. Its hand-typed pricing table, which invented member caps ("Up to 500
  *     members") and SMS quotas that no plan actually enforces. Prices, SMS
  *     allowances and per-tier bullets are all read from types/enums.ts, the
- *     same table the billing page and the M-Pesa callback price against —
+ *     same table the billing page and the M-Pesa callback price against -
  *     see PLAN_COPY's own note on why that list exists.
  *  3. Its "isolated databases per group" security claim. Tenant isolation here
  *     is Postgres row-level security inside one database, which is a different
@@ -68,7 +68,7 @@ export default function BookkeeperPage() {
               Every shilling. Every member. <em className="not-italic text-brand-500">One book.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
-              Replace the notebook with books that always balance — contributions, loans, welfare and shares, with
+              Replace the notebook with books that always balance - contributions, loans, welfare and shares, with
               M-Pesa recorded for you.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
@@ -89,7 +89,7 @@ export default function BookkeeperPage() {
         </Container>
 
         <SectionTitle preTitle="Features" title="Everything your treasurer needs">
-          Members, money, loans and reports — in one place.
+          Members, money, loans and reports - in one place.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -192,7 +192,7 @@ export default function BookkeeperPage() {
               <Phone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
               <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
-                M-Pesa is included on every plan. Money in, money out — recorded automatically.
+                M-Pesa is included on every plan. Money in, money out - recorded automatically.
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-3">
                 <div>
@@ -216,7 +216,7 @@ export default function BookkeeperPage() {
           title="Your next meeting, with the books already balanced."
           subtitle="Set up in minutes. Bring your old records with you."
           note="Not sure which plan? We'll recommend one."
-          footnote="Month to month · Pay by M-Pesa · Cancel anytime"
+          footnote="Month to month - Pay by M-Pesa - Cancel anytime"
           primary={{ text: 'Start your group book', href: signUpUrl('kitabu_yetu') }}
           secondary={{ text: 'Talk to us', href: '/contact' }}
         />
@@ -228,57 +228,57 @@ export default function BookkeeperPage() {
 
 const coreFeatures = [
   {
-    title: ‘Member register’,
-    description: ‘Who’s in, their role, and what each has paid and owes.’,
+    title: 'Member register',
+    description: 'Who's in, their role, and what each has paid and owes.',
     icon: <Users size={24} />,
   },
   {
-    title: ‘Financial tracking’,
-    description: ‘Savings, loans, welfare, shares, investments and expenses — in books that always balance.’,
+    title: 'Financial tracking',
+    description: 'Savings, loans, welfare, shares, investments and expenses - in books that always balance.',
     icon: <DollarSign size={24} />,
   },
   {
-    title: ‘M-Pesa integration’,
-    description: ‘Payments matched to members automatically. Anything unclear waits for an official — never guessed.’,
+    title: 'M-Pesa integration',
+    description: 'Payments matched to members automatically. Anything unclear waits for an official - never guessed.',
     icon: <Phone size={24} />,
   },
   {
-    title: ‘Reporting’,
-    description: ‘Member statements, income and balance sheets — ready in minutes, never retyped.’,
+    title: 'Reporting',
+    description: 'Member statements, income and balance sheets - ready in minutes, never retyped.',
     icon: <FileText size={24} />,
   },
   {
-    title: ‘Loan management’,
-    description: ‘Apply, approve, pay out and track repayments, interest and arrears.’,
+    title: 'Loan management',
+    description: 'Apply, approve, pay out and track repayments, interest and arrears.',
     icon: <TrendingUp size={24} />,
   },
   {
-    title: ‘Roles and a record of every change’,
+    title: 'Roles and a record of every change',
     description:
-      ‘Your data is private to your group, officials see only what their role allows, and every change is recorded.’,
+      'Your data is private to your group, officials see only what their role allows, and every change is recorded.',
     icon: <Lock size={24} />,
   },
 ];
 
 const manageMoney = {
-  title: ‘Records your members can trust’,
-  desc: ‘From the first member to the first dividend.’,
+  title: 'Records your members can trust',
+  desc: 'From the first member to the first dividend.',
   image: PHOTOS.vslaRecords.src,
   imageAlt: PHOTOS.vslaRecords.alt,
   bullets: [
     {
-      title: ‘Members and their money’,
-      desc: ‘Every member’s role, contacts and full payment history.’,
+      title: 'Members and their money',
+      desc: 'Every member's role, contacts and full payment history.',
       icon: <Users size={24} />,
     },
     {
-      title: ‘M-Pesa in and out’,
-      desc: ‘Payments land on the right member; payouts go straight to M-Pesa.’,
+      title: 'M-Pesa in and out',
+      desc: 'Payments land on the right member; payouts go straight to M-Pesa.',
       icon: <Phone size={24} />,
     },
     {
-      title: ‘Close the month in minutes’,
-      desc: ‘Statements and reports straight from the books — and closed months can’t be changed.’,
+      title: 'Close the month in minutes',
+      desc: 'Statements and reports straight from the books - and closed months can't be changed.',
       icon: <BookOpen size={24} />,
     },
   ],

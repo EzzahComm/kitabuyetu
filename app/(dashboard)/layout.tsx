@@ -20,7 +20,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const entitlementsLoading = entitlements.isLoading;
   const reminderOnly = entitlements.reminderOnly;
 
-  // A backoffice (staff) session must never render the tenant dashboard —
+  // A backoffice (staff) session must never render the tenant dashboard -
   // otherwise a super-admin who follows a stray link lands in the consumer
   // shell and appears to be "inside a group called Kitabu Yetu". Send them
   // back to the backoffice portal instead.
@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         router.push('/login');
       },
       // 402: the group's subscription lapsed or was never paid for. Billing is
-      // outside the lock precisely so this redirect lands somewhere usable —
+      // outside the lock precisely so this redirect lands somewhere usable -
       // the user can pick a plan and pay from there. Never redirect while
       // already on /billing, or paying would bounce the page mid-flow.
       onPaymentRequired: () => {
@@ -54,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       return;
     }
     // Every feature route 403s server-side for a pending_verification group
-    // (proxy.ts) — redirect client-side too so the user sees the
+    // (proxy.ts) - redirect client-side too so the user sees the
     // verification flow instead of a page full of failed requests.
     if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
       router.replace('/verify-group');
@@ -63,7 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     // Same reasoning, one axis over (migration 140): a group holding only
     // Chama Reminder is refused every financial route, so this shell would
     // render a page of 402s. Reached by a stale bookmark or a shared link,
-    // not by any flow in the app. Wait for entitlements rather than guessing —
+    // not by any flow in the app. Wait for entitlements rather than guessing -
     // a wrong bounce here would eject a legitimate Kitabu Yetu user.
     if (!entitlementsLoading && reminderOnly) {
       router.replace('/reminder');

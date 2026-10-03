@@ -43,7 +43,7 @@ interface AdminGroupRow {
   health_rag: 'green' | 'amber' | 'red' | null;
   created_at: string;
   // null since the 2026-08-13 paid-only cutover means the group has no
-  // active subscription — locked, not "on the starter plan for free".
+  // active subscription - locked, not "on the starter plan for free".
   plan: string | null;
   member_count: string;
   total_contributions: string;
@@ -66,7 +66,7 @@ const PLAN_BADGE: Record<string, string> = {
 };
 
 // Sourced from governance_health_scores (the health-scoring engine,
-// SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) — null until that group's first
+// SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) - null until that group's first
 // monthly computation run has happened, not a fake zero.
 function HealthBadge({ score, rag }: { score: number | null; rag: 'green' | 'amber' | 'red' | null }) {
   if (score === null || rag === null) {
@@ -100,7 +100,7 @@ export default function GroupsPage() {
   const [plan, setPlan] = useState('');
   // Which product the Plan column describes and the plan filter applies to.
   // Not blank-able: every group has a product, so "all products" would mean
-  // showing a group once per product — exactly the duplication migration 127's
+  // showing a group once per product - exactly the duplication migration 127's
   // LATERAL exists to prevent.
   const [product, setProduct] = useState<SubscriptionProduct>('kitabu_yetu');
   const [confirm, setConfirm] = useState<{
@@ -142,7 +142,7 @@ export default function GroupsPage() {
       {/* Header */}
       <PageHeader
         title="Groups"
-        description={`${total.toLocaleString()} total · savings groups on the platform — lifecycle, KYC, subscriptions`}
+        description={`${total.toLocaleString()} total - savings groups on the platform - lifecycle, KYC, subscriptions`}
       />
 
       {/* Filters */}
@@ -380,7 +380,7 @@ export default function GroupsPage() {
               <Input
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="e.g. Policy violation — pending investigation"
+                placeholder="e.g. Policy violation - pending investigation"
               />
             </div>
           )}

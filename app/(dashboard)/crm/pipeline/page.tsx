@@ -9,7 +9,7 @@ export default function CrmPipelinePage() {
     <div className="space-y-6">
       <PageHeader
         title="Pipeline"
-        description="Every opportunity across your contacts, by stage. Move a card as it progresses — donors, grants, partnerships, anything you're working toward."
+        description="Every opportunity across your contacts, by stage. Move a card as it progresses - donors, grants, partnerships, anything you're working toward."
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-4">

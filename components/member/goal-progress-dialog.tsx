@@ -23,7 +23,7 @@ interface GoalProgressDialogProps {
   onSubmit: (amount: number) => Promise<void>;
 }
 
-/** Logs a manual progress entry toward a savings goal — personal tracking, not a real transaction. */
+/** Logs a manual progress entry toward a savings goal - personal tracking, not a real transaction. */
 export function GoalProgressDialog({ open, onOpenChange, goal, onSubmit }: GoalProgressDialogProps) {
   const {
     register,
@@ -44,7 +44,7 @@ export function GoalProgressDialog({ open, onOpenChange, goal, onSubmit }: GoalP
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
-          <DialogTitle>Add progress{goal ? ` — ${goal.name}` : ''}</DialogTitle>
+          <DialogTitle>Add progress{goal ? ` - ${goal.name}` : ''}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="space-y-3">
           <div className="space-y-1">

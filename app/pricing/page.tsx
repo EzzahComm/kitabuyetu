@@ -18,16 +18,16 @@ import {
 } from '@/types/enums';
 
 /**
- * No local price/feature data — every number below is read from the same
+ * No local price/feature data - every number below is read from the same
  * source of truth the billing page, the M-Pesa callback and the Changi$ha
  * withdrawal service use (`types/enums.ts`). A hand-maintained copy once
- * advertised a free tier and prices the server did not charge — see
+ * advertised a free tier and prices the server did not charge - see
  * docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §1.1.
  */
 
 export const metadata: Metadata = marketingMetadata({
   path: '/pricing',
-  title: 'Chama App Pricing — One Price per Group',
+  title: 'Chama App Pricing - One Price per Group',
   description:
     'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising with no monthly fee.',
 });
@@ -50,7 +50,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
         const featured = plan.type === 'growth';
         const fee = PLAN_MONTHLY_FEES[product][plan.type];
         // The SMS allowance is read from PLAN_SMS_ALLOWANCE, the same constant
-        // the subscription is created with — never retyped here.
+        // the subscription is created with - never retyped here.
         const items = [
           isSelfServe ? `${PLAN_SMS_ALLOWANCE[product][plan.type]} SMS a month` : 'SMS allowance by agreement',
           ...plan.features,
@@ -149,7 +149,7 @@ export default function PricingPage() {
   return (
     <PageShell
       title="Pricing"
-      description="One price for the whole group — not per member. Pay by M-Pesa. No contract. No hidden fees."
+      description="One price for the whole group - not per member. Pay by M-Pesa. No contract. No hidden fees."
       layout="sections"
     >
       <FinanzaSection labelledBy="kitabu-yetu-heading" className="pt-4 lg:pt-8">
@@ -157,21 +157,21 @@ export default function PricingPage() {
           id="kitabu-yetu-heading"
           pill="Bookkeeper"
           title={PRODUCT_LABEL.kitabu_yetu}
-          lede="Contributions, loans, welfare, M-Pesa and reports — in books that always balance. SMS included."
+          lede="Contributions, loans, welfare, M-Pesa and reports - in books that always balance. SMS included."
           className="mb-10 max-w-3xl"
         />
         <PlanGrid product="kitabu_yetu" />
         <p className="mt-6 text-sm text-finanza-text">
-          SMS included every month. Top up any time — sending never stops.
+          SMS included every month. Top up any time - sending never stops.
         </p>
       </FinanzaSection>
 
       <FinanzaSection id="chama-reminder" labelledBy="chama-reminder-heading" className="bg-brand-50/60">
         <FinanzaHeading
           id="chama-reminder-heading"
-          pill="SMS only · Kumbusha"
+          pill="SMS only - Kumbusha"
           title={PRODUCT_LABEL.chama_reminder}
-          lede={`SMS reminders and announcements — nothing to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} any time; your members come with you.`}
+          lede={`SMS reminders and announcements - nothing to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} any time; your members come with you.`}
           className="mb-10 max-w-3xl"
         />
         <PlanGrid product="chama_reminder" />
@@ -182,7 +182,7 @@ export default function PricingPage() {
           Changi$ha and Enterprise
         </h2>
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Changi$ha — priced per withdrawal, from CHANGISHA_PRICING (the withdrawal service's defaults). */}
+          {/* Changi$ha - priced per withdrawal, from CHANGISHA_PRICING (the withdrawal service's defaults). */}
           <section
             id="changisha"
             aria-labelledby="changisha-heading"
@@ -239,7 +239,7 @@ export default function PricingPage() {
             </div>
             <p className="font-display text-4xl font-bold">By agreement</p>
             <p className="mt-2 flex-1 text-brand-100/85">
-              For organizations overseeing many groups — one dashboard, portfolio reports and programme funding. Priced
+              For organizations overseeing many groups - one dashboard, portfolio reports and programme funding. Priced
               by the groups and members you oversee.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">

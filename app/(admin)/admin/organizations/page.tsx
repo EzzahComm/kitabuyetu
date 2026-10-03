@@ -80,7 +80,7 @@ const EMPTY_FORM = {
   address: '',
 };
 
-// Fees come from ORGANIZATION_PLAN_MONTHLY_FEES, not a hardcoded copy — the
+// Fees come from ORGANIZATION_PLAN_MONTHLY_FEES, not a hardcoded copy - the
 // group side's billing page used to carry its own hardcoded fee table that
 // drifted from the server's, charging customers the client's stale number
 // (see PLAN_MONTHLY_FEES's own history in types/enums.ts). Not repeating that.
@@ -193,7 +193,7 @@ export default function OrganizationsPage() {
       {/* Header */}
       <PageHeader
         title="Organizations"
-        description={`${total.toLocaleString()} total · banks, SACCOs & foundations that oversee groups`}
+        description={`${total.toLocaleString()} total - banks, SACCOs & foundations that oversee groups`}
         actions={
           <div className="flex items-center gap-2">
             <Button size="sm" variant="outline" onClick={() => router.push('/admin/organizations/compare')}>
@@ -463,7 +463,7 @@ export default function OrganizationsPage() {
             </FormFieldGroup>
           </div>
 
-          {/* Plan — required. Organizations never self-serve a plan; this is
+          {/* Plan - required. Organizations never self-serve a plan; this is
               the only place one is ever chosen for the first time. */}
           <div className="space-y-2 border-t pt-3">
             <Label>
@@ -488,7 +488,7 @@ export default function OrganizationsPage() {
             {planType === 'premium_plus' && (
               <div className="grid gap-3 sm:grid-cols-2 rounded-md border bg-muted/20 p-3">
                 <p className="sm:col-span-2 text-xs text-muted-foreground">
-                  Premium+ is negotiated per contract — every term below is entered by hand. Blank limits mean
+                  Premium+ is negotiated per contract - every term below is entered by hand. Blank limits mean
                   unlimited.
                 </p>
                 <div className="space-y-1">

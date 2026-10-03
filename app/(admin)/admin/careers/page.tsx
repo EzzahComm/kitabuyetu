@@ -33,7 +33,7 @@ export default function CareersApplicationsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Careers — Applications"
+        title="Careers - Applications"
         description="Candidates who applied through the public careers pages."
       />
 

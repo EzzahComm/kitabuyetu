@@ -28,7 +28,7 @@ interface BenefitsProps {
   };
 }
 
-/** Image beside a heading and icon-circle list — the Finanza about block's feature items. */
+/** Image beside a heading and icon-circle list - the Finanza about block's feature items. */
 export const Benefits = (props: Readonly<BenefitsProps>) => {
   const { data } = props;
   return (

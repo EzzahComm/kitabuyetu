@@ -10,7 +10,7 @@
  * "Resolutions" stat read 0 forever and minutes could never be written.
  *
  * This page covers minutes, status transitions, and the resolution lifecycle
- * including follow-through. Attendance is deliberately NOT here yet — it needs
+ * including follow-through. Attendance is deliberately NOT here yet - it needs
  * a member picker and is its own piece of work; `attendees_present` therefore
  * still reads 0 in the list.
  */
@@ -83,7 +83,7 @@ export default function MeetingDetailPage() {
   const [completeOpen, setCompleteOpen] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
 
-  // Seed the editor once per meeting, during render rather than an effect —
+  // Seed the editor once per meeting, during render rather than an effect -
   // the React-recommended way to adjust state from a prop that arrives
   // asynchronously. Guarding on the id (not just `minutesDirty`) also means a
   // background refetch after save can't quietly reseed stale text later.
@@ -170,7 +170,7 @@ export default function MeetingDetailPage() {
         <PageHeader
           className="flex-1"
           title={meeting.title}
-          description={`${typeLabels[meeting.meeting_type] ?? meeting.meeting_type} · ${formatDate(meeting.scheduled_at)}`}
+          description={`${typeLabels[meeting.meeting_type] ?? meeting.meeting_type} - ${formatDate(meeting.scheduled_at)}`}
           actions={<StatusPill status={meeting.status} />}
         />
       </div>
@@ -199,17 +199,17 @@ export default function MeetingDetailPage() {
                   'Link not set'
                 )
               ) : (
-                meeting.venue || '—'
+                meeting.venue || '-'
               )}
             </span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Chaired by</span>
-            <span className="ml-auto font-medium">{meeting.chaired_by_name ?? '—'}</span>
+            <span className="ml-auto font-medium">{meeting.chaired_by_name ?? '-'}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Secretary</span>
-            <span className="ml-auto font-medium">{meeting.secretary_name ?? '—'}</span>
+            <span className="ml-auto font-medium">{meeting.secretary_name ?? '-'}</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-muted-foreground">Quorum</span>
@@ -293,7 +293,7 @@ export default function MeetingDetailPage() {
             <CardTitle className="text-base">Resolutions</CardTitle>
             {resolutions.length > 0 && (
               <p className="text-xs text-muted-foreground mt-1">
-                {implemented} implemented · {outstanding} outstanding
+                {implemented} implemented - {outstanding} outstanding
               </p>
             )}
           </div>
@@ -341,7 +341,7 @@ export default function MeetingDetailPage() {
                       <StatusPill status={r.status} size="sm" />
                       {(r.votes_for > 0 || r.votes_against > 0 || r.votes_abstain > 0) && (
                         <span>
-                          {r.votes_for} for · {r.votes_against} against · {r.votes_abstain} abstain
+                          {r.votes_for} for - {r.votes_against} against - {r.votes_abstain} abstain
                         </span>
                       )}
                       {r.responsible_party_name && <span>Owner: {r.responsible_party_name}</span>}

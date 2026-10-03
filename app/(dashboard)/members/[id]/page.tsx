@@ -45,7 +45,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useForm } from 'react-hook-form';
 import { StkPromptDialog } from '@/components/mpesa/stk-prompt-dialog';
 
-// SUPER_ADMIN_PLATFORM_AUDIT.md §2.6 — credit-scores.service.ts already
+// SUPER_ADMIN_PLATFORM_AUDIT.md §2.6 - credit-scores.service.ts already
 // computes this composite financial+social reliability score; it was just
 // never linked from the member profile. Same tier palette as
 // app/(dashboard)/credit-scores/[memberId]/page.tsx.
@@ -155,7 +155,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const loans = loanData?.items ?? [];
   // Server-computed lifetime totals (members.service.ts's getById), not a
   // reduction over the 10-row contributions/loans page fetched above for
-  // the activity lists further down this page — the page-size reduction
+  // the activity lists further down this page - the page-size reduction
   // silently understated once a member passed 11 contributions
   // (docs/audits/optimization-2026-09).
   const totalContributed = parseFloat(m.total_contributed ?? '0');
@@ -388,15 +388,15 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             <CardContent className="pt-4">
               <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
                 {[
-                  ['Middle name', m.middle_name ?? '—'],
-                  ['Occupation', m.occupation ?? '—'],
-                  ['National ID', m.national_id ?? '—'],
-                  ['Gender', m.gender ?? '—'],
-                  ['Date of Birth', m.date_of_birth ? formatDate(m.date_of_birth) : '—'],
-                  ['Platform Role', m.platform_role ?? '—'],
+                  ['Middle name', m.middle_name ?? '-'],
+                  ['Occupation', m.occupation ?? '-'],
+                  ['National ID', m.national_id ?? '-'],
+                  ['Gender', m.gender ?? '-'],
+                  ['Date of Birth', m.date_of_birth ? formatDate(m.date_of_birth) : '-'],
+                  ['Platform Role', m.platform_role ?? '-'],
                   ['Email Verified', m.email_verified ? 'Yes' : 'No'],
                   ['Phone Verified', m.phone_verified ? 'Yes' : 'No'],
-                  ['Last Login', m.last_login_at ? formatDate(m.last_login_at) : '—'],
+                  ['Last Login', m.last_login_at ? formatDate(m.last_login_at) : '-'],
                   ['Member Since', formatDate(m.created_at)],
                 ].map(([label, value]) => (
                   <div key={label as string}>
@@ -434,7 +434,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 function KinRow({ memberId, kin }: { memberId: string; kin: NextOfKin }) {
   const qc = useQueryClient();
   const { toast } = useToast();
-  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — was a native window.confirm().
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 - was a native window.confirm().
   const [confirmOpen, setConfirmOpen] = useState(false);
   const del = useMutation({
     mutationFn: () => nextOfKinApi.remove(memberId, kin.id),
@@ -602,11 +602,11 @@ function AddKinDialog({
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
                 <option value={1} disabled={existingPrimary}>
-                  1 — Primary{existingPrimary ? ' (already set)' : ''}
+                  1 - Primary{existingPrimary ? ' (already set)' : ''}
                 </option>
-                <option value={2}>2 — Secondary</option>
-                <option value={3}>3 — Tertiary</option>
-                <option value={4}>4 — Other</option>
+                <option value={2}>2 - Secondary</option>
+                <option value={3}>3 - Tertiary</option>
+                <option value={4}>4 - Other</option>
               </select>
             </div>
             <div className="space-y-1">

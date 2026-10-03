@@ -4,7 +4,7 @@
  * Program budget + donor spend reports (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
  * Phase 4). Both reports already existed server-side
  * (organization-finance.service.ts's programBudgetReport/donorSpendReport,
- * built during the accounting-audit series) — this is the first frontend
+ * built during the accounting-audit series) - this is the first frontend
  * page for either.
  */
 import { useState } from 'react';
@@ -48,7 +48,7 @@ function BudgetReportTab() {
   });
   const items = data?.items ?? [];
 
-  // Pause/resume — the client typing this relies on (organizationApi
+  // Pause/resume - the client typing this relies on (organizationApi
   // .updateProgramStatus) replaces what used to be a raw, untyped
   // api.patch('/organization/programs/:id', { status }) on the retired
   // (dashboard)/organization Funding Portal page.
@@ -93,7 +93,7 @@ function BudgetReportTab() {
               <div>
                 <p className="font-medium text-foreground">{p.name}</p>
                 <p className="text-xs capitalize text-muted-foreground">
-                  {p.programType.replace(/_/g, ' ')} · {p.status}
+                  {p.programType.replace(/_/g, ' ')} - {p.status}
                 </p>
               </div>
               <div className="flex items-start gap-2">
@@ -124,7 +124,7 @@ function BudgetReportTab() {
 
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               <span>
-                {p.utilizationPct.toFixed(1)}% utilized ·{' '}
+                {p.utilizationPct.toFixed(1)}% utilized -{' '}
                 <MoneyDisplay amount={p.remaining} size="sm" className="inline" /> remaining
               </span>
               {p.variancePct !== null && (
@@ -222,7 +222,7 @@ function DonorSpendTab() {
 }
 
 /**
- * The organization's own chart of accounts — deposits post to Cash/Donor
+ * The organization's own chart of accounts - deposits post to Cash/Donor
  * Contributions, disbursements to Cash/Program Disbursements (see
  * organization-accounting.service.ts). Ported from the retired
  * (dashboard)/organization Funding Portal page, which was the only place
