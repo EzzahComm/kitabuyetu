@@ -203,6 +203,7 @@ export const TEMPLATE_KEYS = {
   OTP: 'otp',
   GROUP_ANNOUNCEMENT: 'group_announcement',
   GROUP_VERIFICATION_OTP: 'group_verification_otp',
+  GENERAL_MESSAGE: 'general_message',
 } as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[keyof typeof TEMPLATE_KEYS];
@@ -246,6 +247,8 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   group_announcement: '{{group_name}}: {{message}}',
   group_verification_otp:
     'Verify your Kitabu Yetu group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
+  general_message:
+    'Dear {{first_name}}, {{message}} - {{sender_signature}}',
 };
 
 /** Render a named built-in template with the given variables. */
