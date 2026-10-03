@@ -28,6 +28,7 @@ import {
   IconBolt,
   IconTimeline,
   IconChartDots,
+  IconClipboardList,
   IconBuilding,
 } from '@tabler/icons-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
@@ -86,6 +87,11 @@ const NAV: ConfigNavSection[] = [
         icon: IconSpeakerphone,
         children: [
           { href: '/meetings', label: 'Meetings', icon: IconCalendar },
+          // Recruitment/membership programs an organization runs (migration
+          // 206) — distinct from the public /ecosystem/programs campaign
+          // pages and from the org-side Funding Portal's own "programs"
+          // (funding_programs, a budget concept).
+          { href: '/programs', label: 'Programs', icon: IconClipboardList },
           { href: '/crm', label: 'Contacts', icon: IconAddressBook },
           { href: '/crm/pipeline', label: 'Pipeline', icon: IconTimeline },
           { href: '/marketing', label: 'Marketing', icon: IconSpeakerphone },

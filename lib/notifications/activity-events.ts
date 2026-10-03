@@ -115,6 +115,14 @@ export enum ActivityEventType {
   ORG_GROUP_LINK_REQUESTED = 'ORG_GROUP_LINK_REQUESTED',
   ORG_GROUP_LINK_APPROVED = 'ORG_GROUP_LINK_APPROVED',
   ORG_GROUP_LINK_REJECTED = 'ORG_GROUP_LINK_REJECTED',
+  // Programs (migration 206) — no platform-admin approval step by design, so
+  // these are routine visibility, not actionable alerts (see DEFS below).
+  PROGRAM_APPLICATION_SUBMITTED = 'PROGRAM_APPLICATION_SUBMITTED',
+  PROGRAM_APPLICATION_ACCEPTED = 'PROGRAM_APPLICATION_ACCEPTED',
+  PROGRAM_APPLICATION_DECLINED = 'PROGRAM_APPLICATION_DECLINED',
+  PROGRAM_INVITATION_SENT = 'PROGRAM_INVITATION_SENT',
+  PROGRAM_INVITATION_ACCEPTED = 'PROGRAM_INVITATION_ACCEPTED',
+  PROGRAM_INVITATION_DECLINED = 'PROGRAM_INVITATION_DECLINED',
   GROUP_CREATED = 'GROUP_CREATED',
   GROUP_APPROVED = 'GROUP_APPROVED',
   GROUP_SUSPENDED = 'GROUP_SUSPENDED',
@@ -304,6 +312,16 @@ const DEFS: Record<ActivityEventType, Def> = {
   [T.ORG_GROUP_LINK_REQUESTED]: ['Group-Organization Link Awaiting Approval', 'HIGH'],
   [T.ORG_GROUP_LINK_APPROVED]: ['Group-Organization Link Approved', 'INFO'],
   [T.ORG_GROUP_LINK_REJECTED]: ['Group-Organization Link Rejected', 'WARNING'],
+  // Routine, high-volume, no admin action needed — same AGG/immediate-email
+  // split as LOAN_CREATED/LOAN_REJECTED vs LOAN_APPROVED above: the outcome
+  // that actually activates a membership gets an immediate email, the
+  // routine create/decline steps fold into the digest.
+  [T.PROGRAM_APPLICATION_SUBMITTED]: ['Program Application Submitted', 'INFO', AGG],
+  [T.PROGRAM_APPLICATION_ACCEPTED]: ['Program Application Accepted', 'INFO', { sms: false, email: true }],
+  [T.PROGRAM_APPLICATION_DECLINED]: ['Program Application Declined', 'INFO', AGG],
+  [T.PROGRAM_INVITATION_SENT]: ['Program Invitation Sent', 'INFO', AGG],
+  [T.PROGRAM_INVITATION_ACCEPTED]: ['Program Invitation Accepted', 'INFO', { sms: false, email: true }],
+  [T.PROGRAM_INVITATION_DECLINED]: ['Program Invitation Declined', 'INFO', AGG],
   [T.GROUP_CREATED]: ['Group Created', 'INFO', SMS_EMAIL],
   [T.GROUP_APPROVED]: ['Group Approved', 'INFO'],
   [T.GROUP_SUSPENDED]: ['Group Suspended', 'HIGH'],

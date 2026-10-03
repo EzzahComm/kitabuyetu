@@ -392,4 +392,55 @@ export type ProgramActionPayload = z.input<typeof ProgramActionSchema>;
 export type DisbursePayload = z.input<typeof DisburseSchema>;
 export type BrandingPayload = z.input<typeof BrandingSchema>;
 export type TopUpSmsCreditsPayload = z.input<typeof TopUpSmsCreditsSchema>;
+
+// ─── Group Programs (migration 206) ─────────────────────────────────────
+// Unrelated to CreateProgramSchema/PROGRAM_TYPES above, which are
+// funding_programs — budget/disbursement config. These schemas are for the
+// org-run recruitment/membership "Programs" feature: an organization
+// publishes a program, groups apply or are invited, no money involved here.
+
+export const CreateGroupProgramSchema = z.object({
+  name: z.string().min(3).max(160),
+  description: z.string().max(2000).optional(),
+  objectives: z.string().max(2000).optional(),
+  targetBeneficiaries: z.string().max(500).optional(),
+  eligibilityCriteria: z.record(z.unknown()).optional(),
+  geographicCoverage: z.array(z.string().max(80)).max(100).optional(),
+  applicationRequirements: z.string().max(2000).optional(),
+  startsOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  endsOn: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});
+
+export const UpdateGroupProgramSchema = CreateGroupProgramSchema.partial();
+
+export const TransitionGroupProgramStatusSchema = z.object({
+  status: z.enum(['draft', 'published', 'paused', 'closed', 'archived']),
+});
+
+export const InviteGroupToProgramSchema = z.object({
+  groupCode: z.string().trim().min(1).max(20),
+  message: z.string().max(1000).optional(),
+});
+
+export const DeclineProgramApplicationSchema = z.object({
+  reviewNotes: z.string().trim().min(1).max(2000),
+});
+
+export const RequestProgramApplicationInfoSchema = z.object({
+  reviewNotes: z.string().trim().min(1).max(2000),
+});
+
+export const AcceptProgramApplicationSchema = z.object({
+  reviewNotes: z.string().max(2000).optional(),
+});
+
+export type CreateGroupProgramInput = z.infer<typeof CreateGroupProgramSchema>;
+export type UpdateGroupProgramInput = z.infer<typeof UpdateGroupProgramSchema>;
+export type InviteGroupToProgramInput = z.infer<typeof InviteGroupToProgramSchema>;
 export type SetSmsRatePayload = z.input<typeof SetSmsRateSchema>;
