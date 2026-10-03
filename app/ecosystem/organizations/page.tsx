@@ -29,13 +29,17 @@ export default function MultigroupOrganizationsPage() {
       <div className="flex flex-wrap gap-3 pt-4">
         <Link
           href={ROUTES.enterprise}
-          className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-brand-700"
+          // !text-white: PageShell's prose wrapper sets `[&_a]:text-brand-500`
+          // on every link, which — being a two-part selector — outranks a
+          // plain `text-white` utility and silently repaints this button's
+          // text blue-on-blue.
+          className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold !text-white transition-colors hover:bg-brand-700"
         >
           See Enterprise
         </Link>
         <Link
           href={ROUTES.ecosystem}
-          className="rounded-md border border-brand-100 px-5 py-2.5 text-sm font-semibold text-finanza-dark transition-colors hover:bg-brand-50/60"
+          className="rounded-md border border-brand-100 px-5 py-2.5 text-sm font-semibold !text-finanza-dark transition-colors hover:bg-brand-50/60"
         >
           Back to the ecosystem
         </Link>

@@ -16,6 +16,7 @@ import {
   Building2,
   Receipt,
   ClipboardList,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -55,6 +56,7 @@ const NAV: PortalNavSection[] = [
     title: 'Operations',
     items: [
       { href: '/enterprise/members', label: 'Members', icon: Users2 },
+      { href: '/enterprise/groups', label: 'Groups', icon: Link2 },
       // Recruitment/membership programs (migration 206) — groups apply or
       // are invited. Unrelated to Funding Portal's own "programs"
       // (funding_programs, a budget concept) just above.

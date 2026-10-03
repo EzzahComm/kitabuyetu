@@ -39,6 +39,7 @@ import type {
 import type { StkPushInput, B2CInput } from '@/lib/validators/mpesa.schema';
 import type {
   RegisterPayload,
+  RegisterOrganizationPayload,
   ChangePasswordPayload,
   CreateAdditionalGroupPayload,
 } from '@/lib/validators/auth.schema';
@@ -133,6 +134,15 @@ export type RegisterResult = LoginResponse & {
   memberCode?: string;
 } & SignupCertificateOutcome;
 
+// No LoginResponse — register-organization issues no session token. The new
+// coordinator signs in separately via the mandatory-MFA backoffice flow.
+export interface RegisterOrganizationResult {
+  organizationId: string;
+  organizationName: string;
+  planType: string;
+  nextStep: 'enterprise_login';
+}
+
 export type CreateGroupResult = LoginResponse & {
   groupCode: string;
   memberCode: string;
@@ -162,6 +172,8 @@ export const authApi = {
 
   changePassword: (body: ChangePasswordPayload) => api.post<{ changed: boolean }>('/auth/change-password', body),
   register: (body: RegisterPayload) => api.post<RegisterResult>('/auth/register', body),
+  registerOrganization: (body: RegisterOrganizationPayload) =>
+    api.post<RegisterOrganizationResult>('/auth/register-organization', body),
   registerWithCertificate: (body: RegisterPayload, certificate: File) =>
     api.upload<RegisterResult>('/auth/register', signupWithCertificate(body, certificate)),
 

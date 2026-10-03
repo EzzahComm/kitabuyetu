@@ -839,16 +839,91 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
         WHERE group_id IN (SELECT group_id FROM plans)
           AND created_at >= date_trunc('month', CURRENT_DATE) - INTERVAL '25 months'
         GROUP BY 1, 2, 3
+     ),
+     -- Lifetime totals, deliberately UNCAPPED unlike contrib_paid/welfare_paid
+     -- above (those are windowed to keep the arrears scan bounded). This is a
+     -- display figure ("paid so far"), not an arrears input, so it should
+     -- reflect everything the member has ever paid into this group.
+     lifetime_contrib AS (
+       SELECT member_id, group_id, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed' AND group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1, 2
+     ),
+     lifetime_welfare AS (
+       SELECT member_id, group_id, SUM(amount) AS paid
+         FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1, 2
+     ),
+     -- Group-wide "balance" — deliberately the SIMPLE definition (money in
+     -- minus the platform's own charges), not a pull from the double-entry
+     -- accounting ledger (accounts/journal_entries): most groups using this
+     -- reminder job have never touched that module, and this figure only
+     -- needs to be roughly right, not audit-grade.
+     group_income AS (
+       SELECT group_id, SUM(amount) AS total FROM contributions
+        WHERE status = 'completed' AND group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1
+     ),
+     group_welfare_income AS (
+       SELECT group_id, SUM(amount) AS total FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1
+     ),
+     -- credits_deducted - credits_from_allowance: only the PAID portion of
+     -- usage costs the group anything; allowance-covered sends are free.
+     -- Priced at the current sms_rate — this is an approximation for any
+     -- usage billed under a since-changed rate, acceptable for the same
+     -- "roughly right" reason as above.
+     group_sms_cost AS (
+       SELECT u.group_id, SUM(u.credits_deducted - u.credits_from_allowance) * COALESCE(MAX(s.sms_rate), 0) AS total
+         FROM sms_usage_logs u
+         LEFT JOIN subscriptions s ON s.group_id = u.group_id AND s.status = 'active'
+        WHERE u.group_id IN (SELECT group_id FROM plans) AND u.credits_deducted > 0
+        GROUP BY u.group_id
+     ),
+     -- Whole calendar months since the current subscription started (the
+     -- starting month itself counts as billed), at its current monthly_fee —
+     -- not a reconstruction of past plan changes. Calendar-month arithmetic
+     -- (date_trunc + age), not a fixed-seconds-per-month division: months are
+     -- 28-31 days, so a seconds-based approximation drifts depending on which
+     -- calendar months are actually elapsed.
+     group_subscription_cost AS (
+       SELECT group_id,
+              monthly_fee * (
+                EXTRACT(YEAR  FROM age(date_trunc('month', NOW()), date_trunc('month', started_at))) * 12
+              + EXTRACT(MONTH FROM age(date_trunc('month', NOW()), date_trunc('month', started_at)))
+              + 1
+              ) AS total
+         FROM subscriptions
+        WHERE status = 'active' AND group_id IN (SELECT group_id FROM plans)
      )
      SELECT b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name,
             COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)::text AS outstanding_contribution,
             COUNT(*) FILTER (WHERE b.monthly_contribution > 0 AND COALESCE(cp.paid, 0) < b.monthly_contribution)::int AS contribution_months,
             COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0)::text AS outstanding_welfare,
-            COUNT(*) FILTER (WHERE b.welfare_amount > 0 AND COALESCE(wp.paid, 0) < b.welfare_amount)::int AS welfare_months
+            COUNT(*) FILTER (WHERE b.welfare_amount > 0 AND COALESCE(wp.paid, 0) < b.welfare_amount)::int AS welfare_months,
+            -- lc/lw join one constant row per (member, group) onto every
+            -- per-month row produced by the months CTE above; MAX (not SUM)
+            -- collapses that back to the single lifetime figure instead of
+            -- multiplying it by however many months are in the arrears window.
+            COALESCE(MAX(lc.paid), 0)::text AS total_contributed,
+            COALESCE(MAX(lw.paid), 0)::text AS total_welfare_contributed,
+            -- Same MAX-collapse trick as lc/lw, keyed by group_id alone —
+            -- every member of the same group gets the identical figure.
+            (COALESCE(MAX(gi.total), 0) + COALESCE(MAX(gw.total), 0)
+             - COALESCE(MAX(gsc.total), 0) - COALESCE(MAX(gsub.total), 0))::text AS group_balance
        FROM bounds b
        JOIN months mo ON mo.membership_id = b.membership_id
        LEFT JOIN contrib_paid cp ON cp.member_id = b.member_id AND cp.group_id = b.group_id AND cp.month_start = mo.month_start
        LEFT JOIN welfare_paid wp ON wp.member_id = b.member_id AND wp.group_id = b.group_id AND wp.month_start = mo.month_start
+       LEFT JOIN lifetime_contrib lc ON lc.member_id = b.member_id AND lc.group_id = b.group_id
+       LEFT JOIN lifetime_welfare lw ON lw.member_id = b.member_id AND lw.group_id = b.group_id
+       LEFT JOIN group_income gi ON gi.group_id = b.group_id
+       LEFT JOIN group_welfare_income gw ON gw.group_id = b.group_id
+       LEFT JOIN group_sms_cost gsc ON gsc.group_id = b.group_id
+       LEFT JOIN group_subscription_cost gsub ON gsub.group_id = b.group_id
       GROUP BY b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name
      HAVING COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)
           + COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0) > 0

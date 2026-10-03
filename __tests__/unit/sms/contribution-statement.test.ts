@@ -25,6 +25,9 @@ function row(overrides: Partial<ContributionStatementRow> = {}): ContributionSta
     contribution_months: 0,
     outstanding_welfare: '0',
     welfare_months: 0,
+    total_contributed: '0',
+    total_welfare_contributed: '0',
+    group_balance: '0',
     ...overrides,
   };
 }
@@ -33,19 +36,35 @@ function row(overrides: Partial<ContributionStatementRow> = {}): ContributionSta
 const isAscii = (s: string) => /^[\x20-\x7E]*$/.test(s);
 
 describe('buildStatementMessage', () => {
-  it('contribution arrears only: amount, months, and the plain membership number', () => {
-    const msg = buildStatementMessage(row({ outstanding_contribution: '1500.00', contribution_months: 3 }), PAYBILL);
+  it('contribution arrears only: amount, months, paid-to-date, and the plain membership number', () => {
+    const msg = buildStatementMessage(
+      row({
+        outstanding_contribution: '1500.00',
+        contribution_months: 3,
+        total_contributed: '4500',
+        group_balance: '82000',
+      }),
+      PAYBILL,
+    );
     expect(msg).toBe(
-      'Dear Amina, Umoja Chama balance update: Contribution arrears KES 1,500 (3 mo). ' +
-        'Pay via M-Pesa Paybill 500020109900, Acc BG102534.',
+      'Dear Amina, Umoja Chama balance update: Contribution arrears KES 1,500 (3 mo, KES 4,500 paid to date). ' +
+        'Pay via M-Pesa Paybill 500020109900, Acc BG102534. Group balance KES 82,000.',
     );
   });
 
   it('welfare arrears only: the welfare account carries the -W suffix', () => {
-    const msg = buildStatementMessage(row({ outstanding_welfare: '600', welfare_months: 3 }), PAYBILL);
+    const msg = buildStatementMessage(
+      row({
+        outstanding_welfare: '600',
+        welfare_months: 3,
+        total_welfare_contributed: '1200',
+        group_balance: '82000',
+      }),
+      PAYBILL,
+    );
     expect(msg).toBe(
-      'Dear Amina, Umoja Chama balance update: Welfare arrears KES 600 (3 mo). ' +
-        'Pay via M-Pesa Paybill 500020109900, Acc BG102534-W.',
+      'Dear Amina, Umoja Chama balance update: Welfare arrears KES 600 (3 mo, KES 1,200 paid to date). ' +
+        'Pay via M-Pesa Paybill 500020109900, Acc BG102534-W. Group balance KES 82,000.',
     );
   });
 
@@ -54,13 +73,15 @@ describe('buildStatementMessage', () => {
       row({
         outstanding_contribution: '34220.00',
         contribution_months: 4,
+        total_contributed: '15000',
         outstanding_welfare: '800',
         welfare_months: 4,
+        total_welfare_contributed: '3200',
       }),
       PAYBILL,
     );
-    expect(msg).toContain('Contribution arrears KES 34,220 (4 mo).');
-    expect(msg).toContain('Welfare arrears KES 800 (4 mo).');
+    expect(msg).toContain('Contribution arrears KES 34,220 (4 mo, KES 15,000 paid to date).');
+    expect(msg).toContain('Welfare arrears KES 800 (4 mo, KES 3,200 paid to date).');
     expect(msg).toContain('Acc BG102534 (contribution) or BG102534-W (welfare).');
     expect(msg.match(/Paybill/g)).toHaveLength(1);
   });
@@ -75,17 +96,20 @@ describe('buildStatementMessage', () => {
     expect(welfareOnly).not.toMatch(/contribution/i);
   });
 
-  it('keeps fractional amounts to two decimals', () => {
-    const msg = buildStatementMessage(row({ outstanding_contribution: '1234.5', contribution_months: 1 }), PAYBILL);
-    expect(msg).toContain('KES 1,234.5 (1 mo)');
+  it('keeps fractional amounts to two decimals, in both arrears and paid-to-date', () => {
+    const msg = buildStatementMessage(
+      row({ outstanding_contribution: '1234.5', contribution_months: 1, total_contributed: '999.25' }),
+      PAYBILL,
+    );
+    expect(msg).toContain('KES 1,234.5 (1 mo, KES 999.25 paid to date)');
   });
 
   it('still tells the member where to pay when the membership number is missing', () => {
     const msg = buildStatementMessage(
-      row({ membership_no: null, outstanding_contribution: '500', contribution_months: 1 }),
+      row({ membership_no: null, outstanding_contribution: '500', contribution_months: 1, group_balance: '-300' }),
       PAYBILL,
     );
-    expect(msg).toMatch(/Pay via M-Pesa Paybill 500020109900\.$/);
+    expect(msg).toMatch(/Pay via M-Pesa Paybill 500020109900\. Group balance KES -300\.$/);
     expect(msg).not.toMatch(/Acc/);
   });
 
@@ -110,8 +134,11 @@ describe('buildStatementMessage', () => {
         group_name: 'Ndengelwa Community Water Project',
         outstanding_contribution: '34220.00',
         contribution_months: 4,
+        total_contributed: '128500',
         outstanding_welfare: '800',
         welfare_months: 4,
+        total_welfare_contributed: '9600',
+        group_balance: '245000',
       }),
       PAYBILL,
     );
