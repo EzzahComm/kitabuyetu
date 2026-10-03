@@ -43,6 +43,7 @@ import type {
   ChangePasswordPayload,
   CreateAdditionalGroupPayload,
 } from '@/lib/validators/auth.schema';
+import type { RegisterCampaignInput as RegisterCampaignPayload } from '@/lib/validators/campaign.schema';
 import type {
   CreateMemberPayload,
   UpdateMemberPayload,
@@ -143,6 +144,17 @@ export interface RegisterOrganizationResult {
   nextStep: 'enterprise_login';
 }
 
+// No LoginResponse here either — the group this creates starts unsubscribed
+// (migration 139), same as any other new signup. The creator checks back on
+// review status by group code, no login required until they're ready to pay.
+export interface RegisterCampaignResult {
+  groupCode: string;
+  campaignSlug: string;
+  accountCode: string;
+  status: string;
+  nextStep: 'awaiting_review';
+}
+
 export type CreateGroupResult = LoginResponse & {
   groupCode: string;
   memberCode: string;
@@ -174,6 +186,8 @@ export const authApi = {
   register: (body: RegisterPayload) => api.post<RegisterResult>('/auth/register', body),
   registerOrganization: (body: RegisterOrganizationPayload) =>
     api.post<RegisterOrganizationResult>('/auth/register-organization', body),
+  registerCampaign: (body: RegisterCampaignPayload) =>
+    api.post<RegisterCampaignResult>('/auth/register-campaign', body),
   registerWithCertificate: (body: RegisterPayload, certificate: File) =>
     api.upload<RegisterResult>('/auth/register', signupWithCertificate(body, certificate)),
 
