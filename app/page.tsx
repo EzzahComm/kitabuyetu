@@ -174,10 +174,8 @@ export default function Home() {
 
         {/* Partners */}
         <section aria-label="Partners" className="border-b border-brand-100 py-10">
-          <Container className="flex flex-col items-center gap-6 lg:flex-row lg:justify-between">
-            <p className="text-center font-display text-xl font-semibold text-finanza-dark">
-              Built for Kenyan groups, on <span className="text-brand-500">Kenyan rails</span>
-            </p>
+          <Container className="flex flex-col items-center gap-6">
+            <p className="text-center font-display text-xl font-semibold text-finanza-dark">Our Partners</p>
             <ul className="flex flex-wrap items-center justify-center gap-5">
               {PARTNER_LOGOS.map((partner) => (
                 <li
