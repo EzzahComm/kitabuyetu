@@ -204,6 +204,12 @@ export const TEMPLATE_KEYS = {
   GROUP_ANNOUNCEMENT: 'group_announcement',
   GROUP_VERIFICATION_OTP: 'group_verification_otp',
   GENERAL_MESSAGE: 'general_message',
+  MEETING_NOTICE: 'meeting_notice',
+  PAYMENT_NOTICE: 'payment_notice',
+  URGENT_NOTICE: 'urgent_notice',
+  EVENT_INVITATION: 'event_invitation',
+  APPRECIATION_MESSAGE: 'appreciation_message',
+  FINANCIAL_SUMMARY: 'financial_summary',
 } as const;
 
 export type TemplateKey = (typeof TEMPLATE_KEYS)[keyof typeof TEMPLATE_KEYS];
@@ -249,6 +255,18 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
     'Verify your Kitabu Yetu group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
   general_message:
     'Dear {{first_name}}, {{message}} - {{sender_signature}}',
+  meeting_notice:
+    'Dear {{first_name}}, {{group_name}} meeting: {{meeting_date}} at {{meeting_location}}. Agenda: {{agenda}}. - {{sender_signature}}',
+  payment_notice:
+    'Dear {{first_name}}, payment of KES {{amount}} is due on {{due_date}}. Reference: {{reference}}. Pay via Paybill {{paybill}}, Account {{account_number}}. - {{sender_signature}}',
+  urgent_notice:
+    'Dear {{first_name}}, URGENT: {{message}} - {{sender_signature}}',
+  event_invitation:
+    'Dear {{first_name}}, you are invited to {{event_name}} on {{event_date}} at {{event_location}}. RSVP to {{organizer_contact}}. - {{sender_signature}}',
+  appreciation_message:
+    'Dear {{first_name}}, {{group_name}} appreciates {{reason}}. Thank you for your continued support! - {{sender_signature}}',
+  financial_summary:
+    'Dear {{first_name}}, your {{group_name}} balance: Contributions: KES {{contribution_balance}}, Loans: KES {{loan_balance}}, Shares: KES {{share_capital_balance}}. For details visit Kitabu Yetu. - {{sender_signature}}',
 };
 
 /** Render a named built-in template with the given variables. */
