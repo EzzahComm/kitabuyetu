@@ -269,7 +269,7 @@ interface CardProps {
 
 **Impact:** 50KB bundle reduction  
 **Effort:** Low (1 hour)  
-**Status:** Identified, not started
+**Status:** Done - removed `framer-motion` and `@tabler/icons-react` (both had zero imports); kept `@portabletext/react` (3 importing files). Deleted three committed `.bak` files. Removing an unused dependency shrinks install size, not the client bundle, which tree-shaking already excluded.
 
 **Findings:**
 
