@@ -1,14 +1,12 @@
 'use client';
 
 import * as React from 'react';
-import { useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Bell, LayoutDashboard } from 'lucide-react';
 import { MemberBottomNav } from '@/components/member/bottom-nav';
 import { OfflineIndicator } from '@/components/member/offline-indicator';
-import { useAuth, isBackofficeUser, isTenantUser } from '@/lib/auth/context';
-import { configureApiClient } from '@/lib/api/client';
+import { isTenantUser } from '@/lib/auth/context';
+import { useApiClientAuth, useTenantShellGuard } from '@/hooks/use-shell-auth';
 import { useUnreadNotificationCount } from '@/hooks/use-member';
 
 /**
@@ -19,39 +17,13 @@ import { useUnreadNotificationCount } from '@/hooks/use-member';
  * phone and on a desktop. A sticky top bar carries the greeting + sync status;
  * a fixed bottom tab bar carries primary navigation.
  *
- * Auth guard mirrors app/(dashboard)/layout.tsx exactly — see that file for
- * the reasoning behind each check (backoffice sessions never render here,
- * pending_verification groups get bounced to /verify-group, etc.).
+ * Auth guard is shared with app/(dashboard)/layout.tsx via hooks/use-shell-auth.ts
+ * (backoffice sessions never render here, pending_verification groups get
+ * bounced to /verify-group, etc.).
  */
 export default function MemberLayout({ children }: { children: React.ReactNode }) {
-  const { user, isLoading, accessToken, audience, logout } = useAuth();
-  const router = useRouter();
-  const isBackoffice = audience === 'backoffice' || isBackofficeUser(user);
-
-  useEffect(() => {
-    configureApiClient({
-      getToken: () => accessToken,
-      onUnauthorized: () => {
-        logout();
-        router.push('/login');
-      },
-    });
-  }, [accessToken, logout, router]);
-
-  useEffect(() => {
-    if (isLoading) return;
-    if (!user) {
-      router.push('/login');
-      return;
-    }
-    if (isBackoffice) {
-      router.replace('/admin');
-      return;
-    }
-    if (isTenantUser(user) && user.groupStatus === 'pending_verification') {
-      router.replace('/verify-group');
-    }
-  }, [isLoading, user, isBackoffice, router]);
+  useApiClientAuth('/login');
+  const { user, isLoading, isBackoffice } = useTenantShellGuard();
 
   const { data: unreadCount } = useUnreadNotificationCount({ enabled: !isLoading && !!user && !isBackoffice });
 

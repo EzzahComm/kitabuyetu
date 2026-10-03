@@ -7,7 +7,7 @@ import { AdminSidebar } from '@/components/admin/sidebar';
 import { AdminTopbar } from '@/components/admin/topbar';
 import { CommandPalette } from '@/components/admin/command-palette';
 import { useAuth } from '@/lib/auth/context';
-import { configureApiClient } from '@/lib/api/client';
+import { useApiClientAuth } from '@/hooks/use-shell-auth';
 
 /**
  * Guards the entire /admin portal. Phase 1 of the backoffice isolation:
@@ -45,21 +45,13 @@ type AdminRole = (typeof ADMIN_ROLES)[number];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user, accessToken, audience, logout, isLoading } = useAuth();
+  const { user, audience, isLoading } = useAuth();
   const router = useRouter();
 
   // Wire up the API client with the current token. onUnauthorized bounces
   // back to /admin-login (not /login) so a stale backoffice session lands
   // on the right re-auth page.
-  useEffect(() => {
-    configureApiClient({
-      getToken: () => accessToken ?? null,
-      onUnauthorized: () => {
-        logout();
-        router.push('/admin-login');
-      },
-    });
-  }, [accessToken, logout, router]);
+  useApiClientAuth('/admin-login');
 
   useEffect(() => {
     if (isLoading) return;
