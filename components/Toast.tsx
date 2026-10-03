@@ -132,7 +132,6 @@ export function useToast() {
   return {
     addToast: (toast: Omit<Toast, 'id'>) => {
       // Placeholder - implement with Context API in production
-      console.log('Toast:', toast);
     },
   };
 }
