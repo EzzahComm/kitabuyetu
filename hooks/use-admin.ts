@@ -64,6 +64,7 @@ import type {
 } from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
+import type { NewsletterDigest } from '@/lib/services/newsletter-digest.service';
 import type {
   createEmployee,
   listEmployees,
@@ -1063,6 +1064,42 @@ export function useNewsletterSubscribers() {
     queryKey: ['admin', 'newsletter'],
     queryFn: () =>
       adminFetch<{ subscribers: NewsletterSubscriberList; stats: NewsletterStatsResult }>('/api/admin/newsletter'),
+  });
+}
+
+export function useNewsletterDigests() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'digests'],
+    queryFn: () => adminFetch<NewsletterDigest[]>('/api/admin/newsletter/digest'),
+  });
+}
+
+export function useComposeNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => adminFetch<NewsletterDigest>('/api/admin/newsletter/digest', { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useUpdateNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, subject, htmlBody }: { id: string; subject: string; htmlBody: string }) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}`, {
+        method: 'PATCH',
+        json: { subject, htmlBody },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useSendNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}/send`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
   });
 }
 
