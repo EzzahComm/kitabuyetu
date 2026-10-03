@@ -356,6 +356,22 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
+  // ── Monday 09:00 EAT — weekly savings-update SMS ──────────────
+  // A distinct hour from email_weekly_summary above so the two don't compete
+  // within the same tick. Unlike notify_contribution_reminders, this reaches
+  // EVERY active member of EVERY active group, not just groups with a
+  // configured contribution-plan.service.ts plan.
+  if (day === 1 && hour === 9 && fiveMinBucket === 0) {
+    queued.notify_weekly_savings_update = await safe(
+      'notify_weekly_savings_update',
+      {},
+      {
+        priority: 5,
+        dedup_key: `notify_weekly_savings_update:${weekStr}`,
+      },
+    );
+  }
+
   // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
   if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(

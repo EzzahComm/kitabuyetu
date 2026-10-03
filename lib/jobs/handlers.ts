@@ -10,6 +10,7 @@ import type { Job } from './types';
 import { pool } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import type { ContributionStatementRow } from '@/lib/sms/contribution-statement';
+import type { WeeklySavingsUpdateRow } from '@/lib/sms/weekly-savings-update';
 
 export interface HandlerResult {
   message: string;
@@ -99,6 +100,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 
     case 'notify_contribution_reminders':
       return handleContributionReminders(job);
+
+    case 'notify_weekly_savings_update':
+      return handleWeeklySavingsUpdate(job);
 
     case 'sms_birthday_reminders':
       return handleSmsBirthdayReminders(job);
@@ -966,6 +970,120 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
 
   return {
     message: `Contribution reminders processed (${rows.length} candidates)`,
+    attempted: rows.length,
+    sent,
+    skipped,
+    failed,
+  };
+}
+
+async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
+  const { platformPaybill } = await import('@/lib/sms/templates');
+  const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { buildWeeklySavingsUpdateMessage } = await import('@/lib/sms/weekly-savings-update');
+
+  // Unlike handleContributionReminders above, this reaches EVERY active
+  // member of EVERY active group — there is no "has this group configured a
+  // plan" filter. weekly_targets resolves the effective per-week target the
+  // same way configuration.service.ts's cascade would (group override wins
+  // over the platform-wide row seeded by migration 207), via DISTINCT ON +
+  // ORDER BY preferring the group-specific row when both exist.
+  const { rows } = await pool.query<WeeklySavingsUpdateRow>(
+    `WITH weekly_targets AS (
+       SELECT DISTINCT ON (g.id) g.id AS group_id, g.created_at AS group_created_at,
+              COALESCE((p.value->>'weeklyContribution')::numeric, 200) AS weekly_amount
+         FROM groups g
+         LEFT JOIN policies p
+           ON p.domain = 'weekly_contribution_default' AND p.policy_key = 'amount' AND p.is_active
+          AND (p.group_id = g.id OR p.group_id IS NULL)
+        WHERE g.status = 'active'
+        ORDER BY g.id, (p.group_id IS NOT NULL) DESC
+     ),
+     candidates AS (
+       SELECT gm.id AS membership_id, gm.group_id, gm.member_id, gm.membership_no, gm.joined_at,
+              m.phone, m.first_name, g.name AS group_name,
+              wt.weekly_amount, wt.group_created_at
+         FROM group_members gm
+         JOIN members m  ON m.id = gm.member_id
+         JOIN groups  g  ON g.id = gm.group_id
+         JOIN weekly_targets wt ON wt.group_id = gm.group_id
+        WHERE gm.status = 'active'
+          AND g.status  = 'active'
+          AND m.phone IS NOT NULL AND m.phone <> ''
+     ),
+     bounds AS (
+       SELECT c.*,
+              date_trunc('week', GREATEST(c.joined_at::timestamptz, c.group_created_at)) AS start_week,
+              date_trunc('week', CURRENT_DATE) - INTERVAL '1 week' AS last_week
+         FROM candidates c
+     ),
+     weeks AS (
+       SELECT b.membership_id, gs.week_start
+         FROM bounds b
+         CROSS JOIN LATERAL generate_series(b.start_week, b.last_week, INTERVAL '1 week') AS gs(week_start)
+        WHERE b.start_week <= b.last_week
+     ),
+     contrib_paid_by_week AS (
+       SELECT member_id, group_id, date_trunc('week', contribution_date) AS week_start, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed'
+        GROUP BY 1, 2, 3
+     ),
+     -- Lifetime, gross, uncapped — never netted against SMS/subscription
+     -- costs (that netting is group_balance's job in contribution-statement.ts).
+     lifetime_contrib AS (
+       SELECT member_id, group_id, SUM(amount) AS total FROM contributions WHERE status = 'completed' GROUP BY 1, 2
+     ),
+     group_lifetime_contrib AS (
+       SELECT group_id, SUM(amount) AS total FROM contributions WHERE status = 'completed' GROUP BY 1
+     )
+     SELECT b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name,
+            COALESCE(SUM(GREATEST(b.weekly_amount - COALESCE(cp.paid, 0), 0)), 0)::text AS outstanding,
+            -- Same MAX-collapse as contribution-statement.ts's lc/lw: these
+            -- are constants per (member, group) or per group, joined onto
+            -- every per-week row the weeks CTE above produces.
+            COALESCE(MAX(lc.total), 0)::text AS total_contributed,
+            COALESCE(MAX(glc.total), 0)::text AS group_total_saved
+       FROM bounds b
+       JOIN weeks w ON w.membership_id = b.membership_id
+       LEFT JOIN contrib_paid_by_week cp ON cp.member_id = b.member_id AND cp.group_id = b.group_id AND cp.week_start = w.week_start
+       LEFT JOIN lifetime_contrib lc ON lc.member_id = b.member_id AND lc.group_id = b.group_id
+       LEFT JOIN group_lifetime_contrib glc ON glc.group_id = b.group_id
+      GROUP BY b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name
+      ORDER BY b.group_id, b.member_id
+      LIMIT 2000`,
+  );
+
+  if (rows.length === 0) {
+    return { message: 'Weekly savings update: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+  }
+
+  const paybill = platformPaybill();
+  const weekKey = new Date().toISOString().slice(0, 10); // dedup per calendar run date — the job itself only fires Mondays.
+
+  let sent = 0,
+    skipped = 0,
+    failed = 0;
+  for (const r of rows) {
+    const result = await sendOnce({
+      groupId: r.group_id,
+      memberId: r.member_id,
+      phone: r.phone,
+      body: buildWeeklySavingsUpdateMessage(r, paybill),
+      referenceType: 'weekly_savings_update',
+      referenceId: r.membership_id,
+      reminderStage: `weekly:${weekKey}`,
+      jobExecutionId: job.id,
+      billingMode: 'billed',
+    });
+    if (result.sent) sent++;
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed' || result.status === 'cooldown')
+      skipped++;
+    else failed++;
+  }
+
+  return {
+    message: `Weekly savings update processed (${rows.length} candidates)`,
     attempted: rows.length,
     sent,
     skipped,
