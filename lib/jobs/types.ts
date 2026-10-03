@@ -23,6 +23,7 @@ export type JobType =
   | 'cleanup_expired_tokens' // Remove expired refresh tokens (daily 02:00 UTC)
   | 'notify_loan_due_alerts' // Loan repayment due/overdue alerts (daily 06:00 UTC)
   | 'notify_contribution_reminders' // Monthly contribution/welfare balance + arrears SMS for groups with a configured contribution-plan.service.ts plan (1st of month, 08:00 UTC)
+  | 'notify_weekly_savings_update' // Weekly savings-update SMS to EVERY active member (total contributed, group total, outstanding vs weekly-contribution-default.service.ts's per-group/platform target) — unlike notify_contribution_reminders, not limited to groups with a configured plan (Monday 09:00 EAT)
   | 'sms_birthday_reminders' // Birthday SMS for opted-in groups (daily 07:00 UTC, alongside email_birthday)
   | 'outbox_dispatch' // Drain the transactional event_outbox (every 5 min)
   | 'payment_orphan_monitor' // Alert on completed payments stuck in allocation_status='received' (hourly)
