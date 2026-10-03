@@ -30,7 +30,7 @@ Comprehensive UI optimization audit identified **10 specific opportunities** for
 
 **Impact:** 15KB savings + simplified dependency management  
 **Effort:** Low (1-2 hours)  
-**Status:** Identified, not started
+**Status:** Done (PR #213)
 
 **Consolidation Plan:**
 
@@ -97,7 +97,7 @@ refactor(icons): consolidate to lucide-react, remove @tabler/icons-react
 
 **Impact:** Clean console, reduced security surface  
 **Effort:** Minimal (15 mins)  
-**Status:** Identified, not started
+**Status:** Done (PR #213)
 
 **Locations:**
 
@@ -117,9 +117,9 @@ if (process.env.NODE_ENV === 'development') {
 
 ### Phase 4: Layout Logic Consolidation (HIGH PRIORITY)
 
-**Impact:** Eliminate 150+ lines of duplicate code  
-**Effort:** Medium (2-3 hours)  
-**Status:** Identified, not started
+**Impact:** ~70 lines removed across the three layouts (the admin layout shares little with the other two)  
+**Effort:** Medium  
+**Status:** Done (PR #213) - `hooks/use-shell-auth.ts`
 
 **Duplicate Patterns Across:**
 
@@ -154,9 +154,9 @@ export function useLayoutAuthGuard(options: {
 
 ### Phase 5: Marketing Sections Decomposition (HIGH PRIORITY)
 
-**Impact:** 20KB savings for non-marketing pages  
-**Effort:** Medium (2-3 hours)  
-**Status:** Identified, not started
+**Impact:** Maintainability only. `kitabu-sections.tsx` is a server module (no `'use client'`) and its interactive parts are already separate client files, so splitting it does not change any client bundle.  
+**Effort:** Medium  
+**Status:** Deferred - low value; do only if the file becomes hard to maintain
 
 **Target:** `/components/marketing/kitabu-sections.tsx` (677 lines)
 
@@ -168,7 +168,7 @@ export function useLayoutAuthGuard(options: {
 - `marketing/sections/team-section.tsx`
 - etc.
 
-**Benefit:** Authenticated pages don't load marketing copy; better code splitting
+**Benefit:** Smaller files. No bundle benefit (see impact above).
 
 ---
 
