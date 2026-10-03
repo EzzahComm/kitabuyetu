@@ -1,18 +1,21 @@
 /**
- * Admin-composed campaign digest emails to newsletter_subscribers (migration
- * 209). Platform-level — no tenant, no group_id — and deliberately NOT built
- * on email_campaigns/email_campaign_recipients (campaign.service.ts), which
- * are group-tenant-scoped and have no audience model for "every newsletter
- * subscriber". Preview-before-fire: composeDraft() only builds content,
- * sendDigest() is the explicit, separate action that actually dispatches —
- * an admin reviews/edits the draft in between.
+ * Admin-composed marketing emails to newsletter_subscribers (migration 209)
+ * — aimed at growing signups and revenue, not promoting individual Changi$ha
+ * fundraisers (that's a different, tenant-scoped concept entirely; see
+ * campaigns.service.ts). Platform-level — no tenant, no group_id — and
+ * deliberately NOT built on email_campaigns/email_campaign_recipients
+ * (campaign.service.ts), which are group-tenant-scoped and have no audience
+ * model for "every newsletter subscriber". Preview-before-fire: a draft is
+ * composed from a starter template, the admin edits it, then explicitly
+ * sends — sendDigest() is a separate, deliberate action from createDraft().
  */
 import { withAdminDb } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
-import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 import { wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
-import { officialAppUrl } from '@/lib/app-links';
-import { formatKES } from '@/lib/utils';
+import { officialAppUrl, signUpUrl } from '@/lib/app-links';
+import { BRAND } from '@/lib/brand';
+
+const GREEN = BRAND.colors.green;
 
 export type NewsletterDigestStatus = 'draft' | 'sending' | 'sent' | 'failed';
 
@@ -20,7 +23,6 @@ export interface NewsletterDigest {
   id: string;
   subject: string;
   html_body: string;
-  campaign_ids: string[];
   status: NewsletterDigestStatus;
   total_recipients: number | null;
   sent_count: number;
@@ -42,79 +44,100 @@ export interface NewsletterDigestRecipient {
   sent_at: Date | null;
 }
 
-/**
- * Campaign title/story come from the public, unauthenticated self-serve form
- * (register_campaign RPC) — never trust them as HTML. Every digest embeds
- * them verbatim in an email every subscriber receives, so this is the one
- * place in the digest that MUST escape before interpolating.
- */
-export function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+export type MarketingTemplateKey = 'feature_highlight' | 'changisha_spotlight' | 'pricing_nudge';
+
+export interface MarketingTemplateSummary {
+  key: MarketingTemplateKey;
+  label: string;
+  description: string;
 }
 
-export function campaignCardHtml(c: Campaign): string {
-  const url = `${officialAppUrl}/fundraise/${c.slug}`;
-  const rawSnippet = c.story.length > 220 ? `${c.story.slice(0, 220).trim()}…` : c.story;
-  const title = escapeHtml(c.title);
-  const snippet = escapeHtml(rawSnippet);
-  const pct = Math.min(100, Math.round((parseFloat(c.amount_raised) / parseFloat(c.target_amount)) * 100) || 0);
-  return `
-    <tr><td style="padding:0 0 24px;">
-      <h3 style="margin:0 0 8px;font-size:17px;color:#111827;">${title}</h3>
-      <p style="margin:0 0 10px;font-size:14px;color:#4b5563;line-height:1.5;">${snippet}</p>
-      <div style="background:#e5e7eb;border-radius:999px;height:8px;overflow:hidden;margin:0 0 8px;">
-        <div style="background:#1E8E5A;height:8px;width:${pct}%;"></div>
-      </div>
-      <p style="margin:0 0 14px;font-size:13px;color:#6b7280;">
-        ${formatKES(c.amount_raised)} raised of ${formatKES(c.target_amount)} target (${pct}%)
+function ctaButton(text: string, url: string): string {
+  return `<a href="${url}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">${text}</a>`;
+}
+
+/**
+ * Starter content for a marketing send — a deliberate, admin-editable
+ * starting point, not auto-generated from live data (there's no "this
+ * week's" dataset to pull for a growth email the way there is for the
+ * fundraiser digest this replaced). Each pitches a different reason to sign
+ * up; the admin picks one, edits the copy, then sends.
+ */
+const MARKETING_TEMPLATES: Record<
+  MarketingTemplateKey,
+  { label: string; description: string; subject: string; htmlBody: string }
+> = {
+  feature_highlight: {
+    label: 'Feature highlight',
+    description: 'Introduce what Kitabu Yetu does, with a signup CTA.',
+    subject: "Your group's records, finally in one place",
+    htmlBody: `
+      <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
+        Most savings groups still keep records in a notebook and an M-Pesa statement matched to names the night before a meeting. Kitabu Yetu puts contributions, loans and statements in one place every member can see for themselves.
       </p>
-      <a href="${url}" style="display:inline-block;background:#1E8E5A;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;font-size:14px;">Give to this campaign</a>
-    </td></tr>
-    <tr><td style="border-top:1px solid #e5e7eb;padding:0 0 24px;"></td></tr>
-  `;
+      <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#4b5563;line-height:1.8;">
+        <li>Contributions tracked automatically as members pay by M-Pesa</li>
+        <li>Every member gets their own statement, any time</li>
+        <li>Officers get real financial reports, not a reconciled spreadsheet</li>
+      </ul>
+      <p style="margin:0 0 24px;">${ctaButton('Create your free account', signUpUrl())}</p>
+    `,
+  },
+  changisha_spotlight: {
+    label: 'Changi$ha spotlight',
+    description: 'Pitch fundraising-by-M-Pesa as a reason to sign up.',
+    subject: 'Raise money for your cause, in the open, by M-Pesa',
+    htmlBody: `
+      <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
+        Changi$ha is Kitabu Yetu's fundraising tool for harambees and community causes: donors give straight to an M-Pesa paybill, every contribution shows on a public page as it arrives, and funds are only released after review.
+      </p>
+      <p style="margin:0 0 20px;font-size:14px;color:#4b5563;line-height:1.6;">
+        No monthly fee to start a campaign — just a standard platform fee, and the M-Pesa charge, only when you withdraw.
+      </p>
+      <p style="margin:0 0 24px;">${ctaButton('Start a campaign', `${officialAppUrl}/start-campaign`)}</p>
+    `,
+  },
+  pricing_nudge: {
+    label: 'Pricing & signup nudge',
+    description: 'Straightforward CTA to see plans and register.',
+    subject: 'What it costs to put your group on Kitabu Yetu',
+    htmlBody: `
+      <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
+        Simple, per-group pricing — no hidden fees, no setup cost. See what it costs to move your group's records onto Kitabu Yetu, and sign up when you're ready.
+      </p>
+      <p style="margin:0 0 24px;">${ctaButton('See pricing & sign up', `${officialAppUrl}/pricing`)}</p>
+    `,
+  },
+};
+
+export function listMarketingTemplates(): MarketingTemplateSummary[] {
+  return (Object.keys(MARKETING_TEMPLATES) as MarketingTemplateKey[]).map((key) => ({
+    key,
+    label: MARKETING_TEMPLATES[key].label,
+    description: MARKETING_TEMPLATES[key].description,
+  }));
 }
 
 /**
- * Builds (but does not persist or send) default subject/body content from
- * currently-active Changi$ha campaigns. The admin route wraps this in
- * createDraft() to actually save it.
+ * Builds (but does not persist or send) starter subject/body content from a
+ * named template. The admin route wraps this in createDraft() to save it.
  */
-export async function composeDigestContent(): Promise<{ subject: string; htmlBody: string; campaignIds: string[] }> {
-  const campaigns = await campaignsService.listActiveCampaigns();
-
-  if (campaigns.length === 0) {
-    return {
-      subject: 'Causes you can support on Kitabu Yetu Changi$ha',
-      htmlBody: `<table role="presentation" width="100%"><tr><td><p style="font-size:14px;color:#4b5563;">There are no active campaigns right now — check back soon.</p></td></tr></table>`,
-      campaignIds: [],
-    };
-  }
-
-  const intro = `<tr><td style="padding:0 0 20px;"><p style="margin:0;font-size:14px;color:#4b5563;line-height:1.5;">Here are the Changi$ha campaigns running on Kitabu Yetu this week. Every shilling is recorded and released only after review.</p></td></tr>`;
-  const cards = campaigns.map(campaignCardHtml).join('\n');
-
-  return {
-    subject: `${campaigns.length} cause${campaigns.length === 1 ? '' : 's'} you can support this week on Kitabu Yetu`,
-    htmlBody: `<table role="presentation" width="100%" cellpadding="0" cellspacing="0">${intro}${cards}</table>`,
-    campaignIds: campaigns.map((c) => c.id),
-  };
+export function composeDigestContent(templateKey: MarketingTemplateKey): { subject: string; htmlBody: string } {
+  const tpl = MARKETING_TEMPLATES[templateKey];
+  if (!tpl) throw new ValidationError(`Unknown template: ${templateKey}`);
+  return { subject: tpl.subject, htmlBody: tpl.htmlBody };
 }
 
 export async function createDraft(
   adminUserId: string,
-  input: { subject: string; htmlBody: string; campaignIds: string[] },
+  input: { subject: string; htmlBody: string },
 ): Promise<NewsletterDigest> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<NewsletterDigest>(
-      `INSERT INTO newsletter_digests (subject, html_body, campaign_ids, created_by)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO newsletter_digests (subject, html_body, created_by)
+       VALUES ($1, $2, $3)
        RETURNING *`,
-      [input.subject, input.htmlBody, input.campaignIds, adminUserId],
+      [input.subject, input.htmlBody, adminUserId],
     );
     return rows[0];
   });

@@ -64,7 +64,11 @@ import type {
 } from '@/lib/services/organization-plan.service';
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
-import type { NewsletterDigest } from '@/lib/services/newsletter-digest.service';
+import type {
+  NewsletterDigest,
+  MarketingTemplateKey,
+  MarketingTemplateSummary,
+} from '@/lib/services/newsletter-digest.service';
 import type {
   createEmployee,
   listEmployees,
@@ -1074,10 +1078,18 @@ export function useNewsletterDigests() {
   });
 }
 
+export function useMarketingTemplates() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'templates'],
+    queryFn: () => adminFetch<MarketingTemplateSummary[]>('/api/admin/newsletter/digest/templates'),
+  });
+}
+
 export function useComposeNewsletterDigest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => adminFetch<NewsletterDigest>('/api/admin/newsletter/digest', { method: 'POST' }),
+    mutationFn: (templateKey: MarketingTemplateKey) =>
+      adminFetch<NewsletterDigest>('/api/admin/newsletter/digest', { method: 'POST', json: { templateKey } }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
   });
 }

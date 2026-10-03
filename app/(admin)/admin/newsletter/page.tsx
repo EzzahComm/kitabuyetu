@@ -15,10 +15,12 @@ import { StatCard } from '@/components/shared/stat-card';
 import {
   useNewsletterSubscribers,
   useNewsletterDigests,
+  useMarketingTemplates,
   useComposeNewsletterDigest,
   useUpdateNewsletterDigest,
   useSendNewsletterDigest,
 } from '@/hooks/use-admin';
+import type { MarketingTemplateKey } from '@/lib/services/newsletter-digest.service';
 import { useToast } from '@/hooks/use-toast';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import { formatDate, getErrorMessage } from '@/lib/utils';
@@ -26,6 +28,7 @@ import { formatDate, getErrorMessage } from '@/lib/utils';
 function DigestComposer() {
   const { toast } = useToast();
   const { data: digests, isLoading } = useNewsletterDigests();
+  const { data: templates } = useMarketingTemplates();
   const compose = useComposeNewsletterDigest();
   const update = useUpdateNewsletterDigest();
   const send = useSendNewsletterDigest();
@@ -37,9 +40,9 @@ function DigestComposer() {
 
   const draft = digests?.find((d) => d.id === editingId);
 
-  const onCompose = async () => {
+  const onCompose = async (templateKey: MarketingTemplateKey) => {
     try {
-      const result = await compose.mutateAsync();
+      const result = await compose.mutateAsync(templateKey);
       setEditingId(result.id);
       setSubject(result.subject);
       setHtmlBody(result.html_body);
@@ -73,17 +76,28 @@ function DigestComposer() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Campaign digest</CardTitle>
+        <CardTitle className="text-base">Marketing email</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5">
-        <div className="flex items-center justify-between">
+        <div className="space-y-2">
           <p className="text-sm text-muted-foreground">
-            Draft an email about the week&rsquo;s active Changi$ha campaigns and send it to active subscribers.
+            Pick a starter template, edit it, and send it to active subscribers to drive signups.
           </p>
-          <Button size="sm" variant="outline" onClick={onCompose} disabled={compose.isPending}>
-            {compose.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Compose from active campaigns
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {templates?.map((t) => (
+              <Button
+                key={t.key}
+                size="sm"
+                variant="outline"
+                title={t.description}
+                onClick={() => onCompose(t.key)}
+                disabled={compose.isPending}
+              >
+                {compose.isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                {t.label}
+              </Button>
+            ))}
+          </div>
         </div>
 
         {draft && draft.status === 'draft' && (
@@ -104,9 +118,14 @@ function DigestComposer() {
             </div>
             <div className="space-y-1.5">
               <Label>Preview</Label>
-              <div
-                className="max-h-80 overflow-y-auto rounded-md border bg-white p-4"
-                dangerouslySetInnerHTML={{ __html: htmlBody }}
+              {/* Sandboxed with no `allow-scripts`/`allow-same-origin` so an
+                  admin editing raw HTML here can't have it execute in this
+                  page — the browser enforces that, not string filtering. */}
+              <iframe
+                title="Digest preview"
+                sandbox=""
+                srcDoc={htmlBody}
+                className="h-80 w-full rounded-md border bg-white"
               />
             </div>
             <div className="flex items-center justify-end gap-2">
@@ -156,10 +175,10 @@ function DigestComposer() {
       <Dialog open={!!confirmingId} onOpenChange={(v) => !v && setConfirmingId(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Send campaign digest?</DialogTitle>
+            <DialogTitle>Send this email?</DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This sends the digest to every active newsletter subscriber. It cannot be recalled once sending starts.
+            This sends to every active newsletter subscriber. It cannot be recalled once sending starts.
           </p>
           <DialogFooter>
             <Button onClick={onSend} disabled={send.isPending}>

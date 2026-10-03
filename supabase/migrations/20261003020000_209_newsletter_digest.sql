@@ -1,21 +1,22 @@
 -- =============================================================================
 -- 209_newsletter_digest.sql
--- Admin-composed campaign digest emails to newsletter_subscribers (migration
--- 197). Platform-level, like newsletter_subscribers itself — no group_id,
--- not modeled on email_campaigns/email_campaign_recipients (migration 012),
--- which are group-tenant-scoped and have no path for a platform-wide
--- audience. Preview-before-fire: a digest is composed as a draft, the admin
--- reviews/edits it, then explicitly sends — mirrors the weekly
--- savings-update SMS workflow (migration 207/208) at the UI level, not the
--- schema level (no recurring schedule here; every send is a one-off,
--- admin-triggered action).
+-- Admin-composed marketing emails to newsletter_subscribers (migration 197)
+-- — aimed at growing signups/revenue, NOT promoting individual Changi$ha
+-- fundraisers (a separate, tenant-scoped concept; see campaigns.service.ts
+-- and migration 182). Platform-level, like newsletter_subscribers itself —
+-- no group_id, not modeled on email_campaigns/email_campaign_recipients
+-- (migration 012), which are group-tenant-scoped and have no path for a
+-- platform-wide audience. Preview-before-fire: a digest is composed from a
+-- starter template as a draft, the admin edits it, then explicitly sends —
+-- mirrors the weekly savings-update SMS workflow (migration 207/208) at the
+-- UI level, not the schema level (no recurring schedule here; every send is
+-- a one-off, admin-triggered action).
 -- =============================================================================
 
 CREATE TABLE newsletter_digests (
   id               UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   subject          TEXT        NOT NULL,
   html_body        TEXT        NOT NULL,
-  campaign_ids     UUID[]      NOT NULL DEFAULT '{}',
   status           TEXT        NOT NULL DEFAULT 'draft'
                      CHECK (status IN ('draft', 'sending', 'sent', 'failed')),
   total_recipients INTEGER,
