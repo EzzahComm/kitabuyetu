@@ -46,19 +46,19 @@ import { TestimonialCarousel, type Testimonial } from './testimonial-carousel';
  * prices are read from the billing constants, not retyped.
  */
 export const KITABU_FACTS: Fact[] = [
-  { icon: Layers, value: PRODUCT_PILLARS.length, label: 'Products on one platform' },
-  { icon: UsersRound, value: 6, label: 'Kinds of groups served' },
+  { icon: Layers, value: PRODUCT_PILLARS.length, label: 'Tools, one login' },
+  { icon: UsersRound, value: 6, label: 'Types of groups served' },
   {
     icon: HandCoins,
     value: PLAN_MONTHLY_FEES.kitabu_yetu.starter,
     prefix: 'KES ',
-    label: 'Bookkeeper, per month, from',
+    label: 'Bookkeeper from, per month',
   },
   {
     icon: MessageSquareText,
     value: PLAN_MONTHLY_FEES.chama_reminder.starter,
     prefix: 'KES ',
-    label: 'Chama Reminder, per month, from',
+    label: 'Chama Reminder from, per month',
   },
 ];
 
@@ -67,16 +67,16 @@ export function KitabuFacts() {
 }
 
 const PRODUCT_MEDIA = {
-  Bookkeeper: { tagline: "Your group's financial record.", photo: PRODUCT_PHOTOS.bookkeeper },
+  Bookkeeper: { tagline: "Your group's books, balanced.", photo: PRODUCT_PHOTOS.bookkeeper },
   'Chama Reminder / Kumbusha': {
-    tagline: 'Keep members engaged and contributions on track.',
+    tagline: 'Members reminded, automatically.',
     photo: PRODUCT_PHOTOS.chamaReminder,
   },
   'Fundraise / Changi$ha': {
-    tagline: 'Raise money for groups, projects and community initiatives.',
+    tagline: 'Fundraising people can trust.',
     photo: PRODUCT_PHOTOS.fundraise,
   },
-  Enterprise: { tagline: 'Manage many groups from one place.', photo: PRODUCT_PHOTOS.enterprise },
+  Enterprise: { tagline: 'Oversight without overreach.', photo: PRODUCT_PHOTOS.enterprise },
 } as const;
 
 /** Finanza's "Our Services" tabs, carrying the four real products. */
@@ -143,7 +143,7 @@ export function ProductTabsSection({ id, headingAs = 'h2' }: { id?: string; head
         as={headingAs}
         align="center"
         pill="Our Products"
-        title="One platform, four solutions."
+        title="Four tools. One login."
         className="mb-12"
       />
       <ServiceTabs tabs={tabs} label="Kitabu Yetu products" />
@@ -184,7 +184,7 @@ export function TestimonialsSection() {
         id="testimonials-heading"
         align="center"
         pill="Testimonials"
-        title="What our groups say"
+        title="Trusted by treasurers and chairs"
         className="mb-10"
       />
       <TestimonialCarousel items={TESTIMONIALS} />
@@ -208,10 +208,10 @@ export function CallbackSection({ id = 'contact' }: { id?: string }) {
               id="callback-heading"
               className="font-display text-[2rem] font-bold leading-tight text-finanza-dark sm:text-[2.5rem]"
             >
-              Request A Call-Back
+              Get a free call-back
             </h2>
             <p className="mt-4 text-finanza-text">
-              Tell us about your group and we&apos;ll recommend the right solution.
+              Tell us about your group. We&apos;ll call and recommend the right plan.
             </p>
           </div>
           <CallbackForm variant="callback" />
@@ -235,9 +235,9 @@ interface CtaBandProps {
 /** Closing call to action on the template's primary pattern band. */
 export function CtaBand({
   id,
-  title = 'Ready to grow your group?',
-  subtitle = 'Bring your members, money, records and investments together.',
-  footnote = 'No lock-in period · Pay by M-Pesa · Built for Kenyan groups',
+  title = 'Walk into your next meeting with the books already balanced.',
+  subtitle = 'Set up in minutes. Bring your old records with you.',
+  footnote = 'Month to month · Pay by M-Pesa · Cancel anytime',
   showPlanPrices = true,
   primary,
 }: CtaBandProps) {
@@ -268,13 +268,13 @@ export function CtaBand({
           </div>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row lg:flex-col xl:flex-row">
             <a href={primary?.href ?? signUpUrl()} className={btnOnPrimary}>
-              {primary?.label ?? 'Get Started'}
+              {primary?.label ?? `Start your group — from KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}`}
             </a>
             <Link
               href={ROUTES.contact}
               className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
             >
-              Talk to Us
+              Talk to us
             </Link>
           </div>
         </div>
@@ -355,8 +355,8 @@ export function CustomerPathsSection({ id }: { id?: string }) {
         id="paths-heading"
         align="center"
         pill="Who It's For"
-        title="Start where your group is today."
-        lede="Whether you keep one group's book or support a whole portfolio of them, there is a path built for you."
+        title="Pick your path."
+        lede="One group or a hundred — there's a plan built for you."
         className="mb-12"
       />
       <div className="grid gap-6 lg:grid-cols-2">
@@ -404,11 +404,11 @@ export function MemberBenefitsSection() {
           <FinanzaHeading
             id="members-heading"
             pill="For Every Member"
-            title="Members see their own numbers — without asking."
-            lede="Every member gets their own view of the group book: what they have saved, what they owe and every transaction behind it. Fewer questions at meetings, more trust between them."
+            title="No more “nisaidie na balance yangu.”"
+            lede="Members check their own savings, loans and statements. Fewer questions at meetings. Treasurers get their evenings back."
           />
           <a href={signUpUrl()} className={cn(btnPrimary, 'mt-8')}>
-            Get Started
+            Give your members access
           </a>
         </div>
         <ul className="grid gap-6 sm:grid-cols-2">
@@ -442,13 +442,12 @@ export function TrustSection({ id }: { id?: string }) {
               id="trust-heading"
               className="font-display text-[2rem] font-bold leading-[1.15] text-white sm:text-[2.5rem] xl:text-5xl"
             >
-              Built for money that belongs to many people.
+              Built for money that belongs to many.
             </h2>
           </Reveal>
           <Reveal delay={150}>
             <p className="text-lg leading-relaxed text-brand-100/85">
-              A group&apos;s book only works if every member can trust it. These controls are in the product today — not
-              on a roadmap.
+              Trust is the whole point. Every control below is live today.
             </p>
           </Reveal>
         </div>
@@ -481,7 +480,7 @@ export function FaqSection({ id }: { id?: string }) {
             id="faq-heading"
             pill="FAQ"
             title="Questions groups ask us first."
-            lede="Can't find your answer here? Our support team speaks treasurer."
+            lede="Still unsure? Ask us on WhatsApp — we speak treasurer."
           />
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href={ROUTES.support} className={btnPrimary}>
@@ -533,22 +532,22 @@ const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: "Women's savings groups & VSLAs",
     title: 'The savings, the loans and the social fund — in one book.',
-    body: 'Run meetings the way you do today. The record lives in one shared book, not one official’s notebook.',
+    body: 'Meet the way you always have. The record lives in one shared book.',
     points: [
-      'Record cash contributions by hand — M-Pesa payments post themselves',
+      'Record cash by hand — M-Pesa payments record themselves',
       'Loans, repayments and welfare tracked member by member',
-      'Each member can check her own balance, not take it on faith',
+      'Every member checks her own balance',
     ],
     photo: PHOTOS.vslaReading,
   },
   {
     eyebrow: 'Youth groups & young members',
     title: 'For groups that already run on their phones.',
-    body: 'Contribute by M-Pesa, get reminders by SMS and check your own balance — no chasing the treasurer.',
+    body: 'Pay by M-Pesa, get SMS reminders, check your balance. No chasing the treasurer.',
     points: [
       'An M-Pesa prompt to contribute or repay, straight to the phone',
       'Contribution reminders that go out on their own, by SMS',
-      'Roles for chair, treasurer and secretary — everyone else sees only their own record',
+      'Officials manage the group — members see only their own record',
     ],
     photo: PHOTOS.memberPhone,
   },
@@ -562,8 +561,8 @@ export function CommunitiesSection({ id }: { id?: string }) {
         id="communities-heading"
         align="center"
         pill="Our Communities"
-        title="Made for the groups that keep communities moving."
-        lede="From a VSLA meeting under a tree to a youth group that runs on phones."
+        title="Made for how your group already works."
+        lede="From a VSLA meeting under a tree to a youth group that lives on WhatsApp."
         className="mb-12"
       />
       <div className="grid gap-8 lg:grid-cols-2">
@@ -659,7 +658,7 @@ export async function LiveCampaignsSection({ id }: { id?: string }) {
           id="live-campaigns-heading"
           pill="Changi$ha"
           title={ended ? 'Recently funded by the community.' : 'Campaigns you can support today.'}
-          lede={`Reviewed by Kitabu Yetu, given by M-Pesa. Donors pay nothing extra.`}
+          lede="Checked by Kitabu Yetu. Give by M-Pesa. Donors pay nothing extra."
           className="max-w-2xl"
         />
         <Link href={ROUTES.fundraise} className={cn(btnOutline, 'shrink-0 self-start bg-white sm:self-auto')}>

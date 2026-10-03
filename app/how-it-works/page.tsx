@@ -22,7 +22,7 @@ export const metadata: Metadata = marketingMetadata({
   path: '/how-it-works',
   title: 'How M-Pesa Chama Contributions Get Recorded',
   description:
-    "From a member's M-Pesa payment to their updated balance and the journal entry behind it: how Kitabu Yetu keeps chama records accurate automatically.",
+    "From a member's M-Pesa payment to their updated balance: how Kitabu Yetu keeps chama records accurate automatically.",
 });
 
 /**
@@ -38,9 +38,8 @@ export default function HowItWorksPage() {
     <div className={`${displayFont.variable} flex min-h-screen flex-col bg-white`}>
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
-        <SectionTitle preTitle="How it works" title="From member activity to a record the group can trust" titleAs="h1">
-          Members pay, officials review and the ledger keeps the history. The platform connects payments, communication
-          and reporting so the group can spend its meetings making decisions instead of rebuilding records.
+        <SectionTitle preTitle="How it works" title="Member pays. Books update. Done." titleAs="h1">
+          Spend meetings making decisions — not rebuilding records.
         </SectionTitle>
 
         <Benefits data={theFlow} />
@@ -57,48 +56,48 @@ export default function HowItWorksPage() {
 }
 
 const theFlow = {
-  title: 'Three steps, and none of them are yours',
-  desc: 'A member pays the way they already pay. Everything after that happens because the payment happened.',
+  title: 'Three steps. None of them yours.',
+  desc: 'Members pay the way they already do. The rest happens on its own.',
   image: PHOTOS.youthTech.src,
   imageAlt: PHOTOS.youthTech.alt,
   bullets: [
     {
       title: 'Member pays',
-      desc: 'An STK prompt straight to their phone, or your PayBill quoting their membership number. Anyone can pay for a member — a spouse, a child, a well-wisher — and it still lands in the right place.',
+      desc: 'A payment prompt on their phone, or your PayBill with their member number. Anyone can pay on their behalf.',
       icon: <IconDeviceMobile />,
     },
     {
       title: 'Payment is matched',
-      desc: "Safaricom's Daraja callback is verified before anything is written down, then matched to the member by their membership number or the STK request that started it.",
+      desc: 'Each payment is checked with M-Pesa, then linked to the right member automatically.',
       icon: <IconShieldCheck />,
     },
     {
       title: 'The records update',
-      desc: "Split into savings, welfare and loan repayment by the rules your group set once, posted to the ledger with Safaricom's fee, and confirmed to the member.",
+      desc: 'Split into savings, welfare and loan repayment by your rules — and confirmed to the member by SMS.',
       icon: <IconBook />,
     },
   ],
 };
 
 const theEdges = {
-  title: 'What it will not do',
-  desc: "A payment in the wrong member's account is a far worse problem than a payment in a queue.",
+  title: 'Built to never get it wrong',
+  desc: 'A payment on the wrong member is worse than one waiting for a check.',
   image: PHOTOS.vslaReading.src,
   imageAlt: PHOTOS.vslaReading.alt,
   bullets: [
     {
       title: 'It never guesses',
-      desc: 'A PayBill payment that arrives without a usable reference is not attached to whoever seems likely. It waits in an unrouted queue and shows on your dashboard as a task until someone assigns it.',
+      desc: 'A payment without a clear reference waits on your dashboard until an official assigns it.',
       icon: <IconChecklist />,
     },
     {
       title: 'Cash still counts',
-      desc: 'Not every group is cashless. Contributions taken in cash at the meeting are recorded by hand and post to exactly the same ledger.',
+      desc: 'Cash collected at the meeting is recorded by hand, in the same books.',
       icon: <IconCash />,
     },
     {
       title: 'Money goes out the same way',
-      desc: "Loan disbursements, welfare payouts and dividends are sent to a member's phone by B2C — approved first, posted with Safaricom's fee, and confirmed to the member.",
+      desc: 'Loans, welfare and dividends go straight to members’ M-Pesa — approved first, then confirmed.',
       icon: <IconTrendingUp />,
     },
   ],

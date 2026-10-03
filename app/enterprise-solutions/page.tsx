@@ -31,41 +31,28 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function EnterpriseSolutionsPage() {
   return (
-    <PageShell
-      title="Enterprise"
-      description="For institutions running more than one group — centralized oversight without flattening any group's own book."
-    >
+    <PageShell title="Enterprise" description="Every group you support. One dashboard. Each group keeps its own book.">
       <p>
-        NGOs, federations and umbrella bodies rarely oversee a single chama or SACCO — they run dozens, each with its
-        own officers, its own meeting calendar, and its own ledger that needs to stay exactly that: its own. The
-        Enterprise portal gives an institution one login and a portfolio view across every group it supports, without
-        merging any group&apos;s books into another&apos;s.
+        NGOs, federations and SACCO networks support dozens of groups, each with its own officers and its own books.
+        Enterprise gives you one login and a live view across all of them — without mixing anyone&apos;s books.
       </p>
 
-      <h2>What&apos;s live today</h2>
+      <h2>What you get today</h2>
       <ul className="ml-5 list-disc space-y-2">
-        <li>Multi-group registration under a single organization account, with branches.</li>
-        <li>
-          A portfolio overview across every group you support, separate from any individual group&apos;s dashboard.
-        </li>
-        <li>Programs with their own budget and criteria, and the groups enrolled in each.</li>
-        <li>
-          Funding and disbursements — money out to the groups you back, drawn against a budget and held to a second
-          approver.
-        </li>
-        <li>Reports: budget variance across programs, and spend broken down by donor.</li>
-        <li>
-          Organization staff accounts with defined roles, one-time-code sign-in, and an audit trail of what they did.
-        </li>
-        <li>Your own logo and colours on what the organization sends out.</li>
-        <li>Per-group visibility for the organization, per-group privacy for the group&apos;s own members.</li>
+        <li>All your groups and branches under one account.</li>
+        <li>A portfolio dashboard across every group you support.</li>
+        <li>Programmes with their own budget, criteria and enrolled groups.</li>
+        <li>Funding sent to your groups against a budget, with a second approver.</li>
+        <li>Reports: budget vs actual, and spend by donor.</li>
+        <li>Staff roles, one-time-code sign-in, and a record of every action.</li>
+        <li>Your logo and colours on everything you send.</li>
+        <li>You see each group&apos;s progress; members&apos; personal records stay private.</li>
       </ul>
 
-      <h2>Where this is heading</h2>
+      <h2>Coming next</h2>
       <p>
-        API keys and webhooks, for institutions that want to connect Kitabu Yetu into their own systems. The screens are
-        designed but the issuance and delivery backend is not built — so this is genuinely not available yet, and we
-        would rather say so here than let you find out after signing up.
+        Connecting Kitabu Yetu to your own systems. It isn&apos;t available yet — and we&apos;d rather tell you now than
+        after you sign up.
       </p>
 
       <div className="flex flex-wrap gap-3 pt-4">
@@ -83,7 +70,7 @@ export default function EnterpriseSolutionsPage() {
           href={ROUTES.contact}
           className="rounded-md border border-brand-100 px-5 py-2.5 text-sm font-semibold !text-finanza-dark transition-colors hover:bg-brand-50/60"
         >
-          Talk to us about Enterprise
+          Book a demo
         </Link>
         <Link
           href={ROUTES.orgPortal}

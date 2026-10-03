@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { Container } from '@/components/Container';
 import { btnOnPrimary, patternBandStyle } from '@/components/marketing/finanza';
 import { signUpUrl } from '@/lib/app-links';
+import { PLAN_MONTHLY_FEES } from '@/types/enums';
 
 interface CtaAction {
   text: string;
@@ -27,11 +28,11 @@ interface CtaProps {
  */
 export const Cta = (props: Readonly<CtaProps>) => {
   const {
-    title = "Ready to bring your group's records together?",
-    subtitle = 'Pay by M-Pesa, from KES 150 a month, with no lock-in period.',
+    title = 'Your next meeting, with the books already balanced.',
+    subtitle = `From KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter} a month, paid by M-Pesa. No contract.`,
     note,
     footnote,
-    primary = { text: 'Get Started', href: signUpUrl() },
+    primary = { text: 'Start your group book', href: signUpUrl('kitabu_yetu') },
     secondary,
   } = props;
 

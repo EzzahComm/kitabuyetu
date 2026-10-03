@@ -65,31 +65,31 @@ export default function BookkeeperPage() {
               Bookkeeper
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
-              The group book that keeps every shilling <em className="not-italic text-brand-500">visible</em>.
+              Every shilling. Every member. <em className="not-italic text-brand-500">One book.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
-              Move from notebooks and spreadsheets to a double-entry record for members, contributions, savings, loans,
-              welfare, shares and M-Pesa.
+              Replace the notebook with books that always balance — contributions, loans, welfare and shares, with
+              M-Pesa recorded for you.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <Link
                 href={signUpUrl('kitabu_yetu')}
                 className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                Start with Bookkeeper
+                Start your group book
               </Link>
               <Link
                 href="/how-it-works"
                 className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                See how it works
+                See it in action
               </Link>
             </div>
           </div>
         </Container>
 
-        <SectionTitle preTitle="Features" title="Everything for managing a group's finances">
-          A complete system for members, money, contributions, loans and reporting.
+        <SectionTitle preTitle="Features" title="Everything your treasurer needs">
+          Members, money, loans and reports — in one place.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -110,8 +110,8 @@ export default function BookkeeperPage() {
 
         <Benefits data={manageMoney} />
 
-        <SectionTitle preTitle="Pricing" title="Simple, transparent pricing">
-          SMS included in every plan. Start small, grow with us.
+        <SectionTitle preTitle="Pricing" title="One price for the whole group">
+          Not per member. SMS included. Pay monthly by M-Pesa.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -160,7 +160,7 @@ export default function BookkeeperPage() {
             ))}
           </div>
           <p className="mt-6 text-center text-sm text-finanza-text">
-            Every plan is paid and bought self-service by M-Pesa. See{' '}
+            Buy any plan yourself by M-Pesa. See{' '}
             <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
               full pricing
             </Link>{' '}
@@ -169,7 +169,9 @@ export default function BookkeeperPage() {
         </Container>
 
         <Container className="mb-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">Who uses Bookkeeper?</h2>
+          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">
+            Built for every kind of group
+          </h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {useCases.map((useCase) => (
               <div
@@ -190,21 +192,20 @@ export default function BookkeeperPage() {
               <IconPhone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
               <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
-                Bookkeeper plans include Safaricom Daraja integration — PayBill collections, STK prompts and B2C
-                payouts.
+                M-Pesa is included on every plan. Money in, money out — recorded automatically.
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-3">
                 <div>
                   <p className="mb-2 font-semibold text-brand-400">Collections</p>
-                  <p className="text-sm text-white/65">PayBill and STK push to member phones</p>
+                  <p className="text-sm text-white/65">A payment prompt or your PayBill</p>
                 </div>
                 <div>
                   <p className="mb-2 font-semibold text-brand-400">Matching</p>
-                  <p className="text-sm text-white/65">Payments matched to members by membership number</p>
+                  <p className="text-sm text-white/65">Linked to the right member automatically</p>
                 </div>
                 <div>
                   <p className="mb-2 font-semibold text-brand-400">Payouts</p>
-                  <p className="text-sm text-white/65">Loans, welfare and dividends by B2C</p>
+                  <p className="text-sm text-white/65">Loans, welfare and dividends to M-Pesa</p>
                 </div>
               </div>
             </div>
@@ -212,11 +213,11 @@ export default function BookkeeperPage() {
         </Container>
 
         <Cta
-          title="Ready to digitize your group?"
-          subtitle="Bring your members, money and records together."
-          note="Not sure where to start? Tell us about your group and we'll recommend the right plan."
-          footnote="No lock-in period · Pay by M-Pesa · Built for Kenyan groups"
-          primary={{ text: 'Get started with Bookkeeper', href: signUpUrl('kitabu_yetu') }}
+          title="Your next meeting, with the books already balanced."
+          subtitle="Set up in minutes. Bring your old records with you."
+          note="Not sure which plan? We'll recommend one."
+          footnote="Month to month · Pay by M-Pesa · Cancel anytime"
+          primary={{ text: 'Start your group book', href: signUpUrl('kitabu_yetu') }}
           secondary={{ text: 'Talk to us', href: '/contact' }}
         />
       </main>
@@ -228,61 +229,56 @@ export default function BookkeeperPage() {
 const coreFeatures = [
   {
     title: 'Member register',
-    description:
-      'Names, contacts, roles, status and membership history. One source of truth for who is in the group and what they owe.',
+    description: 'Who’s in, their role, and what each has paid and owes.',
     icon: <IconUsers size={24} />,
   },
   {
     title: 'Financial tracking',
-    description:
-      'Contributions, savings, loans, welfare, shares, dividends, investments and expenses, all posting to one double-entry ledger that has to balance.',
+    description: 'Savings, loans, welfare, shares, investments and expenses — in books that always balance.',
     icon: <IconCash size={24} />,
   },
   {
     title: 'M-Pesa integration',
-    description:
-      'PayBill collections, STK push, payment matching and reconciliation. A payment that cannot be matched waits in a queue for a human rather than being guessed at.',
+    description: 'Payments matched to members automatically. Anything unclear waits for an official — never guessed.',
     icon: <IconPhone size={24} />,
   },
   {
     title: 'Reporting',
-    description:
-      'Trial balance, income statement, balance sheet and member statements — generated from the ledger, not re-keyed into a spreadsheet.',
+    description: 'Member statements, income and balance sheets — ready in minutes, never retyped.',
     icon: <IconFileText size={24} />,
   },
   {
     title: 'Loan management',
-    description:
-      'Applications, approvals, disbursement, repayment schedules, interest and arrears, with the repayment posting back to the same books.',
+    description: 'Apply, approve, pay out and track repayments, interest and arrears.',
     icon: <IconTrendingUp size={24} />,
   },
   {
-    title: 'Access control and audit trail',
+    title: 'Roles and a record of every change',
     description:
-      "Every group's data is isolated by row-level security in the database, roles decide who can see and do what, and money actions leave an audit trail.",
+      'Your data is private to your group, officials see only what their role allows, and every change is recorded.',
     icon: <IconLock size={24} />,
   },
 ];
 
 const manageMoney = {
-  title: 'Manage your money with confidence',
-  desc: 'From the first member to the first dividend, everything your group needs to keep an account it can defend.',
+  title: 'Records your members can trust',
+  desc: 'From the first member to the first dividend.',
   image: PHOTOS.vslaRecords.src,
   imageAlt: PHOTOS.vslaRecords.alt,
   bullets: [
     {
       title: 'Members and their money',
-      desc: 'One register of members with their roles, contact information, membership history and complete financial activity.',
+      desc: 'Every member’s role, contacts and full payment history.',
       icon: <IconUsers size={24} />,
     },
     {
       title: 'M-Pesa in and out',
-      desc: 'PayBill and STK collections post against the right member; loans, welfare and dividends go out by B2C.',
+      desc: 'Payments land on the right member; payouts go straight to M-Pesa.',
       icon: <IconPhone size={24} />,
     },
     {
-      title: 'Close the month off the ledger',
-      desc: 'Statements, trial balance and member reports come straight from the books, and a closed period stops changing.',
+      title: 'Close the month in minutes',
+      desc: 'Statements and reports straight from the books — and closed months can’t be changed.',
       icon: <IconBook size={24} />,
     },
   ],

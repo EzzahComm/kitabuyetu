@@ -29,15 +29,15 @@ export const dynamic = 'force-dynamic';
 const STEPS = [
   {
     title: 'Create it',
-    body: "From your group's account, tell the story, set a target and choose where funds are released to: an M-Pesa number, paybill or till.",
+    body: 'Tell the story, set a target and choose where funds go: an M-Pesa number, PayBill or till.',
   },
   {
-    title: 'We review it',
-    body: 'Kitabu Yetu checks every campaign before it goes public, so donors know it is genuine.',
+    title: 'We check it',
+    body: 'Every campaign is checked before it goes public, so donors know it’s genuine.',
   },
   {
     title: 'Share and release',
-    body: "Donations go to Kitabu Yetu's M-Pesa paybill and show on the page as they arrive; funds are released once two group officials approve and Kitabu Yetu signs off.",
+    body: 'Donations show on the page as they arrive. Funds are released after two officials and Kitabu Yetu approve.',
   },
 ];
 
@@ -67,7 +67,7 @@ export default async function FundraisePage() {
   return (
     <PageShell
       title="Changi$ha"
-      description="Raise money for a cause, a project or a member in need — by M-Pesa, in the open, with every shilling recorded."
+      description="Raise it together. Track every shilling. By M-Pesa, in the open."
       layout="sections"
     >
       <FinanzaSection labelledBy="campaigns-heading" className="pt-4 lg:pt-8">
@@ -100,7 +100,7 @@ export default async function FundraisePage() {
             id="past-heading"
             pill="Past Fundraisers"
             title="What communities have raised"
-            lede="Finished campaigns stay here, with what they raised, so every shilling stays on the record."
+            lede="Finished campaigns stay on record — every shilling."
             className="mb-10 max-w-3xl"
           />
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -136,8 +136,8 @@ export default async function FundraisePage() {
 
       <CtaBand
         title="Raising money for a cause?"
-        subtitle={`No monthly fee to start a campaign. A standard ${CHANGISHA_PRICING.platformFeePct}% platform fee plus the M-Pesa charge, only when you withdraw.`}
-        footnote="Donors pay nothing extra · Every campaign reviewed before it goes live"
+        subtitle={`No monthly fee. ${CHANGISHA_PRICING.platformFeePct}% plus the M-Pesa charge — only when you withdraw.`}
+        footnote="Donors pay nothing extra · Every campaign checked before it goes live"
         showPlanPrices={false}
         primary={{ label: 'Start a campaign', href: '/start-campaign' }}
       />
