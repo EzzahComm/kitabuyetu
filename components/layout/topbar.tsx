@@ -25,7 +25,7 @@ export function TopBar({ onMenuClick }: TopBarProps) {
         <Menu size={20} />
       </button>
 
-      {/* Global search - opens the ⌘K command palette */}
+      {/* Global search — opens the ⌘K command palette */}
       <SearchTrigger variant="dashboard" onOpen={openCommandPalette} placeholder="Search or jump to…" />
 
       <div className="flex items-center gap-3">

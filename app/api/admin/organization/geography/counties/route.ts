@@ -5,7 +5,7 @@ import { organizationGeographyService } from '@/lib/services/organization-geogra
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/organization/geography/counties - county-level coverage
+ * GET /api/admin/organization/geography/counties — county-level coverage
  * rollup (group/member counts, contributions, loan book) across this
  * organization's own linked groups. Organization-axis counterpart to the
  * platform-wide, super_admin-only /api/admin/geography/counties.

@@ -1,8 +1,8 @@
 /**
- * Group bank accounts - settlement destinations. Dual-control on activation:
+ * Group bank accounts — settlement destinations. Dual-control on activation:
  * a bank account can't receive a real settlement sweep until a second
  * officer confirms it (a wrong shortcode/account number here sends real
- * money to the wrong place). Disabling is single-actor - turning a
+ * money to the wrong place). Disabling is single-actor — turning a
  * destination off reduces risk, doesn't need a second officer, matching this
  * codebase's existing precedent for other risk-reducing-only actions.
  */
@@ -69,7 +69,7 @@ export const groupBankAccountsService = {
     });
   },
 
-  /** Second-officer activation (maker-checker) - approver ≠ creator. */
+  /** Second-officer activation (maker-checker) — approver ≠ creator. */
   async activate(ctx: TenantContext, id: string): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
@@ -161,7 +161,7 @@ export const groupBankAccountsService = {
     });
   },
 
-  /** Single-actor - no maker-checker for turning a destination off. */
+  /** Single-actor — no maker-checker for turning a destination off. */
   async disable(ctx: TenantContext, id: string, reason?: string): Promise<GroupBankAccountRow> {
     return withTransaction(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(
@@ -212,7 +212,7 @@ export const groupBankAccountsService = {
     });
   },
 
-  /** Active bank accounts only - the set a settlement can actually target. */
+  /** Active bank accounts only — the set a settlement can actually target. */
   async listActive(ctx: TenantContext): Promise<GroupBankAccountRow[]> {
     return withDb(ctx, async (db) => {
       const { rows } = await db.query<GroupBankAccountRow>(

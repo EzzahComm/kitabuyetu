@@ -13,19 +13,19 @@ export const metadata: Metadata = marketingMetadata({
 
 /**
  * The public pitch for the Enterprise portal at ROUTES.orgPortal
- * ('/enterprise'). That path is the real, logged-in product - this page is
+ * ('/enterprise'). That path is the real, logged-in product — this page is
  * where a prospect lands first, since an unauthenticated visitor hitting
  * '/enterprise' directly would only see a sign-in screen, not a description
  * of what they're signing in to.
  *
  * The "live today" list below was three bullets until 2026-08-27, while nine
- * real screens were already shipping - it named funding management and
+ * real screens were already shipping — it named funding management and
  * reporting as future work when both were built. Every bullet now maps to a
  * screen in `app/(enterprise)/enterprise/` backed by one of the 35 live
  * `/api/admin/organization*` routes.
  *
  * APIs and webhooks stay under "where this is heading", and that is NOT
- * caution - the `api-keys` screen is a mock that imports seed rows from
+ * caution — the `api-keys` screen is a mock that imports seed rows from
  * `_data`, with no issuance or delivery backend behind it. Do not promote it
  * on the strength of the screen existing.
  */
@@ -34,7 +34,7 @@ export default function EnterpriseSolutionsPage() {
     <PageShell title="Enterprise" description="Every group you support. One dashboard. Each group keeps its own book.">
       <p>
         NGOs, federations and SACCO networks support dozens of groups, each with its own officers and its own books.
-        Enterprise gives you one login and a live view across all of them - without mixing anyone&apos;s books.
+        Enterprise gives you one login and a live view across all of them — without mixing anyone&apos;s books.
       </p>
 
       <h2>What you get today</h2>
@@ -51,7 +51,7 @@ export default function EnterpriseSolutionsPage() {
 
       <h2>Coming next</h2>
       <p>
-        Connecting Kitabu Yetu to your own systems. It isn&apos;t available yet - and we&apos;d rather tell you now than
+        Connecting Kitabu Yetu to your own systems. It isn&apos;t available yet — and we&apos;d rather tell you now than
         after you sign up.
       </p>
 
@@ -59,7 +59,7 @@ export default function EnterpriseSolutionsPage() {
         <Link
           href="/register-organization"
           // !text-white: PageShell's prose wrapper sets `[&_a]:text-brand-500`
-          // on every link, which - being a two-part selector - outranks a
+          // on every link, which — being a two-part selector — outranks a
           // plain `text-white` utility and silently repaints this button's
           // text blue-on-blue.
           className="rounded-md bg-brand-600 px-5 py-2.5 text-sm font-semibold !text-white transition-colors hover:bg-brand-700"

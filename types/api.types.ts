@@ -56,15 +56,15 @@ export interface LoginResponse {
     groupName: string;
     // ── Phase A additions: human-readable IDs + shared identity ──
     groupCode?: string; // e.g. KY0000003
-    memberCode?: string; // e.g. KY000000300001 (internal/regulatory - never a payment id)
-    membershipNo?: string; // e.g. BG102534 - the ONLY public payment identifier (Phase 1)
+    memberCode?: string; // e.g. KY000000300001 (internal/regulatory — never a payment id)
+    membershipNo?: string; // e.g. BG102534 — the ONLY public payment identifier (Phase 1)
     personId?: string; // cross-group identity (person table)
     officerRole?: string; // formal governance role from group_officers (chair/sec/treas/etc.)
     // ── Phase D Part 2: group lifecycle ──
     groupStatus?: string; // 'pending_verification' | 'active' | …
     // RBAC permission activation frontend rollout (UX_UI_OPTIMIZATION_AUDIT_2026-08.md
     // Phase 1). Same value already embedded in the signed access token
-    // (AuthContext.permissions) - surfaced here too so client components can
+    // (AuthContext.permissions) — surfaced here too so client components can
     // gate UI without decoding the JWT. Stale only across a bare token
     // refresh (refresh/route.ts returns no member object at all); a fresh
     // login or group switch always re-syncs it.
@@ -92,7 +92,7 @@ export function isGroupSelectionNeeded(r: LoginResult): r is NeedsGroupSelection
 }
 
 // Backoffice login (super_admin / support / organization_coordinator). No group
-// context - these accounts operate cross-tenant or Organization-scoped.
+// context — these accounts operate cross-tenant or Organization-scoped.
 export interface AdminLoginResponse {
   accessToken: string;
   refreshToken: string;
@@ -114,7 +114,7 @@ export interface AdminLoginResponse {
 export interface AdminLoginEnrollmentChallenge {
   needsMfaEnrollment: true;
   challenge: string; // short-lived JWT (5 min)
-  secret: string; // base32 - shown so user can paste manually
+  secret: string; // base32 — shown so user can paste manually
   qrCodeDataUrl: string; // PNG data URL for inline rendering
   recoveryCodes: string[]; // 10 codes; shown ONCE, never returned again
   accountLabel: string; // e.g. "alice@kitabuyetu.co.ke"
@@ -131,7 +131,7 @@ export interface AdminLoginMfaChallenge {
 // Returned by /admin/login/verify when the member is active staff at more
 // than one organization (multi-staff organizations, migration 101). The
 // client shows an org chooser and re-submits the same challenge + code
-// along with `organizationId` - mirrors NeedsGroupSelection's shape/flow
+// along with `organizationId` — mirrors NeedsGroupSelection's shape/flow
 // on the consumer /login side.
 export interface NeedsOrgSelection {
   needsOrgSelection: true;
@@ -142,7 +142,7 @@ export interface NeedsOrgSelection {
   }>;
 }
 
-// Step 1 (/admin/login) can never return NeedsOrgSelection - only step 2
+// Step 1 (/admin/login) can never return NeedsOrgSelection — only step 2
 // (/admin/login/verify, after the member is identified) can, so this stays
 // a narrower, separate union rather than folding NeedsOrgSelection in here.
 export type AdminLoginResult = AdminLoginEnrollmentChallenge | AdminLoginMfaChallenge | AdminLoginResponse;
@@ -174,7 +174,7 @@ export interface MembershipSwitcherItem {
 
 export interface RefreshResponse {
   accessToken: string;
-  /** Rotated refresh token (§15.3) - the presented token is consumed; store
+  /** Rotated refresh token (§15.3) — the presented token is consumed; store
    *  this one. Absent only from pre-rotation server responses. */
   refreshToken?: string;
 }
@@ -186,7 +186,7 @@ export interface RefreshResponse {
 // columns (SELECT m.*, PII masked per caller role, password_hash stripped
 // server-side) plus the group_members join fields. Replaces the old
 // `MemberPublic` interface, which described a camelCase mapping no route ever
-// performed - reads against it were silently undefined.
+// performed — reads against it were silently undefined.
 export interface GroupMemberRow {
   id: string;
   phone: string;
@@ -214,7 +214,7 @@ export interface GroupMemberRow {
   /** Present on list rows only (joined from group_members). */
   membership_no?: string | null;
   /**
-   * Present on getById (detail) rows only - server-computed lifetime
+   * Present on getById (detail) rows only — server-computed lifetime
    * aggregates, not a reduction over any paginated page
    * (docs/audits/optimization-2026-09).
    */
@@ -321,7 +321,7 @@ export interface CashFlowStatement {
   netChange: string;
   openingCash: string;
   closingCash: string;
-  /** openingCash + netChange should equal closingCash - false signals unclassified movement. */
+  /** openingCash + netChange should equal closingCash — false signals unclassified movement. */
   reconciles: boolean;
 }
 
@@ -365,7 +365,7 @@ export interface SubscriptionPublic {
   monthlyFee: string;
   smsRate: string;
   maxMembers: number | null;
-  /** Messages included in the plan each period - distinct from purchased credits. */
+  /** Messages included in the plan each period — distinct from purchased credits. */
   smsAllowanceIncluded?: number;
 }
 

@@ -1,6 +1,6 @@
 /**
  * Organization-level chart of accounts and posting engine (migration 085,
- * ACCOUNTING_ARCHITECTURE_AUDIT.md §9 Critical finding) - a parallel ledger
+ * ACCOUNTING_ARCHITECTURE_AUDIT.md §9 Critical finding) — a parallel ledger
  * to the group-scoped accounting.service.ts, not an extension of it.
  */
 import { withDb } from '@/lib/db';

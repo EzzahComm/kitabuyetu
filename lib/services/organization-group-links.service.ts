@@ -3,13 +3,13 @@
  *
  * organization_group_access existed with a bare grant/revoke shape but no
  * application code ever wrote to it (migration 206 added the request/
- * approval lifecycle - status/requested_by/requested_at/reviewed_by/
+ * approval lifecycle — status/requested_by/requested_at/reviewed_by/
  * reviewed_at/rejection_reason). Either side can request; platform admin
  * approval is the only gate, no counter-party consent required.
  *
  * Mirrors campaign-withdrawals.service.ts's platformApprove/platformReject
  * shape (row lock, status check in the WHERE clause, audit_logs row), but
- * without settlement_approvals - that ledger is specific to money flows;
+ * without settlement_approvals — that ledger is specific to money flows;
  * this is a simpler non-financial decision, closer to how
  * ecosystem.service.ts's updateApplicationStatus works.
  */
@@ -52,7 +52,7 @@ async function insertRequest(
   requestedBy: string,
 ): Promise<OrgGroupLinkRow> {
   // Partial unique index (migration 206) rejects a duplicate pending/approved
-  // pair with 23505 - the route layer maps that to a clear "already
+  // pair with 23505 — the route layer maps that to a clear "already
   // requested" message rather than a generic 500.
   const { rows } = await client.query<{ id: string }>(
     `INSERT INTO organization_group_access (organization_id, group_id, requested_by, status, is_active)
@@ -63,7 +63,7 @@ async function insertRequest(
   const { rows: full } = await client.query<OrgGroupLinkRow>(`${ROW_SELECT} WHERE oga.id = $1`, [rows[0].id]);
   const row = full[0];
 
-  // Admin-surfacing alert - wrapped so a notification failure never blocks
+  // Admin-surfacing alert — wrapped so a notification failure never blocks
   // the request itself (same tolerance as every other emitActivity call site).
   try {
     await emitActivity({
@@ -97,7 +97,7 @@ export const organizationGroupLinksService = {
       );
       if (orgs.length === 0) throw new NotFoundError('Organization', organizationName);
       if (orgs.length > 1) {
-        throw new ValidationError('More than one organization matches that name - contact support to link precisely');
+        throw new ValidationError('More than one organization matches that name — contact support to link precisely');
       }
       return insertRequest(client, orgs[0].id, ctx.groupId!, ctx.userId);
     });

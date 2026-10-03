@@ -170,7 +170,7 @@ export default function DividendDetailPage() {
   };
 
   if (declQ.isLoading) {
-    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 - a bare centred spinner gave no
+    // UX_UI_OPTIMIZATION_AUDIT_2026-08.md L2 — a bare centred spinner gave no
     // hint of the shape about to appear; every other list/detail surface in the
     // app uses Skeleton placeholders that match the eventual layout.
     return (
@@ -311,9 +311,9 @@ export default function DividendDetailPage() {
             }
           />
           <Field label="Declared" value={new Date(decl.declared_at).toLocaleString()} />
-          <Field label="Approved" value={decl.approved_at ? new Date(decl.approved_at).toLocaleString() : '-'} />
-          <Field label="Snapshot taken" value={decl.snapshot_at ? new Date(decl.snapshot_at).toLocaleString() : '-'} />
-          <Field label="Paid out" value={decl.paid_at ? new Date(decl.paid_at).toLocaleString() : '-'} />
+          <Field label="Approved" value={decl.approved_at ? new Date(decl.approved_at).toLocaleString() : '—'} />
+          <Field label="Snapshot taken" value={decl.snapshot_at ? new Date(decl.snapshot_at).toLocaleString() : '—'} />
+          <Field label="Paid out" value={decl.paid_at ? new Date(decl.paid_at).toLocaleString() : '—'} />
           {decl.notes && <Field label="Notes" value={decl.notes} />}
           {decl.cancellation_reason && <Field label="Cancellation reason" value={decl.cancellation_reason} />}
         </CardContent>
@@ -326,7 +326,7 @@ export default function DividendDetailPage() {
             <span>{showPreview ? 'Allocation preview (not yet committed)' : 'Allocations'}</span>
             {showPreview && previewQ.data && (
               <span className="text-xs font-normal text-muted-foreground">
-                Pool {fmtMoney(decl.pool_amount)} → {previewQ.data.totalEligibleMembers} member(s) - rounding remainder{' '}
+                Pool {fmtMoney(decl.pool_amount)} → {previewQ.data.totalEligibleMembers} member(s) · rounding remainder{' '}
                 {fmtMoney(previewQ.data.roundingRemainder)}
               </span>
             )}
@@ -341,7 +341,7 @@ export default function DividendDetailPage() {
               error={previewQ.error}
               onPageChange={() => {}}
               emptyIcon={Coins}
-              emptyMessage="No eligible shareholders - at least one member with shares is required before approval."
+              emptyMessage="No eligible shareholders — at least one member with shares is required before approval."
               columns={[
                 {
                   key: 'member',
@@ -500,7 +500,7 @@ export default function DividendDetailPage() {
                           {a.paid_at && <p>{new Date(a.paid_at).toLocaleDateString()}</p>}
                         </>
                       ) : (
-                        '-'
+                        '—'
                       )}
                     </div>
                   ),
@@ -528,7 +528,7 @@ export default function DividendDetailPage() {
         open={approveOpen}
         onOpenChange={setApproveOpen}
         title="Approve & snapshot this declaration?"
-        description={`Locks in the ${fmtMoney(decl.pool_amount)} pool across ${previewQ.data?.totalEligibleMembers ?? decl.total_eligible_members ?? 'the eligible'} shareholder(s) at today's share balances. Allocations are computed and persisted - after this, changes require cancelling the whole declaration.`}
+        description={`Locks in the ${fmtMoney(decl.pool_amount)} pool across ${previewQ.data?.totalEligibleMembers ?? decl.total_eligible_members ?? 'the eligible'} shareholder(s) at today's share balances. Allocations are computed and persisted — after this, changes require cancelling the whole declaration.`}
         confirmLabel="Approve & snapshot"
         onConfirm={onApprove}
       />
@@ -717,7 +717,7 @@ function PayDialog({
           <strong>
             {allocation.member_first_name} {allocation.member_last_name}
           </strong>{' '}
-          - {fmtMoney(allocation.net_amount)}
+          · {fmtMoney(allocation.net_amount)}
         </p>
         <form
           onSubmit={handleSubmit(async (v) => {

@@ -1,5 +1,5 @@
 /**
- * Organization financial ecosystem - wallet, ledger, funding programs and
+ * Organization financial ecosystem — wallet, ledger, funding programs and
  * org → group disbursements (migration 055).
  *
  * Design invariants:
@@ -8,11 +8,11 @@
  *    reconstruct (and audit) the balance.
  *  - A disbursement is DUAL-LEDGER and atomic: org wallet debit + org ledger
  *    row + a balanced, posted journal entry in the receiving group's books
- *    (DR 1001 Cash / CR 4005 External Funding) - all in one transaction.
+ *    (DR 1001 Cash / CR 4005 External Funding) — all in one transaction.
  *  - Access control is layered: routes require the organization_coordinator
  *    role, RLS scopes every table to app_current_organization_id(), and
  *    disbursements additionally require an active organization_group_access
- *    link - an organization can never fund (or see) an unrelated group.
+ *    link — an organization can never fund (or see) an unrelated group.
  */
 import type { PoolClient } from 'pg';
 import crypto from 'crypto';
@@ -26,7 +26,7 @@ import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/erro
 import { logger } from '@/lib/logger';
 // Typed against the validator rather than a hand-written inline shape. A
 // parallel hand-maintained type is exactly what drifted in the client/server
-// contract audit - this way, adding a field to the schema is a compile error
+// contract audit — this way, adding a field to the schema is a compile error
 // here until it is persisted.
 import type { CreateProgramInput, CapitalAdjustmentInput, DisburseInput } from '@/lib/validators/organization.schema';
 
@@ -44,7 +44,7 @@ export interface OrgWallet {
 }
 
 /**
- * One group funded by a program - the Programme tier of the portfolio
+ * One group funded by a program — the Programme tier of the portfolio
  * drill-down. Money is carried as text, not number, for the same reason every
  * other money column in this file is: a NUMERIC(15,2) does not survive a round
  * trip through a JS double intact.
@@ -80,7 +80,7 @@ export interface FundingProgram {
   loss_bearer: string;
   shared_loss_ratio: string | null;
   interest_method: string | null;
-  /** PERCENTAGE (12.50 = 12.5%), matching loans.interest_rate - never a ratio. */
+  /** PERCENTAGE (12.50 = 12.5%), matching loans.interest_rate — never a ratio. */
   interest_rate_annual: string | null;
   repayment_frequency: string;
   grace_period_days: number;
@@ -95,7 +95,7 @@ export interface FundingProgram {
 
 /**
  * A product's capital position. `budget` is a SPENDING AUTHORITY, not a cash
- * balance - actual cash lives once, at organization_wallets. So:
+ * balance — actual cash lives once, at organization_wallets. So:
  *   available = totalCapital - allocated
  */
 export interface ProductBalances {
@@ -116,7 +116,7 @@ export interface ProgramBudgetLine {
   status: string;
   budget: number;
   disbursed: number;
-  /** Held by pending-approval disbursements - committed but not yet settled. */
+  /** Held by pending-approval disbursements — committed but not yet settled. */
   reserved: number;
   remaining: number;
   /** (disbursed + reserved) / budget, as a percentage. */
@@ -156,12 +156,12 @@ export interface OrgDisbursement {
   /** SNAPSHOT from the product at disbursement time (migration 125). */
   processing_fee_pct: string | null;
   processing_fee_amount: string;
-  /** amount - processing_fee_amount - the real cash the group received. */
+  /** amount - processing_fee_amount — the real cash the group received. */
   net_disbursed_amount: string;
   /** How the money physically moved (migration 150). NULL = not recorded,
    *  which is the honest state for every disbursement made before that. */
   payment_method: string | null;
-  /** Cheque number / bank slip - the only artefact a cash or cheque
+  /** Cheque number / bank slip — the only artefact a cash or cheque
    *  hand-over leaves behind. */
   payment_reference: string | null;
 }
@@ -176,15 +176,15 @@ const orgId = (ctx: TenantContext): string => {
  * Row-locks the organization's wallet, creating it first if it doesn't exist.
  *
  * This USED to throw NotFoundError when no wallet row existed, which was a live
- * bug: createOrganization() seeds a chart of accounts but NOT a wallet - only
+ * bug: createOrganization() seeds a chart of accounts but NOT a wallet — only
  * getWallet() creates one, lazily, when someone opens the wallet screen. So an
  * organization's very first deposit() or disburse() failed with "Organization
  * wallet not found" unless a coordinator happened to view that screen first.
  * Found by the real-Postgres CI job while wiring Phase 2a; confirmed against
  * production, where the live organization has no wallet row at all.
  *
- * Bootstrapping is the only sane behaviour here - a wallet is an implementation
- * detail of holding a balance, not a thing a user opts into - so the throwing
+ * Bootstrapping is the only sane behaviour here — a wallet is an implementation
+ * detail of holding a balance, not a thing a user opts into — so the throwing
  * variant is deliberately gone rather than kept alongside this one, so no
  * future caller can pick the footgun by accident.
  */
@@ -242,7 +242,7 @@ async function getProgramForUpdate(db: PoolClient, organizationId: string, progr
  * Audit trail for a capital-authority change.
  *
  * organization_ledger.wallet_id is NOT NULL, so this attaches the org's wallet
- * even though no cash moves - the row records WHICH product's authority
+ * even though no cash moves — the row records WHICH product's authority
  * changed (funding_program_id) and by how much. balance_after is the wallet's
  * unchanged available balance, precisely because capitalization is not a cash
  * event; reading a jump there would be the bug, not the feature.
@@ -271,7 +271,7 @@ async function recordCapitalLedgerEntry(
       parseFloat(wallet.available_balance).toFixed(2),
       program.id,
       input.reference ?? null,
-      input.notes ?? `${verb} - ${program.name}`,
+      input.notes ?? `${verb} — ${program.name}`,
       ctx.userId,
     ],
   );
@@ -285,7 +285,7 @@ interface AllocationTerms {
   firstRepaymentDate: string | null;
   maturityDate: string | null;
   /** SNAPSHOT of the product's processing_fee_pct (migration 125). Independent
-   *  of isRepayable - read below before the non-repayable early return. */
+   *  of isRepayable — read below before the non-repayable early return. */
   processingFeePct: string | null;
 }
 
@@ -302,7 +302,7 @@ const GRANT_TERMS: AllocationTerms = {
 /**
  * Copies a product's repayment terms for stamping onto a new allocation.
  *
- * Read ONCE, at disbursement. The allocation then owns its own terms forever -
+ * Read ONCE, at disbursement. The allocation then owns its own terms forever —
  * repricing a product must never retroactively change what an existing
  * borrower owes, which is why organization_disbursements carries these columns
  * rather than joining back to funding_programs.
@@ -331,7 +331,7 @@ async function snapshotProductTerms(db: PoolClient, fundingProgramId: string | n
   const p = rows[0];
   if (!p) return GRANT_TERMS;
 
-  // processing_fee_pct is independent of is_repayable - a grant can still
+  // processing_fee_pct is independent of is_repayable — a grant can still
   // carry a processing fee, so this is read before (and outside) the
   // non-repayable early return below.
   if (!p.is_repayable) return { ...GRANT_TERMS, processingFeePct: p.processing_fee_pct };
@@ -360,7 +360,7 @@ async function snapshotProductTerms(db: PoolClient, fundingProgramId: string | n
  *
  * THIS IS THE KEYSTONE of the capital layer. Without it, money arriving from an
  * organization is indistinguishable from the group's own savings, so a member
- * loan funded by that money cannot be attributed back - and no organization
+ * loan funded by that money cannot be attributed back — and no organization
  * portfolio reporting is possible.
  *
  * Idempotent via uq_group_funding_sources_allocation (migration 115): calling
@@ -386,7 +386,7 @@ async function createAllocationFundingSource(
   );
 
   const orgName = rows[0]?.org_name ?? 'Organization';
-  const label = rows[0]?.program_name ? `${orgName} - ${rows[0].program_name}` : orgName;
+  const label = rows[0]?.program_name ? `${orgName} — ${rows[0].program_name}` : orgName;
 
   const { rows: existingRows } = await db.query<{ id: string }>(
     `SELECT id FROM group_funding_sources
@@ -445,7 +445,7 @@ async function fetchOrgDisbursement(db: PoolClient, id: string): Promise<OrgDisb
 /**
  * Settles an 'approved' org disbursement: posts the group-side journal, folds
  * the amount into the program budget and the wallet's lifetime total, and
- * releases the reservation hold. Idempotent - only a row still 'approved'
+ * releases the reservation hold. Idempotent — only a row still 'approved'
  * transitions, so calling this twice (e.g. a duplicate approval click) is a
  * safe no-op.
  */
@@ -477,7 +477,7 @@ async function settleOrgDisbursement(id: string): Promise<void> {
 
     // The money has landed in the group's books, so record WHERE it came from.
     // Without this the group cannot later attribute a member loan back to this
-    // organization's capital - see createAllocationFundingSource.
+    // organization's capital — see createAllocationFundingSource.
     await createAllocationFundingSource(db, disb);
 
     if (disb.funding_program_id) {
@@ -524,7 +524,7 @@ async function settleOrgDisbursement(id: string): Promise<void> {
            (group_id, entry_date, reference, description, status, created_by, posted_at)
          VALUES ($1, CURRENT_DATE, $2, $3, 'posted', NULL, NOW())
          RETURNING id`,
-        [disb.group_id, disb.reference, `External funding - ${disb.disbursement_type.replace(/_/g, ' ')}`],
+        [disb.group_id, disb.reference, `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`],
       );
       groupJournalId = je[0].id;
 
@@ -542,18 +542,18 @@ async function settleOrgDisbursement(id: string): Promise<void> {
           JSON.stringify({
             group_id: disb.group_id,
             reference: disb.reference,
-            description: `External funding - ${disb.disbursement_type.replace(/_/g, ' ')}`,
+            description: `External funding — ${disb.disbursement_type.replace(/_/g, ' ')}`,
             status: 'posted',
             amount: disb.net_disbursed_amount,
           }),
         ],
       );
 
-      // entry_date is the journal_lines partition key - supplied directly as
+      // entry_date is the journal_lines partition key — supplied directly as
       // the same CURRENT_DATE literal used for the parent journal_entries row
       // above (a BEFORE INSERT trigger deriving it after Postgres has already
       // routed the row to a partition is unsupported).
-      // net_disbursed_amount (migration 125), not the gross amount - the
+      // net_disbursed_amount (migration 125), not the gross amount — the
       // group's own cash account must reflect what it actually received; a
       // processing fee never reaches the group.
       await db.query(
@@ -586,7 +586,7 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     } else {
       // Never lose the money trail: the disbursement + org ledger still
       // land, and reconciliation surfaces the missing group posting.
-      logger.warn('[org-finance] group journal skipped - chart missing 1001/4005', {
+      logger.warn('[org-finance] group journal skipped — chart missing 1001/4005', {
         groupId: disb.group_id,
       });
     }
@@ -595,7 +595,7 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     // FULL gross amount in committed_balance. At settlement:
     //   - committed_balance releases by the full gross (closes the reservation)
     //   - available_balance gets the fee portion BACK (it never actually left
-    //     the org - retained as income, not disbursed)
+    //     the org — retained as income, not disbursed)
     //   - total_disbursed (lifetime counter) only counts the NET cash that
     //     really went out the door
     // Net effect on available_balance across request+settle: -gross+fee = -net.
@@ -642,14 +642,14 @@ async function settleOrgDisbursement(id: string): Promise<void> {
     );
 
     // Organization's own side of the same transfer: DR 5001 Program
-    // Disbursements / CR 1001 Cash and Bank - completes the dual-ledger
+    // Disbursements / CR 1001 Cash and Bank — completes the dual-ledger
     // transaction whose group-side half was posted above. net_disbursed_amount
     // (migration 125): only the real cash outflow is posted here.
     await postOrgSystemJournal(
       db,
       disb.organization_id,
       null,
-      `Disbursement to group - ${disb.disbursement_type.replace(/_/g, ' ')}`,
+      `Disbursement to group — ${disb.disbursement_type.replace(/_/g, ' ')}`,
       [
         { accountCode: '5001', debit: parseFloat(disb.net_disbursed_amount) },
         { accountCode: '1001', credit: parseFloat(disb.net_disbursed_amount) },
@@ -657,10 +657,10 @@ async function settleOrgDisbursement(id: string): Promise<void> {
       { reference: disb.reference },
     );
 
-    // Processing fee audit trail (migration 125) - entry_type='fee' has
+    // Processing fee audit trail (migration 125) — entry_type='fee' has
     // existed on organization_ledger since migration 116 but was unused until
     // now. Posts no GL journal (that would double-count against the
-    // disbursement journal above) - this row is the audit trail for the fee
+    // disbursement journal above) — this row is the audit trail for the fee
     // that was just credited back to available_balance in the wallet UPDATE
     // above; balance_after is that same post-credit figure.
     if (parseFloat(disb.processing_fee_amount) > 0) {
@@ -678,7 +678,7 @@ async function settleOrgDisbursement(id: string): Promise<void> {
           disb.group_id,
           disb.id,
           disb.reference,
-          `Processing fee retained - ${disb.disbursement_type.replace(/_/g, ' ')}`,
+          `Processing fee retained — ${disb.disbursement_type.replace(/_/g, ' ')}`,
         ],
       );
     }
@@ -792,7 +792,7 @@ export const organizationFinanceService = {
           input.amount.toFixed(2),
           newBalance.toFixed(2),
           input.reference ?? null,
-          input.notes ?? (input.source ? `Deposit - ${input.source}` : 'Deposit'),
+          input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
           ctx.userId,
         ],
       );
@@ -801,7 +801,7 @@ export const organizationFinanceService = {
         db,
         orgId(ctx),
         ctx.userId,
-        input.notes ?? (input.source ? `Deposit - ${input.source}` : 'Deposit'),
+        input.notes ?? (input.source ? `Deposit — ${input.source}` : 'Deposit'),
         [
           { accountCode: '1001', debit: input.amount },
           { accountCode: '4001', credit: input.amount },
@@ -856,12 +856,12 @@ export const organizationFinanceService = {
   },
 
   /**
-   * Groups funded by ONE program - the Programme tier of the portfolio
+   * Groups funded by ONE program — the Programme tier of the portfolio
    * drill-down (Org → Programme → Group → Member).
    *
    * The programme↔group edge is organization_disbursements(funding_program_id,
    * group_id): a group belongs to a programme because money actually moved to
-   * it. A declarative join table is deliberately NOT introduced - for a funding
+   * it. A declarative join table is deliberately NOT introduced — for a funding
    * axis the transfer itself is the truthful relationship, and a second link
    * would be a second source of truth free to drift from the ledger.
    *
@@ -869,7 +869,7 @@ export const organizationFinanceService = {
    * sets it in the same transaction that posts the group journal entry and
    * increments funding_programs.disbursed_total, so SUM(completed) here
    * reconciles with the program header by construction rather than by
-   * coincidence - the two figures render on the same screen. ('returned' and
+   * coincidence — the two figures render on the same screen. ('returned' and
    * 'cancelled' are in the CHECK domain but no code path writes them today;
    * if one ever does, disbursed_total's increment needs the matching reversal
    * before this filter is widened.)
@@ -877,16 +877,16 @@ export const organizationFinanceService = {
    * `reserved` = 'pending_approval', deliberately the SAME definition
    * programBudgetReport uses, so the per-group rows sum to the program-level
    * reserved figure instead of being a third disagreeing bucket on the same
-   * screen. 'approved' is not a bucket here because it is transient -
+   * screen. 'approved' is not a bucket here because it is transient —
    * approveDisbursement sets it and calls settleOrgDisbursement in the next
    * statement, so at rest a row is 'pending_approval' or 'completed'.
    *
    * Per-group figures use correlated subqueries rather than joins: joining
    * group_members onto organization_disbursements fans every disbursement row
-   * across every member row of the same group - the same 99x fan-out class
+   * across every member row of the same group — the same 99x fan-out class
    * fixed in PR #105 and guarded against in getDashboard below.
    *
-   * R10 - the header is required (there is nothing meaningful to degrade to
+   * R10 — the header is required (there is nothing meaningful to degrade to
    * without it), but a failure of the per-group breakdown is reported in
    * `incomplete` rather than rendering absent money as zero.
    */
@@ -898,7 +898,7 @@ export const organizationFinanceService = {
 
     return withDb(ctx, async (db) => {
       // organization_id is bound explicitly even though RLS already scopes this
-      // connection to the coordinator's organization - same belt-and-braces as
+      // connection to the coordinator's organization — same belt-and-braces as
       // listPrograms above, and what R3 asks for: the app-layer check and the
       // policy, not either alone.
       //
@@ -916,7 +916,7 @@ export const organizationFinanceService = {
       let groups: ProgramGroupLine[] = [];
 
       // NOTE: this is the LAST statement in the transaction, which is what makes
-      // catching here safe - a failed statement aborts the enclosing Postgres
+      // catching here safe — a failed statement aborts the enclosing Postgres
       // transaction, so any further query would fail with "current transaction
       // is aborted" regardless of this catch. The read-only COMMIT that follows
       // degrades to a rollback harmlessly. Any FUTURE optional metric added
@@ -960,16 +960,16 @@ export const organizationFinanceService = {
 
   /**
    * Budget variance / utilization report (ACCOUNTING_ARCHITECTURE_AUDIT.md
-   * §14 - "budget variance/utilization reporting" was the audit's Medium
+   * §14 — "budget variance/utilization reporting" was the audit's Medium
    * finding on the otherwise well-built reservation system): per program,
    * budget vs settled disbursements vs amounts reserved under pending
-   * approval, plus - for programs with a start/end date - a schedule
+   * approval, plus — for programs with a start/end date — a schedule
    * variance: actual utilization minus the share of the program window
    * already elapsed (negative = deploying slower than the calendar).
    */
   async programBudgetReport(ctx: TenantContext): Promise<ProgramBudgetLine[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    // Outside the cache wrapper deliberately - evaluated on every call so a
+    // Outside the cache wrapper deliberately — evaluated on every call so a
     // plan change takes effect immediately rather than up to 60s late.
     await withDb(ctx, (db) => assertReportsAccess(db, orgId(ctx)));
     return cached(keys.cache('program-budget', orgId(ctx)), 60, () =>
@@ -1038,7 +1038,7 @@ export const organizationFinanceService = {
   },
 
   /**
-   * Donor/grant-specific spend report (ACCOUNTING_ARCHITECTURE_AUDIT.md §12 -
+   * Donor/grant-specific spend report (ACCOUNTING_ARCHITECTURE_AUDIT.md §12 —
    * "organization_ledger carries funding_program_id and programs carry
    * funding_source, but no endpoint aggregates spend-by-donor into a report").
    * Groups every funding program by its (free-text) `funding_source`, rolling
@@ -1224,7 +1224,7 @@ export const organizationFinanceService = {
   /**
    * Add capital to a product.
    *
-   * `budget` is a SPENDING AUTHORITY, not a pot of cash - actual money lives
+   * `budget` is a SPENDING AUTHORITY, not a pot of cash — actual money lives
    * once, at organization_wallets, and is topped up by deposit(). So this
    * raises what the product is allowed to allocate and records the change in
    * organization_ledger for the audit trail. It deliberately posts NO GL
@@ -1276,7 +1276,7 @@ export const organizationFinanceService = {
    *
    * Refuses to cut `budget` below what has already been allocated. The DB's
    * funding_programs_budget_not_exceeded CHECK would catch this anyway, but as
-   * a raw 23514 - this turns it into a clean ValidationError the UI can show.
+   * a raw 23514 — this turns it into a clean ValidationError the UI can show.
    */
   async decapitalizeProduct(
     ctx: TenantContext,
@@ -1293,7 +1293,7 @@ export const organizationFinanceService = {
 
       if (input.amount > budget - allocated) {
         throw new ValidationError(
-          `Cannot withdraw ${input.amount.toFixed(2)} - only ${(budget - allocated).toFixed(2)} of this product's capital is uncommitted`,
+          `Cannot withdraw ${input.amount.toFixed(2)} — only ${(budget - allocated).toFixed(2)} of this product's capital is uncommitted`,
         );
       }
 
@@ -1326,7 +1326,7 @@ export const organizationFinanceService = {
     });
   },
 
-  /** Capital position per product - the read side of the capitalization flow. */
+  /** Capital position per product — the read side of the capitalization flow. */
   async productBalances(ctx: TenantContext, programId?: string): Promise<ProductBalances[]> {
     await organizationService.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (db) => {
@@ -1405,15 +1405,15 @@ export const organizationFinanceService = {
   /**
    * Org -> group disbursement. Dual control (B2B audit: separation of
    * duties): amounts above the org's disbursement_approval_threshold are
-   * RESERVED (committed_balance) but park in 'pending_approval' - the group
-   * journal is not posted, and the program budget is not consumed - until a
+   * RESERVED (committed_balance) but park in 'pending_approval' — the group
+   * journal is not posted, and the program budget is not consumed — until a
    * DIFFERENT coordinator approves via approveDisbursement(). Amounts at or
    * under the threshold settle immediately under single control, same as
    * before.
    */
   async disburse(
     ctx: TenantContext,
-    // Typed against the validator, not a parallel hand-written shape - the
+    // Typed against the validator, not a parallel hand-written shape — the
     // same drift that bit createProgram when product terms were added.
     input: DisburseInput,
   ): Promise<OrgDisbursement & { needsApproval: boolean }> {
@@ -1467,7 +1467,7 @@ export const organizationFinanceService = {
       const threshold = await getEffectiveThreshold(db, 'org_disbursement_threshold', { organizationId });
       const requiresApproval = input.amount > threshold;
 
-      // 5. Reserve: debit available_balance, hold in committed_balance - the
+      // 5. Reserve: debit available_balance, hold in committed_balance — the
       //    wallet's own reservation column, previously unused. Ledger records
       //    this balance-affecting event now; approval is a pure status
       //    transition (no second balance-affecting entry), rejection posts a
@@ -1512,11 +1512,11 @@ export const organizationFinanceService = {
       //     plain grant with all terms null.
       const terms = await snapshotProductTerms(db, input.fundingProgramId ?? null);
 
-      // 5c. Processing fee (migration 125) - "deducted from what's disbursed".
+      // 5c. Processing fee (migration 125) — "deducted from what's disbursed".
       //     The group's principal (input.amount, below) is unaffected; only
       //     the CASH that actually leaves the wallet at settlement is net.
       //     Reservation itself (step 5 above) still holds the full gross
-      //     amount - conservative, matches the existing approval-pending
+      //     amount — conservative, matches the existing approval-pending
       //     window's behaviour for every other term.
       const feePct = terms.processingFeePct ? parseFloat(terms.processingFeePct) : 0;
       const feeAmount = Math.round(input.amount * feePct) / 100;
@@ -1553,7 +1553,7 @@ export const organizationFinanceService = {
           terms.processingFeePct,
           feeAmount.toFixed(2),
           netDisbursed.toFixed(2),
-          // NULL when not supplied - "not recorded", never an assumed default.
+          // NULL when not supplied — "not recorded", never an assumed default.
           // Guessing a channel would fabricate an audit trail for real money.
           input.paymentMethod ?? null,
           input.paymentReference ?? null,
@@ -1599,7 +1599,7 @@ export const organizationFinanceService = {
           input.groupId,
           disbursement.id,
           reference,
-          input.notes ?? (requiresApproval ? 'Disbursement - reserved, pending approval' : 'Disbursement to group'),
+          input.notes ?? (requiresApproval ? 'Disbursement — reserved, pending approval' : 'Disbursement to group'),
           ctx.userId,
         ],
       );
@@ -1619,7 +1619,7 @@ export const organizationFinanceService = {
     return { ...fresh, needsApproval: fresh.status === 'pending_approval' };
   },
 
-  /** Second-officer approval (maker-checker) - approver ≠ creator. */
+  /** Second-officer approval (maker-checker) — approver ≠ creator. */
   async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisbursement> {
     await organizationService.assertOrganizationCoordinator(ctx);
     const organizationId = orgId(ctx);
@@ -1663,7 +1663,7 @@ export const organizationFinanceService = {
     return withDb(ctx, (db) => fetchOrgDisbursement(db, id));
   },
 
-  /** Reject a pending disbursement - releases the wallet reservation. */
+  /** Reject a pending disbursement — releases the wallet reservation. */
   async rejectDisbursement(ctx: TenantContext, id: string, reason: string): Promise<OrgDisbursement> {
     await organizationService.assertOrganizationCoordinator(ctx);
     const organizationId = orgId(ctx);
@@ -1714,7 +1714,7 @@ export const organizationFinanceService = {
            (organization_id, wallet_id, entry_type, direction, amount, balance_after,
             disbursement_id, reference, description, created_by)
          SELECT $1, $2, 'disbursement', 'credit', $3, $4, id, reference,
-                'Disbursement rejected - reservation released', $5
+                'Disbursement rejected — reservation released', $5
          FROM   organization_disbursements WHERE id = $6`,
         [organizationId, rows[0].wallet_id, rows[0].amount, walletRows[0].available_balance, ctx.userId, id],
       );
@@ -1777,18 +1777,18 @@ export const organizationFinanceService = {
   /**
    * Portfolio dashboard payload.
    *
-   * R10 - the three sections degrade INDEPENDENTLY and a section that could not
+   * R10 — the three sections degrade INDEPENDENTLY and a section that could not
    * be read comes back `null`, never zero-filled. This previously did the exact
    * thing R10 forbids: `Promise.all` meant one failing query took the whole
    * dashboard down, and the row accessors below fell back to `?? '0'`, so a
-   * portfolio query returning no row rendered "Total savings: KES 0" -
+   * portfolio query returning no row rendered "Total savings: KES 0" —
    * indistinguishable on screen from an organization that genuinely holds
    * nothing. A coordinator could reasonably have read that as their groups'
    * money having disappeared.
    *
    * Each section runs in its OWN withDb (rather than sharing one transaction
    * under Promise.allSettled) because a failed statement aborts the enclosing
-   * Postgres transaction - siblings sharing it would fail with "current
+   * Postgres transaction — siblings sharing it would fail with "current
    * transaction is aborted" and the independence would be illusory. The cost is
    * three short pooled reads instead of two; acceptable for a dashboard load,
    * and it is what genuine per-metric isolation requires here.
@@ -1804,7 +1804,7 @@ export const organizationFinanceService = {
   }> {
     await organizationService.assertOrganizationCoordinator(ctx);
 
-    // Shorter TTL than the two report methods below - this payload embeds
+    // Shorter TTL than the two report methods below — this payload embeds
     // the live wallet balance, so a smaller staleness window matters more
     // here than on the report-style views. getWallet is fetched inside the
     // cached closure (not before it) so a cache hit skips that query too.
@@ -1825,7 +1825,7 @@ export const organizationFinanceService = {
              -- directly onto organization_group_access fans every
              -- contribution/repayment row out across every member and loan
              -- row of the same group (and across every OTHER linked group)
-             -- before the SUM runs - same bug class proven live elsewhere
+             -- before the SUM runs — same bug class proven live elsewhere
              -- (admin.service.ts's getGroupById, 99x on a single group;
              -- admin-geography's county rollup, 30x on a whole county).
              WITH linked AS (
@@ -1901,7 +1901,7 @@ export const organizationFinanceService = {
         if (!p) {
           // The aggregate is built over `linked`, so a healthy organization with
           // zero linked groups still returns ONE row (with zeros). No row at all
-          // therefore means the read did not produce an answer - reporting that
+          // therefore means the read did not produce an answer — reporting that
           // as KES 0 is the precise failure R10 exists to prevent.
           logger.error('[organization-finance] getDashboard: portfolio aggregate returned no row');
           incomplete.push('portfolio');

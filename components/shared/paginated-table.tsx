@@ -9,7 +9,7 @@ import { ChevronLeft, ChevronRight, Inbox, AlertTriangle, type LucideIcon } from
 /**
  * Per-column responsive hiding (UX_UI_OPTIMIZATION_AUDIT_2026-08.md M6).
  * Written out as whole static class strings because Tailwind's scanner reads
- * source literally - a built-up `hidden ${bp}:table-cell` would never be
+ * source literally — a built-up `hidden ${bp}:table-cell` would never be
  * emitted into the stylesheet.
  */
 const HIDE_BELOW = {
@@ -21,13 +21,13 @@ const HIDE_BELOW = {
 export interface PaginatedTableColumn<T> {
   key: string;
   // header is React.ReactNode so callers can pass a JSX element (e.g. a
-  // "select all" checkbox in a selection column) - runtime already supports it.
+  // "select all" checkbox in a selection column) — runtime already supports it.
   header: React.ReactNode;
   render?: (row: T) => React.ReactNode;
   className?: string;
   /**
    * Drops this column below the given breakpoint instead of forcing the whole
-   * table into a sideways scroll. Use it for secondary detail only - never for
+   * table into a sideways scroll. Use it for secondary detail only — never for
    * the column that identifies the row, and never for the only copy of a value
    * that appears nowhere else on the screen.
    */
@@ -44,7 +44,7 @@ interface PaginatedTableProps<T> {
   emptyIcon?: LucideIcon;
   /** Supporting line under the empty title. */
   emptyDescription?: string;
-  /** Makes rows clickable (pointer cursor) - e.g. navigate to a detail page. */
+  /** Makes rows clickable (pointer cursor) — e.g. navigate to a detail page. */
   onRowClick?: (row: T) => void;
   /** Pass through a query's isError/error so a fetch failure (or a
    *  permission denial surfaced as a failed request) renders as a real
@@ -153,7 +153,7 @@ export function PaginatedTable<T extends { id: string }>({
       {data && data.totalPages > 1 && (
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Showing {(data.page - 1) * data.pageSize + 1}-{Math.min(data.page * data.pageSize, data.total)} of{' '}
+            Showing {(data.page - 1) * data.pageSize + 1}–{Math.min(data.page * data.pageSize, data.total)} of{' '}
             {data.total}
           </span>
           <div className="flex gap-1">

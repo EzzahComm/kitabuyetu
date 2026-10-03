@@ -8,7 +8,7 @@
  *
  * This test is the CI guard: it fails the build if someone reintroduces
  * member_code (or the retired mpesa_ref) into those surfaces. Admin/backoffice
- * screens and API internals are deliberately out of scope - member_code is
+ * screens and API internals are deliberately out of scope — member_code is
  * allowed there.
  */
 import * as fs from 'fs';
@@ -21,13 +21,13 @@ const ROOT = path.resolve(__dirname, '../../..');
 const SWEPT_DIRS = ['components/pdf', 'emails'];
 
 const FORBIDDEN: Array<{ pattern: RegExp; why: string }> = [
-  { pattern: /member_?code/i, why: 'member_code is internal/regulatory - show the Membership Number instead' },
+  { pattern: /member_?code/i, why: 'member_code is internal/regulatory — show the Membership Number instead' },
   // Snake_case only: camelCase `mpesaRef` legitimately names the M-Pesa
   // RECEIPT number in email props; the dropped column was `mpesa_ref`.
-  { pattern: /mpesa_ref\b/, why: 'mpesa_ref was dropped in migration 056 - the Membership Number replaced it' },
+  { pattern: /mpesa_ref\b/, why: 'mpesa_ref was dropped in migration 056 — the Membership Number replaced it' },
   {
     pattern: /KYT-(CONTR|LOAN|WELF|SHARE|SUB)/,
-    why: 'legacy KYT refs must not be printed on new surfaces - show the Membership Number',
+    why: 'legacy KYT refs must not be printed on new surfaces — show the Membership Number',
   },
 ];
 

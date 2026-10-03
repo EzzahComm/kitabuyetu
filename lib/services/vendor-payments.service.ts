@@ -1,5 +1,5 @@
 /**
- * Vendor payments - a group paying an external supplier via Daraja B2C
+ * Vendor payments — a group paying an external supplier via Daraja B2C
  * (phone) or B2B (paybill/till shortcode + account). Same spine as
  * settlements.service.ts / disbursements.service.ts: reserve → dual-approve
  * → dispatch outside the transaction → settle on callback.
@@ -7,7 +7,7 @@
  * The one thing this flow has that the others don't: a per-row
  * `expense_account_code`, so a group can book each payment to the right
  * expense account rather than everything landing in 5001. It's validated
- * against the group's own active chart AT CREATION TIME - deliberately not
+ * against the group's own active chart AT CREATION TIME — deliberately not
  * deferred to posting time, because by then the money has already left and a
  * bad code would only surface as a silently-skipped journal entry.
  */
@@ -79,7 +79,7 @@ export const vendorPaymentsService = {
       );
       if (existing[0]) return existing[0];
 
-      // Validate the expense account NOW - see the file header for why this
+      // Validate the expense account NOW — see the file header for why this
       // can't wait until the GL posting runs.
       const { rows: acctCheck } = await db.query<{ account_code: string }>(
         `SELECT account_code FROM accounts
@@ -127,7 +127,7 @@ export const vendorPaymentsService = {
         ],
       );
 
-      // Record audit log for vendor payment creation - user-triggered
+      // Record audit log for vendor payment creation — user-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -175,7 +175,7 @@ export const vendorPaymentsService = {
         [id],
       );
 
-      // Record audit log for vendor payment approval - user-triggered
+      // Record audit log for vendor payment approval — user-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -230,7 +230,7 @@ export const vendorPaymentsService = {
         [id, reason],
       );
 
-      // Record audit log for vendor payment rejection - user-triggered
+      // Record audit log for vendor payment rejection — user-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -273,7 +273,7 @@ export const vendorPaymentsService = {
 
 /**
  * Same shape as findStuckDisbursements / findStuckSettlements, including the
- * same requirement to also surface unreconciled 'timed_out' rows - see
+ * same requirement to also surface unreconciled 'timed_out' rows — see
  * findStuckDisbursements' own comment for why this isn't optional once the
  * watchdog can write that status.
  */
@@ -299,7 +299,7 @@ export async function findStuckVendorPayments(): Promise<{
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[vendor-payments] stuck payouts - no result callback received', {
+      logger.error('[vendor-payments] stuck payouts — no result callback received', {
         count: samples.length,
         samples: samples.slice(0, 5),
       });
@@ -334,7 +334,7 @@ async function dispatchVendorPayment(id: string): Promise<void> {
       [id],
     );
 
-    // Record audit log for vendor payment dispatch - system-triggered
+    // Record audit log for vendor payment dispatch — system-triggered
     if (rows[0]) {
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
@@ -365,8 +365,8 @@ async function dispatchVendorPayment(id: string): Promise<void> {
         phone: claimed.payee_phone!,
         amount,
         commandId: 'BusinessPayment',
-        occasion: `Vendor payment - ${claimed.payee_name}`.slice(0, 100),
-        remarks: `Vendor payment - ${claimed.payee_name}`.slice(0, 100),
+        occasion: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
+        remarks: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
       });
       originatorConversationId = res.originatorConversationId;
     } else {
@@ -377,7 +377,7 @@ async function dispatchVendorPayment(id: string): Promise<void> {
         receiverIdentifier: '4',
         commandId: 'BusinessPayBill',
         accountReference: claimed.payee_account!.slice(0, 20),
-        remarks: `Vendor payment - ${claimed.payee_name}`.slice(0, 100),
+        remarks: `Vendor payment — ${claimed.payee_name}`.slice(0, 100),
       });
       originatorConversationId = res.originatorConversationId;
     }
@@ -389,7 +389,7 @@ async function dispatchVendorPayment(id: string): Promise<void> {
       ]),
     );
     // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to vendor
-    // payments - see disbursements.service.ts's dispatchDisbursement for the
+    // payments — see disbursements.service.ts's dispatchDisbursement for the
     // identical pattern). Never blocks/fails a dispatch that already succeeded.
     await triggerDisbursementWatchdog({ kind: 'vendor_payment', rowId: claimed.id });
   } catch (err) {

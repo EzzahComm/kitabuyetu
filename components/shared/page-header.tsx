@@ -13,7 +13,7 @@ interface PageHeaderProps {
   description?: string;
   /** Breadcrumb trail; the last item is rendered as the current page. */
   breadcrumbs?: Crumb[];
-  /** Right-aligned actions - buttons, filters, export menus. */
+  /** Right-aligned actions — buttons, filters, export menus. */
   actions?: React.ReactNode;
   /** Optional content rendered below the header (tabs, filter bar). */
   children?: React.ReactNode;

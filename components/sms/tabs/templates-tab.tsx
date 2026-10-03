@@ -117,8 +117,8 @@ export function TemplatesTab() {
               placeholder="Dear {{first_name}}, your balance is KES {{amount}}."
             />
             <p className="text-xs text-muted-foreground mt-1">
-              {bodySeg.characters} chars - {bodySeg.segments} SMS part{bodySeg.segments > 1 ? 's' : ''}
-              {bodySeg.encoding === 'ucs2' ? ' - unicode' : ''}
+              {bodySeg.characters} chars · {bodySeg.segments} SMS part{bodySeg.segments > 1 ? 's' : ''}
+              {bodySeg.encoding === 'ucs2' ? ' · unicode' : ''}
             </p>
           </div>
           <div className="flex gap-2">
@@ -160,7 +160,7 @@ export function TemplatesTab() {
             key: 'variables',
             header: 'Variables',
             render: (t) => (
-              <span className="text-xs text-muted-foreground">{(t.variables ?? []).join(', ') || '-'}</span>
+              <span className="text-xs text-muted-foreground">{(t.variables ?? []).join(', ') || '—'}</span>
             ),
           },
           {

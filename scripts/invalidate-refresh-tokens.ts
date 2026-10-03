@@ -1,7 +1,7 @@
 /**
- * Release step - invalidate every outstanding refresh token.
+ * Release step — invalidate every outstanding refresh token.
  *
- * Run AFTER migrations 050-052 are applied and the new code is live.
+ * Run AFTER migrations 050–052 are applied and the new code is live.
  *
  *   npx tsx scripts/invalidate-refresh-tokens.ts          # dry run
  *   npx tsx scripts/invalidate-refresh-tokens.ts --commit # actually revoke
@@ -13,7 +13,7 @@
  * recreated RLS policies.
  *
  * What this DOES fix: refresh tokens. POST /auth/refresh re-reads the member's
- * role from group_members, so a client that refreshes gets a correct token -
+ * role from group_members, so a client that refreshes gets a correct token —
  * but only once its old refresh token is gone and it logs in again.
  *
  * What this does NOT fix: already-issued *access* tokens. They are stateless
@@ -22,8 +22,8 @@
  * which a chairperson's requests are denied, or rotate the secret.
  *
  * Two stores are touched:
- *   - Redis `ky:rt:*`   - the authority POST /auth/refresh actually checks.
- *   - refresh_tokens    - audit trail only; stamped so the table doesn't claim
+ *   - Redis `ky:rt:*`   — the authority POST /auth/refresh actually checks.
+ *   - refresh_tokens    — audit trail only; stamped so the table doesn't claim
  *                         tokens are live when Redis has dropped them.
  */
 import { revokeAllRefreshTokens } from '../lib/redis';

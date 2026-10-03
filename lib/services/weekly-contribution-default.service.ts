@@ -1,9 +1,9 @@
 /**
- * Default weekly contribution target (migration 207) - a platform-wide
+ * Default weekly contribution target (migration 207) — a platform-wide
  * baseline (KES 200/week) every group is measured against in the weekly
  * savings-update reminder, even if it never configured its own
  * contribution_plan. Deliberately a SEPARATE domain from contribution_plan
- * (see that service's own header) - this one exists purely to give the
+ * (see that service's own header) — this one exists purely to give the
  * weekly reminder something to compute "outstanding" against for groups
  * that have never set anything themselves.
  *

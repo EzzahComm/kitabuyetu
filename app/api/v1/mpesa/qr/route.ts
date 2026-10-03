@@ -18,7 +18,7 @@ import { ok, handleError } from '@/lib/utils/response';
  *   - Group meeting: project a QR for the day's contribution amount.
  *   - Event collections: per-event QR with a known CPI (paybill/till).
  *
- * NOT a substitute for STK Push - there's no callback flow tied to a QR
+ * NOT a substitute for STK Push — there's no callback flow tied to a QR
  * scan; reconciliation happens via the regular C2B confirmation when the
  * customer's M-Pesa app completes the payment.
  */
@@ -28,7 +28,7 @@ const Schema = z.object({
   /** Whole shillings. 0 lets the customer enter the amount in the M-Pesa app. */
   amount: z.number().int().nonnegative(),
   trxCode: z.enum(['BG', 'PB', 'WA', 'SB', 'SM', 'SS']),
-  /** Paybill / Till / phone - depends on trxCode. */
+  /** Paybill / Till / phone — depends on trxCode. */
   cpi: z.string().min(1).max(20),
   size: z.number().int().positive().max(800).optional(),
 });
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         return handleError(new Error(`Daraja QR error: ${resp.ResponseDescription}`));
       }
 
-      // Persist for audit / reprint. Non-blocking - a logging failure must not
+      // Persist for audit / reprint. Non-blocking — a logging failure must not
       // deny the caller the QR they successfully generated.
       const ctx: TenantContext = {
         userId: auth.userId,

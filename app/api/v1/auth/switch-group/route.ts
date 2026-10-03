@@ -32,12 +32,12 @@ interface TargetRow {
 }
 
 /**
- * POST /api/v1/auth/switch-group - mint a NEW session bound to another of the
+ * POST /api/v1/auth/switch-group — mint a NEW session bound to another of the
  * member's active memberships (payment architecture §8, ADR-11).
  *
  * Sessions are independent lineages: this issues a fresh access + refresh
  * token pair (new lineage) for the target membership and leaves the current
- * session untouched - no revoke-on-switch; revocation is for logout and
+ * session untouched — no revoke-on-switch; revocation is for logout and
  * security events. No password re-entry: the verified access token proves
  * identity; the target membership is validated exactly like login.
  */

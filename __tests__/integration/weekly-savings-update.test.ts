@@ -4,7 +4,7 @@
  *
  * Unlike notify_contribution_reminders (contribution-statement.test.ts), this
  * job is NOT gated on a configured contribution_plan and does NOT exclude
- * members who are caught up - every active member of every active group gets
+ * members who are caught up — every active member of every active group gets
  * a message. Proves: every member is reached regardless of plan; outstanding
  * is computed against the effective weekly target (group override, else the
  * migration-207 platform default) since the later of the member's join date

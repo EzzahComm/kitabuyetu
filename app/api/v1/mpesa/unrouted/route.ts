@@ -4,7 +4,7 @@ import { withPermission } from '@/lib/auth/middleware';
 import { listUnrouted } from '@/lib/services/mpesa.service';
 import { ok, handleError } from '@/lib/utils/response';
 
-/** GET /api/v1/mpesa/unrouted - unresolved receipts awaiting allocation (treasurer+). */
+/** GET /api/v1/mpesa/unrouted — unresolved receipts awaiting allocation (treasurer+). */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {

@@ -7,9 +7,9 @@ import { ok, handleError } from '@/lib/utils/response';
 const Schema = z.object({ token: z.string().min(32).max(128) });
 
 /**
- * POST /api/v1/organization-invitations/confirm-email - public. Marks the
+ * POST /api/v1/organization-invitations/confirm-email — public. Marks the
  * emailed link as used (proves inbox control) and sends the SMS OTP that
- * proves phone control - the second, distinct channel.
+ * proves phone control — the second, distinct channel.
  */
 export async function POST(req: NextRequest): Promise<Response> {
   try {

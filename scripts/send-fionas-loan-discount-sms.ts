@@ -12,7 +12,7 @@
  *
  * Reads the CURRENT schedule for the new figures rather than hardcoding them,
  * so the message states whatever the loan actually says at the moment it runs.
- * Only the OLD instalment is hardcoded - it is what was literally sent on
+ * Only the OLD instalment is hardcoded — it is what was literally sent on
  * 16 Aug (verified against sms_usage_logs), and it no longer exists anywhere
  * in the database to be read back.
  *
@@ -29,7 +29,7 @@ const SEND = process.argv.includes('--send');
 
 /**
  * The instalment each borrower was quoted on 2026-08-16, keyed by membership
- * number rather than first name - a name is not unique and not stable, an
+ * number rather than first name — a name is not unique and not stable, an
  * account number is both, and it is also what the member pays against.
  *
  * Verified verbatim against the sent messages in sms_usage_logs.
@@ -91,7 +91,7 @@ async function main() {
   });
 
   if (rows.length !== 4) {
-    throw new Error(`Expected 4 disbursed loans, found ${rows.length} - refusing`);
+    throw new Error(`Expected 4 disbursed loans, found ${rows.length} — refusing`);
   }
 
   const money = (v: number | string) =>
@@ -103,19 +103,19 @@ async function main() {
   const outbound = rows.map((r) => {
     const wasInst = QUOTED_ON_16_AUG[r.membership_no];
     if (wasInst === undefined) {
-      throw new Error(`No 16-Aug quote recorded for ${r.membership_no} (${r.first_name}) - refusing`);
+      throw new Error(`No 16-Aug quote recorded for ${r.membership_no} (${r.first_name}) — refusing`);
     }
     const nowInst = Number(r.first_inst);
     if (!(nowInst > 0)) {
-      throw new Error(`${r.first_name} has no first instalment - schedule missing, refusing`);
+      throw new Error(`${r.first_name} has no first instalment — schedule missing, refusing`);
     }
     // This message calls it a discount. If the figure went UP, that word is a
     // lie and the migration did not do what it was supposed to.
     if (nowInst >= wasInst) {
-      throw new Error(`${r.first_name}: new instalment ${nowInst} is not lower than the quoted ${wasInst} - refusing`);
+      throw new Error(`${r.first_name}: new instalment ${nowInst} is not lower than the quoted ${wasInst} — refusing`);
     }
     if (Number(r.n) !== 12) {
-      throw new Error(`${r.first_name} has ${r.n} instalments, message says 12 - refusing`);
+      throw new Error(`${r.first_name} has ${r.n} instalments, message says 12 — refusing`);
     }
 
     const message =
@@ -136,7 +136,7 @@ async function main() {
   // as a duplicate and returns the EXISTING rows instead of dispatching. The
   // 16 Aug disbursement and correction messages were both sent under that same
   // loan id, so all four borrowers matched, and the script cheerfully reported
-  // "sent" - the status of a message from three weeks ago.
+  // "sent" — the status of a message from three weeks ago.
   //
   // That guard is right for event-driven sends and its own comment says so: a
   // manual send carries no referenceId, "and repeating one is a legitimate act
@@ -153,12 +153,12 @@ async function main() {
     return new Set(rows.map((x) => x.recipient_phone));
   });
 
-  // One phone, one message, one send - never a bulk call, so there is no
+  // One phone, one message, one send — never a bulk call, so there is no
   // phone-to-body mapping that can drift and put Ruth's figures on Fiona's
   // handset.
   for (const { r, message } of outbound) {
     if (alreadySent.has(r.phone)) {
-      console.log(`SKIP  ${r.first_name} ${r.phone} - already has a discount message logged`);
+      console.log(`SKIP  ${r.first_name} ${r.phone} — already has a discount message logged`);
       continue;
     }
     if (!SEND) {
@@ -168,14 +168,14 @@ async function main() {
     const ctx = { groupId: r.group_id, userId: r.member_id, role: 'chairperson' } as TenantContext;
     const logs = await smsService.send(ctx, r.phone, message, 'loan', null);
 
-    // Assert the row is NEW. A returned status alone proves nothing - that is
+    // Assert the row is NEW. A returned status alone proves nothing — that is
     // precisely how the first run looked successful while sending nothing.
     const fresh = logs.filter((l) => l.message_text?.includes('has been discounted from'));
     if (!logs.length) {
-      console.log(`SUPPRESSED ${r.first_name} ${r.phone} - opted out`);
+      console.log(`SUPPRESSED ${r.first_name} ${r.phone} — opted out`);
     } else if (!fresh.length) {
       throw new Error(
-        `${r.first_name}: send() returned ${logs.length} row(s) but none carry this message - ` +
+        `${r.first_name}: send() returned ${logs.length} row(s) but none carry this message — ` +
           'it was deduped again. Refusing to continue and report a send that did not happen.',
       );
     } else {
@@ -187,7 +187,7 @@ async function main() {
     SEND
       ? "\nQueued. A local 401 on placeholder provider creds is expected; production's" +
           ' sms_retry_failed sweep (225 runs/24h, healthy) delivers within minutes.'
-      : '\nDry run only - pass --send to dispatch.',
+      : '\nDry run only — pass --send to dispatch.',
   );
 }
 

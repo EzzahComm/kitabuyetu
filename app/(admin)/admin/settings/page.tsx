@@ -47,11 +47,11 @@ export default function AdminSettingsPage() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <Row label="Name" value={staff ? `${staff.firstName} ${staff.lastName}` : '-'} />
-          <Row label="Email" value={staff?.email ?? '-'} icon={<Mail size={13} className="text-muted-foreground" />} />
+          <Row label="Name" value={staff ? `${staff.firstName} ${staff.lastName}` : '—'} />
+          <Row label="Email" value={staff?.email ?? '—'} icon={<Mail size={13} className="text-muted-foreground" />} />
           <Row
             label="Role"
-            value={staff ? (ROLE_LABELS[staff.platformRole] ?? staff.platformRole) : '-'}
+            value={staff ? (ROLE_LABELS[staff.platformRole] ?? staff.platformRole) : '—'}
             icon={<Shield size={13} className="text-muted-foreground" />}
           />
         </CardContent>
@@ -80,7 +80,7 @@ export default function AdminSettingsPage() {
 
 /**
  * M-Pesa C2B (PayBill) registration. Safaricom exposes no "what's currently
- * registered" read, and nothing in the app re-registers on its own - this is
+ * registered" read, and nothing in the app re-registers on its own — this is
  * the one on-demand control for a class of failure (stale/misconfigured
  * registration) that otherwise fails completely silently: money arrives on
  * the paybill and the app never hears about it.
@@ -95,7 +95,7 @@ function C2BRegistrationCard() {
       onSuccess: (result) => {
         toast({
           title: 'C2B URLs registered with Safaricom',
-          description: result.responseDescription ?? `Response code ${result.responseCode ?? '-'}`,
+          description: result.responseDescription ?? `Response code ${result.responseCode ?? '—'}`,
         });
       },
       onError: (e) => {
@@ -114,7 +114,7 @@ function C2BRegistrationCard() {
       <CardContent className="space-y-3 text-sm">
         <p className="text-muted-foreground">
           Confirmation/Validation URLs registered with Safaricom for PayBill payments. Safaricom has no read API for
-          this - re-register whenever the callback config changes or a paybill payment goes missing.
+          this — re-register whenever the callback config changes or a paybill payment goes missing.
         </p>
         {isLoading ? (
           <p className="text-muted-foreground">Loading…</p>
@@ -151,7 +151,7 @@ function C2BRegistrationCard() {
 }
 
 /**
- * Platform-wide weekly contribution target (migration 207) - every group
+ * Platform-wide weekly contribution target (migration 207) — every group
  * without its own override is measured against this in the weekly
  * savings-update reminder. Separate from contribution_plan's per-group
  * monthly amounts, which stay 0/untracked unless a group explicitly sets one.
@@ -160,7 +160,7 @@ function WeeklyContributionDefaultCard() {
   const { data, isLoading } = useWeeklyContributionDefault();
   const setDefault = useSetWeeklyContributionDefault();
   const { toast } = useToast();
-  // null = untouched by the user - show the loaded value. Once they type,
+  // null = untouched by the user — show the loaded value. Once they type,
   // their own input takes over instead of syncing from `data` via an effect.
   const [draft, setDraft] = useState<string | null>(null);
   const value = draft ?? (data ? String(data.weeklyContribution) : '');

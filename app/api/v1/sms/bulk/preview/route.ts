@@ -6,7 +6,7 @@ import { BulkPreviewSchema } from '@/lib/validators/sms.schema';
 import { ok, badRequest } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/sms/bulk/preview - how many people, and how many credits,
+ * POST /api/v1/sms/bulk/preview — how many people, and how many credits,
  * BEFORE sending (SMS-AUDIT-v3 T3-5 / G28).
  *
  * Both numbers were previously only discoverable after the fact, by which
@@ -16,7 +16,7 @@ import { ok, badRequest } from '@/lib/utils/response';
  * not one.
  *
  * POST rather than GET because the audience payload (up to 5,000 phone
- * numbers) does not belong in a query string or a proxy access log - the same
+ * numbers) does not belong in a query string or a proxy access log — the same
  * reason /sms/bulk is a POST.
  *
  * Read-only: resolves, prices, and returns. Nothing is reserved and nothing is

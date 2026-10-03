@@ -1,12 +1,12 @@
 /**
  * sms_birthday_reminders job (docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md
- * §6/Phase 1 - finishing the half-built birthday SMS feature), against real
+ * §6/Phase 1 — finishing the half-built birthday SMS feature), against real
  * Postgres.
  *
  * Proves the candidate query (opt-in gate + exact-today DOB match) and the
  * reminder_dispatch_log-backed dedup (sendOnce, one send per member per year)
  * actually hold, plus that a member in two opted-in groups gets two
- * separately-billed messages - one per membership, matching how
+ * separately-billed messages — one per membership, matching how
  * loan/contribution reminders already behave.
  */
 import { handleJob } from '@/lib/jobs/handlers';
@@ -54,7 +54,7 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
     [groupId, credits],
   );
   // register_group() already creates an active subscription with a real
-  // starter-plan bundled allowance (sms_allowance_included=50) - UPDATE it
+  // starter-plan bundled allowance (sms_allowance_included=50) — UPDATE it
   // rather than an INSERT ON CONFLICT DO NOTHING, which would silently keep
   // that allowance and have every reservation draw from it first (Phase 2b's
   // allowance-before-paid-credits order), leaving sms_credits (and this
@@ -67,7 +67,7 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
   );
 }
 
-// register_group() leaves a fresh group at status='pending_verification' -
+// register_group() leaves a fresh group at status='pending_verification' —
 // the candidate query (like every other reminder scanner) only considers
 // g.status='active', so tests need this to make the group eligible at all.
 async function activateGroup(groupId: string): Promise<void> {
@@ -104,7 +104,7 @@ describe('sms_birthday_reminders', () => {
   //
   // TRUNCATE, not DELETE: reminder_dispatch_log.job_execution_id is ON DELETE
   // SET NULL, so deleting a job row here UPDATEs the dispatch-log rows this
-  // suite just wrote - and migration 106's append-only trigger rejects any
+  // suite just wrote — and migration 106's append-only trigger rejects any
   // update to a row that reached a terminal status ("is already terminal
   // (sent)"). TRUNCATE bypasses row triggers entirely, which is exactly why
   // scripts/clear-tenant-data.sql uses it too.
@@ -131,7 +131,7 @@ describe('sms_birthday_reminders', () => {
     expect(mockSendSingleSms).toHaveBeenCalledTimes(1);
 
     const currentYear = new Date().getUTCFullYear();
-    // reference_id is the membership row (gm.id), not the bare member id -
+    // reference_id is the membership row (gm.id), not the bare member id —
     // see handleSmsBirthdayReminders's own comment on why. Join through
     // group_members to look the claim up the same way the handler wrote it.
     const [log] = await rawQuery<{ status: string }>(
@@ -150,7 +150,7 @@ describe('sms_birthday_reminders', () => {
     const { groupId, officerId } = await createTestGroup('treasurer');
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
-    // No optInBirthday call - no sms_group_settings row at all for this group.
+    // No optInBirthday call — no sms_group_settings row at all for this group.
     await setBirthdayToday(officerId);
 
     const result = await handleJob(await makeBirthdayJob());
@@ -171,7 +171,7 @@ describe('sms_birthday_reminders', () => {
     await activateGroup(groupId);
     await provisionBilling(groupId, 100);
     await optInBirthday(groupId);
-    // date_of_birth left at register_group's default (1970-01-01) - not today.
+    // date_of_birth left at register_group's default (1970-01-01) — not today.
 
     const result = await handleJob(await makeBirthdayJob());
 
@@ -212,8 +212,8 @@ describe('sms_birthday_reminders', () => {
     await setBirthdayToday(officerId);
 
     // Same member joins the second group too (register_group makes a fresh
-    // member per call; link_member_to_group - migration 098's SECURITY DEFINER
-    // wrapper, the same RPC membersService.create() uses - is the real path
+    // member per call; link_member_to_group — migration 098's SECURITY DEFINER
+    // wrapper, the same RPC membersService.create() uses — is the real path
     // for attaching an EXISTING member to another group, handling the
     // person/group_member_counters bookkeeping a raw group_members INSERT
     // would otherwise violate a NOT NULL constraint on).
@@ -242,7 +242,7 @@ describe('sms_birthday_reminders', () => {
          AND group_id = ANY($2::uuid[])`,
       [`birthday:${currentYear}`, [groupA, groupB]],
     );
-    // Keyed on the membership row (gm.id), not the bare member_id - reminder_
+    // Keyed on the membership row (gm.id), not the bare member_id — reminder_
     // dispatch_log's UNIQUE constraint is (reference_type, reference_id,
     // reminder_stage) with no group_id in the key, so keying on member_id alone
     // would have the second group's claim collide with the first (already

@@ -8,13 +8,13 @@ import { signAccessToken } from '@/lib/auth/jwt';
  * address. The dashboard's own ~10 parallel calls on a single page load,
  * combined with Kenyan mobile carriers commonly putting many subscribers
  * behind one CGNAT address, made that budget easy to exhaust on entirely
- * legitimate traffic - surfacing to real users as "Some dashboard data
+ * legitimate traffic — surfacing to real users as "Some dashboard data
  * couldn't load ... Too many requests."
  *
  * Fix: authenticated tenant/backoffice traffic is now keyed by the JWT's
  * verified `sub` instead of IP (RL_LIMIT_USER, 240/60s); IP-keyed limiting
  * (RL_LIMIT_IP, 120/60s) is reserved for surfaces with no verified identity
- * - anonymous auth endpoints, webhooks, and requests that fail
+ * — anonymous auth endpoints, webhooks, and requests that fail
  * authentication entirely on a protected route.
  *
  * These tests fake the Upstash REST pipeline endpoint with a real in-memory
@@ -70,7 +70,7 @@ describe('proxy: rate limiting keyed by user, not shared IP', () => {
   });
 
   it('gives two different users on the same IP independent budgets', async () => {
-    // Same IP for both - this is exactly the CGNAT / shared-office scenario
+    // Same IP for both — this is exactly the CGNAT / shared-office scenario
     // that used to trip one user's dashboard load against a neighbour's.
     const tokenA = signAccessToken({ sub: 'member-a', groupId: 'group-1', role: 'chairperson' });
     const tokenB = signAccessToken({ sub: 'member-b', groupId: 'group-1', role: 'chairperson' });
@@ -85,7 +85,7 @@ describe('proxy: rate limiting keyed by user, not shared IP', () => {
     const aOver = await proxy(bearerReq('/api/v1/members', tokenA));
     expect(aOver.status).toBe(429); // 241st: over member-a's own budget
 
-    // member-b, same IP, fresh session - untouched by member-a's usage.
+    // member-b, same IP, fresh session — untouched by member-a's usage.
     const bFirst = await proxy(bearerReq('/api/v1/members', tokenB));
     expect(bFirst.status).not.toBe(429);
   });
@@ -117,13 +117,13 @@ describe('proxy: rate limiting keyed by user, not shared IP', () => {
     }
     const res = await proxy(anonReq('/api/v1/members', '41.90.2.2'));
 
-    // Over the IP budget before ever reaching the "missing header" 401 -
+    // Over the IP budget before ever reaching the "missing header" 401 —
     // otherwise a flood of headerless requests against a protected route
     // would face no rate limit from this proxy at all.
     expect(res.status).toBe(429);
   });
 
-  it('does not let unauthenticated floods on one IP consume an authenticated user's own budget', async () => {
+  it('does not let unauthenticated floods on one IP consume an authenticated user’s own budget', async () => {
     // Exhaust the IP bucket with headerless requests against a protected route...
     for (let i = 0; i < 121; i++) {
       await proxy(anonReq('/api/v1/members', '41.90.3.3'));

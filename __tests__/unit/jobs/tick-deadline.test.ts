@@ -2,7 +2,7 @@
  * Job-tick deadline (SMS-AUDIT-v3 G2, pathway T1-1).
  *
  * app/api/cron/route.ts pins maxDuration = 60, which on Vercel's Hobby plan
- * is the hard platform ceiling and cannot be raised - so the audit's original
+ * is the hard platform ceiling and cannot be raised — so the audit's original
  * "raise it to 300" remedy is unavailable and the WORK has to bound itself
  * instead. processJobBatch's 50s budget is only checked before a job is
  * claimed, leaving ~10s for a job that can legitimately run for minutes.
@@ -34,7 +34,7 @@ describe('tick deadline', () => {
 
   it('refuses an iteration that would not fit', () => {
     setTickDeadline(Date.now() + 10_000);
-    // A 21s retry send inside 10s remaining - the case that used to get the
+    // A 21s retry send inside 10s remaining — the case that used to get the
     // invocation killed mid-send, stranding an unresolved sms_failures row
     // whose message the provider may still have accepted.
     expect(tickBudgetExhausted(21_000)).toBe(true);

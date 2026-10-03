@@ -2,7 +2,7 @@
  * Meeting resolution follow-through.
  *
  * `meeting_resolutions.implemented` / `implemented_at` have existed since
- * migration 023 with no write path anywhere in the app - `useAddResolution`
+ * migration 023 with no write path anywhere in the app — `useAddResolution`
  * had zero callers, and nothing ever issued an UPDATE against this table, so
  * a resolution stayed "outstanding" forever and the meetings stats card
  * always read "0 implemented". This is the regression cover for the write
@@ -79,7 +79,7 @@ describe('meetingsService.updateResolution', () => {
     expect(updateSql).toMatch(/implemented_at=NULL/);
   });
 
-  it('derives implemented_at server-side - the client cannot supply it directly', () => {
+  it('derives implemented_at server-side — the client cannot supply it directly', () => {
     // The schema has no `implementedAt` field at all; zod's default (strip)
     // mode drops it silently if a caller sends it, rather than erroring.
     const parsed = UpdateResolutionSchema.safeParse({ implemented: true, implementedAt: '2026-08-01' });

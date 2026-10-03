@@ -3,7 +3,7 @@
 /**
  * Organization → branch disbursements (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
  * Phase 4). Backend (organization-finance.service.ts's disburse/approve/reject/
- * listDisbursements) already existed and is live - this is the first frontend
+ * listDisbursements) already existed and is live — this is the first frontend
  * wiring for it. Maker-checker pattern mirrors app/(dashboard)/mpesa/reallocations:
  * MoneyActionDialog for approve (executes real money movement), a plain reason
  * dialog for reject.
@@ -54,7 +54,7 @@ interface DisbursementRow {
   reference: string;
   notes: string | null;
   created_at: string;
-  /** NULL for anything disbursed before migration 150 - "not recorded". */
+  /** NULL for anything disbursed before migration 150 — "not recorded". */
   payment_method: string | null;
   payment_reference: string | null;
 }
@@ -71,7 +71,7 @@ export default function DisbursementsPage() {
   const [disbursementType, setDisbursementType] = useState<(typeof DISBURSEMENT_TYPES)[number]>('grant');
   const [fundingProgramId, setFundingProgramId] = useState('');
   const [notes, setNotes] = useState('');
-  // '' means "not recorded" and is sent as undefined - never defaulted to a
+  // '' means "not recorded" and is sent as undefined — never defaulted to a
   // channel, because guessing invents an audit trail for real money.
   const [paymentMethod, setPaymentMethod] = useState<'' | (typeof PAYMENT_METHODS)[number]>('');
   const [paymentReference, setPaymentReference] = useState('');
@@ -86,7 +86,7 @@ export default function DisbursementsPage() {
     queryFn: () => organizationApi.wallet(),
     staleTime: 30_000,
   });
-  // { limit: 200 }, not the bare groups() call Portfolio/Branches use - a
+  // { limit: 200 }, not the bare groups() call Portfolio/Branches use — a
   // different params object, so it gets a different cache key rather than
   // colliding with theirs (see enterpriseKeys.groups' header comment).
   const { data: groupsPage } = useQuery({
@@ -155,7 +155,7 @@ export default function DisbursementsPage() {
         paymentReference: paymentReference.trim() || undefined,
       });
       toast({
-        title: res.needsApproval ? 'Disbursement submitted - awaiting a second officer' : 'Disbursement sent',
+        title: res.needsApproval ? 'Disbursement submitted — awaiting a second officer' : 'Disbursement sent',
       });
       setCreating(false);
       resetForm();
@@ -197,7 +197,7 @@ export default function DisbursementsPage() {
     setBusy(true);
     try {
       await organizationApi.disbursementAction(rejecting.id, { action: 'reject', reason: rejectReason.trim() });
-      toast({ title: 'Disbursement rejected - reservation released' });
+      toast({ title: 'Disbursement rejected — reservation released' });
       setRejecting(null);
       setRejectReason('');
       await Promise.all([refresh(), refreshWallet()]);
@@ -258,7 +258,7 @@ export default function DisbursementsPage() {
             header: 'Branch',
             render: (r) => (
               <div>
-                <p className="font-medium text-foreground">{r.group_name ?? '-'}</p>
+                <p className="font-medium text-foreground">{r.group_name ?? '—'}</p>
                 <p className="text-xs text-muted-foreground">{r.reference}</p>
               </div>
             ),
@@ -266,7 +266,7 @@ export default function DisbursementsPage() {
           {
             key: 'program',
             header: 'Program',
-            render: (r) => <span className="text-muted-foreground">{r.program_name ?? '-'}</span>,
+            render: (r) => <span className="text-muted-foreground">{r.program_name ?? '—'}</span>,
           },
           {
             key: 'type',
@@ -282,7 +282,7 @@ export default function DisbursementsPage() {
             render: (r) => <MoneyDisplay amount={parseFloat(r.amount)} size="sm" />,
           },
           {
-            // "Not recorded" is shown plainly rather than blank - a dash reads
+            // "Not recorded" is shown plainly rather than blank — a dash reads
             // as "no data available", when the real meaning is that nobody
             // captured how the money moved.
             key: 'paid_by',
@@ -291,7 +291,7 @@ export default function DisbursementsPage() {
               r.payment_method ? (
                 <span className="text-muted-foreground">
                   {PAYMENT_METHOD_LABELS[r.payment_method as (typeof PAYMENT_METHODS)[number]] ?? r.payment_method}
-                  {r.payment_reference ? ` - ${r.payment_reference}` : ''}
+                  {r.payment_reference ? ` · ${r.payment_reference}` : ''}
                 </span>
               ) : (
                 <span className="text-xs italic text-muted-foreground/70">Not recorded</span>
@@ -411,7 +411,7 @@ export default function DisbursementsPage() {
                 <AlertTitle>Processing fee applies</AlertTitle>
                 <AlertDescription>
                   Branch receives <strong>KES {netPreview.toLocaleString()}</strong> in cash (KES{' '}
-                  {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) - the branch still owes the
+                  {parsedAmountPreview.toLocaleString()} minus the {feePct}% processing fee) — the branch still owes the
                   full KES {parsedAmountPreview.toLocaleString()} as principal. Enter a larger amount if you need a
                   specific net figure to reach the branch.
                 </AlertDescription>
@@ -438,7 +438,7 @@ export default function DisbursementsPage() {
                 ))}
               </select>
               <p className="text-xs text-muted-foreground">
-                Cash and cheque leave no receipt of their own - recording it here is the only trace.
+                Cash and cheque leave no receipt of their own — recording it here is the only trace.
               </p>
             </div>
             {/* Cash has no number to capture, so the field only appears for the
@@ -473,7 +473,7 @@ export default function DisbursementsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Approve - executes the money move immediately */}
+      {/* Approve — executes the money move immediately */}
       {approving && (
         <MoneyActionDialog
           open={!!approving}
@@ -481,12 +481,12 @@ export default function DisbursementsPage() {
           title="Approve this disbursement?"
           amount={parseFloat(approving.amount)}
           details={[
-            { label: 'Branch', value: approving.group_name ?? '-' },
-            { label: 'Program', value: approving.program_name ?? '-' },
+            { label: 'Branch', value: approving.group_name ?? '—' },
+            { label: 'Program', value: approving.program_name ?? '—' },
             { label: 'Type', value: approving.disbursement_type.replace(/_/g, ' ') },
             { label: 'Reference', value: approving.reference },
           ]}
-          warning="Approving sends the funds immediately - the wallet balance and the branch's own ledger both update."
+          warning="Approving sends the funds immediately — the wallet balance and the branch's own ledger both update."
           confirmLabel="Approve & send"
           onConfirm={() => approve(approving)}
         />

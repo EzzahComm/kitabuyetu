@@ -6,12 +6,12 @@
  * Before this, sendBulkCampaign took ONE message string and handed the same
  * text to every recipient, so a campaign written with {{first_name}} delivered
  * that placeholder literally. The provider's bulk endpoint has always carried
- * an independent `message` per `mobile` (textsms.service.ts's BulkSmsItem) -
+ * an independent `message` per `mobile` (textsms.service.ts's BulkSmsItem) —
  * what was missing was the phone→member mapping to render against.
  *
  * Driven through handleJob('sms_bulk_send') rather than calling
  * sendBulkCampaign directly, because the wiring under test is precisely that
- * the job handler - the one point all four bulk paths funnel through -
+ * the job handler — the one point all four bulk paths funnel through —
  * resolves the vars at all. Asserts on the items handed to the provider AND
  * on sms_usage_logs.message_text, since the stored copy is the only record of
  * what a given number was actually sent.
@@ -59,7 +59,7 @@ async function provisionBilling(groupId: string): Promise<void> {
      ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`,
     [groupId],
   );
-  // register_group() already created an active subscription - UPDATE it rather
+  // register_group() already created an active subscription — UPDATE it rather
   // than INSERT ... ON CONFLICT DO NOTHING, which would leave the starter
   // plan's bundled allowance in place and change which pool is drawn from.
   await rawQuery(
@@ -118,7 +118,7 @@ function dispatchedByPhone(): Map<string, string> {
 }
 
 describe('bulk SMS per-recipient personalization', () => {
-  // resetDatabase() clears job_queue, but only at the START of each test - the
+  // resetDatabase() clears job_queue, but only at the START of each test — the
   // final test's row would outlive this file. job-stuck-sweep.test.ts asserts
   // on resetStuckJobs()'s whole-table counts, so a leaked 'processing' row
   // joins its tally the moment it ages past the sweep threshold.
@@ -158,7 +158,7 @@ describe('bulk SMS per-recipient personalization', () => {
     expect(dispatched.get(amina)).toBe('Hi Amina, dues are due Friday.');
     expect(dispatched.get(brian)).toBe('Hi Brian, dues are due Friday.');
 
-    // The stored copy must match the delivered copy, not the raw template -
+    // The stored copy must match the delivered copy, not the raw template —
     // sms_usage_logs is the only record of what each number received.
     const stored = await sentTextByPhone(groupId);
     expect(stored.get(amina)).toBe('Hi Amina, dues are due Friday.');
@@ -174,7 +174,7 @@ describe('bulk SMS per-recipient personalization', () => {
     const phone = '254711000003';
     await addNamedMember(groupId, officerId, 'Amina', 'Hassan', phone);
 
-    // /sms/campaign's immediate send enqueues input.message verbatim - unlike
+    // /sms/campaign's immediate send enqueues input.message verbatim — unlike
     // the scheduler, it has never pre-rendered group-level vars, so this is
     // the handler resolving them on its own.
     await handleJob(
@@ -220,7 +220,7 @@ describe('bulk SMS per-recipient personalization', () => {
     const phone = '254711000005';
     await addNamedMember(groupId, officerId, 'Amina', 'Hassan', phone);
 
-    // stripUnresolved() collapses runs of whitespace and trims - applying it
+    // stripUnresolved() collapses runs of whitespace and trims — applying it
     // unconditionally would silently reflow an ordinary campaign body that has
     // nothing to render. personalize() short-circuits on messages with no
     // '{{' precisely so this stays untouched.

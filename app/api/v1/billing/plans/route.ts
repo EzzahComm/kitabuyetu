@@ -15,7 +15,7 @@ import {
 import { ok } from '@/lib/utils/response';
 import { getUnitPrice } from '@/lib/services/sms-pricing.service';
 
-/** ?product= - defaults to kitabu_yetu, so the existing billing page is unchanged. */
+/** ?product= — defaults to kitabu_yetu, so the existing billing page is unchanged. */
 function readProduct(req: NextRequest): SubscriptionProduct {
   const raw = req.nextUrl.searchParams.get('product');
   return raw === 'chama_reminder' ? 'chama_reminder' : DEFAULT_PRODUCT;
@@ -42,7 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     // Mapped to the declared SubscriptionPublic shape rather than returned
     // raw. `sub` is the snake_case DB row, but the client contract
     // (types/api.types.ts SubscriptionPublic, which lib/api/endpoints.ts's
-    // billingApi.plans declares) is camelCase - so `current.planType` was
+    // billingApi.plans declares) is camelCase — so `current.planType` was
     // ALWAYS undefined and useCurrentPlanSummary reported "No active plan"
     // even for a group with a live, paid subscription. Reported in
     // production immediately after a real KES 150 Starter purchase.
@@ -51,7 +51,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     // declared wire contract, and the raw row also carries internals
     // (group_id, payment_id, cancel_reason) that have no business being
     // sent to a browser. Exactly the failure mode
-    // CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md documents - a client interface
+    // CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md documents — a client interface
     // that does not match the wire suppresses the very error it pretends to
     // prevent.
     const current = sub
@@ -78,7 +78,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 /**
  * Claim a completed M-Pesa payment and activate the plan it bought.
  *
- * This endpoint used to activate any plan outright - `billing.manage` was the
+ * This endpoint used to activate any plan outright — `billing.manage` was the
  * only gate, so a chairperson could reach `enterprise` with no money moving.
  * The billing page ran an STK push first, but that ordering was purely
  * client-side and unverified here.
@@ -86,7 +86,7 @@ export async function GET(req: NextRequest): Promise<Response> {
  * Now the server finds a completed, unconsumed subscription payment for this
  * group and plan, and refuses if there isn't one. The M-Pesa callback also
  * activates on its own, so this is really a fast path for the client that just
- * watched its own payment succeed rather than the primary mechanism - both
+ * watched its own payment succeed rather than the primary mechanism — both
  * converge on activateSubscriptionForPayment(), which is exactly-once per
  * payment, so whichever loses the race simply finds the plan already active.
  */

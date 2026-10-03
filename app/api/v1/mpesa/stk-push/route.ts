@@ -9,7 +9,7 @@ import { ok } from '@/lib/utils/response';
 export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, (auth) =>
     // Idempotency-Key (§13): a client retry with the same key returns the
-    // original response - never a second prompt on the member's phone.
+    // original response — never a second prompt on the member's phone.
     withIdempotencyKey(req, auth.userId, 'stk-push', async () => {
       const body = await req.json();
       const input = StkPushSchema.parse(body);

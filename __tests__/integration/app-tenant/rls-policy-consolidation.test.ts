@@ -3,12 +3,12 @@
  * F1): 21 tables had their "select + FOR ALL" policy pair split into
  * "select + insert + update + delete" to stop Postgres from redundantly
  * evaluating two permissive policies on every SELECT. None of these 25
- * tables had any RLS-enforcement coverage before this file - every existing
+ * tables had any RLS-enforcement coverage before this file — every existing
  * test either used the BYPASSRLS admin pool (which cannot catch a mistake in
  * the policy text at all) or exercised service-layer `WHERE group_id = ...`
  * logic, not Postgres's own policy evaluation. See rls-enforcement.test.ts
  * for the pattern this file follows (two groups, assert cross-tenant
- * invisibility with no WHERE clause) - same app_tenant-only config.
+ * invisibility with no WHERE clause) — same app_tenant-only config.
  *
  * Covers one representative table per handling group from the migration,
  * not all 21 individually: Group 1a (group-scoped, role-gated write) via
@@ -27,7 +27,7 @@ import {
 import { resetDatabase } from '../helpers/cleanup';
 import { rawQuery } from '../helpers/db';
 
-describe('RLS policy consolidation (migration 122) - real Postgres, no service-layer WHERE clause', () => {
+describe('RLS policy consolidation (migration 122) — real Postgres, no service-layer WHERE clause', () => {
   afterEach(async () => {
     await resetDatabase();
   });
@@ -132,8 +132,8 @@ describe('RLS policy consolidation (migration 122) - real Postgres, no service-l
     });
   });
 
-  describe('Group 2: idempotency_keys (member-scoped, not group-scoped - redundant duplicate policy dropped)', () => {
-    it('SELECT with no WHERE clause returns only the caller's own key', async () => {
+  describe('Group 2: idempotency_keys (member-scoped, not group-scoped — redundant duplicate policy dropped)', () => {
+    it('SELECT with no WHERE clause returns only the caller’s own key', async () => {
       const { groupId, officerId: memberA } = await createTestGroup('treasurer');
       const memberB = await addGroupOfficer(groupId, memberA, 'member');
 
@@ -179,7 +179,7 @@ describe('RLS policy consolidation (migration 122) - real Postgres, no service-l
       );
       expect(coordinatorRows.map((r) => r.id)).toContain(disb.id);
 
-      // Group-member axis - a plain member of group A, with NO organization role at all
+      // Group-member axis — a plain member of group A, with NO organization role at all
       const groupMemberCtx: TenantContext = { userId: groupAMemberId, groupId: groupAId, role: 'member' };
       const groupMemberRows = await withDb(groupMemberCtx, (client) =>
         client.query<{ id: string }>('SELECT id FROM organization_disbursements').then((r) => r.rows),
@@ -193,10 +193,10 @@ describe('RLS policy consolidation (migration 122) - real Postgres, no service-l
       );
       expect(groupBRows).toHaveLength(0);
 
-      // The group-member axis grants SELECT but NOT write - proves the split
+      // The group-member axis grants SELECT but NOT write — proves the split
       // correctly kept SELECT broader than insert/update/delete. The insert
       // is otherwise fully valid (real wallet_id, unique reference) so RLS
-      // is the only thing that can reject it - not an incidental NOT NULL.
+      // is the only thing that can reject it — not an incidental NOT NULL.
       const [{ id: walletId }] = await rawQuery<{ id: string }>(
         `SELECT id FROM organization_wallets WHERE organization_id = $1`,
         [organizationId],
@@ -217,7 +217,7 @@ describe('RLS policy consolidation (migration 122) - real Postgres, no service-l
     it('both payer axes independently grant SELECT; an org coordinator cannot write (write stayed group-scoped only)', async () => {
       const { organizationId, coordinatorId } = await createTestOrganization();
       const { groupId, officerId } = await createTestGroup('treasurer');
-      // A group the coordinator has no relationship to at all - used as their
+      // A group the coordinator has no relationship to at all — used as their
       // tenant-context groupId so the group axis (group_id = app_current_group_id(),
       // which has NO role check) can't accidentally satisfy the assertions below.
       // Without this, the coordinator's own session would trivially match

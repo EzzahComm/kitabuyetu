@@ -8,10 +8,10 @@ import { assertWhiteLabelAccess } from './organization-plan.service';
 
 // PRODUCTION_READINESS_AUDIT Pass 1 (docs/audit/01-HYPOTHESIS-VERIFICATION.md,
 // H3): the 3 call sites below used to fall back to `ctx.groupId` when
-// `ctx.organizationId` was absent. Not exploitable - on the
+// `ctx.organizationId` was absent. Not exploitable — on the
 // /api/v1/organization/* carve-out `ctx.groupId` is always the empty string
 // the proxy stamps, never client-influenced, so the fallback only ever
-// degraded to "0 rows match organization_id=''" - but it's a silent
+// degraded to "0 rows match organization_id=''" — but it's a silent
 // wrong-answer rather than a loud one for a super_admin token minted with no
 // organizationId claim. Throws instead now, mirroring the identical
 // throw-on-missing helper already in organization-finance.service.ts.
@@ -25,11 +25,11 @@ const orgId = (ctx: TenantContext): string => {
  * the Supabase anon-key PostgREST client (`lib/supabase/server.ts`), which
  * bypasses this codebase's whole custom-JWT/Postgres architecture and made
  * the page's safety depend entirely on the `organizations_select` RLS policy
- * (migration 050) - which requires `is_super_admin()` or the caller's own
+ * (migration 050) — which requires `is_super_admin()` or the caller's own
  * org, so for a genuinely anonymous visitor it silently returned zero rows.
  * Worse: it filtered on `.eq('status', 'active')`, a column `organizations`
  * has never had (migration 007 defines `is_active BOOLEAN`, never renamed or
- * supplemented with a `status` column anywhere) - so on top of the RLS block,
+ * supplemented with a `status` column anywhere) — so on top of the RLS block,
  * the query itself errored at PostgREST, silently swallowed by `orgs || []`.
  * Mirrors campaigns.service.ts's public-read pattern instead: withAdminDb
  * with the real column and a minimal projection baked into the SQL, never
@@ -81,7 +81,7 @@ export interface OrganizationMemberDetail {
   isActive: boolean;
   joinedAt: string;
   /**
-   * null when the snapshot could not be read - never zero-filled (R10).
+   * null when the snapshot could not be read — never zero-filled (R10).
    * Numbers, not strings, because that is computeMemberFinancialSnapshot's
    * existing contract; forking a second money representation for this one
    * screen would be worse than inheriting its precision choice.
@@ -117,7 +117,7 @@ export const organizationService = {
     }
   },
 
-  /** The coordinator's own organization - name/type for portal chrome (e.g. the enterprise sidebar). */
+  /** The coordinator's own organization — name/type for portal chrome (e.g. the enterprise sidebar). */
   async getProfile(ctx: TenantContext): Promise<OrganizationProfile> {
     await this.assertOrganizationCoordinator(ctx);
     return withDb(ctx, async (client) => {
@@ -131,7 +131,7 @@ export const organizationService = {
   },
 
   /**
-   * White-label branding - logo + primary color only (migration 109,
+   * White-label branding — logo + primary color only (migration 109,
    * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4; custom domain
    * explicitly deferred, see the audit's Phase 4/Phase 5 notes).
    */
@@ -200,7 +200,7 @@ export const organizationService = {
   },
 
   /**
-   * Bounded, not truly paginated in the UI sense - every consumer (Funding
+   * Bounded, not truly paginated in the UI sense — every consumer (Funding
    * Portal's linked-groups grid + disbursement group-picker, the enterprise
    * portfolio's top-N sort, the branches search/filter list) wants "every
    * group this org can see" for client-side search/sort, not a pager.
@@ -252,10 +252,10 @@ export const organizationService = {
            -- fans every contributions row out across every member and loan
            -- row (and vice versa) before SUM/COUNT run, inflating
            -- totalContributions/activeLoanPortfolio/defaultedLoanCount by
-           -- the OTHER tables' row counts - the comment below about
+           -- the OTHER tables' row counts — the comment below about
            -- migration 127 already diagnosed this exact mechanism for the
            -- subscriptions join, but the same fan-out was still live via
-           -- these three joins (proven on real data - see
+           -- these three joins (proven on real data — see
            -- admin.service.ts's getGroupById for the reproduction).
            LEFT JOIN LATERAL (
              SELECT COUNT(*) AS active_member_count FROM group_members gm
@@ -274,7 +274,7 @@ export const organizationService = {
            -- one active subscription per product. A plain join would list
            -- the group once per product. Scoped to kitabu_yetu because this
            -- is an organization's window onto the savings/loan financials
-           -- of groups it oversees - a group's Chama Reminder subscription
+           -- of groups it oversees — a group's Chama Reminder subscription
            -- is not an organization's concern, and NULL correctly reads as
            -- "no Kitabu Yetu plan".
            LEFT JOIN LATERAL (
@@ -297,9 +297,9 @@ export const organizationService = {
 
   /**
    * Customer members across every branch (group) linked to this
-   * organization - distinct from organization-members.service.ts, which
+   * organization — distinct from organization-members.service.ts, which
    * lists this org's own STAFF (coordinators/leads), not its customers.
-   * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - the enterprise
+   * ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — the enterprise
    * portal's "Members" nav item had no backend at all until this.
    */
   async listMembers(
@@ -314,7 +314,7 @@ export const organizationService = {
     return withDb(ctx, async (client) => {
       const organizationId = orgId(ctx);
       const searchPattern = search ? `%${search}%` : null;
-      // Distinct placeholder numbering per query - the count query has no
+      // Distinct placeholder numbering per query — the count query has no
       // limit/offset params, so `search` sits at a different position than
       // in the list query below.
       const countSearchClause = search ? `AND (m.first_name || ' ' || m.last_name ILIKE $2 OR m.phone ILIKE $2)` : '';
@@ -363,7 +363,7 @@ export const organizationService = {
   },
 
   /**
-   * Audit trail scoped to this organization's own branches -
+   * Audit trail scoped to this organization's own branches —
    * `audit_logs.group_id` is the only scoping column that table has (no
    * `organization_id`), so this joins through `organization_group_access`
    * rather than filtering directly. Mirrors admin.service.ts's platform-wide
@@ -391,7 +391,7 @@ export const organizationService = {
            WHERE (
              -- Organization-axis rows (portfolio views, report generation,
              -- exports) belong to the organization, not to any one group, so
-             -- a group-only filter made them invisible here - see migration 168.
+             -- a group-only filter made them invisible here — see migration 168.
              al.organization_id = $1
              OR al.group_id IN (
                SELECT group_id FROM organization_group_access
@@ -417,7 +417,7 @@ export const organizationService = {
            WHERE (
              -- Organization-axis rows (portfolio views, report generation,
              -- exports) belong to the organization, not to any one group, so
-             -- a group-only filter made them invisible here - see migration 168.
+             -- a group-only filter made them invisible here — see migration 168.
              al.organization_id = $1
              OR al.group_id IN (
                SELECT group_id FROM organization_group_access
@@ -436,7 +436,7 @@ export const organizationService = {
   },
 
   /**
-   * One member's detail on the organization axis - the final tier of the
+   * One member's detail on the organization axis — the final tier of the
    * portfolio drill-down (Org → Group → Member).
    *
    * Financials are NOT recomputed here. computeMemberFinancialSnapshot
@@ -449,7 +449,7 @@ export const organizationService = {
    *
    * PII: national_id is deliberately NOT returned. A coordinator assessing
    * portfolio performance has no need of it, and audit_logs' own schema comment
-   * cites 'member.view_pii' as a distinct action for a reason - widening
+   * cites 'member.view_pii' as a distinct action for a reason — widening
    * identity-document exposure across an organization boundary should be a
    * deliberate, separately-audited decision, not a side effect of a drill-down.
    * Phone and email are already returned by listMembers above, so they stay.
@@ -457,7 +457,7 @@ export const organizationService = {
    * R1/R3: groupId and memberId both arrive from the client. The organization
    * comes from the session, the group is verified against
    * organization_group_access, and the member is verified to belong to THAT
-   * group - so neither id can be used to reach outside the caller's
+   * group — so neither id can be used to reach outside the caller's
    * organization. NotFoundError rather than Forbidden throughout: a 403 would
    * confirm the id exists somewhere, which is itself cross-tenant disclosure.
    *

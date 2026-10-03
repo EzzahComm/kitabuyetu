@@ -4,8 +4,8 @@
  *
  * Two gaps this pins:
  *  - SendSmsSchema.phone accepted an UNBOUNDED array, so the 30 req/60s
- *    rate limit on /sms/send - justified in lib/sms/rate-limit.ts by calling
- *    it "the single/few-recipient path" - bounded requests but not volume.
+ *    rate limit on /sms/send — justified in lib/sms/rate-limit.ts by calling
+ *    it "the single/few-recipient path" — bounded requests but not volume.
  *  - rawRecipients was z.record(z.unknown()) on both the campaign and
  *    schedule surfaces: no phone-format check, no cap, and no correlation
  *    with recipientType. A malformed number reached normalizePhone, which
@@ -72,7 +72,7 @@ describe('rawRecipients audience validation (G10)', () => {
 
   it('rejects a landline-shaped number the same way', () => {
     // 020… is a Nairobi landline. This documented CURRENT behaviour when
-    // written - isValidKenyanPhone admitted it - and flipped when T2-4
+    // written — isValidKenyanPhone admitted it — and flipped when T2-4
     // narrowed normalizePhone to real mobile prefixes (V3-03).
     const r = CampaignCreateSchema.safeParse({
       ...campaign,
@@ -163,7 +163,7 @@ describe('daily send limit is settable (G25)', () => {
     expect(r.success).toBe(true);
   });
 
-  it('rejects null - the column is NOT NULL, so "no cap" is not storable', () => {
+  it('rejects null — the column is NOT NULL, so "no cap" is not storable', () => {
     // sms_group_settings.daily_send_limit is `INTEGER NOT NULL DEFAULT 500`
     // (migration 013). Accepting null here would produce a 500 at the
     // database rather than a 400 at the boundary. A group with no settings
@@ -179,7 +179,7 @@ describe('daily send limit is settable (G25)', () => {
     }
   });
 
-  it('rejects zero and negatives - use null for unlimited, not 0', () => {
+  it('rejects zero and negatives — use null for unlimited, not 0', () => {
     expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: 0 }).success).toBe(false);
     expect(SmsGroupSettingsUpdateSchema.safeParse({ dailySendLimit: -5 }).success).toBe(false);
   });

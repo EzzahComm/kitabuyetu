@@ -1,5 +1,5 @@
 /**
- * Supabase Storage - service-role access to the private `resumes` bucket
+ * Supabase Storage — service-role access to the private `resumes` bucket
  * (migration 199). Mirrors storage.ts's report-artifact pattern exactly,
  * sharing the same client singleton (admin-client.ts) for a different
  * bucket: upload on submission, mint a short-lived signed URL whenever an
@@ -28,7 +28,7 @@ export async function uploadResume(path: string, body: Buffer, contentType: stri
   if (error) throw new Error(`[supabase/resume-storage] upload failed: ${error.message}`);
 }
 
-/** Mint a fresh signed URL - never stored, generated on demand each time an admin opens a resume. */
+/** Mint a fresh signed URL — never stored, generated on demand each time an admin opens a resume. */
 export async function createResumeSignedUrl(
   path: string,
   ttlSeconds: number = RESUME_SIGNED_URL_TTL_SECONDS,

@@ -6,7 +6,7 @@
  * The closure tests these encode, verbatim from the pathway doc:
  *   - "a manual retry of an opted-out number resolves suppressed and bills
  *      nothing"
- *   - "a DSAR for one member is answerable from the UI" - i.e. one member's
+ *   - "a DSAR for one member is answerable from the UI" — i.e. one member's
  *      full reminder history, suppressed outcomes included, is retrievable
  */
 import { smsService } from '@/lib/services/sms.service';
@@ -92,7 +92,7 @@ describe('T3-5 ops surfaces', () => {
       expect(log.billing_state).toBe('consumed');
     });
 
-    it('ignores the backoff - the whole point of a manual retry', async () => {
+    it('ignores the backoff — the whole point of a manual retry', async () => {
       const failureId = await queueOneFailedSend(groupId, officerId);
       // The sweep would decline this row: its next_retry_at is minutes away.
       await rawQuery(`UPDATE sms_failures SET next_retry_at = NOW() + INTERVAL '1 hour' WHERE id = $1`, [failureId]);
@@ -144,7 +144,7 @@ describe('T3-5 ops surfaces', () => {
       mockSendSingleSms.mockClear();
       const second = await smsService.retryFailure(ctx, failureId);
 
-      // A duplicate to a real person and a second charge - the pair of harms
+      // A duplicate to a real person and a second charge — the pair of harms
       // the dedup work in T1-2 exists to stop.
       expect(second.status).toBe('already_resolved');
       expect(mockSendSingleSms).not.toHaveBeenCalled();
@@ -176,7 +176,7 @@ describe('T3-5 ops surfaces', () => {
       );
     }
 
-    it('returns SUPPRESSED rows - the evidence an opt-out was honoured', async () => {
+    it('returns SUPPRESSED rows — the evidence an opt-out was honoured', async () => {
       await seedDispatch(officerId, 'due_3_days', 'sent');
       await seedDispatch(officerId, 'overdue_7_days', 'suppressed');
 
@@ -268,7 +268,7 @@ describe('T3-5 ops surfaces', () => {
       expect(preview.affordable).toBe(false);
     });
 
-    it('writes nothing - an abandoned preview costs the group nothing', async () => {
+    it('writes nothing — an abandoned preview costs the group nothing', async () => {
       const before = await billingOf(groupId);
       const [{ n: logsBefore }] = await rawQuery<{ n: string }>(
         `SELECT COUNT(*)::text AS n FROM sms_usage_logs WHERE group_id = $1`,

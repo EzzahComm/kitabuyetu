@@ -5,7 +5,7 @@ import { organizationService } from '@/lib/services/organization.service';
 import { ok } from '@/lib/utils/response';
 import { parsePagination } from '@/lib/utils/pagination';
 
-/** GET /api/v1/organization/audit-logs - audit trail scoped to this organization's own branches. */
+/** GET /api/v1/organization/audit-logs — audit trail scoped to this organization's own branches. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.audit_logs.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };

@@ -6,7 +6,7 @@
  * create() writes status='pending_approval' and only a PATCH moves a row to
  * 'active', and current_value stays NULL until someone records a revaluation.
  * A summary that filtered the value sum to status='active' and summed raw
- * current_value therefore measured an empty set against a real principal -
+ * current_value therefore measured an empty set against a real principal —
  * (0 - principal) / principal = -100%, shown to the group in red.
  */
 import { withDb } from '@/lib/db';
@@ -28,7 +28,7 @@ beforeEach(() => {
 
 const ctx = { groupId: 'g1', userId: 'u1', role: 'treasurer' };
 
-/** pg hands back `numeric` as a string - mirror that, it is half the bug. */
+/** pg hands back `numeric` as a string — mirror that, it is half the bug. */
 const summaryRow = (o: Record<string, string>) => ({
   rows: [
     {
@@ -121,7 +121,7 @@ describe('investmentsService.getSummary', () => {
 
   it('becomes measurable on an expense alone, with nothing revalued or returned', async () => {
     // A group that has spent on an activity but not yet seen income has real
-    // data - a real, negative answer - so ROI must not render as "no data".
+    // data — a real, negative answer — so ROI must not render as "no data".
     mockQuery.mockResolvedValueOnce(
       summaryRow({
         total_principal: '100000',
@@ -156,7 +156,7 @@ describe('investmentsService.getSummary', () => {
 
   it('guards divide-by-zero on the string principal pg returns', async () => {
     // `'0' > 0` is false by coercion so the old code happened to work here,
-    // but it was comparing a string - pin the behaviour explicitly.
+    // but it was comparing a string — pin the behaviour explicitly.
     mockQuery.mockResolvedValueOnce(summaryRow({ total_principal: '0' }));
 
     const s = await investmentsService.getSummary(ctx);
@@ -219,7 +219,7 @@ describe('investmentsService.getSummary', () => {
 
   it('is not measurable when there are no investments at all', async () => {
     // COUNT/COALESCE always return a row, so an empty group looks like zeroes
-    // rather than no row - guard against a 0/0 ROI being called measurable.
+    // rather than no row — guard against a 0/0 ROI being called measurable.
     mockQuery.mockResolvedValueOnce(
       summaryRow({
         total_investments: '0',

@@ -121,7 +121,7 @@ export interface ExecutiveSummary {
   /**
    * Quick health proxy: contributions + share capital − outstanding loan
    * principal. Not a real balance sheet (welfare pool, investments not
-   * included) - just a one-number gut-check trend indicator.
+   * included) — just a one-number gut-check trend indicator.
    */
   financialHealth: {
     grossAssets: string;
@@ -395,7 +395,7 @@ export const analyticsService = {
         const scoredCount = creditDistribution.rows.length;
         const avgScore = scoredCount > 0 ? scoreSum / scoredCount : 0;
 
-        // Financial health proxy. Welfare pool and investments excluded - they
+        // Financial health proxy. Welfare pool and investments excluded — they
         // belong to the group as a whole, not allocated to individual members,
         // and including them muddies the trend signal.
         const grossAssets = Number(contribTotals.rows[0].all_time) + Number(sharesSummary.rows[0].capital);

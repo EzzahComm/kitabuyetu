@@ -7,12 +7,12 @@ import { useBackofficeLogin } from '@/hooks/use-backoffice-login';
 import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/auth/backoffice-login-forms';
 
 /**
- * Organization staff sign-in - split out from /admin-login
+ * Organization staff sign-in — split out from /admin-login
  * (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md). Same password → MFA →
  * org-selection state machine as /admin-login (shared via
  * useBackofficeLogin + backoffice-login-forms), but:
  *
- *  - `surface: 'organization'` - server only allows organization_coordinator
+ *  - `surface: 'organization'` — server only allows organization_coordinator
  *    and super_admin here (SURFACE_ALLOWED_ROLES in
  *    app/api/v1/auth/admin/login/route.ts); a support account gets turned
  *    away to /admin-login instead.
@@ -22,7 +22,7 @@ import { PasswordForm, EnrollForm, VerifyForm, OrgChooser } from '@/components/a
  *  - Redirects to /enterprise on success, not /admin.
  *
  * Deliberately placed under (auth), NOT nested inside app/(enterprise)/enterprise/*
- * - that tree is wrapped by (enterprise)/layout.tsx's auth guard, which
+ * — that tree is wrapped by (enterprise)/layout.tsx's auth guard, which
  * would redirect an unauthenticated visitor away from this very login page.
  */
 export default function EnterpriseLoginPage() {

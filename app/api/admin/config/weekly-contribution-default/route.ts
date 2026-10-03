@@ -6,7 +6,7 @@ import { SetWeeklyContributionDefaultSchema } from '@/lib/validators/weekly-cont
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET/PUT /api/admin/config/weekly-contribution-default - the platform-wide
+ * GET/PUT /api/admin/config/weekly-contribution-default — the platform-wide
  * weekly contribution target every group is measured against in the weekly
  * savings-update reminder, unless it has its own override. Super-admin only.
  */

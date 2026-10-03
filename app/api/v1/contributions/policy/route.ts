@@ -6,12 +6,12 @@ import { SetSavingsLimitsSchema } from '@/lib/validators/contribution.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/contributions/policy - this group's effective savings limits
+ * GET /api/v1/contributions/policy — this group's effective savings limits
  *   (advisory min/max contribution amount, grace period) with resolution
  *   source. Any authenticated member can read: the contribution form uses
  *   these only to pre-fill/annotate, never to block a submission.
- * PUT /api/v1/contributions/policy - set a group-level override. Treasurer
- *   only - this changes the group's advisory savings guidance.
+ * PUT /api/v1/contributions/policy — set a group-level override. Treasurer
+ *   only — this changes the group's advisory savings guidance.
  */
 
 export async function GET(req: NextRequest): Promise<Response> {

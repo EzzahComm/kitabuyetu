@@ -3,9 +3,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 
 /**
- * C2B Validation URL - DEPRECATED unauthenticated path.
+ * C2B Validation URL — DEPRECATED unauthenticated path.
  *
- * This handler was already a true no-op (validation never changes state -
+ * This handler was already a true no-op (validation never changes state —
  * see ./[token]/route.ts for the current rationale), so hardening it is
  * lower value than c2b-confirm, but it's done anyway for consistency: Phase 4
  * moved the live, token-authenticated Validation URL to the dynamic route at
@@ -14,7 +14,7 @@ import { logger } from '@/lib/logger';
  *
  * Kept ONLY as an inert placeholder for the cutover window: until someone
  * deliberately re-runs registerC2BUrls() against production (a separate,
- * explicitly-approved step - this file's existence changes nothing about
+ * explicitly-approved step — this file's existence changes nothing about
  * what Safaricom currently calls), Safaricom's registration still points at
  * THIS static path, and it must keep answering 200 "Accepted" so Safaricom
  * doesn't retry-storm a broken URL. Delete this file (and
@@ -27,7 +27,7 @@ function accept(): NextResponse {
 
 function warnDeprecated(req: NextRequest): void {
   const callerIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
-  logger.warn('[daraja/c2b-validate] request hit deprecated unauthenticated path - ignored', {
+  logger.warn('[daraja/c2b-validate] request hit deprecated unauthenticated path — ignored', {
     ip: callerIp,
   });
 }

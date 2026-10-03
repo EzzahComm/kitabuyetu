@@ -1,5 +1,5 @@
 /**
- * County/ward-level rollup for ONE organization's own linked groups - the
+ * County/ward-level rollup for ONE organization's own linked groups — the
  * organization-axis counterpart to admin-geography.service.ts (platform-wide,
  * super_admin-only). Phase 5 gap analysis: geography was the last missing
  * item on the organization/coordinator axis.
@@ -9,22 +9,22 @@
  * table PER GROUP FIRST, summed across groups only afterward, plus LATERAL
  * joins for the ward drill-down. That shape exists specifically to avoid a
  * real, proven fan-out bug (a flat join of child tables inflating sums by the
- * OTHER tables' row counts - 30x on loan_book in admin-geography's case,
+ * OTHER tables' row counts — 30x on loan_book in admin-geography's case,
  * documented in that file's own comment; the identical class of bug hit
  * organization.service.ts's listGroupSummaries too, fixed the same way). The
  * only change here is scoping every group through `organization_group_access`
- * - the same join listGroupSummaries already uses to scope a coordinator's
+ * — the same join listGroupSummaries already uses to scope a coordinator's
  * groups to their own organization.
  *
  * `groups.county_id` (FK to `counties`, seeded from IEBC data) is the
- * reliable geography source - NOT `groups.county` (VARCHAR, kept only for
+ * reliable geography source — NOT `groups.county` (VARCHAR, kept only for
  * backwards compatibility, inconsistent free text) and NOT
  * `funding_programs.geographic_coverage` (an unvalidated jsonb array of
  * arbitrary strings). Ward stays free-text (`groups.ward`) because
  * `ward_id`/`sub_county_id` on `groups` are confirmed-dead, unpopulated
- * columns - same caveat admin-geography.service.ts documents.
+ * columns — same caveat admin-geography.service.ts documents.
  *
- * RLS: uses `withDb` (the app_tenant pool, RLS enforced) - NOT `withAdminDb`.
+ * RLS: uses `withDb` (the app_tenant pool, RLS enforced) — NOT `withAdminDb`.
  * This is one organization's own data, not a platform-wide super_admin view.
  * `groups`, `group_members`, `contributions` and `loans` all already carry an
  * `organization_coordinator` SELECT policy scoped through
@@ -64,11 +64,11 @@ export interface OrgWardAggregationRow {
 
 export const organizationGeographyService = {
   /**
-   * Every county, including ones with zero groups for this organization - a
+   * Every county, including ones with zero groups for this organization — a
    * coverage gap is itself signal, per admin-geography.service.ts's own
    * stated principle for the platform-wide version.
    *
-   * Cached 120s per organization (same TTL as the platform-wide version) -
+   * Cached 120s per organization (same TTL as the platform-wide version) —
    * this is a portfolio-dashboard aggregate, read far more often than the
    * underlying data changes.
    */
@@ -80,7 +80,7 @@ export const organizationGeographyService = {
       withDb(ctx, async (db: PoolClient) => {
         const { rows } = await db.query<OrgCountyAggregationRow>(
           `
-        -- group_stats pre-aggregates each child table PER GROUP first - see
+        -- group_stats pre-aggregates each child table PER GROUP first — see
         -- admin-geography.service.ts's getCountyAggregation for the proven
         -- 30x loan_book inflation a flat join causes here instead.
         WITH linked AS (
@@ -125,7 +125,7 @@ export const organizationGeographyService = {
     return withDb(ctx, async (db: PoolClient) => {
       const { rows } = await db.query<OrgWardAggregationRow>(
         `
-        -- LATERAL per child table - see getCountyAggregation's comment above
+        -- LATERAL per child table — see getCountyAggregation's comment above
         -- for why a flat join fans contributions out across group_members.
         SELECT
           COALESCE(NULLIF(TRIM(g.ward), ''), 'Unspecified') AS ward,

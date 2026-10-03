@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Check, X, AlertCircle, Info } from 'lucide-react';
+import { Check, CircleAlert, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -57,7 +57,7 @@ export function ToastContainer() {
       case 'error':
         return <X {...iconProps} className="text-error-600 dark:text-error-400" />;
       case 'warning':
-        return <AlertCircle {...iconProps} className="text-warning-600 dark:text-warning-400" />;
+        return <CircleAlert {...iconProps} className="text-warning-600 dark:text-warning-400" />;
       case 'info':
       default:
         return <Info {...iconProps} className="text-info-600 dark:text-info-400" />;

@@ -19,7 +19,7 @@ const TABS: Tab[] = [
 ];
 
 /**
- * Fixed bottom tab bar - the primary mobile navigation. Large tap targets,
+ * Fixed bottom tab bar — the primary mobile navigation. Large tap targets,
  * always reachable by thumb, with safe-area inset padding for notched phones.
  * Hidden on lg+ where the content centres in a phone-width column.
  */

@@ -23,11 +23,11 @@ import {
 
 type PurchasablePlan = UpgradePlanInput['planType'];
 
-// PLAN_COPY (display bullets, no prices - those come from GET /billing/plans,
+// PLAN_COPY (display bullets, no prices — those come from GET /billing/plans,
 // which reads PLAN_MONTHLY_FEES) now lives in types/enums.ts so the public
 // pricing page and preview can share the exact same per-tier copy instead of
 // maintaining an independent, driftable list of their own. See that file for
-// the full rationale - this used to be a private const here.
+// the full rationale — this used to be a private const here.
 
 const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
   kitabu_yetu: 'SUBSCRIPT',
@@ -39,7 +39,7 @@ const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
  *
  * Extracted from the Kitabu Yetu billing page so the Chama Reminder portal can
  * sell its own plans without forking a payment flow. `product` is threaded all
- * the way through - plan list, price lookup, STK payload and the claim call -
+ * the way through — plan list, price lookup, STK payload and the claim call —
  * because tiers are priced per product and the server verifies the amount paid
  * against its own table.
  */
@@ -54,12 +54,12 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
   const priceOf = (type: PlanType): number | null =>
     billingData?.plans.find((p) => p.plan === type)?.monthlyFee ?? null;
 
-  /** Enterprise is negotiated - it is never sold through the self-serve STK flow. */
+  /** Enterprise is negotiated — it is never sold through the self-serve STK flow. */
   const isNegotiated = (type: PlanType) => type === 'enterprise';
 
   // null, not a 'starter' fallback: since migration 139 a group can genuinely
   // hold no plan, and defaulting the display to starter told a locked group it
-  // was on the very plan it has not paid for - while marking that card
+  // was on the very plan it has not paid for — while marking that card
   // "Current plan" and disabling the button that would let it pay.
   const current = billingData?.current;
   const currentPlanType = current?.planType ?? null;
@@ -69,7 +69,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
   // request schema keeps this in step with what the server will accept.
   const [pendingPlan, setPendingPlan] = useState<PurchasablePlan | null>(null);
 
-  // One cycle applies to whichever plan gets bought - there is no per-card
+  // One cycle applies to whichever plan gets bought — there is no per-card
   // cycle, matching how PLAN_MONTHLY_FEES prices a plan once, not per cadence.
   const [cycle, setCycle] = useState<BillingCycle>('monthly');
   const cycleMonths = BILLING_CYCLE_MONTHS[cycle];
@@ -84,7 +84,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
   });
 
   const handleSelectPlan = (planType: PlanType) => {
-    // Every plan is paid now, so there is no free tier to short-circuit -
+    // Every plan is paid now, so there is no free tier to short-circuit —
     // only enterprise is excluded, and it is negotiated rather than bought.
     const price = priceOf(planType);
     // The isNegotiated narrowing is what makes planType safe to put in the
@@ -93,12 +93,12 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
     const purchasable = planType as PurchasablePlan;
     setPendingPlan(purchasable);
     // StkPushSchema requires accountReference (<=12 chars) and description
-    // (<=20), and `purpose` is an enum - not free text. The server re-checks
+    // (<=20), and `purpose` is an enum — not free text. The server re-checks
     // this amount against its own table before activating, so a tampered value
     // fails verification rather than buying a plan cheaply.
     //
     // `amount` is the FULL cycle charge (price * cycleMonths), not the bare
-    // monthly price - activateSubscriptionForPayment() verifies amountPaid
+    // monthly price — activateSubscriptionForPayment() verifies amountPaid
     // against exactly that, and a monthly-only amount would fail the check
     // for anything but a monthly purchase.
     checkout.start({
@@ -133,7 +133,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
         </div>
         {cycle !== 'monthly' && (
           <span className="text-xs text-muted-foreground">
-            Charged once for all {BILLING_CYCLE_MONTHS[cycle]} months - same per-month rate as monthly, no discount.
+            Charged once for all {BILLING_CYCLE_MONTHS[cycle]} months — same per-month rate as monthly, no discount.
           </span>
         )}
       </div>
@@ -156,7 +156,7 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
                   {negotiated
                     ? 'Custom pricing'
                     : price == null
-                      ? '-'
+                      ? '—'
                       : cycle === 'monthly'
                         ? `KES ${price.toLocaleString()} / month`
                         : `KES ${(price * cycleMonths).toLocaleString()} / ${BILLING_CYCLE_LABELS[cycle].toLowerCase()} (KES ${price.toLocaleString()}/mo)`}
@@ -195,8 +195,8 @@ export function PlanPurchase({ product }: { product: SubscriptionProduct }) {
 export function useCurrentPlanSummary(product: SubscriptionProduct): string {
   const { data } = useBillingPlans(product);
   const current = data?.current;
-  if (!current?.planType) return 'No active plan - choose one below to restore access.';
+  if (!current?.planType) return 'No active plan — choose one below to restore access.';
   const label = `${current.planType.charAt(0).toUpperCase()}${current.planType.slice(1)}`;
-  const expiry = current.expiresAt ? ` - expires ${new Date(current.expiresAt).toLocaleDateString()}` : '';
+  const expiry = current.expiresAt ? ` · expires ${new Date(current.expiresAt).toLocaleDateString()}` : '';
   return `Current plan: ${label}${expiry}`;
 }

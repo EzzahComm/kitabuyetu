@@ -1,15 +1,15 @@
 /**
- * lib/logger.ts - credential and PII containment.
+ * lib/logger.ts — credential and PII containment.
  *
  * Guards the fix for the TextSMS API key leaking into logs. An AxiosError is
  * an Error, and its toJSON() includes `config`, which carries `apikey` in
  * `params` for the GET calls (delivery report, balance) and in `data` for the
- * POST calls (sends). Nesting such an error inside a context object -
- * `logger.error('...', { logId, err })`, which five SMS call sites do - used
+ * POST calls (sends). Nesting such an error inside a context object —
+ * `logger.error('...', { logId, err })`, which five SMS call sites do — used
  * to serialize the whole thing, publishing the live credential in cleartext.
  *
  * The logger reads NODE_ENV at call time, so both branches are exercised by
- * setting it directly - no module-registry reloading, which cost ~50s of
+ * setting it directly — no module-registry reloading, which cost ~50s of
  * suite time and leaked a worker when this was first written.
  */
 import { logger } from '@/lib/logger';
@@ -79,7 +79,7 @@ describe.each(['production', 'development'])('logger in %s', (nodeEnv) => {
   it('still preserves the diagnostic value of an error', () => {
     loadLogger(nodeEnv).error('[sms] DLR poll error', { logId: 'log-1', err: axiosLikeError() });
 
-    // The message and the caller's own context must survive - redaction that
+    // The message and the caller's own context must survive — redaction that
     // destroys debuggability would just get reverted.
     expect(output()).toContain('Request failed with status code 401');
     expect(output()).toContain('log-1');

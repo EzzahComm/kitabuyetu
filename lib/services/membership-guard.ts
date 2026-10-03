@@ -5,7 +5,7 @@
  * holds a membership in the target group before writing the row. RLS scopes
  * rows by group_id but never checks member_id, so without this guard a
  * treasurer (or a buggy client) can post a transaction in their group against
- * a member who only belongs to another group - cross-group pollution.
+ * a member who only belongs to another group — cross-group pollution.
  *
  * Status semantics follow the membership state machine (payment architecture
  * §4): only 'active' memberships accept financial postings by default.
@@ -13,7 +13,7 @@
  * paid to 'exited' members during share-out) pass `allowStatuses` explicitly.
  *
  * The returned membershipId is the group_members.id the caller should stamp
- * on the transaction row once attribution columns exist (Phase 3) -
+ * on the transaction row once attribution columns exist (Phase 3) —
  * validation and attribution are the same act.
  */
 import type { PoolClient } from 'pg';
@@ -50,8 +50,8 @@ export async function assertActiveMembership(
  *
  * Access tokens carry authVersion (membership role/status epoch) and
  * sessionVersion (member-level epoch). Non-sensitive endpoints accept drift
- * up to the token TTL; sensitive operations - loan approval/disbursement,
- * B2C payouts, reversals, unrouted allocation, member-status changes - call
+ * up to the token TTL; sensitive operations — loan approval/disbursement,
+ * B2C payouts, reversals, unrouted allocation, member-status changes — call
  * this to compare the token's epochs against current database truth, so a
  * demoted/blacklisted actor cannot ride a stale token through a money-moving
  * or governance action.
@@ -63,7 +63,7 @@ export async function assertActiveMembership(
  * also returns the CALLER'S LIVE roles.permissions (via group_members.role_id,
  * the same join login/refresh use), so callers at these 8 sites can re-verify
  * the specific permission string against current truth instead of trusting
- * the JWT's (bounded-stale) permissions claim - closing the staleness window
+ * the JWT's (bounded-stale) permissions claim — closing the staleness window
  * to zero for exactly the routes that already pay this DB round-trip's cost,
  * without adding a live lookup to the other 100+ withPermission call sites.
  */

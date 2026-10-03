@@ -31,7 +31,7 @@ export default function PassbookPage() {
   const [limit, setLimit] = React.useState(PAGE_SIZE);
 
   const direction = filter === 'all' ? undefined : filter;
-  // page stays 1, limit grows on "Load more" - a single query naturally
+  // page stays 1, limit grows on "Load more" — a single query naturally
   // returns the growing prefix (offset 0), no client-side merge/accumulation
   // state needed.
   const { data, isLoading, isError, error, isFetching } = useMyPassbook({ page: 1, limit, direction });

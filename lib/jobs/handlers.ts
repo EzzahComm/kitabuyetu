@@ -1,5 +1,5 @@
 /**
- * Job handlers - one function per JobType.
+ * Job handlers — one function per JobType.
  * Each handler must be:
  *   - Idempotent: safe to run more than once for the same logical event
  *   - Isolated: failures don't affect other jobs
@@ -21,7 +21,7 @@ export interface HandlerResult {
 
 /**
  * Route a job to its handler.
- * Throws on failure - the processor catches and handles retry/backoff.
+ * Throws on failure — the processor catches and handles retry/backoff.
  */
 export async function handleJob(job: Job): Promise<HandlerResult> {
   switch (job.type) {
@@ -185,7 +185,7 @@ async function handleEmailCampaignProcess(): Promise<HandlerResult> {
 }
 
 /**
- * OPTIMIZATION_CLEANUP_AUDIT.md High #6 - launchCampaign's per-recipient
+ * OPTIMIZATION_CLEANUP_AUDIT.md High #6 — launchCampaign's per-recipient
  * insert+enqueue loop previously ran directly inside the launch HTTP
  * request (uncapped, one round trip per recipient). Routes now enqueue
  * this job instead and return immediately; the loop runs here, off the
@@ -207,7 +207,7 @@ async function handleEmailRetryFailed(): Promise<HandlerResult> {
 }
 
 /**
- * Send one templated email. Replaces lib/queue's Redis fan-out - every
+ * Send one templated email. Replaces lib/queue's Redis fan-out — every
  * `queueEmail()` call now enqueues this job type instead of a Redis item.
  * Throwing on failure lets the processor's existing retry/backoff handle
  * it, the same guarantee the old queue's requeueWithBackoff/DLQ gave.
@@ -233,7 +233,7 @@ async function handleEmailSend(payload: Record<string, unknown>): Promise<Handle
 
 /**
  * Drain a batch of due email_campaign_recipients rows for in-flight
- * campaigns - the replacement for email_queue_drain's Redis-based
+ * campaigns — the replacement for email_queue_drain's Redis-based
  * per-recipient fan-out (OPTIMIZATION_CLEANUP_AUDIT.md's lib/queue +
  * lib/jobs merge). See drainCampaignRecipients() for the claim query.
  */
@@ -248,7 +248,7 @@ async function handleEmailCampaignDrain(): Promise<HandlerResult> {
 
 /**
  * Drain a batch of pending newsletter_digest_recipients rows for in-flight
- * digests - mirrors handleEmailCampaignDrain, but for the platform-level
+ * digests — mirrors handleEmailCampaignDrain, but for the platform-level
  * newsletter audience (lib/services/newsletter-digest.service.ts) instead of
  * a group's own members.
  */
@@ -314,7 +314,7 @@ async function handleMpesaReplayCallbacks(): Promise<HandlerResult> {
  * Detects completed inbound C2B paybill transactions with no domain record
  * (contribution/loan repayment/invoice payment) and queues them into
  * mpesa_unrouted for treasurer resolution. Before this, the only caller was
- * a manual, authenticated HTTP endpoint - it had run exactly once in the
+ * a manual, authenticated HTTP endpoint — it had run exactly once in the
  * platform's lifetime (2026-07-29, five and a half weeks before this job
  * type was added). Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so
  * hourly scheduling carries no correctness risk (docs/audits/
@@ -382,7 +382,7 @@ async function handlePaymentOrphanMonitor(): Promise<HandlerResult> {
     message:
       result.count === 0
         ? 'Payment spine: no orphans'
-        : `Payment spine: ${result.count} ORPHANED payment(s) - ` + (alerted ? 'staff emailed' : 'already reported'),
+        : `Payment spine: ${result.count} ORPHANED payment(s) — ` + (alerted ? 'staff emailed' : 'already reported'),
     orphans: result.count,
     alerted,
   };
@@ -397,7 +397,7 @@ async function handlePaymentRequestsExpire(): Promise<HandlerResult> {
 /**
  * Stuck-payout monitor across every outbound money path. All three share the
  * same limitation (Safaricom offers no generic "query by conversation ID"
- * without a receipt), so none of them can auto-resolve - the job's job is to
+ * without a receipt), so none of them can auto-resolve — the job's job is to
  * make sure money never sits in an unknown state *silently*. Each is logged
  * by its own service; this handler aggregates the counts for the run record.
  */
@@ -416,8 +416,8 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
   const total = disbursements.count + settlements.count + vendorPayments.count + campaignWithdrawals.count;
 
   // Money that left the platform and never confirmed. None of these three can
-  // auto-resolve - Safaricom offers no query-by-conversation-ID without a
-  // receipt - so the job's only job is making sure it is never silent.
+  // auto-resolve — Safaricom offers no query-by-conversation-ID without a
+  // receipt — so the job's only job is making sure it is never silent.
   const { raiseStaffAlert, clearStaffAlert } = await import('@/lib/services/staff-alerts');
   let alerted = false;
   if (total === 0) {
@@ -427,8 +427,8 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
       key: 'stuck_outbound_payments',
       subject: `${total} outbound payout(s) stuck with no confirmation`,
       body:
-        'Money was dispatched and never confirmed. None of these resolve themselves - ' +
-        'Safaricom cannot be queried by conversation ID without a receipt - so each has to be ' +
+        'Money was dispatched and never confirmed. None of these resolve themselves — ' +
+        'Safaricom cannot be queried by conversation ID without a receipt — so each has to be ' +
         'checked against the Safaricom statement by hand.',
       details: {
         disbursements: disbursements.count,
@@ -443,7 +443,7 @@ async function handleDisbursementOrphanMonitor(): Promise<HandlerResult> {
     message:
       total === 0
         ? 'Outbound payments: no stuck payouts'
-        : `Outbound payments: ${total} STUCK payout(s) - ` + (alerted ? 'staff emailed' : 'already reported'),
+        : `Outbound payments: ${total} STUCK payout(s) — ` + (alerted ? 'staff emailed' : 'already reported'),
     stuck: total,
     stuckDisbursements: disbursements.count,
     stuckSettlements: settlements.count,
@@ -459,7 +459,7 @@ async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
   const result = await detectBalanceDrift();
 
   // A stored account balance disagreeing with the sum of its own journal lines
-  // means the ledger no longer adds up. Reported, never repaired - same rule
+  // means the ledger no longer adds up. Reported, never repaired — same rule
   // as the SMS credit ledger, and for the same reason: deciding which side is
   // true is a judgment about somebody's money.
   let alerted = false;
@@ -481,7 +481,7 @@ async function handleAccountingBalanceDrift(): Promise<HandlerResult> {
     message:
       result.driftsFound === 0
         ? `Balance drift audit clean (${result.accountsChecked} accounts)`
-        : `Balance drift: ${result.driftsFound}/${result.accountsChecked} accounts disagree - ` +
+        : `Balance drift: ${result.driftsFound}/${result.accountsChecked} accounts disagree — ` +
           (alerted ? 'staff emailed' : 'already reported'),
     ...result,
     alerted,
@@ -493,9 +493,9 @@ async function handleGLCashReconciliation(): Promise<HandlerResult> {
   const result = await reconcileGLCashToMpesaBalance();
   const message = {
     ok: 'GL cash reconciliation: matches the real M-Pesa balance',
-    mismatch: `GL cash reconciliation: MISMATCH - GL ${result.glCashTotal} vs M-Pesa ${result.mpesaBalance} (diff ${result.difference}) - investigate`,
+    mismatch: `GL cash reconciliation: MISMATCH — GL ${result.glCashTotal} vs M-Pesa ${result.mpesaBalance} (diff ${result.difference}) — investigate`,
     no_snapshot: 'GL cash reconciliation: no balance snapshot available yet',
-    stale_snapshot: `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) - skipped`,
+    stale_snapshot: `GL cash reconciliation: latest balance snapshot is stale (${result.snapshotAge} old) — skipped`,
   }[result.status];
 
   // A mismatch means the books and the actual float disagree about how much
@@ -547,7 +547,7 @@ async function handleCleanupExpiredTokens(): Promise<HandlerResult> {
 
 /**
  * Was a bare `await pruneOldJobs(30)` fired directly inside enqueueTimeBasedJobs,
- * bypassing the safe()/dedup_key mechanism every other entry uses - so it ran
+ * bypassing the safe()/dedup_key mechanism every other entry uses — so it ran
  * on all 12 five-minute ticks of its hour instead of once (docs/audits/
  * optimization-2026-09). Routing it through the job queue with a monthly
  * dedup key fixes that, and also prunes job_logs, which has no retention of
@@ -571,7 +571,7 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
   const { sendOnce } = await import('@/lib/services/reminder.service');
 
   // Discrete day-offset stages, not a rolling "within 3 days OR overdue"
-  // window - reminder_dispatch_log dedupes per stage via sendOnce(), so a
+  // window — reminder_dispatch_log dedupes per stage via sendOnce(), so a
   // given installment is only ever notified once per stage no matter how
   // many days this daily cron runs while it sits in 'pending'. Overdue
   // buckets are ranges (not exact days) so a missed cron tick still catches
@@ -640,7 +640,7 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
     failed = 0;
   for (const r of rows) {
     const overdue = r.days_until_due < 0;
-    // 'L' - loan repayment - the same product-suffix convention
+    // 'L' — loan repayment — the same product-suffix convention
     // parseAccountRef()/composeMembershipNo() already document
     // (lib/utils/membership-no.ts) and the one-off Fionas disbursement SMS
     // already used by hand (scripts/send-fionas-disbursement-sms.ts).
@@ -694,12 +694,12 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
 }
 
 /**
- * Birthday SMS - the SMS half of sms_group_settings.auto_send_birthday
+ * Birthday SMS — the SMS half of sms_group_settings.auto_send_birthday
  * (docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md §6/Phase 1).
  * The birthday-email equivalent (member-email.service.ts's sendBirthdayEmails,
  * job email_birthday) sends unconditionally to every group; this one is
  * gated on the per-group opt-in column (DEFAULT false) since it's billed
- * (Decision B - bill everything) and a group shouldn't get charged for a
+ * (Decision B — bill everything) and a group shouldn't get charged for a
  * channel it never turned on.
  *
  * A member in N active groups with the setting on gets N separate messages,
@@ -707,11 +707,11 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
  * reminders already work per-membership rather than per-person.
  *
  * reminder_stage encodes the current year so the same member's birthday
- * fires again next year - reminder_dispatch_log's UNIQUE constraint would
+ * fires again next year — reminder_dispatch_log's UNIQUE constraint would
  * otherwise treat "this member's birthday" as a single lifetime event.
  * Deliberately no custom-template lookup (unlike sendTemplated()): this
  * mirrors handleLoanDueAlerts/handleContributionReminders's own pattern of
- * using renderBuiltin directly - per-group message customization here is
+ * using renderBuiltin directly — per-group message customization here is
  * new scope, not part of finishing the already-half-built feature.
  */
 async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
@@ -726,7 +726,7 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
     first_name: string;
     group_name: string;
   }>(
-    // gm.id (the membership row), not m.id, is the reference_id - same
+    // gm.id (the membership row), not m.id, is the reference_id — same
     // reasoning as handleContributionReminders: reminder_dispatch_log's
     // UNIQUE constraint is (reference_type, reference_id, reminder_stage)
     // with no group_id in the key, so a member in two opted-in groups keyed
@@ -799,14 +799,14 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   const { buildStatementMessage } = await import('@/lib/sms/contribution-statement');
 
   // Active members of active groups whose group has configured a
-  // contribution_plan policy (lib/services/contribution-plan.service.ts -
+  // contribution_plan policy (lib/services/contribution-plan.service.ts —
   // monthlyContribution and/or welfareAmount > 0), and who are running a
   // real balance: for each closed calendar month since the LATER of (their
-  // join date, the plan's effective_from - capped at 24 months back so an
+  // join date, the plan's effective_from — capped at 24 months back so an
   // old plan doesn't manufacture years of phantom arrears), the shortfall
   // between what the plan expects and what contributions/welfare_pool_
   // contributions actually show as paid that month. A group that never
-  // configured amounts contributes zero rows here - the CTE's own filter
+  // configured amounts contributes zero rows here — the CTE's own filter
   // excludes it before any per-member arithmetic runs.
   const { rows } = await pool.query<ContributionStatementRow>(
     `WITH plans AS (
@@ -880,7 +880,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
         WHERE group_id IN (SELECT group_id FROM plans)
         GROUP BY 1, 2
      ),
-     -- Group-wide "balance" - deliberately the SIMPLE definition (money in
+     -- Group-wide "balance" — deliberately the SIMPLE definition (money in
      -- minus the platform's own charges), not a pull from the double-entry
      -- accounting ledger (accounts/journal_entries): most groups using this
      -- reminder job have never touched that module, and this figure only
@@ -897,7 +897,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
      ),
      -- credits_deducted - credits_from_allowance: only the PAID portion of
      -- usage costs the group anything; allowance-covered sends are free.
-     -- Priced at the current sms_rate - this is an approximation for any
+     -- Priced at the current sms_rate — this is an approximation for any
      -- usage billed under a since-changed rate, acceptable for the same
      -- "roughly right" reason as above.
      group_sms_cost AS (
@@ -908,7 +908,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
         GROUP BY u.group_id
      ),
      -- Whole calendar months since the current subscription started (the
-     -- starting month itself counts as billed), at its current monthly_fee -
+     -- starting month itself counts as billed), at its current monthly_fee —
      -- not a reconstruction of past plan changes. Calendar-month arithmetic
      -- (date_trunc + age), not a fixed-seconds-per-month division: months are
      -- 28-31 days, so a seconds-based approximation drifts depending on which
@@ -934,7 +934,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
             -- multiplying it by however many months are in the arrears window.
             COALESCE(MAX(lc.paid), 0)::text AS total_contributed,
             COALESCE(MAX(lw.paid), 0)::text AS total_welfare_contributed,
-            -- Same MAX-collapse trick as lc/lw, keyed by group_id alone -
+            -- Same MAX-collapse trick as lc/lw, keyed by group_id alone —
             -- every member of the same group gets the identical figure.
             (COALESCE(MAX(gi.total), 0) + COALESCE(MAX(gw.total), 0)
              - COALESCE(MAX(gsc.total), 0) - COALESCE(MAX(gsub.total), 0))::text AS group_balance
@@ -960,7 +960,7 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   }
 
   const paybill = platformPaybill();
-  const periodKey = new Date().toISOString().slice(0, 7); // YYYY-MM - re-sends monthly while arrears persist.
+  const periodKey = new Date().toISOString().slice(0, 7); // YYYY-MM — re-sends monthly while arrears persist.
 
   let sent = 0,
     skipped = 0,
@@ -1003,7 +1003,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   const { buildWeeklySavingsUpdateMessage } = await import('@/lib/sms/weekly-savings-update');
 
   // Unlike handleContributionReminders above, this reaches EVERY active
-  // member of EVERY active group - there is no "has this group configured a
+  // member of EVERY active group — there is no "has this group configured a
   // plan" filter. weekly_targets resolves the effective per-week target the
   // same way configuration.service.ts's cascade would (group override wins
   // over the platform-wide row seeded by migration 207), via DISTINCT ON +
@@ -1049,7 +1049,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
         WHERE status = 'completed'
         GROUP BY 1, 2, 3
      ),
-     -- Lifetime, gross, uncapped - never netted against SMS/subscription
+     -- Lifetime, gross, uncapped — never netted against SMS/subscription
      -- costs (that netting is group_balance's job in contribution-statement.ts).
      lifetime_contrib AS (
        SELECT member_id, group_id, SUM(amount) AS total FROM contributions WHERE status = 'completed' GROUP BY 1, 2
@@ -1079,7 +1079,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   }
 
   const paybill = platformPaybill();
-  // ISO week, not calendar date - this must stay IDENTICAL across however
+  // ISO week, not calendar date — this must stay IDENTICAL across however
   // many ticks it takes to drain one week's candidates (the continuation
   // enqueued below reuses the same stage so sendOnce's own idempotency
   // still applies; a date-based key here would silently re-arm every
@@ -1088,13 +1088,13 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   const weekKey = toIsoWeekKey(new Date(Date.now() + 3 * 60 * 60 * 1000));
 
   // Unbounded loops over outbound SMS calls can exceed the job tick's own
-  // time budget well before the whole candidate list is reached - confirmed
+  // time budget well before the whole candidate list is reached — confirmed
   // live 2026-10-03: this exact job got killed mid-loop at 22 of ~39
   // candidates, left stuck in 'processing' until manually recovered. Same
   // tickBudgetExhausted() guard already used by sms.service.ts's
   // pollPendingDlrs/retryFailures loops for the identical reason (see
-  // lib/jobs/deadline.ts). Unlike those two - which are scheduled every 5
-  // minutes regardless, so "next tick" already retries whatever's left -
+  // lib/jobs/deadline.ts). Unlike those two — which are scheduled every 5
+  // minutes regardless, so "next tick" already retries whatever's left —
   // this job only fires once a week, so stopping early must also enqueue
   // its own continuation or the remaining candidates would silently wait a
   // full week.
@@ -1131,7 +1131,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   if (stoppedEarly) {
     const { insertJob } = await import('./db');
     // No dedup_key: this is a continuation of the SAME week's batch, not a
-    // second weekly trigger - sendOnce's own (referenceId, reminderStage)
+    // second weekly trigger — sendOnce's own (referenceId, reminderStage)
     // idempotency is what actually prevents re-sending to anyone already
     // reached, exactly as it does across this job's normal weekly runs.
     await insertJob('notify_weekly_savings_update', {}, { priority: 5 });
@@ -1140,7 +1140,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   return {
     message:
       `Weekly savings update processed (${attempted} of ${rows.length} candidates)` +
-      (stoppedEarly ? ' - stopped early: tick budget, continuation enqueued' : ''),
+      (stoppedEarly ? ' — stopped early: tick budget, continuation enqueued' : ''),
     attempted,
     sent,
     skipped,
@@ -1151,7 +1151,7 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
 // ── SMS dispatch handler ──────────────────────────────────────
 
 // Above this many recipients, fan out via QStash instead of one in-process
-// loop - see the handler's own doc comment (SMS_MESSAGING_AUDIT_2026-08.md
+// loop — see the handler's own doc comment (SMS_MESSAGING_AUDIT_2026-08.md
 // H3 / SMS-007/SMS-015). 100 keeps a single-chunk (unchunked) campaign
 // comfortably inside the current provider-batch size (sendBulkCampaign's
 // own internal batchSize is 200) while giving genuinely large campaigns
@@ -1165,22 +1165,22 @@ const QSTASH_CHUNK_SIZE = 50;
  * setImmediate path silently dropped them). Billing + opt-out + log creation
  * + provider dispatch all happen here, inside the retry-managed job.
  *
- * Chunking (closes SMS_MESSAGING_AUDIT_2026-08.md H3 / SMS-007/SMS-015 -
+ * Chunking (closes SMS_MESSAGING_AUDIT_2026-08.md H3 / SMS-007/SMS-015 —
  * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3 item 10):
  * above QSTASH_CHUNK_THRESHOLD recipients, this handler's job changes from
  * "dispatch every recipient" to "split into QSTASH_CHUNK_SIZE-recipient
- * chunks and publish each to QStash" (lib/queue/qstash.ts) - each chunk is
+ * chunks and publish each to QStash" (lib/queue/qstash.ts) — each chunk is
  * then delivered as its own independent call to /api/v1/workers/
  * sms-dispatch-chunk, with QStash's own per-chunk retry/DLQ budget instead
  * of one shared function-timeout for the whole campaign. If publishing
  * itself throws partway through, this handler throws too and job_queue
- * retries the WHOLE publish loop - safe because every chunk's dispatchKey
+ * retries the WHOLE publish loop — safe because every chunk's dispatchKey
  * is `${jobId}:chunk:${i}`, stable across retries of this job, so a
  * chunk already delivered dedupes against itself exactly like the
  * unchunked path already dedupes a retried job (H3 below).
  *
- * Below the threshold - or when QStash isn't configured for this
- * environment (see lib/queue/qstash.ts's header comment) - dispatch is
+ * Below the threshold — or when QStash isn't configured for this
+ * environment (see lib/queue/qstash.ts's header comment) — dispatch is
  * unchanged: one direct sendBulkCampaign call, in-process, exactly as
  * before this existed.
  */
@@ -1194,20 +1194,20 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
   // Per-recipient template rendering happens HERE rather than at any of the
   // enqueue sites, because this handler is the one point all four bulk paths
   // funnel through (/sms/bulk, /sms/campaign's immediate send, and the
-  // scheduler's two - processDueSmsSchedules and processDueScheduledCampaigns).
+  // scheduler's two — processDueSmsSchedules and processDueScheduledCampaigns).
   // Rendering at enqueue time would have to be repeated at each, and the
-  // immediate-campaign route in particular never did it - every campaign
+  // immediate-campaign route in particular never did it — every campaign
   // written with a {{first_name}} placeholder has been delivering that text
   // literally. Resolving at dispatch time also means the names match current
   // membership, the same guarantee resolveSmsRecipients() already gives the
   // recipient list itself.
   //
-  // Skipped entirely for messages with no placeholder - the overwhelmingly
-  // common case - so an ordinary campaign costs no extra queries.
+  // Skipped entirely for messages with no placeholder — the overwhelmingly
+  // common case — so an ordinary campaign costs no extra queries.
   const message = String(payload.message ?? '');
   // `message` is passed so the resolver can see whether the body asks for a
   // balance; it runs the extra aggregates only if it does. previewBulkSend
-  // passes it too, and both MUST - a preview that resolved balances against a
+  // passes it too, and both MUST — a preview that resolved balances against a
   // dispatch that did not (or the reverse) would render different text and so
   // quote a different segment count from the one billed.
   const varsByPhone = message.includes('{{')
@@ -1235,7 +1235,7 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     // Normalized up front: varsByPhone (resolveRecipientVars) is keyed by
     // normalizePhone() output, and sendBulkCampaign itself re-normalizes
     // whatever it receives anyway (idempotent), so sending already-normalized
-    // numbers through the chunk payload changes nothing downstream - it just
+    // numbers through the chunk payload changes nothing downstream — it just
     // makes the varsByPhone.get(p) lookup below actually match.
     const normalizedPhones = phones.map(normalizePhone);
     const chunks: string[][] = [];
@@ -1297,7 +1297,7 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     referenceType,
     referenceId,
     payer,
-    // SMS_MESSAGING_AUDIT_2026-08.md H3 - job_queue.id is stable across
+    // SMS_MESSAGING_AUDIT_2026-08.md H3 — job_queue.id is stable across
     // retries of the same job (only `attempts` changes), so it's a safe
     // dedup key for ad-hoc sends that carry no real campaignId. Harmless to
     // always pass: sendBulkCampaign prefers campaignId when both are set.
@@ -1321,21 +1321,21 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
 }
 
 /**
- * Phase 9.2 - dispatch an approved marketing_campaigns SMS leg.
+ * Phase 9.2 — dispatch an approved marketing_campaigns SMS leg.
  *
  * Deliberately a separate handler from handleSmsBulkSend above rather than an
  * extension of it: that handler's completion-sync (syncCampaignCompletion)
  * targets sms_campaigns specifically by id, and marketing_campaigns is a
  * different table with its own status machine (draft/pending_review/
- * approved/rejected/sending/completed/cancelled, see migration 193) - reusing
+ * approved/rejected/sending/completed/cancelled, see migration 193) — reusing
  * the wrapper would mean either a silent no-op UPDATE against a nonexistent
  * sms_campaigns row (if campaignId were passed) or touching hardened,
  * production-scarred code to teach it a second completion target. Calling
- * smsService.sendBulkCampaign() directly - the same underlying function,
- * new orchestration on top - avoids both.
+ * smsService.sendBulkCampaign() directly — the same underlying function,
+ * new orchestration on top — avoids both.
  *
  * Known scope limit: unlike handleSmsBulkSend, this does not fan out via
- * QStash above QSTASH_CHUNK_THRESHOLD - a marketing campaign to more than a
+ * QStash above QSTASH_CHUNK_THRESHOLD — a marketing campaign to more than a
  * few hundred recipients could approach the function timeout. Safe for
  * typical group sizes; real QStash chunking for marketing_campaigns is a
  * follow-up, not this increment.
@@ -1425,7 +1425,7 @@ async function handleSmsPollDlr(): Promise<HandlerResult> {
 /**
  * Warn officers that SMS credits have run out or fallen below their threshold.
  *
- * Delivered by in-app notification and email ONLY - never by SMS. A payer is
+ * Delivered by in-app notification and email ONLY — never by SMS. A payer is
  * alerted precisely when it cannot afford to send an SMS, so routing this
  * through notifyMember would make the warning unsendable exactly when it is
  * needed. Please do not "unify" this into the messaging pipeline.
@@ -1519,9 +1519,9 @@ async function handleSmsProviderHealth(): Promise<HandlerResult> {
 
   const message =
     s.state === null
-      ? `SMS provider health: only ${s.total} message(s) in the window - no verdict`
+      ? `SMS provider health: only ${s.total} message(s) in the window — no verdict`
       : s.state === 'degraded'
-        ? `SMS provider DEGRADED: ${s.failed}/${s.total} failed${s.alerted ? ' - staff alerted' : ' - alert already active'}`
+        ? `SMS provider DEGRADED: ${s.failed}/${s.total} failed${s.alerted ? ' — staff alerted' : ' — alert already active'}`
         : s.recovered
           ? `SMS provider recovered: ${s.failed}/${s.total} failed`
           : `SMS provider healthy: ${s.failed}/${s.total} failed`;
@@ -1588,13 +1588,13 @@ async function handleSmsReleaseStaleReservations(): Promise<HandlerResult> {
 }
 
 /**
- * REPORT ONLY - detect earmarks with no ticket row behind them.
+ * REPORT ONLY — detect earmarks with no ticket row behind them.
  *
  * The sweep above can only settle reservations that HAVE an sms_usage_logs
  * row. An earmark taken without one is invisible to it (SMS-AUDIT-v3 G19),
  * and invisible to vw_sms_credit_reconciliation too, which does not look at
  * reserved_sms_credits at all. The known path that produced them is now
- * compensated at source, but this is the check that would have found them -
+ * compensated at source, but this is the check that would have found them —
  * and would find any future path that does the same.
  *
  * Deliberately does NOT mutate balances. Clamping an aggregate down is a
@@ -1638,8 +1638,8 @@ async function reportReservationDrift(): Promise<number> {
 }
 
 /**
- * Redact SMS bodies past the retention window. Keeps the row - it is the
- * billing and audit record - and clears only the content.
+ * Redact SMS bodies past the retention window. Keeps the row — it is the
+ * billing and audit record — and clears only the content.
  */
 async function handleSmsMessageRetention(): Promise<HandlerResult> {
   const { redactExpiredMessageBodies } = await import('@/lib/services/messaging-billing');
@@ -1648,7 +1648,7 @@ async function handleSmsMessageRetention(): Promise<HandlerResult> {
 }
 
 /**
- * Daily SMS money-trail check. Reports only - see reconcileSmsCredits for why
+ * Daily SMS money-trail check. Reports only — see reconcileSmsCredits for why
  * repairing automatically would be the wrong call.
  */
 async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
@@ -1658,22 +1658,22 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
   // A repaired campaign is not drift that survived the run, so it must not
   // read as an outstanding problem (SMS-REAUDIT-2026-09-02 F4). It is still
   // named, because self-healing that happens silently is indistinguishable
-  // from nothing having gone wrong - and the whole point of this job is that
+  // from nothing having gone wrong — and the whole point of this job is that
   // somebody can tell the difference.
   const outstandingCampaigns = r.driftedCampaigns - r.repairedCampaigns;
   const clean = r.driftedPayers === 0 && outstandingCampaigns === 0;
 
   const repaired =
-    r.repairedCampaigns > 0 ? ` - recomputed ${r.repairedCampaigns} campaign counter(s) from the message log` : '';
+    r.repairedCampaigns > 0 ? ` — recomputed ${r.repairedCampaigns} campaign counter(s) from the message log` : '';
 
   // Whether staff were emailed is part of the run record on purpose (F2):
-  // "DRIFT - investigate" printed for six days while reaching nobody is
+  // "DRIFT — investigate" printed for six days while reaching nobody is
   // exactly the failure that closed, and "reported" versus "suppressed as a
   // repeat" is the thing an operator reading the history needs to tell apart.
   const message = clean
     ? `SMS reconciliation: clean (${r.payersChecked} payers, ${r.campaignsChecked} campaigns)${repaired}`
-    : `SMS reconciliation: DRIFT - ${r.driftedPayers}/${r.payersChecked} payers, ` +
-      `${outstandingCampaigns}/${r.campaignsChecked} campaigns need a human${repaired} - ` +
+    : `SMS reconciliation: DRIFT — ${r.driftedPayers}/${r.payersChecked} payers, ` +
+      `${outstandingCampaigns}/${r.campaignsChecked} campaigns need a human${repaired} — ` +
       (r.alerted ? 'staff emailed' : 'already reported, staff not re-emailed');
 
   return { message, ...r };
@@ -1682,7 +1682,7 @@ async function handleSmsCreditReconciliation(): Promise<HandlerResult> {
 /**
  * Zero the bundled SMS allowance for groups whose billing anniversary has
  * arrived. Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md), moved
- * off the 1st-of-month sweep onto per-group anniversaries by migration 151 -
+ * off the 1st-of-month sweep onto per-group anniversaries by migration 151 —
  * hence DAILY, not monthly. The handler name is kept so the job_queue type
  * and its dedup history stay continuous.
  */
@@ -1693,7 +1693,7 @@ async function handleSmsAllowanceMonthlyReset(): Promise<HandlerResult> {
 }
 
 /**
- * Organization-side sibling - grants rather than zeroes, since organizations
+ * Organization-side sibling — grants rather than zeroes, since organizations
  * don't have the group side's separate used/included counter (see migration
  * 152's rationale). Same anniversary-anchored idempotency shape.
  */
@@ -1705,9 +1705,9 @@ async function handleOrganizationSmsAllowanceGrant(): Promise<HandlerResult> {
 
 /**
  * Render + upload one organization_report_exports row (Phase 5 gap analysis
- * item 1 - async report export). `isFinalAttempt` tells the service whether
+ * item 1 — async report export). `isFinalAttempt` tells the service whether
  * to record a terminal 'failed' status on this exception, or leave the row
- * for job_queue's own retry to pick up again a few minutes later - see
+ * for job_queue's own retry to pick up again a few minutes later — see
  * processReportExport's own doc comment for why that distinction matters to
  * a coordinator polling the status route.
  */
@@ -1722,10 +1722,10 @@ async function handleOrganizationReportExport(job: Job): Promise<HandlerResult> 
 }
 
 /**
- * Report-schedule sweep - the SAME idiom as handleSmsProcessSchedules: a
+ * Report-schedule sweep — the SAME idiom as handleSmsProcessSchedules: a
  * payload-free, constantly-keyed 5-minute tick (see lib/jobs/index.ts) that
  * finds due report_schedules rows and enqueues one organization_report_export
- * job per row. Deliberately NOT a second pg_cron entry - this codebase's
+ * job per row. Deliberately NOT a second pg_cron entry — this codebase's
  * entire pg_cron footprint is the single 5-minute /api/cron tick; every
  * other recurring behaviour is a job type dispatched from that one tick, and
  * this follows the same shape rather than forking a new scheduling path.

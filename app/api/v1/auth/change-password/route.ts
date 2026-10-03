@@ -7,17 +7,17 @@ import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/auth/change-password - change the signed-in member's own
+ * POST /api/v1/auth/change-password — change the signed-in member's own
  * password.
  *
  * Closes a real gap rather than adding a feature: the settings page has always
  * had this form, but it posted to PATCH /members/[id], whose schema and column
- * whitelist both ignore password fields - so the request succeeded, nothing
+ * whitelist both ignore password fields — so the request succeeded, nothing
  * changed, and the UI reported success anyway
  * (CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md). `membersService.changePassword`
  * already did the bcrypt compare + rehash; it had no caller.
  *
- * Always acts on `auth.userId` - the member id is never taken from the body,
+ * Always acts on `auth.userId` — the member id is never taken from the body,
  * so this route cannot be used to set someone else's password.
  */
 export async function POST(req: NextRequest): Promise<Response> {

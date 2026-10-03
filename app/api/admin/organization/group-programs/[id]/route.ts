@@ -6,10 +6,10 @@ import { UpdateGroupProgramSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET   /api/admin/organization/group-programs/:id - single program
- * PATCH /api/admin/organization/group-programs/:id - update content fields
+ * GET   /api/admin/organization/group-programs/:id — single program
+ * PATCH /api/admin/organization/group-programs/:id — update content fields
  *   (name/description/eligibility/etc). Status transitions are a separate
- *   endpoint - see ./status/route.ts - since they have their own allowed-
+ *   endpoint — see ./status/route.ts — since they have their own allowed-
  *   transition rules rather than being a free-form field write.
  */
 

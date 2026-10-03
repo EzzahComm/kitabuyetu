@@ -43,7 +43,7 @@ import { ROUTES } from './routes';
  * implementation changes, the copy here is wrong, and this is the one place to
  * fix it.
  *
- * No prices, plan names or SMS allowances are typed here at all - those are
+ * No prices, plan names or SMS allowances are typed here at all — those are
  * read live from `types/enums.ts`, which is what the M-Pesa callback itself
  * prices against. A hand-maintained copy of the price list is precisely what
  * once had the public pages advertising numbers the server did not charge.
@@ -52,7 +52,7 @@ import { ROUTES } from './routes';
  * import the nav without dragging twenty lucide glyphs into the bundle.
  * ──────────────────────────────────────────────────────────────────────────── */
 
-/* ── Section 3 - the problem ──────────────────────────────────────────────── */
+/* ── Section 3 — the problem ──────────────────────────────────────────────── */
 
 export interface PainPoint {
   icon: LucideIcon;
@@ -64,12 +64,12 @@ export const PAIN_POINTS: PainPoint[] = [
   {
     icon: BookMarked,
     title: 'The paper book',
-    body: 'One book, one person's handwriting. Lose a page and the group loses its history.',
+    body: 'One book, one person’s handwriting. Lose a page and the group loses its history.',
   },
   {
     icon: Table2,
     title: 'The spreadsheet',
-    body: 'Three officers, three copies - and nobody sure which one is right.',
+    body: 'Three officers, three copies — and nobody sure which one is right.',
   },
   {
     icon: ArrowLeftRight,
@@ -83,7 +83,7 @@ export const PAIN_POINTS: PainPoint[] = [
   },
 ];
 
-/* ── Section 4 - what Kitabu Yetu does ────────────────────────────────────── */
+/* ── Section 4 — what Kitabu Yetu does ────────────────────────────────────── */
 
 export interface Capability {
   icon: LucideIcon;
@@ -92,14 +92,14 @@ export interface Capability {
 }
 
 /** Each entry names the module that implements it:
- *  contributions + contribution-splits - loans + approval-policy - members +
- *  import - mpesa-stk/c2b/b2c over daraja - reports + accounting -
+ *  contributions + contribution-splits · loans + approval-policy · members +
+ *  import · mpesa-stk/c2b/b2c over daraja · reports + accounting ·
  *  member-passbook (the app/(member)/me portal). */
 export const CAPABILITIES: Capability[] = [
   {
     icon: PiggyBank,
     title: 'Savings and contributions',
-    body: 'Recorded as they arrive and split into savings, welfare and loan repayment - by rules you set once.',
+    body: 'Recorded as they arrive and split into savings, welfare and loan repayment — by rules you set once.',
   },
   {
     icon: Landmark,
@@ -109,32 +109,32 @@ export const CAPABILITIES: Capability[] = [
   {
     icon: Users,
     title: 'Members',
-    body: 'Who's in, their role, what they've paid and what they owe. Bring your list from a spreadsheet.',
+    body: 'Who’s in, their role, what they’ve paid and what they owe. Bring your list from a spreadsheet.',
   },
   {
     icon: Smartphone,
     title: 'M-Pesa',
-    body: 'Collect through a payment prompt or your PayBill, and pay out straight to members' M-Pesa.',
+    body: 'Collect through a payment prompt or your PayBill, and pay out straight to members’ M-Pesa.',
   },
   {
     icon: Sprout,
     title: 'Income-generating activities and investments',
-    body: 'Land, rentals, a shop or a fixed deposit - see what each earns, what it costs and whether it's paying off.',
+    body: 'Land, rentals, a shop or a fixed deposit — see what each earns, what it costs and whether it’s paying off.',
   },
   {
     icon: BarChart3,
     title: 'Reports',
-    body: 'Member statements, contribution and loan reports - ready in minutes, never retyped.',
+    body: 'Member statements, contribution and loan reports — ready in minutes, never retyped.',
   },
   {
     icon: BookOpen,
     title: 'Member passbook',
-    body: 'Every member checks their own savings, loan and goals - any time, not just at meetings.',
+    body: 'Every member checks their own savings, loan and goals — any time, not just at meetings.',
   },
 ];
 
 /**
- * The four-up value proposition directly under the hero - the whole product
+ * The four-up value proposition directly under the hero — the whole product
  * compressed into the four things a group actually recognises.
  *
  * Deliberately NOT the same list as CAPABILITIES above: that one enumerates
@@ -166,7 +166,7 @@ export const VALUE_PILLARS: Capability[] = [
   },
 ];
 
-/* ── Section 6 - product showcase ─────────────────────────────────────────── */
+/* ── Section 6 — product showcase ─────────────────────────────────────────── */
 
 export type ShowcaseVisual = 'ledger' | 'payment' | 'reports' | 'messages' | 'shares';
 
@@ -190,9 +190,9 @@ export const SHOWCASE: ShowcaseItem[] = [
     body: 'Proper accounting underneath. Plain language on top.',
     points: [
       'Members, savings, contributions, loans, welfare, shares and dividends',
-      'Income-generating activities and investments - income, running costs and net performance',
+      'Income-generating activities and investments — income, running costs and net performance',
       'Every payment recorded automatically',
-      'Close the month so past records can't change',
+      'Close the month so past records can’t change',
     ],
     visual: 'ledger',
     href: ROUTES.bookkeeper,
@@ -202,10 +202,10 @@ export const SHOWCASE: ShowcaseItem[] = [
     eyebrow: 'Move the money',
     title: 'Money in and out,',
     emphasis: 'straight through M-Pesa',
-    body: 'The payment and the record happen together - so they always agree.',
+    body: 'The payment and the record happen together — so they always agree.',
     points: [
-      'A payment prompt straight to the member's phone',
-      'PayBill payments matched by the member's membership number',
+      'A payment prompt straight to the member’s phone',
+      'PayBill payments matched by the member’s membership number',
       'Loans, welfare and dividends paid out to M-Pesa',
       'M-Pesa charges recorded on every transaction',
     ],
@@ -213,13 +213,13 @@ export const SHOWCASE: ShowcaseItem[] = [
   },
   {
     eyebrow: 'Know your numbers',
-    title: 'The answer to "where do we stand?"',
+    title: 'The answer to “where do we stand?”',
     emphasis: 'in one screen',
-    body: 'Balances, loans and welfare from one source - so the report and the meeting agree.',
+    body: 'Balances, loans and welfare from one source — so the report and the meeting agree.',
     points: [
       'Member statements and full transaction history',
       'Contribution, loan and welfare reports',
-      'Credit scores built from a member's own repayment record',
+      'Credit scores built from a member’s own repayment record',
       'A portfolio view across many groups for organizations',
     ],
     visual: 'reports',
@@ -240,10 +240,10 @@ export const SHOWCASE: ShowcaseItem[] = [
     linkText: 'More on Chama Reminder',
   },
   {
-    eyebrow: 'Grow the group's money',
+    eyebrow: 'Grow the group’s money',
     title: 'Shares, dividends and the activities',
     emphasis: 'that earn for the group',
-    body: 'Track shares and dividends, plus every project the group invests in - and whether it's paying off.',
+    body: 'Track shares and dividends, plus every project the group invests in — and whether it’s paying off.',
     points: [
       'Share records with printable certificates',
       'Dividends allocated across real holdings, not estimated',
@@ -256,7 +256,7 @@ export const SHOWCASE: ShowcaseItem[] = [
   },
 ];
 
-/* ── Section 7 - how it works ─────────────────────────────────────────────── */
+/* ── Section 7 — how it works ─────────────────────────────────────────────── */
 
 export interface Step {
   title: string;
@@ -264,10 +264,10 @@ export interface Step {
 }
 
 /**
- * The six-step journey - Create, Organize, Set your rules, Start recording,
+ * The six-step journey — Create, Organize, Set your rules, Start recording,
  * Digital ledger, Grow. Steps 4 and 5 each have a real, shipped feature behind
  * every sentence (contribution-splits; Daraja + the posting templates). Grow
- * reaches toward the ecosystem (organizations, donors, programs) - several of
+ * reaches toward the ecosystem (organizations, donors, programs) — several of
  * those destinations are the vision this platform is building toward rather
  * than a shipped feature today; see each /ecosystem/* page for what is live
  * versus what is coming.
@@ -299,7 +299,7 @@ export const STEPS: Step[] = [
   },
 ];
 
-/* ── Section 8 - roles ────────────────────────────────────────────────────── */
+/* ── Section 8 — roles ────────────────────────────────────────────────────── */
 
 export interface RoleCard {
   icon: LucideIcon;
@@ -311,7 +311,7 @@ export interface RoleCard {
 }
 
 /**
- * These are the REAL roles - `MemberRole` in types/enums.ts is exactly
+ * These are the REAL roles — `MemberRole` in types/enums.ts is exactly
  * chairperson / treasurer / secretary / member, and organizations come in
  * through `PlatformRole.organization_coordinator` and the (enterprise) portal.
  * There is deliberately no separate "group administrator" card: the
@@ -330,17 +330,17 @@ export const ROLES: RoleCard[] = [
   {
     icon: Wallet,
     title: 'Treasurers',
-    body: 'Answer "has she paid?" in seconds - no statement needed.',
+    body: 'Answer “has she paid?” in seconds — no statement needed.',
   },
   {
     icon: ClipboardList,
     title: 'Secretaries',
-    body: 'Register, meetings and minutes - next to the money.',
+    body: 'Register, meetings and minutes — next to the money.',
   },
   {
     icon: ShieldCheck,
     title: 'Chairpersons',
-    body: 'Approve loans and payouts, set the rules, see the group's health.',
+    body: 'Approve loans and payouts, set the rules, see the group’s health.',
   },
   {
     icon: Building2,
@@ -351,7 +351,7 @@ export const ROLES: RoleCard[] = [
   },
 ];
 
-/* ── Section 9 - payments ─────────────────────────────────────────────────── */
+/* ── Section 9 — payments ─────────────────────────────────────────────────── */
 
 export interface FlowStep {
   label: string;
@@ -364,7 +364,7 @@ export interface FlowStep {
  * → sms + receipt.
  *
  * Three steps, not the six this used to list. The six were each accurate, but
- * they described the SYSTEM's work rather than the group's experience - a
+ * they described the SYSTEM's work rather than the group's experience — a
  * treasurer does not do six things, they do one, and the other five happen to
  * them. Every fact from the longer version survives inside these bodies
  * (Daraja verification, matching by membership number, the split rules, both
@@ -382,11 +382,11 @@ export const PAYMENT_FLOW: FlowStep[] = [
   },
   {
     label: 'The records update',
-    body: 'Split by your rules, recorded, and confirmed to the member by SMS - instantly.',
+    body: 'Split by your rules, recorded, and confirmed to the member by SMS — instantly.',
   },
 ];
 
-/* ── Section 10 - trust ───────────────────────────────────────────────────── */
+/* ── Section 10 — trust ───────────────────────────────────────────────────── */
 
 export interface Control {
   icon: LucideIcon;
@@ -394,7 +394,7 @@ export interface Control {
   body: string;
 }
 
-/** Every control below is shipped and live - role checks, staff TOTP,
+/** Every control below is shipped and live — role checks, staff TOTP,
  *  maker-checker approvals (approval-policy.service), the audit log, Postgres
  *  row-level tenant isolation, and the official Daraja integration. Nothing
  *  aspirational, and no unfalsifiable "bank-grade security" line. */
@@ -407,12 +407,12 @@ export const CONTROLS: Control[] = [
   {
     icon: GitBranch,
     title: 'Two approvers',
-    body: 'Large payouts and write-offs need a second official's sign-off.',
+    body: 'Large payouts and write-offs need a second official’s sign-off.',
   },
   {
     icon: ScrollText,
     title: 'Every change recorded',
-    body: 'Who changed what, and when - always on record.',
+    body: 'Who changed what, and when — always on record.',
   },
   {
     icon: Building2,
@@ -427,11 +427,11 @@ export const CONTROLS: Control[] = [
   {
     icon: Coins,
     title: 'Real M-Pesa',
-    body: 'Payments go straight through M-Pesa - no middlemen, no workarounds.',
+    body: 'Payments go straight through M-Pesa — no middlemen, no workarounds.',
   },
 ];
 
-/* ── Section 11 - resources ───────────────────────────────────────────────── */
+/* ── Section 11 — resources ───────────────────────────────────────────────── */
 
 export interface ResourceCard {
   kind: string;
@@ -443,14 +443,14 @@ export interface ResourceCard {
 /**
  * Real destinations only. There is no blog and no CMS in this repository, so
  * this section is an honest index of the pages that exist rather than five
- * invented article cards linking nowhere - which is the single most common way
+ * invented article cards linking nowhere — which is the single most common way
  * a marketing redesign ships dead links.
  */
 export const RESOURCES: ResourceCard[] = [
   {
     kind: 'Product',
     title: 'Kitabu Yetu Bookkeeper',
-    body: 'Contributions, loans, welfare and shares - books that always balance.',
+    body: 'Contributions, loans, welfare and shares — books that always balance.',
     href: ROUTES.bookkeeper,
   },
   {
@@ -486,12 +486,12 @@ export const RESOURCES: ResourceCard[] = [
   {
     kind: 'Talk to us',
     title: 'Contact',
-    body: 'A demo, a question about your group, or a partnership - reach a person in Nairobi.',
+    body: 'A demo, a question about your group, or a partnership — reach a person in Nairobi.',
     href: ROUTES.contact,
   },
 ];
 
-/* ── Section 12 - product pillars (Products overview + homepage) ─────────── */
+/* ── Section 12 — product pillars (Products overview + homepage) ─────────── */
 
 export interface ProductPillar {
   icon: LucideIcon;
@@ -501,7 +501,7 @@ export interface ProductPillar {
   href: string;
   linkText: string;
   /** `live` has a real, shipped feature behind every point below. `vision`
-   *  describes where the product is going - labelled as such on every page
+   *  describes where the product is going — labelled as such on every page
    *  that renders it, never presented as available today. */
   status: 'live' | 'vision';
 }
@@ -510,7 +510,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: BookOpen,
     title: 'Bookkeeper',
-    body: 'Run your whole group - members, money and reports - in books that always balance.',
+    body: 'Run your whole group — members, money and reports — in books that always balance.',
     points: [
       'Contributions, loans, welfare and shares',
       'Collect and pay out by M-Pesa',
@@ -523,7 +523,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: MessageSquareText,
     title: 'Chama Reminder / Kumbusha',
-    body: 'Keep members informed and contributions on time - no bookkeeping needed.',
+    body: 'Keep members informed and contributions on time — no bookkeeping needed.',
     points: [
       'Contribution and meeting reminders',
       'Group announcements by SMS',
@@ -540,7 +540,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
     points: [
       'Shareable campaign pages with a running total',
       'Donations by M-Pesa, recorded automatically',
-      `No monthly fee - ${CHANGISHA_PRICING.platformFeePct}% when you withdraw`,
+      `No monthly fee — ${CHANGISHA_PRICING.platformFeePct}% when you withdraw`,
     ],
     href: ROUTES.fundraise,
     linkText: 'See live campaigns',
@@ -551,7 +551,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Briefcase,
     title: 'Enterprise',
-    body: 'Oversee many groups and programmes from one place - each keeps its own book.',
+    body: 'Oversee many groups and programmes from one place — each keeps its own book.',
     points: [
       'Multi-group and multi-organization dashboards',
       'Programs, funding and disbursements to the groups you back',
@@ -561,8 +561,8 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
     linkText: 'Explore Enterprise',
     // Corrected from 'vision' 2026-08-26. This was stale, and it was
     // understating the product: the (enterprise) portal ships ten real
-    // screens - dashboard, members, branches, funding, disbursements,
-    // reports, billing, branding, audit and api-keys - behind 35 live
+    // screens — dashboard, members, branches, funding, disbursements,
+    // reports, billing, branding, audit and api-keys — behind 35 live
     // /api/admin/organization* routes, with organization plans in
     // migration 152. Every point above names one of those screens.
     // Per-group member-level stake is still NOT built; nothing here claims it.
@@ -570,7 +570,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   },
 ];
 
-/* ── Section 13 - why Kitabu Yetu ─────────────────────────────────────────── */
+/* ── Section 13 — why Kitabu Yetu ─────────────────────────────────────────── */
 
 export interface ValueProp {
   icon: LucideIcon;
@@ -590,7 +590,7 @@ export const WHY_KITABU_YETU: ValueProp[] = [
   {
     icon: Layers,
     title: 'Digital Administration',
-    body: 'One shared book replaces the notebook and the treasurer's phone.',
+    body: 'One shared book replaces the notebook and the treasurer’s phone.',
   },
   {
     icon: ShieldCheck,
@@ -605,7 +605,7 @@ export const WHY_KITABU_YETU: ValueProp[] = [
   {
     icon: Smartphone,
     title: 'Cashless Collections',
-    body: 'Contributions and repayments by M-Pesa - prompt or PayBill.',
+    body: 'Contributions and repayments by M-Pesa — prompt or PayBill.',
   },
   {
     icon: Send,
@@ -629,7 +629,7 @@ export const WHY_KITABU_YETU: ValueProp[] = [
   },
 ];
 
-/* ── Section 14 - the ecosystem (homepage section + /ecosystem hub) ──────── */
+/* ── Section 14 — the ecosystem (homepage section + /ecosystem hub) ──────── */
 
 export interface EcosystemPillar {
   icon: LucideIcon;
@@ -640,7 +640,7 @@ export interface EcosystemPillar {
 }
 
 /**
- * Multigroup Organizations is real - multi-group registration and the
+ * Multigroup Organizations is real — multi-group registration and the
  * (enterprise) portal both shipped. Donors, Marketplace and Programs are the
  * vision for where those same rails lead; each is labelled `vision` and its
  * own page says so plainly rather than describing a feature that does not
@@ -677,7 +677,7 @@ export const ECOSYSTEM_PILLARS: EcosystemPillar[] = [
   },
 ];
 
-/* ── Section 16 - Enterprise (homepage section + /enterprise-solutions) ───── */
+/* ── Section 16 — Enterprise (homepage section + /enterprise-solutions) ───── */
 
 export interface EnterpriseFeature {
   icon: LucideIcon;
@@ -689,15 +689,15 @@ export interface EnterpriseFeature {
  * Every card names a screen that exists in `app/(enterprise)/enterprise/`,
  * backed by one of the 35 live `/api/admin/organization*` routes. Verified
  * 2026-08-26 before this section was written, because the product pillar had
- * been sitting on `status: 'vision'` while the portal was already shipping -
+ * been sitting on `status: 'vision'` while the portal was already shipping —
  * the copy was behind the code, not ahead of it.
  *
- * DELIBERATELY ABSENT - do not add these back without checking the code:
+ * DELIBERATELY ABSENT — do not add these back without checking the code:
  *  • API keys / webhooks. The `api-keys` screen is a MOCK: it imports seed
  *    rows from `_data` and its own comment says "no API key issuance /
  *    webhook delivery backend exists yet". This card claimed them on
  *    2026-08-27 and was live and false for about an hour. Screen size is not
- *    evidence a feature exists - that page is 214 lines of working UI over
+ *    evidence a feature exists — that page is 214 lines of working UI over
  *    nothing.
  *  • Any claim that an organization sees inside a group's member-level
  *    records. It does not, and the tenant isolation in migration 097 stops it.
@@ -706,12 +706,12 @@ export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
   {
     icon: Building2,
     title: 'Every group in one account',
-    body: 'One login for all your groups - each keeps its own officers, books and members.',
+    body: 'One login for all your groups — each keeps its own officers, books and members.',
   },
   {
     icon: BarChart3,
     title: 'Organization dashboard',
-    body: 'Activity and contributions across your portfolio, from the groups' own books.',
+    body: 'Activity and contributions across your portfolio, from the groups’ own books.',
   },
   {
     icon: Megaphone,
@@ -735,7 +735,7 @@ export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
   },
 ];
 
-/* ── Section 17 - the two customer paths ──────────────────────────────────── */
+/* ── Section 17 — the two customer paths ──────────────────────────────────── */
 
 export interface CustomerPath {
   icon: LucideIcon;
@@ -755,7 +755,7 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
   {
     icon: Users,
     eyebrow: 'I run a group',
-    title: 'Your members, money and meetings - sorted.',
+    title: 'Your members, money and meetings — sorted.',
     body: 'Savings, loans, welfare and M-Pesa in one book. No more reconciling by hand.',
     audience: ['Chamas', 'Welfare groups', 'Investment clubs', 'SACCOs', 'VSLAs', 'Community groups'],
     href: ROUTES.startGroup,
@@ -765,14 +765,14 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
     icon: Network,
     eyebrow: 'I manage many groups',
     title: 'See every group. Report in minutes.',
-    body: 'One account for all your groups, programmes and funding - each group keeps its own book.',
+    body: 'One account for all your groups, programmes and funding — each group keeps its own book.',
     audience: ['NGOs', 'CBOs', 'Federations', 'SACCO networks', 'Development programs', 'Institutions'],
     href: ROUTES.enterprise,
     linkText: 'Explore Enterprise',
   },
 ];
 
-/* ── Section 18 - what a member actually gets ─────────────────────────────── */
+/* ── Section 18 — what a member actually gets ─────────────────────────────── */
 
 export interface MemberBenefit {
   icon: LucideIcon;
@@ -780,7 +780,7 @@ export interface MemberBenefit {
   body: string;
 }
 
-/** All six are screens in the `app/(member)/me` portal - passbook,
+/** All six are screens in the `app/(member)/me` portal — passbook,
  *  contributions, loan balances, transaction history, statements and goals.
  *  Nothing here describes a member-facing feature that isn't in that portal. */
 export const MEMBER_BENEFITS: MemberBenefit[] = [
@@ -802,7 +802,7 @@ export const MEMBER_BENEFITS: MemberBenefit[] = [
   {
     icon: ScrollText,
     title: 'Statements they can keep',
-    body: 'Download it themselves - no need to ask.',
+    body: 'Download it themselves — no need to ask.',
   },
   {
     icon: Coins,
@@ -816,7 +816,7 @@ export const MEMBER_BENEFITS: MemberBenefit[] = [
   },
 ];
 
-/* ── Section 15 - impact ──────────────────────────────────────────────────── */
+/* ── Section 15 — impact ──────────────────────────────────────────────────── */
 
 export interface ImpactStat {
   label: string;
@@ -825,19 +825,19 @@ export interface ImpactStat {
 
 /**
  * Placeholders, deliberately. Real figures belong here the moment they exist
- * - pulled from the same tables the admin portal already reads, the same
+ * — pulled from the same tables the admin portal already reads, the same
  * discipline PLAN_MONTHLY_FEES enforces on pricing. Until then this renders
  * an honest em-dash rather than an invented number.
  */
 export const IMPACT_STATS: ImpactStat[] = [
-  { label: 'Groups digitized', value: '-' },
-  { label: 'Members served', value: '-' },
-  { label: 'Transactions processed', value: '-' },
-  { label: 'Funds managed', value: '-' },
-  { label: 'Communities reached', value: '-' },
+  { label: 'Groups digitized', value: '—' },
+  { label: 'Members served', value: '—' },
+  { label: 'Transactions processed', value: '—' },
+  { label: 'Funds managed', value: '—' },
+  { label: 'Communities reached', value: '—' },
 ];
 
-/* ── Section 19 - homepage FAQ ────────────────────────────────────────────── */
+/* ── Section 19 — homepage FAQ ────────────────────────────────────────────── */
 
 /**
  * Every answer repeats wording already verified for /pricing and /support
@@ -863,7 +863,7 @@ export const HOME_FAQS: [question: string, answer: string][] = [
   ],
   [
     "Can another group see our group's records?",
-    'No. Your records are locked to your group - no one else can see them.',
+    'No. Your records are locked to your group — no one else can see them.',
   ],
   ['Is there a free plan or a lock-in?', 'Neither. Pay monthly by M-Pesa and change or stop any time.'],
 ];

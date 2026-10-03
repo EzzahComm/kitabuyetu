@@ -2,7 +2,7 @@ import * as React from 'react';
 import { brandGreen } from '@/lib/ui/brand-palette';
 
 interface ProgressRingProps {
-  /** 0-100. */
+  /** 0–100. */
   value: number;
   size?: number;
   stroke?: number;
@@ -13,7 +13,7 @@ interface ProgressRingProps {
 }
 
 /**
- * Lightweight SVG progress ring - used for savings-goal completion and other
+ * Lightweight SVG progress ring — used for savings-goal completion and other
  * "how far along am I" visuals. Pure SVG (no chart lib) so it's tiny and crisp
  * on low-end mobile devices.
  */

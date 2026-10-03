@@ -19,18 +19,18 @@ export interface TenantAccessTokenPayload {
   role: MemberRole | PlatformRole;
   personId?: string; // shared cross-group identity (since Phase A)
   organizationId?: string;
-  // Phase D Part 2 - group lifecycle. The proxy gates non-verify routes when
+  // Phase D Part 2 — group lifecycle. The proxy gates non-verify routes when
   // this is 'pending_verification'. Optional for backward compatibility with
   // tokens issued before this field existed (they're treated as 'active').
   groupStatus?: string;
   // Active Membership Context (payment architecture §2.1/§2.5). Optional for
   // tokens issued before Phase 3.2; sensitive-op checks skip when absent
   // (drift bounded by the access-token TTL, as designed).
-  membershipId?: string; // group_members.id - anchoring claim
+  membershipId?: string; // group_members.id — anchoring claim
   membershipNo?: string; // e.g. BG102534
   authVersion?: number; // group_members.auth_version epoch
   sessionVersion?: number; // members.session_version epoch
-  // RBAC permission activation - resolved from group_members.role_id ->
+  // RBAC permission activation — resolved from group_members.role_id ->
   // roles.permissions at issue time. Optional for backward compatibility
   // with tokens issued before this field existed.
   permissions?: string[];
@@ -52,16 +52,16 @@ interface RefreshTokenPayload {
   aud?: TokenAudience; // mirror access-token audience so refreshes don't cross
   // Active-membership pinning (audit C-1): the group chosen at login travels
   // with the refresh token so refreshes REVALIDATE that membership instead of
-  // re-deriving one. Absent on tokens issued before this field existed -
+  // re-deriving one. Absent on tokens issued before this field existed —
   // the refresh route handles that case explicitly.
   groupId?: string;
   // §2.5: member-level session epoch captured at issue time. Refresh compares
-  // it against members.session_version - a bump ("log out everywhere",
+  // it against members.session_version — a bump ("log out everywhere",
   // blacklist, password change) terminates the session at its next refresh.
   sessionVersion?: number;
 }
 
-// Validated at module load by lib/env.ts - no need for a second null check here.
+// Validated at module load by lib/env.ts — no need for a second null check here.
 const ACCESS_SECRET = env.JWT_SECRET;
 // Prefer a dedicated refresh secret so access tokens cannot be accepted where
 // a refresh token is expected (and vice versa) even if one key leaks.
@@ -157,7 +157,7 @@ export function refreshTtlSeconds(audience: TokenAudience = 'tenant'): number {
 //   - aud:       'backoffice_mfa' (distinct audience so it CANNOT be used
 //                anywhere except /admin/login/verify)
 //   - kind:      'enrollment' (first-time enroll) or 'verify' (existing user)
-//   - secret:    plaintext base32 secret - ONLY on enrollment challenges
+//   - secret:    plaintext base32 secret — ONLY on enrollment challenges
 //                so the verify route can persist it after the code confirms
 //   - exp:       5 minutes
 // TTL is short to bound the window where a stolen step-1 response is useful.

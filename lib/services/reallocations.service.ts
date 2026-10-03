@@ -1,5 +1,5 @@
 /**
- * Payment reallocations - the correction flow of the payment spine
+ * Payment reallocations — the correction flow of the payment spine
  * (payment architecture §3.4, §11, §15.5; ADR-8, ADR-20).
  *
  * A payment allocated to the wrong member is never edited or deleted.
@@ -7,11 +7,11 @@
  * on execution:
  *
  *   1. voids the original contribution (status → 'cancelled'; amount,
- *      receipt, and payment link stay on the row forever - it remains the
+ *      receipt, and payment link stay on the row forever — it remains the
  *      historical fact of where the money first landed),
  *   2. posts a CONTRA journal (original lines with debit/credit swapped),
  *   3. creates the corrected contribution for the target membership
- *      (no receipt/payment_id - those uniques stay with the original;
+ *      (no receipt/payment_id — those uniques stay with the original;
  *      payment_reallocations.to_domain_id carries the linkage),
  *   4. mirrors the original journal onto the new membership,
  *   5. flips the spine to allocation_status='reallocated' and appends the
@@ -81,7 +81,7 @@ export const reallocationsService = {
       }
       if (!contrib.payment_id) {
         throw new ValidationError(
-          'This contribution has no linked payment - correct cash/manual entries via the contribution edit flow',
+          'This contribution has no linked payment — correct cash/manual entries via the contribution edit flow',
         );
       }
       if (contrib.member_id === data.toMemberId) {
@@ -133,7 +133,7 @@ export const reallocationsService = {
         ],
       );
 
-      // Record audit log for reallocation creation - user-triggered
+      // Record audit log for reallocation creation — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -162,7 +162,7 @@ export const reallocationsService = {
     });
   },
 
-  /** Second-officer approval (maker-checker) - approver ≠ initiator. */
+  /** Second-officer approval (maker-checker) — approver ≠ initiator. */
   async approve(ctx: TenantContext, id: string) {
     return withTransaction(ctx, async (client) => {
       const {
@@ -188,7 +188,7 @@ export const reallocationsService = {
         [id, ctx.userId],
       );
 
-      // Record audit log for reallocation approval - user-triggered
+      // Record audit log for reallocation approval — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -222,7 +222,7 @@ export const reallocationsService = {
       );
       if (!updated) throw new NotFoundError('Pending reallocation', id);
 
-      // Record audit log for reallocation rejection - user-triggered
+      // Record audit log for reallocation rejection — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -322,16 +322,16 @@ async function executeReallocation(client: PoolClient, realloc: ReallocationRow,
   }
 
   // 2 + 4. Contra journal (swap debit/credit) and mirrored journal for the
-  // new membership - both derived from the original entry so split-rule
+  // new membership — both derived from the original entry so split-rule
   // allocations are reversed and re-posted exactly. Skipped when the
-  // original was posted without a journal (missing chart) - parity.
+  // original was posted without a journal (missing chart) — parity.
   let contraJeId: string | null = null;
   let newJeId: string | null = null;
   if (original.journal_entry_id) {
     contraJeId = await mirrorJournal(client, {
       sourceJeId: original.journal_entry_id,
       groupId: original.group_id,
-      description: `Reallocation contra - ${realloc.id}`,
+      description: `Reallocation contra — ${realloc.id}`,
       actorId,
       memberId: original.member_id,
       membershipId: original.group_membership_id,
@@ -340,7 +340,7 @@ async function executeReallocation(client: PoolClient, realloc: ReallocationRow,
     newJeId = await mirrorJournal(client, {
       sourceJeId: original.journal_entry_id,
       groupId: original.group_id,
-      description: `Reallocation repost - ${realloc.id}`,
+      description: `Reallocation repost — ${realloc.id}`,
       actorId,
       memberId: realloc.to_member_id!,
       membershipId: realloc.to_group_membership_id!,
@@ -409,7 +409,7 @@ async function executeReallocation(client: PoolClient, realloc: ReallocationRow,
 }
 
 /**
- * Copy a journal entry's lines onto a new posted entry - verbatim, or with
+ * Copy a journal entry's lines onto a new posted entry — verbatim, or with
  * debit/credit swapped for the contra leg. Attribution (§6e) points at the
  * given member/membership; posted_via='user' with the acting officer.
  */
@@ -437,7 +437,7 @@ async function mirrorJournal(
      RETURNING id`,
     [args.sourceJeId, args.description, args.actorId, args.memberId, args.membershipId],
   );
-  // entry_date is the journal_lines partition key - supplied directly as
+  // entry_date is the journal_lines partition key — supplied directly as
   // CURRENT_DATE, matching the new entry's own date above (this mirrored
   // entry is deliberately dated today, not the original entry's date; a
   // BEFORE INSERT trigger deriving it after Postgres has already routed the

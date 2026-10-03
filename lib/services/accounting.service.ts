@@ -37,7 +37,7 @@ export const DEFAULT_ACCOUNTS = [
   { code: '3001', name: 'Member Equity', type: 'equity' },
   { code: '3101', name: 'Retained Surplus', type: 'equity' },
   { code: '4001', name: 'Member Contributions', type: 'income' },
-  { code: '4002', name: 'Interest Income - Loans', type: 'income' },
+  { code: '4002', name: 'Interest Income — Loans', type: 'income' },
   { code: '4003', name: 'Registration Fees', type: 'income' },
   { code: '4004', name: 'Other Income', type: 'income' },
   { code: '4005', name: 'External Funding', type: 'income' },
@@ -56,7 +56,7 @@ export interface SystemJournalLine {
 
 /**
  * Posts a balanced system-generated journal entry within the CALLER's own
- * transaction - takes an existing PoolClient rather than opening a new one,
+ * transaction — takes an existing PoolClient rather than opening a new one,
  * so it participates atomically in whatever business transaction triggered
  * it (a share purchase, a welfare disbursement, …). Mirrors the direct
  * status='posted' insert pattern already used by contributions/loans/mpesa
@@ -66,13 +66,13 @@ export interface SystemJournalLine {
  *
  * ACCOUNTING_ARCHITECTURE_AUDIT.md §7/§10/§29.9: this is the shared posting
  * point for the modules the audit found were bypassing accounting entirely
- * (Shares, Welfare, Dividends, Subscriptions) - a lightweight stand-in for
+ * (Shares, Welfare, Dividends, Subscriptions) — a lightweight stand-in for
  * the full posting-template engine §29.9 describes, scoped to what's needed
  * to close that specific finding without a larger architecture change.
  *
  * Missing chart-of-accounts rows are tolerated (logs a warning, posts
  * nothing, returns null) rather than failing the caller's real business
- * transaction - matches the existing settleOrgDisbursement() precedent for
+ * transaction — matches the existing settleOrgDisbursement() precedent for
  * the same reason.
  */
 export async function postSystemJournal(
@@ -131,7 +131,7 @@ export async function postSystemJournal(
       // parent journal_entries row above (same transaction, same resolved
       // date). journal_lines is a plain table in production, not the
       // partitioned one migrations 094/095 would have created (never
-      // applied - docs/audits/optimization-2026-09) - this comment
+      // applied — docs/audits/optimization-2026-09) — this comment
       // previously asserted otherwise.
       `INSERT INTO journal_lines (group_id, journal_entry_id, account_id, debit, credit, entry_date)
        VALUES ($1, $2, $3, $4, $5, COALESCE($6, CURRENT_DATE))`,
@@ -154,9 +154,9 @@ export async function postSystemJournal(
 /**
  * Posts a contribution's journal entry, splitting the credit side across
  * whatever income accounts the group has configured (group_contribution_splits)
- * - falling back to 100% Member Contributions (4001) when none are set.
+ * — falling back to 100% Member Contributions (4001) when none are set.
  * Used by BOTH the manual entry path (contributions.service.ts) and every
- * M-Pesa-driven path (mpesa.service.ts) - previously two independently
+ * M-Pesa-driven path (mpesa.service.ts) — previously two independently
  * written functions of the same name with different behavior (only the
  * M-Pesa one ran the split engine); this is the single implementation both
  * now share.
@@ -194,7 +194,7 @@ export async function postContributionJournal(
 
   const cashId = idByCode.get(cashCode);
   if (!cashId) {
-    logger.warn('[accounting] skipped contribution journal - missing cash account 1001', { groupId: args.groupId });
+    logger.warn('[accounting] skipped contribution journal — missing cash account 1001', { groupId: args.groupId });
     return null;
   }
 
@@ -203,7 +203,7 @@ export async function postContributionJournal(
   for (const alloc of allocations) {
     const targetId = idByCode.get(alloc.account_code) ?? defaultId;
     if (!targetId) {
-      logger.warn('[accounting] skipped contribution journal - split target + default both missing', {
+      logger.warn('[accounting] skipped contribution journal — split target + default both missing', {
         groupId: args.groupId,
         code: alloc.account_code,
       });
@@ -224,7 +224,7 @@ export async function postContributionJournal(
       args.groupId,
       args.entryDate,
       args.reference ?? null,
-      `Contribution - ${args.contributionId}`,
+      `Contribution — ${args.contributionId}`,
       args.createdBy,
       args.isTest ?? false,
       args.createdBy ? 'user' : 'system',
@@ -424,7 +424,7 @@ export const accountingService = {
       if (!postedRows[0]) throw new NotFoundError('Posted journal entry', id);
 
       // Maker-checker: above the group's threshold, the voider must differ
-      // from the poster - same reasoning and DB backstop as posting above.
+      // from the poster — same reasoning and DB backstop as posting above.
       if (postedRows[0].posted_by === ctx.userId) {
         const threshold = await getEffectiveThreshold(client, 'journal_threshold', { groupId: ctx.groupId });
         const { rows: lineRows } = await client.query<{ total: string }>(
@@ -455,9 +455,9 @@ export const accountingService = {
     });
   },
 
-  // Every report below: cached 60s (analytics.service.ts:119's pattern -
+  // Every report below: cached 60s (analytics.service.ts:119's pattern —
   // fail-open, no manual invalidation, short TTL traded for minimal
-  // staleness risk). None of these 5 was cached before - every /accounting
+  // staleness risk). None of these 5 was cached before — every /accounting
   // load recomputed a full-year journal_lines x journal_entries x accounts
   // aggregate from scratch (docs/audits/optimization-2026-09).
   async getTrialBalance(ctx: TenantContext): Promise<TrialBalanceLine[]> {
@@ -509,7 +509,7 @@ export const accountingService = {
            --
            -- FILTER (not a condition on the je join) is required here: a condition
            -- in the journal_entries join's ON clause only decides whether je's own
-           -- columns come back null on an unmatched jl row - it does not remove
+           -- columns come back null on an unmatched jl row — it does not remove
            -- that jl row's debit/credit from the SUM. Putting status/date in the
            -- join condition (as this query used to) silently summed every line
            -- ever posted for the account, any status, any period, into whatever
@@ -557,7 +557,7 @@ export const accountingService = {
   async getBalanceSheet(ctx: TenantContext, asOf: string): Promise<BalanceSheet> {
     return cached(keys.cache('balance-sheet', `${ctx.groupId}:${asOf}`), 60, () =>
       withDb(ctx, async (client) => {
-        // Computed from journal_lines as of the requested date - NOT the
+        // Computed from journal_lines as of the requested date — NOT the
         // denormalized accounts.balance column, which is always the *current*
         // running total and has no notion of "as of a past date". Same
         // debit-minus-credit convention the update_account_balance trigger
@@ -611,18 +611,18 @@ export const accountingService = {
 
   /**
    * Direct-method Cash Flow Statement (ACCOUNTING_ARCHITECTURE_AUDIT.md §12
-   * - the audit found TB/P&L/BS built but no cash flow statement at all).
+   * — the audit found TB/P&L/BS built but no cash flow statement at all).
    *
    * Method: for every posted entry in the period that touches a cash account
    * (1001 Cash and M-Pesa / 1002 Bank), each NON-cash line's net credit is
-   * that counter-account's cash impact - DR Cash / CR Contributions means
+   * that counter-account's cash impact — DR Cash / CR Contributions means
    * contributions brought cash in. Summing per counter-account is exact in
    * aggregate because every entry balances. Internal cash-to-cash transfers
    * have no non-cash lines and correctly vanish.
    *
    * Classification (IAS 7, financial-institution convention):
    *  - operating: income, expenses, current liabilities (savings, welfare,
-   *    payables, withheld tax) and 1101 Loans Receivable - member lending IS
+   *    payables, withheld tax) and 1101 Loans Receivable — member lending IS
    *    this group's principal revenue-producing activity.
    *  - investing: all other asset counter-accounts (fixed assets, investments).
    *  - financing: equity accounts (share capital) and 2103 Dividends Payable.
@@ -714,7 +714,7 @@ export const accountingService = {
   },
 
   /**
-   * Statement of Changes in Equity (§12): per equity account - opening
+   * Statement of Changes in Equity (§12): per equity account — opening
    * balance, period credits (increases, credit-normal), period debits
    * (decreases), closing. The period's net surplus is reported separately:
    * it lives in income/expense accounts until a closing entry moves it into
@@ -799,7 +799,7 @@ interface DriftRow {
 
 /**
  * Audits the denormalized accounts.balance column against the source of
- * truth - SUM(debit - credit) over journal_lines of POSTED entries (the
+ * truth — SUM(debit - credit) over journal_lines of POSTED entries (the
  * exact convention the trg_journal_lines_update_balance trigger maintains).
  *
  * Detection only, no auto-remediation: silently rewriting a financial
@@ -859,7 +859,7 @@ export interface GLCashReconciliationResult {
   snapshotAge?: string;
 }
 
-const GL_CASH_RECONCILE_TOLERANCE = 1; // KES - allows for sub-shilling rounding only
+const GL_CASH_RECONCILE_TOLERANCE = 1; // KES — allows for sub-shilling rounding only
 const GL_CASH_SNAPSHOT_MAX_AGE_HOURS = 36;
 
 /**
@@ -868,24 +868,24 @@ const GL_CASH_SNAPSHOT_MAX_AGE_HOURS = 36;
  * but never compared to anything. All groups share one M-Pesa shortcode, so
  * the correct comparison is platform-wide: SUM of every group's "1001 Cash
  * and M-Pesa" GL account against the one real Daraja Working+Utility balance
- * - not a per-group comparison, since no single group's ledger represents
+ * — not a per-group comparison, since no single group's ledger represents
  * the whole paybill.
  *
  * Reads the latest completed balance_query row in mpesa_transactions (the
- * treasurer-triggered "Query balance" action on the treasury page - see
+ * treasurer-triggered "Query balance" action on the treasury page — see
  * app/api/v1/mpesa/balance/route.ts). Detection only, same as
  * detectBalanceDrift: a mismatch is logged and recorded, never silently
  * "corrected".
  *
  * KNOWN GAP (tracked, not fixed here): the daily `mpesa_balance_snapshot`
  * cron job only fires the Daraja query (lib/jobs/handlers.ts
- * handleMpesaBalanceSnapshot) - it does not insert the placeholder
+ * handleMpesaBalanceSnapshot) — it does not insert the placeholder
  * mpesa_transactions row the authenticated POST route inserts before
  * querying, so the async result callback (handleBalanceResult, matched by
  * originator_conversation_id) has no row to attach to and the scheduled
  * snapshot's result is silently dropped. mpesa_transactions.group_id is
  * NOT NULL, and there is no platform-level anchor group to attach a
- * shortcode-wide (not group-specific) query to - fixing that cleanly is a
+ * shortcode-wide (not group-specific) query to — fixing that cleanly is a
  * schema decision (nullable group_id, or a dedicated platform-balance table)
  * outside this fix's scope. Until it's addressed, this reconciliation runs
  * against whichever group's treasurer most recently clicked "Query balance".

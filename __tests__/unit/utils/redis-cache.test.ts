@@ -10,10 +10,10 @@ import { cached } from '@/lib/redis';
 
 // `lib/redis/index.ts` constructs its singleton client at module-load time,
 // so the mocked constructor has already run once by the time this file's
-// top-level code executes - grab that same instance via `mock.results`
+// top-level code executes — grab that same instance via `mock.results`
 // rather than a hand-rolled outer `const` (which Babel/SWC's import hoisting
 // would reference before it's initialized, since jest.mock's factory runs at
-// the hoisted `import` site - a TDZ crash, not a mocking bug).
+// the hoisted `import` site — a TDZ crash, not a mocking bug).
 const mockRedisClient = (Redis as unknown as jest.Mock).mock.results[0].value as {
   get: jest.Mock;
   set: jest.Mock;
@@ -51,7 +51,7 @@ describe('cached', () => {
     );
   });
 
-  it('fails open - a Redis read error still calls fn and returns its value', async () => {
+  it('fails open — a Redis read error still calls fn and returns its value', async () => {
     mockRedisClient.get.mockRejectedValue(new Error('read boom'));
     const fn = jest.fn().mockResolvedValue('value');
 
@@ -61,7 +61,7 @@ describe('cached', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('fails open - a Redis write error does not reject the call', async () => {
+  it('fails open — a Redis write error does not reject the call', async () => {
     mockRedisClient.get.mockResolvedValue(null);
     mockRedisClient.set.mockRejectedValue(new Error('write boom'));
     const fn = jest.fn().mockResolvedValue('value2');

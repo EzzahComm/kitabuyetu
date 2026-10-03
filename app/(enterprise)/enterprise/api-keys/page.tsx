@@ -5,12 +5,12 @@ import { EmptyState } from '@/components/ui/empty-state';
 
 /**
  * The nav entry for this page is `soon: true` (app/(enterprise)/layout.tsx),
- * which disables the link but doesn't stop a direct URL visit - this body
+ * which disables the link but doesn't stop a direct URL visit — this body
  * gate is the second half of that fix.
  *
  * Previously this page shipped a fully client-side mock: generate() minted
  * `ky_live_${randomToken(28)}` strings from Math.random and pushed them into
- * React state only - no fetch, no server call, no api_keys/webhooks table in
+ * React state only — no fetch, no server call, no api_keys/webhooks table in
  * any migration. A coordinator who typed or bookmarked this URL saw a
  * fully-populated, "active"-status credentials page and could generate and
  * copy a string that looks exactly like a production API key but touches no
@@ -23,7 +23,7 @@ export default function ApiKeysPage() {
   return (
     <EmptyState
       icon={KeyRound}
-      title="API & Webhooks - coming soon"
+      title="API & Webhooks — coming soon"
       description="Programmatic access and webhook delivery for the enterprise portal are on the roadmap but not built yet."
     />
   );

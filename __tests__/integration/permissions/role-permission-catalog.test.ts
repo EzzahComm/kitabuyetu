@@ -1,7 +1,7 @@
 /**
  * Phase 0 of RBAC permission activation (SIMPLIFICATION_AND_RBAC_AUDIT.md
  * Workstream 4). Runs against real Postgres before any route migrates onto
- * withPermission() - a regression guard for the seed data itself, independent
+ * withPermission() — a regression guard for the seed data itself, independent
  * of any application code.
  *
  * Two invariants:
@@ -11,7 +11,7 @@
  *     construction; this test is what would have caught a mistake in any of
  *     them.
  *  2. Coverage: every (role, permission) pair the eventual route migration
- *     (batches 2-9) will rely on is already satisfied by the seeded arrays -
+ *     (batches 2-9) will rely on is already satisfied by the seeded arrays —
  *     built directly from the real withRole/withOneOf/ROLES.can*() route
  *     inventory, not aspirational.
  */

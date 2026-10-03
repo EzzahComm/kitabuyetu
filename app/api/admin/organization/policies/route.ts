@@ -6,10 +6,10 @@ import { SetApprovalPolicySchema } from '@/lib/validators/accounting.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/organization/policies - this organization's effective
+ * GET /api/v1/organization/policies — this organization's effective
  *   ApprovalPolicy thresholds (its own disbursement threshold, plus the
  *   defaults it hands down to linked groups), with resolution provenance.
- * PUT /api/v1/organization/policies - set an organization-level override.
+ * PUT /api/v1/organization/policies — set an organization-level override.
  *
  * organization_coordinator only (asserted in the service; RLS backs it up).
  */

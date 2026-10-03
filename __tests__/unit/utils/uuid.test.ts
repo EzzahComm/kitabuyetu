@@ -1,5 +1,5 @@
 /**
- * lib/utils/uuid.ts - deterministic UUID derivation.
+ * lib/utils/uuid.ts — deterministic UUID derivation.
  *
  * Guards the fix for the chunked-bulk-SMS outage: the per-chunk dispatch key
  * is persisted into `uuid` columns, so it must be a real uuid, stable across
@@ -34,18 +34,18 @@ describe('deriveUuid', () => {
     expect(isUuid(key)).toBe(true);
   });
 
-  it('is deterministic - a QStash retry of the same chunk reproduces the key', () => {
+  it('is deterministic — a QStash retry of the same chunk reproduces the key', () => {
     // This is what makes the retry dedupe against its own earlier attempt
     // rather than re-billing and re-sending the chunk.
     expect(deriveUuid(JOB_ID, 'chunk:3')).toBe(deriveUuid(JOB_ID, 'chunk:3'));
   });
 
-  it('is distinct per chunk - sibling chunks must not dedupe each other away', () => {
+  it('is distinct per chunk — sibling chunks must not dedupe each other away', () => {
     const keys = [0, 1, 2, 3, 4].map((i) => deriveUuid(JOB_ID, `chunk:${i}`));
     expect(new Set(keys).size).toBe(keys.length);
   });
 
-  it('is distinct per job - two jobs chunking the same index never collide', () => {
+  it('is distinct per job — two jobs chunking the same index never collide', () => {
     expect(deriveUuid(JOB_ID, 'chunk:0')).not.toBe(deriveUuid(OTHER_JOB_ID, 'chunk:0'));
   });
 

@@ -1,6 +1,6 @@
 /**
  * Configuration Service / Policy Resolution Engine (ACCOUNTING_ARCHITECTURE_AUDIT.md
- * §29) - generalizes lib/sms/trigger-engine.ts's group-beats-organization-
+ * §29) — generalizes lib/sms/trigger-engine.ts's group-beats-organization-
  * beats-platform specificity resolution into one reusable resolver/writer.
  */
 import { resolvePolicy, resolvePolicyDetailed, setPolicy } from '@/lib/services/configuration.service';

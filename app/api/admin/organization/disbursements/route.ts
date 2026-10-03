@@ -6,8 +6,8 @@ import { DisburseSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET  /api/v1/organization/disbursements - list org → group disbursements
- * POST /api/v1/organization/disbursements - disburse funds to a linked group
+ * GET  /api/v1/organization/disbursements — list org → group disbursements
+ * POST /api/v1/organization/disbursements — disburse funds to a linked group
  *
  * The service enforces: coordinator role, active organization_group_access
  * link, sufficient wallet balance, program budget ceiling, and posts the

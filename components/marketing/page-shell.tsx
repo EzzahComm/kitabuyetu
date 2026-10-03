@@ -13,17 +13,17 @@ interface PageShellProps {
   crumbs?: Crumb[];
   /**
    * `prose` (default) sets children in a readable column with typographic
-   * defaults - policies, docs, short informational pages. `sections` hands
+   * defaults — policies, docs, short informational pages. `sections` hands
    * children the full width, for pages composed of Finanza sections.
    */
   layout?: 'prose' | 'sections';
 }
 
 /**
- * The wrapper for most public pages that are not the home page - About,
+ * The wrapper for most public pages that are not the home page — About,
  * Contact, Docs, Ecosystem, Enterprise Solutions, Fundraise, Legal, Products,
  * Status, Support. Bookkeeper and Chama Reminder have their own independent
- * root layout (richer/more custom than this shell supports) - each applies
+ * root layout (richer/more custom than this shell supports) — each applies
  * display-font.ts's variable directly rather than through this file.
  *
  * The masthead is the Finanza template's page header: a large title and a

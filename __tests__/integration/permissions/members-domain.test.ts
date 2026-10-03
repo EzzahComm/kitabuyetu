@@ -1,8 +1,8 @@
 /**
  * RBAC permission activation, Batch 4 (SIMPLIFICATION_AND_RBAC_AUDIT.md
  * Workstream 4). Migrates the 5 route files that gated inline via
- * ROLES.canManageMembers()/canAdminGroup() - invisible to a withRole/
- * withOneOf call-site grep - onto requirePermission('members.manage') and
+ * ROLES.canManageMembers()/canAdminGroup() — invisible to a withRole/
+ * withOneOf call-site grep — onto requirePermission('members.manage') and
  * requirePermission('roles.manage') respectively, against real Postgres.
  */
 import { PATCH as memberPatch, PUT as memberPut, DELETE as memberDelete } from '@/app/api/v1/members/[id]/route';

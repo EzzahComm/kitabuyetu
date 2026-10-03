@@ -19,7 +19,7 @@ const ListSchema = z.object({
   status: z.enum(['pending_approval', 'executed', 'rejected']).optional(),
 });
 
-/** GET /api/v1/mpesa/reallocations - correction history + approval queue (treasurer+). */
+/** GET /api/v1/mpesa/reallocations — correction history + approval queue (treasurer+). */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
@@ -32,7 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/mpesa/reallocations - initiate a correction (treasurer+). */
+/** POST /api/v1/mpesa/reallocations — initiate a correction (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {

@@ -2,13 +2,13 @@
  * Campaign counter repair (SMS-REAUDIT-2026-09-02 F4).
  *
  * Campaign `9e1d1bf5` sat with stored `sent=0 / failed=8` against a real
- * `8 sent / 0 failed` for six days - perfectly inverted, correctly reported by
+ * `8 sent / 0 failed` for six days — perfectly inverted, correctly reported by
  * the reconciliation job every single run, and unfixable because
  * syncCampaignCompletion has no retroactive counterpart.
  *
  * The job's standing rule is REPORT, NEVER REPAIR, and that rule is about
  * MONEY: credit drift means a balance and its ledger disagree and a human must
- * decide which is true. A campaign counter is not money - it is derived
+ * decide which is true. A campaign counter is not money — it is derived
  * reporting data whose source of truth is sms_usage_logs. Recomputing it is
  * not a judgment call.
  *
@@ -33,7 +33,7 @@ async function makeCampaign(
   storedFailed: number,
   status = 'completed',
 ): Promise<string> {
-  // created_by is NOT NULL on sms_campaigns - a campaign always has an author.
+  // created_by is NOT NULL on sms_campaigns — a campaign always has an author.
   const [row] = await rawQuery<{ id: string }>(
     `INSERT INTO sms_campaigns
        (group_id, name, message, status, sent_count, failed_count, recipient_count, created_by)
@@ -76,7 +76,7 @@ describe('campaign counter repair', () => {
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = 'sms_credit_reconciliation'`);
   });
 
-  it('recomputes inverted counters from the message log - the 9e1d1bf5 case', async () => {
+  it('recomputes inverted counters from the message log — the 9e1d1bf5 case', async () => {
     const id = await makeCampaign(groupId, officerId, 0, 8); // stored: 0 sent / 8 failed
     await seedLogs(groupId, id, 8, 0); // real:   8 sent / 0 failed
 
@@ -90,7 +90,7 @@ describe('campaign counter repair', () => {
     expect(after.failed_count).toBe(0);
   });
 
-  it('is idempotent - a second run finds nothing left to repair', async () => {
+  it('is idempotent — a second run finds nothing left to repair', async () => {
     const id = await makeCampaign(groupId, officerId, 0, 8);
     await seedLogs(groupId, id, 8, 0);
 

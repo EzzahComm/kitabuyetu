@@ -1,5 +1,5 @@
 /**
- * Job applications (Phase 12 groundwork) - public submission (resume upload
+ * Job applications (Phase 12 groundwork) — public submission (resume upload
  * is best-effort, never blocks the application), stage transitions (locked
  * once hired), and the hireApplicant integration point into Phase 11's
  * hr_employees, which must be atomic with the application's own update.
@@ -75,7 +75,7 @@ describe('submitApplication', () => {
 
   it('does not fail the application when the resume upload throws', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'app-1', resume_path: null }] }); // insert
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit (upload path skipped - never reaches the UPDATE)
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit (upload path skipped — never reaches the UPDATE)
     (uploadResume as jest.Mock).mockRejectedValueOnce(new Error('storage unavailable'));
 
     const result = await submitApplication(validInput, {
@@ -168,7 +168,7 @@ describe('hireApplicant', () => {
 
     expect(result.employee.id).toBe('emp-1');
     expect(result.application.hired_employee_id).toBe('emp-1');
-    // Same mockClient passed through - proves no second withAdminDb/transaction was opened.
+    // Same mockClient passed through — proves no second withAdminDb/transaction was opened.
     expect(createEmployeeWith).toHaveBeenCalledWith(
       mockClient,
       'admin-1',

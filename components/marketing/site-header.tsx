@@ -16,7 +16,7 @@ const TOP_BAR_PX = 44;
 /**
  * Exposes the display face at the document root on every page that renders
  * this header, so public pages without their own font wrapper still set
- * headings in Jost. The value is next/font's generated family list - static,
+ * headings in Jost. The value is next/font's generated family list — static,
  * build-time output, not user input.
  */
 const ROOT_FONT_CSS = `html:has([data-marketing-theme]){--font-display:${displayFont.style.fontFamily};}`;
@@ -36,7 +36,7 @@ interface SiteHeaderProps {
 
 /**
  * A single top-nav dropdown (About / Products / Ecosystem). Opens on hover for
- * a mouse, and on click for everything else - touch has no hover, and the
+ * a mouse, and on click for everything else — touch has no hover, and the
  * button with aria-expanded is what keyboard and screen-reader users operate.
  */
 function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transparent: boolean; pathname: string }) {
@@ -83,8 +83,8 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
     if (!open) openedByHover.current = false;
   }, [open]);
 
-  // A route change closes any open dropdown. Adjusted during render - the
-  // React-recommended way to derive state from a prop change - rather than
+  // A route change closes any open dropdown. Adjusted during render — the
+  // React-recommended way to derive state from a prop change — rather than
   // an effect that calls setOpen, which trips react-hooks/set-state-in-effect.
   if (pathname !== lastPathname) {
     setLastPathname(pathname);
@@ -176,7 +176,7 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
 }
 
 /** The same group, rendered as a collapsible section inside the mobile sheet
- *  instead of a floating panel - there is no room for a popover at 320px. */
+ *  instead of a floating panel — there is no room for a popover at 320px. */
 function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: () => void }) {
   const [expanded, setExpanded] = useState(false);
   return (
@@ -333,7 +333,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               href="/"
               onClick={() => setOpen(false)}
               className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
-              aria-label="Kitabu Yetu - home"
+              aria-label="Kitabu Yetu — home"
             >
               {/* Over the hero photo the header is transparent, so the lockup takes the kit's dark-ground colourway. */}
               <BrandLockup size={40} tone={transparent ? 'dark' : 'light'} tagline />
@@ -414,7 +414,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
         {/* Mobile panel. Full-height sheet rather than a dropdown: at 320 px the
           nav plus two CTAs do not fit under the bar without cramping, and a
           sheet gives each target a comfortable 48 px row. Groups collapse
-          into an accordion - there is no room for a floating popover here. */}
+          into an accordion — there is no room for a floating popover here. */}
         <div
           id="site-menu"
           ref={panelRef}

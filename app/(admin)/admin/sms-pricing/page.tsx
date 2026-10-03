@@ -25,8 +25,8 @@ import { getErrorMessage, formatKES } from '@/lib/utils';
 /**
  * Super-admin SMS pricing (spec §12).
  *
- * Unlike the tenant surface, this one uses the real vocabulary - bands,
- * provider cost, margin - because §18's plain-language rule is about not making
+ * Unlike the tenant surface, this one uses the real vocabulary — bands,
+ * provider cost, margin — because §18's plain-language rule is about not making
  * customers understand billing internals, not about hiding them from the people
  * whose job is to set them.
  *
@@ -37,7 +37,7 @@ import { getErrorMessage, formatKES } from '@/lib/utils';
 
 /**
  * Row shapes are NOT redeclared here. They come from the hooks, which derive
- * them from `sms-pricing-admin.service.ts`'s own return types - a local copy is
+ * them from `sms-pricing-admin.service.ts`'s own return types — a local copy is
  * how a screen ends up rendering fields the server stopped sending.
  */
 export default function SmsPricingPage() {
@@ -75,7 +75,7 @@ export default function SmsPricingPage() {
   /**
    * An empty `tierIds` is schema-legal and means "deactivate everything", which
    * would leave custom quantities unpriced. Before the fetch resolves, or if a
-   * band gets renamed, `tiersNamed()` legitimately returns [] - so a click that
+   * band gets renamed, `tiersNamed()` legitimately returns [] — so a click that
    * lands early would send exactly that. Refusing it here means the only way to
    * clear the live set is to mean it.
    */
@@ -84,7 +84,7 @@ export default function SmsPricingPage() {
       toast({
         variant: 'destructive',
         title: 'No matching bands',
-        description: isLoading ? 'Still loading the price list - try again in a moment.' : 'Nothing was activated.',
+        description: isLoading ? 'Still loading the price list — try again in a moment.' : 'Nothing was activated.',
       });
       return;
     }
@@ -103,7 +103,7 @@ export default function SmsPricingPage() {
         onSuccess: (r) => {
           toast({
             title: 'SMS credits added',
-            description: `${r.creditsAdded.toLocaleString()} credits - new balance ${r.newBalance.toLocaleString()}.`,
+            description: `${r.creditsAdded.toLocaleString()} credits — new balance ${r.newBalance.toLocaleString()}.`,
           });
           setTopUpTarget(null);
           setTopUpAmount('');
@@ -133,7 +133,7 @@ export default function SmsPricingPage() {
     <div className="space-y-6">
       <PageHeader
         title="SMS Pricing"
-        description="What customers pay per message, and what each band earns. Internal - provider cost is never shown to customers."
+        description="What customers pay per message, and what each band earns. Internal — provider cost is never shown to customers."
       />
 
       <Tabs defaultValue="pricing">
@@ -150,7 +150,7 @@ export default function SmsPricingPage() {
                   <Coins size={14} /> Provider cost per SMS (KES)
                 </p>
                 <p className="text-2xl font-semibold text-foreground">
-                  {cost !== null ? cost.toFixed(4) : '- not recorded'}
+                  {cost !== null ? cost.toFixed(4) : '— not recorded'}
                 </p>
                 {data?.providerCost && (
                   <p className="text-xs text-muted-foreground">
@@ -219,7 +219,7 @@ export default function SmsPricingPage() {
                             <td className="px-4 py-3 font-medium text-foreground">{t.name}</td>
                             <td className="px-4 py-3 text-muted-foreground">
                               {t.min_credits.toLocaleString()}
-                              {t.max_credits === null ? '+' : `-${t.max_credits.toLocaleString()}`}
+                              {t.max_credits === null ? '+' : `–${t.max_credits.toLocaleString()}`}
                             </td>
                             <td className="px-4 py-3">{price.toFixed(4)}</td>
                             <td className="px-4 py-3">
@@ -271,7 +271,7 @@ export default function SmsPricingPage() {
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              The whole set changes in one step. If the chosen bands overlap, nothing changes at all - a half-applied
+              The whole set changes in one step. If the chosen bands overlap, nothing changes at all — a half-applied
               price list would leave some volumes unpriced.
             </p>
           </div>
@@ -326,7 +326,7 @@ export default function SmsPricingPage() {
               <CardContent className="py-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Revenue</p>
                 <p className="text-xl font-semibold text-foreground">
-                  {marginLoading ? '-' : formatKES(margin?.summary.revenue ?? 0)}
+                  {marginLoading ? '—' : formatKES(margin?.summary.revenue ?? 0)}
                 </p>
               </CardContent>
             </Card>
@@ -334,7 +334,7 @@ export default function SmsPricingPage() {
               <CardContent className="py-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Provider cost</p>
                 <p className="text-xl font-semibold text-foreground">
-                  {marginLoading ? '-' : formatKES(margin?.summary.providerCost ?? 0)}
+                  {marginLoading ? '—' : formatKES(margin?.summary.providerCost ?? 0)}
                 </p>
               </CardContent>
             </Card>
@@ -344,7 +344,7 @@ export default function SmsPricingPage() {
                 <p
                   className={`text-xl font-semibold ${(margin?.summary.grossMargin ?? 0) < 0 ? 'text-destructive' : 'text-foreground'}`}
                 >
-                  {marginLoading ? '-' : formatKES(margin?.summary.grossMargin ?? 0)}
+                  {marginLoading ? '—' : formatKES(margin?.summary.grossMargin ?? 0)}
                 </p>
               </CardContent>
             </Card>
@@ -353,7 +353,7 @@ export default function SmsPricingPage() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Margin %</p>
                 <p className="text-xl font-semibold text-foreground">
                   {marginLoading || margin?.summary.marginPct === null || margin?.summary.marginPct === undefined
-                    ? '-'
+                    ? '—'
                     : `${margin.summary.marginPct.toFixed(1)}%`}
                 </p>
               </CardContent>
@@ -363,7 +363,7 @@ export default function SmsPricingPage() {
             <p className="-mt-3 flex items-center gap-1.5 text-xs text-amber-600">
               <AlertTriangle size={13} />
               {margin!.summary.creditsWithoutCost.toLocaleString()} sold credits have no recorded provider cost for
-              their period - margin above is understated by whatever those cost.
+              their period — margin above is understated by whatever those cost.
             </p>
           )}
 
@@ -486,7 +486,7 @@ export default function SmsPricingPage() {
               </CardContent>
             </Card>
             <p className="text-xs text-muted-foreground">
-              Organizations have no real-time M-Pesa collection today - a top-up here (or one the organization&apos;s
+              Organizations have no real-time M-Pesa collection today — a top-up here (or one the organization&apos;s
               own coordinator records in the Funding Portal) is a manual entry, trusted the same way a group&apos;s
               general capital deposit already is. &quot;Set rate&quot; controls the negotiated per-SMS price a
               top-up&apos;s credits are computed at.
@@ -495,7 +495,7 @@ export default function SmsPricingPage() {
         </TabsContent>
       </Tabs>
 
-      {/* Top up an organization's SMS credits - super_admin correcting/granting a
+      {/* Top up an organization's SMS credits — super_admin correcting/granting a
           balance, previously impossible: there was no admin tool for this at all. */}
       <Dialog
         open={!!topUpTarget}
@@ -519,7 +519,7 @@ export default function SmsPricingPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Credits are computed at this organization&apos;s current negotiated rate. Recorded as a manual top-up - no
+              Credits are computed at this organization&apos;s current negotiated rate. Recorded as a manual top-up — no
               M-Pesa payment is collected here.
             </p>
           </div>
@@ -538,7 +538,7 @@ export default function SmsPricingPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Set an organization's negotiated per-SMS rate - the column has existed
+      {/* Set an organization's negotiated per-SMS rate — the column has existed
           since migration 051 but nothing has ever written to it before this. */}
       <Dialog
         open={!!rateTarget}
@@ -561,7 +561,7 @@ export default function SmsPricingPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Applies to future top-ups only - past purchases keep the rate they were bought at.
+              Applies to future top-ups only — past purchases keep the rate they were bought at.
             </p>
           </div>
           <DialogFooter>

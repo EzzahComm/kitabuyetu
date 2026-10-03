@@ -30,7 +30,7 @@ import { postTemplatedJournal } from './posting-templates.service';
  *
  * Money and credit amounts in this schema are numeric(_,2); the ledger's
  * amount column is numeric(14,4). Rounding at source keeps the two in
- * agreement - see addSmsCredits for why the ledger must record the movement
+ * agreement — see addSmsCredits for why the ledger must record the movement
  * the balance actually made rather than a more precise one it did not.
  */
 function round2(n: number): number {
@@ -42,7 +42,7 @@ import { clearLowBalanceFlag, clearOrganizationLowBalanceFlag } from './messagin
 /**
  * Give a group the general ledger its new product needs.
  *
- * Since migration 140 a Chama Reminder signup gets NO chart of accounts -
+ * Since migration 140 a Chama Reminder signup gets NO chart of accounts —
  * a communication-only group has nothing to post journals against. Buying
  * Kitabu Yetu later is precisely the conversion the whole acquisition strategy
  * exists for, and without this it would produce a group whose every accounting
@@ -50,7 +50,7 @@ import { clearLowBalanceFlag, clearOrganizationLowBalanceFlag } from './messagin
  * a posting template, pointing nowhere near the cause.
  *
  * Idempotent (the SQL function is ON CONFLICT DO NOTHING), so this is a no-op
- * for the groups that already have one - which is all of them today. Runs on
+ * for the groups that already have one — which is all of them today. Runs on
  * the caller's client so it lands in the same commit as the activation.
  */
 async function ensureChartOfAccounts(client: PoolClient, groupId: string, product: SubscriptionProduct): Promise<void> {
@@ -64,7 +64,7 @@ async function ensureChartOfAccounts(client: PoolClient, groupId: string, produc
  * Top-ups used to be covered by the generic M-Pesa receipt, which resolved
  * its variables from a UNION over contributions / loan_repayments /
  * welfare_pool_contributions. A top-up is none of those, so the only message
- * a buyer ever got read "KES 100 received for (A/C ). Balance: KES ." - and
+ * a buyer ever got read "KES 100 received for (A/C ). Balance: KES ." — and
  * once that receipt was correctly suppressed (it could not say what the money
  * did) top-ups were left with no confirmation at all. This is the replacement
  * that can actually describe the purchase.
@@ -82,7 +82,7 @@ async function sendTopupConfirmation(args: {
   newBalance: string | null;
 }): Promise<void> {
   try {
-    // Its OWN connection, deliberately - see addSmsCredits' note. Running this
+    // Its OWN connection, deliberately — see addSmsCredits' note. Running this
     // on the caller's transactional client meant a failed lookup poisoned the
     // transaction and rolled the credit back.
     const {
@@ -147,7 +147,7 @@ async function sendTopupConfirmation(args: {
  *
  * Written after a real incident: a group paid KES 150 for Starter, the plan
  * activated correctly, and the only message sent was the GENERIC M-Pesa
- * receipt - which was wrong twice over.
+ * receipt — which was wrong twice over.
  *
  *  1. It went to `payments.mpesa_phone`, the number that paid, NOT the
  *     member's registered number. The registered chairperson received
@@ -159,7 +159,7 @@ async function sendTopupConfirmation(args: {
  *       "KES 150 received for (A/C ). Receipt: UHFQZ2SPYV. Balance: KES ."
  *
  * A subscription is its own event and deserves its own message, so this sends
- * one directly via notifyMember (the proven path - it honours opt-out, writes
+ * one directly via notifyMember (the proven path — it honours opt-out, writes
  * the in-app copy, and never throws) rather than through the receipt template.
  *
  * Best-effort by design: a failure to CONFIRM a subscription must never roll
@@ -181,7 +181,7 @@ async function sendSubscriptionConfirmation(args: {
     // On its OWN connection, not the caller's transactional client. This
     // shipped reading the caller's client and only survived because
     // activateSubscriptionForPayment is driven from the M-Pesa callback on the
-    // admin (BYPASSRLS) pool - the identical construct in addSmsCredits, which
+    // admin (BYPASSRLS) pool — the identical construct in addSmsCredits, which
     // uses the TENANT pool, had its lookup refused under real RLS, poisoned
     // the transaction, and rolled back the credit. A swallowed query error
     // does not un-abort a Postgres transaction, so a best-effort side effect
@@ -249,7 +249,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  *
  * Background-driven paths (the M-Pesa callback most of all) run with no
  * interactive user and pass the sentinel string 'system'. Writing that into a
- * uuid column throws `invalid input syntax for type uuid` - which is exactly
+ * uuid column throws `invalid input syntax for type uuid` — which is exactly
  * how the top-up suite caught this.
  */
 function actorId(userId: string | undefined): string | null {
@@ -300,15 +300,15 @@ export const billingService = {
 
   /**
    * Activate a paid plan against a CONFIRMED payment. This is the only way a
-   * paid subscription is ever created - see the note on upgradePlan below for
+   * paid subscription is ever created — see the note on upgradePlan below for
    * what this replaced.
    *
    * Runs on a caller-supplied client so it can join the M-Pesa callback's own
    * transaction: the subscription flips in the same commit that marks the
    * payment completed, exactly as contributions and loan repayments do.
    *
-   * Exactly-once per payment. Two callers race here by design - Safaricom's
-   * callback and the billing page claiming its own poll result - and a
+   * Exactly-once per payment. Two callers race here by design — Safaricom's
+   * callback and the billing page claiming its own poll result — and a
    * replayed callback re-enters on top of that. Serialising on the payment row
    * plus the `already consumed` check makes every entrant after the first a
    * no-op; UNIQUE(payment_id) (migration 138) is the backstop if two
@@ -326,7 +326,7 @@ export const billingService = {
       product: SubscriptionProduct;
       paymentId: string;
       amountPaid: number;
-      /** Defaults to 'monthly' - every caller from before this param existed
+      /** Defaults to 'monthly' — every caller from before this param existed
        *  (the STK callback on an old client, the admin unrouted-payment path
        *  for a receipt with no recorded cycle) keeps today's behaviour. */
       billingCycle?: BillingCycle;
@@ -346,7 +346,7 @@ export const billingService = {
     );
     if (consumed[0]) return null;
 
-    // The TRUE monthly rate - this is what gets stored on subscriptions.
+    // The TRUE monthly rate — this is what gets stored on subscriptions.
     // monthly_fee (admin.service.ts sums that column directly for MRR), never
     // multiplied by cycleMonths. `fee` below is what this cycle actually
     // costs, used only to verify the payment and to compute next_billing_date.
@@ -359,7 +359,7 @@ export const billingService = {
     // completed and the group simply keeps its current plan.
     if (monthlyRate <= 0) {
       throw new PaymentRequiredError(
-        `Plan "${planType}" on ${product} is not self-serve - it is negotiated and must be activated manually.`,
+        `Plan "${planType}" on ${product} is not self-serve — it is negotiated and must be activated manually.`,
       );
     }
     if (amountPaid < fee) {
@@ -371,7 +371,7 @@ export const billingService = {
     // Cancel the current plan FOR THIS PRODUCT ONLY. Without the product
     // predicate this cancelled every active row the group had, so upgrading
     // Kitabu Yetu would silently cancel the group's Chama Reminder
-    // subscription - and the INSERT below would then be the only active row
+    // subscription — and the INSERT below would then be the only active row
     // left, with no trace of what was destroyed. It also has to happen before
     // the INSERT: idx_subscriptions_one_active_per_product forbids a second
     // active row for the same (group, product).
@@ -390,7 +390,7 @@ export const billingService = {
       // allowance as starter while the pricing copy promised more.
       //
       // monthly_fee is monthlyRate (the normalized rate), NOT fee (what this
-      // cycle actually cost) - see the comment on migration 155 and on
+      // cycle actually cost) — see the comment on migration 155 and on
       // `fee` above. next_billing_date steps forward by the full cycle, not
       // always one month, so a quarterly/annual payer isn't re-billed early.
       `INSERT INTO subscriptions
@@ -430,7 +430,7 @@ export const billingService = {
    * Activate a plan WITHOUT payment. Administrative only.
    *
    * This used to be the public upgrade path, reachable by any chairperson via
-   * POST /api/v1/billing/plans, and it set status='active' unconditionally -
+   * POST /api/v1/billing/plans, and it set status='active' unconditionally —
    * so a group could self-upgrade to any plan with zero money changing hands.
    * The billing page did run an STK push first, but that ordering was purely
    * client-side and the server never checked it. Paid activation now goes
@@ -439,7 +439,7 @@ export const billingService = {
    *
    * What remains here is the genuinely payment-free cases: negotiated
    * enterprise deals and support/ops corrections. Callers must enforce their
-   * own authorisation - nothing inside this function checks who is asking.
+   * own authorisation — nothing inside this function checks who is asking.
    */
   async activatePlanWithoutPayment(
     ctx: TenantContext,
@@ -458,7 +458,7 @@ export const billingService = {
       const maxMembers = PLAN_FEATURES[product][planType].maxMembers;
 
       const { rows } = await client.query<Subscription>(
-        // Same explicit allowance as the paid-activation path above - the two
+        // Same explicit allowance as the paid-activation path above — the two
         // INSERTs must not drift, which is what let the default win here.
         `INSERT INTO subscriptions
            (group_id, product, plan_type, status, started_at, next_billing_date,
@@ -528,8 +528,8 @@ export const billingService = {
   },
 
   /**
-   * Members are a GROUP-level resource - one member list, shared by every
-   * product the group holds - so the cap cannot be read off one arbitrary
+   * Members are a GROUP-level resource — one member list, shared by every
+   * product the group holds — so the cap cannot be read off one arbitrary
    * subscription. Take the most permissive entitlement the group has paid for:
    * a single NULL (unlimited) anywhere wins outright, otherwise the largest cap.
    *
@@ -639,13 +639,13 @@ export const billingService = {
       }
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
-      // Subscription expense account was previously dead code - no payment
+      // Subscription expense account was previously dead code — no payment
       // path ever posted to it.
       //
       // Skipped for a group with no chart of accounts (migration 140). This is
       // reachable: /api/v1/billing is outside the subscription lock, so a
       // Chama-Reminder-only group can record a payment here, and the template
-      // needs accounts 1001 and 5003 - it would fail with an account-codes
+      // needs accounts 1001 and 5003 — it would fail with an account-codes
       // error that says nothing about the real cause. Recording the payment
       // still matters to such a group; posting a journal it has no ledger for
       // does not.
@@ -655,7 +655,7 @@ export const billingService = {
           ctx.groupId,
           ctx.userId,
           'subscription_payment',
-          `Platform subscription payment${data.invoiceId ? ` - invoice ${data.invoiceId}` : ''}`,
+          `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
           { amount: data.amount },
           { reference: rows[0].id },
         );
@@ -672,7 +672,7 @@ export const billingService = {
     // 111.11 and no ledger row was written.
     //
     // The reason is worth remembering. Catching a JS error from a query does
-    // NOT un-abort the Postgres transaction it ran in - once any statement
+    // NOT un-abort the Postgres transaction it ran in — once any statement
     // fails, the transaction is poisoned and its COMMIT degrades to a
     // ROLLBACK. So a "best-effort, never throws" side effect running on the
     // transactional client can still destroy the money work around it, and it
@@ -698,7 +698,7 @@ export const billingService = {
       // sms_credit_ledger.amount is numeric(14,4) while billing_accounts
       // .sms_credits and sms_credits.credits_added are numeric(15,2). Passing
       // an unrounded 111.1111... meant the balance moved by 111.11 (rounded by
-      // its column) while the ledger recorded 111.1111 - so every top-up
+      // its column) while the ledger recorded 111.1111 — so every top-up
       // injected ~0.0011 of same-sign drift, and the ledger entry disagreed
       // with its own balance_after.
       //
@@ -708,7 +708,7 @@ export const billingService = {
       // that never happened.
       //
       // Drift is 0 across every payer today only because no top-up has run
-      // since the ledger shipped - production's single non-consume entry is
+      // since the ledger shipped — production's single non-consume entry is
       // migration 141's backfill. This is preventive, and it has to land
       // BEFORE any reconciliation alerting or the first real purchase trips it.
       const credits = round2(amountKes / rate);
@@ -719,7 +719,7 @@ export const billingService = {
 
       // Ledger insert first, and it decides whether the balance moves. A
       // replayed STK callback re-enters here with the same payment_id (the
-      // route re-runs processFulfillment on every replay - handleSTKCallback
+      // route re-runs processFulfillment on every replay — handleSTKCallback
       // computes `alreadyDone` but never returns it), so the UNIQUE(payment_id)
       // added in migration 137 is what makes a top-up exactly-once. If the
       // insert is swallowed by ON CONFLICT we must NOT touch the balance,
@@ -730,7 +730,7 @@ export const billingService = {
       const { rows: inserted } = await client.query<{ id: string }>(
         // remaining_credits starts at the full purchase (migration 146): a lot
         // is drawn down FIFO as messages are actually consumed, which is what
-        // lets §4 hold - this batch keeps the rate it was bought at no matter
+        // lets §4 hold — this batch keeps the rate it was bought at no matter
         // what later purchases cost.
         `INSERT INTO sms_credits
            (group_id, billing_account_id, amount_paid, credits_added, remaining_credits, rate_applied, payment_id)
@@ -749,7 +749,7 @@ export const billingService = {
 
       // Ledger entry for the purchase (migration 141). Same transaction and
       // after the ON CONFLICT guard above, so a replayed callback that credits
-      // nothing also records nothing - the ledger must never claim a movement
+      // nothing also records nothing — the ledger must never claim a movement
       // the balance did not make, or reconciliation stops meaning anything.
       //
       // created_by is NULL for anything the M-Pesa callback drives: that path
@@ -772,7 +772,7 @@ export const billingService = {
       ]);
 
       // Returned from inside the ON CONFLICT guard, so a replayed callback
-      // that credits nothing also confirms nothing - a second "your credits
+      // that credits nothing also confirms nothing — a second "your credits
       // are topped up" for one purchase is exactly as wrong as a second
       // credit. Sent below, after this transaction has committed.
       return {
@@ -801,32 +801,32 @@ export const billingService = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Organization SMS credits - the org-side mirror of billingService.addSmsCredits.
+// Organization SMS credits — the org-side mirror of billingService.addSmsCredits.
 //
 // organization_billing_accounts / organization_sms_credits (migration 051)
 // mirror billing_accounts / sms_credits for organizations exactly, but until
-// now had NO writer anywhere in the app or in any migration's own seed data -
+// now had NO writer anywhere in the app or in any migration's own seed data —
 // found while shipping the super_admin SMS revenue-by-organization report.
 //
 // Unlike groups, an organization has NO real-time M-Pesa collection path at
-// all today - organization-finance.service.ts's deposit() (the platform's
+// all today — organization-finance.service.ts's deposit() (the platform's
 // only established organization money-in flow) is a manual, self-attested
 // ledger entry: "Bank/M-Pesa settlement is reconciled separately." These
-// functions mirror THAT pattern deliberately, not the group STK flow - the
+// functions mirror THAT pattern deliberately, not the group STK flow — the
 // group payments/mpesa_stk_requests/mpesa_transactions spine has group_id
 // NOT NULL throughout with no organization axis, and generalizing it is a
 // much bigger, separate decision.
 //
 // Shaped like admin.service.ts's updateGroupProfile/updateMemberProfile
 // (explicit target id + actor id, withAdminDb), not organization-finance
-// .service.ts's TenantContext-based deposit() - these serve two callers with
+// .service.ts's TenantContext-based deposit() — these serve two callers with
 // different privilege shapes: an organization_coordinator topping up their
 // OWN org (the route derives organizationId from auth.organizationId, never
 // client-supplied) and a super_admin correcting/granting ANY org's balance
-// (previously impossible - no admin tool existed to adjust this at all).
+// (previously impossible — no admin tool existed to adjust this at all).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** This org's SMS balance/rate + its most recent top-ups - the GET side. */
+/** This org's SMS balance/rate + its most recent top-ups — the GET side. */
 export async function getOrganizationSmsBilling(ctx: TenantContext): Promise<{
   balance: number;
   rate: number | null;
@@ -880,7 +880,7 @@ async function getOrCreateOrganizationSmsBillingAccount(
   if (rows[0]) return rows[0];
 
   // Lazily bootstrapped, same reasoning as organization-finance.service.ts's
-  // getWalletForUpdate(): nothing creates this row today (confirmed - not
+  // getWalletForUpdate(): nothing creates this row today (confirmed — not
   // even createOrganization()), so a billing account is an implementation
   // detail of holding a balance, not something an org opts into first.
   const { rows: created } = await db.query<{ id: string; sms_rate: string }>(
@@ -893,7 +893,7 @@ async function getOrCreateOrganizationSmsBillingAccount(
 }
 
 /**
- * Super_admin only (enforced by the route) - sets the organization's
+ * Super_admin only (enforced by the route) — sets the organization's
  * negotiated per-SMS rate. Column has existed since migration 051 with a
  * comment saying organizations "negotiate their own per-SMS rate"; nothing
  * has ever written to it before this, so it sat at its 0.90 default forever.
@@ -934,7 +934,7 @@ export async function setOrganizationSmsRate(
  *
  * Manual today: every current caller omits `paymentId`, trusting that money
  * arrived out-of-band, exactly as deposit() does. It used to say here that a
- * payment_id "never backs this" and so no exactly-once guard was needed -
+ * payment_id "never backs this" and so no exactly-once guard was needed —
  * true of the callers, but the wrong thing to build on. The column exists
  * (migration 051), the group-side twin has been burned by a replayed STK
  * callback crediting twice, and the first callback-driven org top-up would
@@ -942,7 +942,7 @@ export async function setOrganizationSmsRate(
  *
  * So the guard is here BEFORE the caller that needs it (SMS-AUDIT-v3 G27),
  * mirroring addSmsCredits exactly: UNIQUE(payment_id) from migration 164, ON
- * CONFLICT DO NOTHING, and - the part that actually matters - the balance is
+ * CONFLICT DO NOTHING, and — the part that actually matters — the balance is
  * only moved when the insert really happened. Manual top-ups pass NULL, which
  * a UNIQUE constraint does not constrain, so they still apply every time.
  *
@@ -960,11 +960,11 @@ export async function addOrganizationSmsCredits(
   const result = await withAdminDb(async (db) => {
     const account = await getOrCreateOrganizationSmsBillingAccount(db, organizationId);
     const rate = parseFloat(account.sms_rate);
-    // Same rounding as the group path above, for the same reason -
+    // Same rounding as the group path above, for the same reason —
     // organization_sms_credits.credits_added and
     // organization_billing_accounts.sms_credits are both 2dp.
     const credits = round2(amountKes / rate);
-    const notes = opts.notes ?? (opts.reference ? `Top-up - ${opts.reference}` : 'Top-up');
+    const notes = opts.notes ?? (opts.reference ? `Top-up — ${opts.reference}` : 'Top-up');
 
     const { rows: inserted } = await db.query<{ id: string }>(
       `INSERT INTO organization_sms_credits
@@ -996,7 +996,7 @@ export async function addOrganizationSmsCredits(
 
     // sms_ledger_append(payer_type, group_id, organization_id, entry_type,
     // amount, allowance_amount, balance_after, reference_type, reference_id,
-    // payment_id, created_by, notes) - the same generic function
+    // payment_id, created_by, notes) — the same generic function
     // addSmsCredits already calls with 'group'; this is the first call site
     // ever to pass 'organization'.
     //

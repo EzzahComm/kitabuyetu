@@ -7,7 +7,7 @@
  * 'email.delivered' to mask a bounce).
  *
  * Auth bypass: this path is in proxy.ts's webhook bypass list, so no JWT
- * is required - the signature IS the authentication.
+ * is required — the signature IS the authentication.
  *
  * Behaviour when RESEND_WEBHOOK_SECRET is unset:
  *   - production           → reject (fail-closed; misconfig is a hard stop)
@@ -23,7 +23,7 @@ export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  // Read raw bytes - HMAC is over the exact string Resend signed, not the
+  // Read raw bytes — HMAC is over the exact string Resend signed, not the
   // JSON-parsed object.
   const raw = await req.text();
 
@@ -33,7 +33,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       logger.error('[resend.webhook] rejecting callback: RESEND_WEBHOOK_SECRET not set');
       return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 503 });
     }
-    logger.warn('[resend.webhook] RESEND_WEBHOOK_SECRET not set - accepting unsigned callback (dev only)');
+    logger.warn('[resend.webhook] RESEND_WEBHOOK_SECRET not set — accepting unsigned callback (dev only)');
   } else {
     const result = verifySvixSignature(
       raw,
@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await processResendEvent(event);
   } catch (err) {
     logger.error('[resend.webhook] processing failed', err);
-    // 500 lets svix retry - events are idempotent (UPDATE ... WHERE id = $1).
+    // 500 lets svix retry — events are idempotent (UPDATE ... WHERE id = $1).
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
   return NextResponse.json({ received: true });

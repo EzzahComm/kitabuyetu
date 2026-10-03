@@ -6,9 +6,9 @@ import { SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/accounting/posting-templates - every posting event's effective
+ * GET /api/v1/accounting/posting-templates — every posting event's effective
  *   template (which accounts it debits/credits) with resolution source.
- * PUT /api/v1/accounting/posting-templates - set a group-level override for
+ * PUT /api/v1/accounting/posting-templates — set a group-level override for
  *   one event. Only account codes may change; the entry structure is locked.
  *
  * treasurer+ only, same gate as the chart of accounts itself.

@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import type { Campaign } from '@/lib/services/campaigns.service';
 import { fallbackPhoto } from './photos';
 
-/** Only the public fields a card needs - never pass payout_phone or review fields to a render. */
+/** Only the public fields a card needs — never pass payout_phone or review fields to a render. */
 export type CampaignSummary = Pick<
   Campaign,
   'slug' | 'title' | 'story' | 'cover_image_url' | 'amount_raised' | 'target_amount' | 'beneficiary_name'
@@ -30,7 +30,7 @@ export function CampaignCard({ campaign, ended = false }: { campaign: CampaignSu
       className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
     >
       <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
-        {/* alt="" - the card link already carries the title. Campaigns without a cover get a registry photo. */}
+        {/* alt="" — the card link already carries the title. Campaigns without a cover get a registry photo. */}
         {campaign.cover_image_url ? (
           <Image
             src={campaign.cover_image_url}

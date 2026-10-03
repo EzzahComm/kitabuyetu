@@ -1,5 +1,5 @@
 /**
- * Disbursement watchdog timeout resolution - closes B2C_DISBURSEMENT_AUDIT.md
+ * Disbursement watchdog timeout resolution — closes B2C_DISBURSEMENT_AUDIT.md
  * C5 for all three money-out spines. Covers: correct table/in-flight-status
  * per kind, and the idempotent no-op when the real callback handler already
  * resolved the row before the watchdog's timeout fired.
@@ -46,7 +46,7 @@ describe('resolveWatchdogTimeout', () => {
 
   it('is a safe no-op when the real callback handler already resolved the row', async () => {
     // WHERE status = inProgressStatus matches nothing once the row is
-    // already 'completed'/'failed' - RETURNING yields zero rows.
+    // already 'completed'/'failed' — RETURNING yields zero rows.
     mockQuery.mockResolvedValueOnce({ rows: [] });
 
     const result = await resolveWatchdogTimeout('disbursement', 'row-2');
@@ -55,7 +55,7 @@ describe('resolveWatchdogTimeout', () => {
   });
 
   it('never touches reserved_amount or any accounts table', async () => {
-    // Two calls: the status UPDATE, then an audit_logs INSERT (R11) - this
+    // Two calls: the status UPDATE, then an audit_logs INSERT (R11) — this
     // test's own invariant is that NEITHER touches reserved_amount/accounts,
     // not that there's exactly one call.
     mockQuery

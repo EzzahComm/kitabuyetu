@@ -115,7 +115,7 @@ export default function MarketingCampaignsPage() {
   const onApprove = async (id: string) => {
     try {
       await approveCampaign.mutateAsync(id);
-      toast({ title: 'Approved - sending now' });
+      toast({ title: 'Approved — sending now' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }

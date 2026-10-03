@@ -13,7 +13,7 @@ import type { StkPushInput } from '@/lib/validators/mpesa.schema';
  * copying a payment state machine per surface is how they drift.
  *
  * `onCompleted` fires once, on a confirmed payment. Everything money-related
- * still happens server-side off Safaricom's callback - this only tells the UI
+ * still happens server-side off Safaricom's callback — this only tells the UI
  * when to refresh and what to say.
  */
 export function useStkCheckout(onCompleted: (amount: number) => void) {
@@ -31,7 +31,7 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
 
   // Effect responds to M-Pesa polling result (external async system).
   // The setState calls here stop polling and close the modal on terminal
-  // status - this is the "subscribe to external system" pattern, not the
+  // status — this is the "subscribe to external system" pattern, not the
   // copy-data-to-state anti-pattern the rule normally guards against.
   useEffect(() => {
     if (!mpesaStatus || amount == null) return;

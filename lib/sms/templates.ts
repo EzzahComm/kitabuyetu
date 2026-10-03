@@ -15,14 +15,14 @@ export type TemplateVars = Record<string, string | number | null | undefined>;
  * `payment_account` and `paybill_number`. Every one of those values already
  * existed under another name (see
  * docs/audits/SMS-TEMPLATE-VARIABLES-AUDIT-2026-09-03.md), and that spec's own
- * §12 says not to create parallel identifiers for data that already exists -
+ * §12 says not to create parallel identifiers for data that already exists —
  * so these are ALIASES, not new fields. Nothing new is stored, computed or
  * passed; only the name a template author may write.
  *
  * `membership_no` is the canonical short member id: `PP DDDDD C`, e.g.
  * BG102534, carrying a Damm check digit so a mistyped account fails validation
  * rather than paying a stranger in another group (lib/utils/membership-no.ts).
- * It is also, deliberately, the M-Pesa payment account - which is why
+ * It is also, deliberately, the M-Pesa payment account — which is why
  * `payment_account` and `account_number` both point at it rather than at a
  * duplicated field kept in step with it.
  *
@@ -47,7 +47,7 @@ export const VARIABLE_ALIASES: Readonly<Record<string, string>> = Object.freeze(
  *
  * Deliberately NOT included: `{{balance}}` and `{{welfare_balance}}`.
  * `balance` already means three different things depending on which template
- * renders it (savings total, loan outstanding, welfare contributed - see
+ * renders it (savings total, loan outstanding, welfare contributed — see
  * mpesa-spine.service.ts's receipt query), and a name that vague in a
  * free-text composer is a wrong figure waiting to be sent. `welfare_balance`
  * is worse: welfare is a pool you petition, not an account you hold, so the
@@ -97,7 +97,7 @@ function resolveVar(key: string, vars: TemplateVars): string | undefined {
 /**
  * The variables in `template` that `vars` cannot fill.
  *
- * These are exactly the placeholders stripUnresolved() will delete - leaving
+ * These are exactly the placeholders stripUnresolved() will delete — leaving
  * the punctuation that framed them, which is how a template written for one
  * context and sent in another produces "Receipt: . Balance: KES ." rather
  * than anything a reader can act on.
@@ -109,11 +109,11 @@ export function unresolvedVars(template: string, vars: TemplateVars): string[] {
 /**
  * Who a message is signed by.
  *
- * `person` is supplied only when a HUMAN actually sent it - an officer
+ * `person` is supplied only when a HUMAN actually sent it — an officer
  * composing a campaign. Automated sends (cron reminders, trigger rules) omit
  * it deliberately: a contribution reminder generated at 08:00 is not from the
  * treasurer, and signing it "- John, Treasurer" tells a member something
- * untrue. In a chama that is a social fact, not a UI detail - a member may
+ * untrue. In a chama that is a social fact, not a UI detail — a member may
  * reasonably ring John about a message he never saw.
  */
 export interface SenderIdentity {
@@ -136,7 +136,7 @@ export interface SenderIdentity {
  * `{{sender_signature}}`: each already names the group in its body ("your
  * {{group_name}} contribution"), so a group-name signature would repeat
  * information the message already carries and push it into a second segment
- * to do so. The variable exists for authors who want it - campaigns, and
+ * to do so. The variable exists for authors who want it — campaigns, and
  * customised templates where the group is not otherwise named.
  */
 export function buildSenderVars(sender: SenderIdentity): TemplateVars {
@@ -156,8 +156,8 @@ export function buildSenderVars(sender: SenderIdentity): TemplateVars {
 /**
  * The platform PayBill every "here's how to pay" message quotes.
  *
- * Was copy-pasted identically into three files - contributions.service.ts,
- * jobs/handlers.ts and mpesa-stk.service.ts - so a change had to be made three
+ * Was copy-pasted identically into three files — contributions.service.ts,
+ * jobs/handlers.ts and mpesa-stk.service.ts — so a change had to be made three
  * times or they silently diverged.
  *
  * Deliberately NOT per-group: one platform shortcode pools every group's money
@@ -231,7 +231,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   birthday:
     'Happy Birthday {{first_name}}! Your {{group_name}} family wishes you a wonderful year ahead. Stay blessed!',
   payment_confirmed: 'Dear {{first_name}}, payment of KES {{amount}} confirmed. Receipt: {{receipt}}.',
-  // Kept to one 160-character SMS segment even with a long group name -
+  // Kept to one 160-character SMS segment even with a long group name —
   // "Ndengelwa Community Water Project" is 33 characters and real, so the
   // fixed text has to leave room for it. A second segment would double the
   // credit cost of every member a group ever adds. The worked example lands
@@ -239,7 +239,7 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   //   "Dear Benedict, you have joined Ndengelwa Community Water Project on
   //    Kitabu Yetu. Your member number is NC000078. Karibu."
   // {{membership_no}} is the SHORT per-group number, never the long
-  // member_code - see the payload comment in members.service.ts.
+  // member_code — see the payload comment in members.service.ts.
   // Was an inline string literal in contributions.service.ts, invisible to the
   // template system and impossible for a group to customise. `account_number`
   // resolves to membership_no via VARIABLE_ALIASES, so no caller has to pass

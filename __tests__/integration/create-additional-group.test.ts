@@ -1,19 +1,19 @@
 /**
- * POST /api/v1/auth/create-group - against real Postgres.
+ * POST /api/v1/auth/create-group — against real Postgres.
  *
  * The fix for a real gap: members.phone is UNIQUE platform-wide, and
  * register_group() (the public /register RPC) always INSERTs a fresh members
- * row - so an existing member trying to found a SECOND group (e.g. already
+ * row — so an existing member trying to found a SECOND group (e.g. already
  * has Kitabu Yetu, wants to also start Chama Reminder) got a dead-end
  * "Phone number already registered" 409. group_members already fully
  * supports one member_id belonging to many groups (group-switcher.tsx /
- * switch-group prove that daily) - what was missing was a way to CREATE that
+ * switch-group prove that daily) — what was missing was a way to CREATE that
  * second membership. This is that path: authenticated, reuses the caller's
  * existing member_id/person_id, never touches members or person.
  *
  * Covers both directions (Kitabu Yetu -> Chama Reminder and back) since the
  * chart-of-accounts seed is the one place behavior genuinely forks by
- * product, and asserts the identity-reuse property directly - the entire
+ * product, and asserts the identity-reuse property directly — the entire
  * point of this feature over the public register form.
  */
 import { POST as createGroupPost } from '@/app/api/v1/auth/create-group/route';
@@ -23,7 +23,7 @@ import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
 // The route's non-fatal refresh-token persistence calls storeRefreshToken
-// (lib/redis), which - unlike checkRateLimit - has no fail-open try/catch of
+// (lib/redis), which — unlike checkRateLimit — has no fail-open try/catch of
 // its own; in an environment with no real Redis reachable (this sandbox,
 // apparently CI too) it doesn't fail fast, it just hangs past any reasonable
 // per-test timeout. Same established pattern as
@@ -89,7 +89,7 @@ describe('POST /api/v1/auth/create-group', () => {
     expect(body.data.member.id).toBe(officerId);
     expect(body.data.member.phone).toBeTruthy();
 
-    // No new members or person row - the entire point.
+    // No new members or person row — the entire point.
     const [memberCount] = await rawQuery<{ count: string }>(`SELECT count(*) AS count FROM members WHERE id = $1`, [
       officerId,
     ]);

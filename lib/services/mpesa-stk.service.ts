@@ -43,13 +43,13 @@ export interface StkPushParams {
   invoiceId?: string;
   purpose?: string;
   initiatedBy?: string;
-  /** Required when purpose = 'subscription' - the callback activates these. */
+  /** Required when purpose = 'subscription' — the callback activates these. */
   planType?: PlanType;
   product?: SubscriptionProduct;
-  /** Defaults to 'monthly' at the callback if omitted (migration 155) - an
+  /** Defaults to 'monthly' at the callback if omitted (migration 155) — an
    *  older client that never sends this keeps today's behaviour exactly. */
   billingCycle?: BillingCycle;
-  /** Required when purpose = 'campaign_donation' - read back at settlement
+  /** Required when purpose = 'campaign_donation' — read back at settlement
    *  by applyCampaignDonationFromSTK (migration 184; AccountReference itself
    *  is truncated to 12 chars by Safaricom, so it cannot carry this). */
   campaignId?: string;
@@ -89,7 +89,7 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       description: params.description,
     });
   } catch (err) {
-    // The prompt never went out - release immediately so the user can retry.
+    // The prompt never went out — release immediately so the user can retry.
     await releaseStkLock(lockKey);
     throw err;
   }
@@ -193,7 +193,7 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       );
     }
 
-    // 3. Payment spine (accounting / billing side) - channel + initiator
+    // 3. Payment spine (accounting / billing side) — channel + initiator
     //    recorded at initiation (payment architecture §7).
     const { rows: payRows } = await db.query<{ id: string }>(
       `INSERT INTO payments
@@ -240,7 +240,7 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
 
   // §3.6: STK initiation records a payment request so a member who ignores
   // the prompt and later pays by PayBill with a bare membership number still
-  // lands on the intended product (allocation tier A2/A4). Best-effort - a
+  // lands on the intended product (allocation tier A2/A4). Best-effort — a
   // request is an optimization, never a dependency.
   if (params.purpose === 'contribution') {
     await withAdminDb(async (db) => {
@@ -481,7 +481,7 @@ export async function handleSTKCallback(
   const receipt = getItem('MpesaReceiptNumber') as string;
   const amount = getItem('Amount') as number;
 
-  // The receipt is the ONE field this branch genuinely cannot proceed without -
+  // The receipt is the ONE field this branch genuinely cannot proceed without —
   // it is the idempotency key and the ledger's reference. Treat a
   // ResultCode-0 callback that lacks one as the failure it actually is,
   // rather than inserting a row keyed on `undefined`.
@@ -492,14 +492,14 @@ export async function handleSTKCallback(
     return { success: false, mpesaReceiptNumber: null, amount: null, paymentId: null };
   }
 
-  // Incidental, exactly as in handleC2BConfirmation - the payment is
+  // Incidental, exactly as in handleC2BConfirmation — the payment is
   // identified by the STK request row and its AccountReference, never by the
   // prompted phone (which may legitimately belong to a third party). This
   // used to be `normalizePhone(...)`, which throws; Safaricom already sends a
   // HASHED MSISDN on this org's C2B confirmations, and that exact throw
   // silently discarded every direct PayBill payment for ~11 weeks (PR #77).
   // STK has not been hit, but it is the same provider, the same shortcode and
-  // the same shape - and STK is the primary payment path, so the blast radius
+  // the same shape — and STK is the primary payment path, so the blast radius
   // would be larger. Degrade the record; never reject the money.
   const phone = safeNormalizePhone(String(getItem('PhoneNumber') ?? '')) ?? UNKNOWN_PAYER_PHONE;
 
@@ -561,7 +561,7 @@ export async function handleSTKCallback(
       );
     }
 
-    // Spine: money landed (first transition only - the status='pending' guard
+    // Spine: money landed (first transition only — the status='pending' guard
     // means a replayed callback returns no row and skips this).
     if (paymentId) {
       await logPaymentEvent(db, paymentId, 'received', { checkoutRequestId: cb.CheckoutRequestID });
@@ -607,7 +607,7 @@ export async function handleSTKCallback(
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the STK-driven billing path
       // (the one most subscription payments actually go through) previously
-      // had no GL trace at all - only the manual billingService.recordPayment
+      // had no GL trace at all — only the manual billingService.recordPayment
       // path posted. System-posted (created_by NULL): no authenticated
       // officer initiated this, Safaricom's callback did.
       if (stkReq?.group_id) {
@@ -616,7 +616,7 @@ export async function handleSTKCallback(
           stkReq.group_id,
           null,
           'subscription_payment',
-          `Platform subscription payment - invoice ${payRows[0].invoice_id}`,
+          `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
           { amount },
           { reference: receipt },
         );
@@ -719,29 +719,29 @@ export async function handleSTKCallback(
 
 /**
  * Routes a completed STK Push to its domain side-effect based on the
- * request's `purpose` / `loan_repayment_id`. Idempotent - every INSERT
+ * request's `purpose` / `loan_repayment_id`. Idempotent — every INSERT
  * uses `ON CONFLICT DO NOTHING` keyed on `mpesa_receipt_number`.
  */
 async function fulfilStkCallback(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
-  // Loan repayment - pre-bound at initiation time
+  // Loan repayment — pre-bound at initiation time
   if (stkReq.loan_repayment_id) {
     await applyLoanRepayment(db, stkReq, in_);
     return;
   }
 
-  // Contribution - look up member by phone in the group
+  // Contribution — look up member by phone in the group
   if (stkReq.purpose === 'contribution') {
     await applyContributionFromSTK(db, stkReq, in_);
     return;
   }
 
-  // Subscription - activate the plan that was actually paid for.
+  // Subscription — activate the plan that was actually paid for.
   if (stkReq.purpose === 'subscription') {
     await activateSubscriptionFromSTK(db, stkReq, in_);
     return;
   }
 
-  // Changi$ha donation - the payer is a member of the public, not a group
+  // Changi$ha donation — the payer is a member of the public, not a group
   // member, so there is no member-matching step (contrast applyContributionFromSTK).
   if (stkReq.purpose === 'campaign_donation') {
     await applyCampaignDonationFromSTK(db, stkReq, in_);
@@ -759,7 +759,7 @@ async function fulfilStkCallback(db: PoolClient, stkReq: StkRequestRow, in_: Ful
  *
  * Runs inside the callback's own transaction, so the plan flips in the same
  * commit that marks the payment completed. Failures here must not abort that
- * commit - the money is real and the payment row must still be recorded - so
+ * commit — the money is real and the payment row must still be recorded — so
  * anything that makes activation impossible (missing plan/product on the
  * request, underpayment, a negotiated tier sold through self-serve) is logged
  * and swallowed, leaving the group on its current plan for ops to resolve.
@@ -770,7 +770,7 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
   // constant 'SUBSCRIPT' and matching on amount alone would pick a plan by
   // price collision across two products.
   if (!stkReq.plan_type || !stkReq.product) {
-    logger.error('[mpesa] subscription payment with no plan recorded - not activating', {
+    logger.error('[mpesa] subscription payment with no plan recorded — not activating', {
       stkRequestId: stkReq.id,
       groupId: stkReq.group_id,
       receipt: in_.receipt,
@@ -800,7 +800,7 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
     [in_.receipt],
   );
   if (!pay[0]) {
-    logger.error('[mpesa] subscription payment row not found - not activating', {
+    logger.error('[mpesa] subscription payment row not found — not activating', {
       stkRequestId: stkReq.id,
       receipt: in_.receipt,
     });
@@ -832,7 +832,7 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
       paymentId: pay[0].id,
       amountPaid: in_.amount,
       // Undefined (not null) when the column is NULL, so the function's own
-      // `?? 'monthly'` default applies - same behaviour a pre-155 row always had.
+      // `?? 'monthly'` default applies — same behaviour a pre-155 row always had.
       billingCycle: (stkReq.billing_cycle as BillingCycle | null) ?? undefined,
     });
     if (sub) {
@@ -924,7 +924,7 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
 async function applyContributionFromSTK(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
   // Registry-first (payment architecture §3.7): when the STK request's
   // AccountReference is a membership number (or legacy code) bound to a
-  // payment-eligible membership of THIS group, that identifies the member -
+  // payment-eligible membership of THIS group, that identifies the member —
   // the prompted phone may legitimately belong to a third party.
   let memberId: string | null = null;
 
@@ -939,11 +939,11 @@ async function applyContributionFromSTK(db: PoolClient, stkReq: StkRequestRow, i
   }
 
   // Fallback: resolve by phone within the group. gm.status is the single
-  // membership liveness signal - the legacy is_active boolean is never
+  // membership liveness signal — the legacy is_active boolean is never
   // updated by status transitions and reads true forever (audit C-2).
   //
   // Skipped entirely when the payer phone is unknown (hashed/absent MSISDN):
-  // matching the sentinel against `members.phone` can only ever be wrong -
+  // matching the sentinel against `members.phone` can only ever be wrong —
   // either it finds nothing, or a member has literally stored 'unknown' and
   // would be credited for someone else's payment. Falling through to the
   // unrouted path below is the correct outcome.
@@ -991,7 +991,7 @@ async function applyContributionFromSTK(db: PoolClient, stkReq: StkRequestRow, i
     ],
   );
   const contributionId = contribRows[0]?.id ?? null;
-  if (!contributionId) return; // duplicate - nothing more to do
+  if (!contributionId) return; // duplicate — nothing more to do
 
   // Audit: contribution created from STK payment
   await db.query(
@@ -1094,7 +1094,7 @@ interface FailedStkRow {
 
 /**
  * Human-readable reason for the common Daraja STK result codes. Drives the
- * fallback SMS copy. We deliberately do NOT auto-retry the STK - that
+ * fallback SMS copy. We deliberately do NOT auto-retry the STK — that
  * surprises members and risks duplicate charges; we point them to PayBill.
  */
 function stkFailureReason(code: number): string {
@@ -1114,12 +1114,12 @@ function stkFailureReason(code: number): string {
 
 /**
  * Settles a Changi$ha donation. Unlike applyContributionFromSTK, there is no
- * member to match - the payer is a member of the public, so this creates the
+ * member to match — the payer is a member of the public, so this creates the
  * campaign_donations row directly rather than looking one up. donor_name/
  * donor_message/is_anonymous ride on the STK request row itself
  * (stkReq.campaign_id etc., migration 184) rather than a pre-created pending
- * row, because AccountReference - the only thing that would otherwise
- * correlate a callback back to a specific donation - is truncated to 12
+ * row, because AccountReference — the only thing that would otherwise
+ * correlate a callback back to a specific donation — is truncated to 12
  * characters by Safaricom before it ever reaches us (daraja.service.ts).
  *
  * Idempotent the same way as applyContributionFromSTK: ON CONFLICT on
@@ -1173,9 +1173,9 @@ async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<v
       )
       .then((r) => r.rows[0] ?? null),
   );
-  if (!member) return; // can't attribute the nudge - skip
+  if (!member) return; // can't attribute the nudge — skip
 
-  // Single home - see lib/sms/templates.ts. Previously duplicated here, in
+  // Single home — see lib/sms/templates.ts. Previously duplicated here, in
   // contributions.service.ts and in lib/jobs/handlers.ts.
   const { platformPaybill } = await import('@/lib/sms/templates');
   const paybill = platformPaybill();

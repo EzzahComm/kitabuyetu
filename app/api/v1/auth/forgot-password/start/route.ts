@@ -5,7 +5,7 @@ import { ForgotPasswordStartSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/auth/forgot-password/start - public. Always returns the same
+ * POST /api/v1/auth/forgot-password/start — public. Always returns the same
  * generic success response, whether or not the phone belongs to an account.
  */
 export async function POST(req: NextRequest): Promise<Response> {

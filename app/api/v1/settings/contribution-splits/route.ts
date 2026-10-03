@@ -8,7 +8,7 @@ import {
 } from '@/lib/validators/contribution-splits.schema';
 import { created, ok, handleError } from '@/lib/utils/response';
 
-/** GET /api/v1/settings/contribution-splits - list this group's split rules. */
+/** GET /api/v1/settings/contribution-splits — list this group's split rules. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/settings/contribution-splits - add one split rule (treasurer+). */
+/** POST /api/v1/settings/contribution-splits — add one split rule (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
@@ -35,7 +35,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-/** PUT /api/v1/settings/contribution-splits - replace the whole rule set (treasurer+). */
+/** PUT /api/v1/settings/contribution-splits — replace the whole rule set (treasurer+). */
 export async function PUT(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {

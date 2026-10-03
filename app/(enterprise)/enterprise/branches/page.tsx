@@ -132,7 +132,7 @@ export default function BranchesPage() {
                     <tr key={g.groupId} className="border-b transition-colors last:border-0 hover:bg-muted/30">
                       <td className="px-4 py-3">
                         <p className="font-medium text-foreground">{g.groupName}</p>
-                        <p className="text-xs text-muted-foreground">{g.county ?? '-'}</p>
+                        <p className="text-xs text-muted-foreground">{g.county ?? '—'}</p>
                       </td>
                       <td className="px-4 py-3 text-right tabular-nums">{g.activeMemberCount.toLocaleString()}</td>
                       <td className="px-4 py-3 text-right">

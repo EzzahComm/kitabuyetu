@@ -13,7 +13,7 @@ const ListSchema = z.object({
     .optional(),
 });
 
-/** GET /api/v1/mpesa/disbursements - the group's B2C payout history + approval queue (treasurer+). */
+/** GET /api/v1/mpesa/disbursements — the group's B2C payout history + approval queue (treasurer+). */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'payouts.manage', async (auth) => {
     try {

@@ -6,7 +6,7 @@ import { withDb, type TenantContext } from '@/lib/db';
  * CONTAINS NO COST OR MARGIN. §15 is explicit that provider cost is never
  * exposed to customers, so this module must never import
  * sms-pricing.service's getProviderCost or marginFor. What a customer may see
- * is what THEY pay - their own rate - not what we pay. Margin lives in
+ * is what THEY pay — their own rate — not what we pay. Margin lives in
  * sms-margin.service.ts, behind the admin surface.
  *
  * Reads sms_usage_logs, which is the record of what was actually sent, and
@@ -28,7 +28,7 @@ export interface SmsUsageAnalytics {
    * This used to read `billing_accounts.sms_credits` alone, which counts only
    * PURCHASED credits. A group on a starter plan that had bought nothing saw a
    * balance of 0 and an "urgent, very low balance" badge while holding 47
-   * unused bundled sends - the panel said the product was out of credit when
+   * unused bundled sends — the panel said the product was out of credit when
    * it was not. `smsService.getBalance()` had the allowance all along; this
    * one number simply never asked for it.
    */
@@ -51,7 +51,7 @@ export interface SmsUsageAnalytics {
   /**
    * True when any consumption predates per-feature attribution. The UI must say
    * so rather than implying those messages were free or uncategorised by
-   * choice - ~95% of historical production rows have no notification_type,
+   * choice — ~95% of historical production rows have no notification_type,
    * because the column postdates them.
    */
   hasUnattributedHistory: boolean;
@@ -61,7 +61,7 @@ export interface SmsUsageAnalytics {
 const PROJECTION_WINDOW_DAYS = 30;
 
 export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalytics> {
-  // Billing/credits data - RLS-enforced (group_id = app_current_group_id())
+  // Billing/credits data — RLS-enforced (group_id = app_current_group_id())
   // rather than the admin pool, matching the rest of the Phase 1 tenant-pool
   // migration. No per-request session is threaded this deep (the route only
   // has a groupId), so this uses the same "unset" sentinel TenantContext as
@@ -71,7 +71,7 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
   return withDb(ctx, async (db) => {
     const [balance, purchased, consumption, byFeature, byCampaign, rate] = await Promise.all([
       // SUM the allowance across ACTIVE subscriptions only, mirroring
-      // smsService.getBalance() and reserve_sms_credits - a group holding both
+      // smsService.getBalance() and reserve_sms_credits — a group holding both
       // products has two, and taking a single row would under-report it.
       db.query<{ sms_credits: string; allowance_included: string; allowance_used: string }>(
         `SELECT ba.sms_credits,
@@ -132,7 +132,7 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
          LIMIT 20`,
         [groupId],
       ),
-      // The group's OWN rate - what they pay, not what we pay.
+      // The group's OWN rate — what they pay, not what we pay.
       db.query<{ sms_rate: string }>(
         `SELECT COALESCE(MIN(sms_rate), 0.90) AS sms_rate
          FROM subscriptions WHERE group_id = $1 AND status = 'active'`,
@@ -154,7 +154,7 @@ export async function getUsageAnalytics(groupId: string): Promise<SmsUsageAnalyt
 
     // Projection only means something once something has been sent. Reporting
     // "0 days remaining" for a group that has never sent is worse than
-    // reporting nothing - it reads as an alarm.
+    // reporting nothing — it reads as an alarm.
     const dailyRate = windowCredits / PROJECTION_WINDOW_DAYS;
     const projectedMonthly = windowCredits > 0 ? dailyRate * 30 : null;
     const daysRemaining = dailyRate > 0 ? Math.floor(bal / dailyRate) : null;

@@ -10,7 +10,7 @@ const phoneSchema = z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone 
  * gets 5/60s, and its comment justifies the gap by calling this "the
  * single/few-recipient path". That was only ever true by convention: the array
  * branch had no `.max()`, so one token could send 30 unbounded fan-outs a
- * minute - past both the bulk request ceiling and the 5,000-recipient cap that
+ * minute — past both the bulk request ceiling and the 5,000-recipient cap that
  * ceiling is calibrated against. The limiter counts requests, not recipients,
  * so surface-tiering only holds if per-request volume is actually bounded.
  *
@@ -30,7 +30,7 @@ export const SendSmsSchema = z.object({
 /**
  * Reminder/automation history (SMS-AUDIT-v3 G21).
  *
- * `status` accepts 'suppressed' like any other value - a suppressed row is
+ * `status` accepts 'suppressed' like any other value — a suppressed row is
  * the record that someone opted out and was honoured, which is exactly what a
  * data-subject request needs to see. Omitting the filter returns every
  * outcome, including suppressed.
@@ -55,14 +55,14 @@ export const SmsUsageQuerySchema = z.object({
 /**
  * Two mutually exclusive ways to address a bulk send:
  *
- * - `phones` - an explicit list the operator typed in (the "Custom Phones" box).
- * - `recipientType` - a membership query the SERVER resolves, via the same
+ * - `phones` — an explicit list the operator typed in (the "Custom Phones" box).
+ * - `recipientType` — a membership query the SERVER resolves, via the same
  *   `resolveSmsRecipients()` campaigns and schedules already use.
  *
  * The second one exists because the browser cannot reliably enumerate a group's
  * membership: it can only page through `/members`, which caps at 100 rows.
  * `ComposeTab` used to try, asking for a non-existent `pageSize: 500` that Zod
- * silently stripped - so "Send to All Members" reached the default 20 and no
+ * silently stripped — so "Send to All Members" reached the default 20 and no
  * error was raised anywhere. Sending to "everyone" is a question about the
  * group, and the group's row set lives on the server; asking the client to
  * assemble the answer is what made a wrong answer possible.
@@ -92,7 +92,7 @@ export const BulkSmsSchema = z
 /**
  * The audience payload for the two `recipientType` values that carry one.
  *
- * Was `z.record(z.unknown())` on both the campaign and schedule surfaces -
+ * Was `z.record(z.unknown())` on both the campaign and schedule surfaces —
  * i.e. no format check and no cap, on paths that go straight to
  * resolveSmsRecipients() and then to a billed send. Two concrete consequences:
  * `normalizePhone` THROWS on a malformed entry, so one bad number produced a
@@ -101,7 +101,7 @@ export const BulkSmsSchema = z
  * sms_schedules.raw_recipients to be re-sent on every future occurrence.
  *
  * `.strict()` because a silently-ignored key is how "Send to All Members"
- * once resolved to 20 people - an unrecognised field should be a 400, not a
+ * once resolved to 20 people — an unrecognised field should be a 400, not a
  * shrug. The cap mirrors BulkSmsSchema.phones so the three client-supplied
  * audience surfaces agree.
  *
@@ -183,7 +183,7 @@ export const TemplateCreateSchema = z.object({
  * Pre-send cost preview (SMS-AUDIT-v3 G28).
  *
  * Mirrors the audience half of BulkSmsSchema so a preview is quoted for the
- * exact payload that would be sent - a preview that accepts a different shape
+ * exact payload that would be sent — a preview that accepts a different shape
  * than the send would eventually quote for a different audience. Read-only,
  * so unlike BulkSmsSchema it does not carry senderId/timeToSend/reference*.
  *
@@ -208,19 +208,19 @@ export const TemplateUpdateSchema = TemplateCreateSchema.partial().omit({ templa
 /**
  * Base object kept separate from the refined create schema below: superRefine
  * yields a ZodEffects, which has no `.partial()`, and the PATCH handler needs
- * a partial. The audience correlation is a CREATE-time rule anyway - a PATCH
+ * a partial. The audience correlation is a CREATE-time rule anyway — a PATCH
  * that touches only `name` must not be forced to resend the audience.
  */
 const ScheduleCreateBase = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(500).optional(),
   // 'birthday'/'loan_due' are deliberately excluded here even though the DB
-  // CHECK constraint (migration 013) still permits them historically - both
+  // CHECK constraint (migration 013) still permits them historically — both
   // are handled as dedicated global jobs (sms_birthday_reminders,
   // notify_loan_due_alerts) with day-varying, rule-based recipients, not a
   // fixed-audience row on a fixed cadence. sms-scheduler.service.ts's own
   // processDueSmsSchedules() has never processed these two values (see its
-  // header comment) - a row created with either would previously sit inert
+  // header comment) — a row created with either would previously sit inert
   // forever. Blocking creation here, not widening the scheduler to handle
   // them, since the recipient-selection model these two need doesn't fit
   // this table's shape.
@@ -247,7 +247,7 @@ export const ScheduleUpdateSchema = ScheduleCreateBase.partial();
 
 /**
  * Per-group messaging automation toggles. Every field optional so a page can
- * flip one without having to send (and risk clearing) the rest - the route
+ * flip one without having to send (and risk clearing) the rest — the route
  * COALESCEs each against its stored value.
  */
 export const SmsGroupSettingsUpdateSchema = z.object({
@@ -257,8 +257,8 @@ export const SmsGroupSettingsUpdateSchema = z.object({
   autoSendBirthday: z.boolean().optional(),
   // NOT nullable: sms_group_settings.daily_send_limit is `INTEGER NOT NULL
   // DEFAULT 500` (migration 013), so "no cap" has no storable representation.
-  // A group with no settings row at all is uncapped - which is what
-  // GET /sms/settings already reports for them - and once a row exists the
+  // A group with no settings row at all is uncapped — which is what
+  // GET /sms/settings already reports for them — and once a row exists the
   // cap can be raised but not removed. Bounded well above any plausible
   // legitimate daily volume so a typo cannot silently defeat the control.
   dailySendLimit: z.number().int().min(1).max(100_000).optional(),

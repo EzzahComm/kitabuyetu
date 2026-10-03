@@ -24,7 +24,7 @@ const PRIVACY_SECTIONS = [
 ] as const;
 
 /** See app/legal/privacy/page.tsx. This page exists to hold the footer link,
- *  not to assert ODPC registration or DPA 2019 compliance - that marker was
+ *  not to assert ODPC registration or DPA 2019 compliance — that marker was
  *  found and removed once already for being false; see
  *  docs/audits/HERO_BRIEF_CLAIM_AUDIT_2026-08.md. Do not add it back here
  *  without the actual registration existing first. */

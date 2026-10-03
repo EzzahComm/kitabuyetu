@@ -10,7 +10,7 @@ const changeRoleSchema = z.object({
   orgRole: z.enum(['lead', 'staff']),
 });
 
-/** PATCH - change a staff member's role within this organization. */
+/** PATCH — change a staff member's role within this organization. */
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string; memberId: string }> }) {
   return withPlatformRole(req, 'super_admin', async () => {
     const { id, memberId } = await params;
@@ -23,7 +23,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
   });
 }
 
-/** DELETE - remove (archive) a staff member from this organization. */
+/** DELETE — remove (archive) a staff member from this organization. */
 export function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; memberId: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id, memberId } = await params;

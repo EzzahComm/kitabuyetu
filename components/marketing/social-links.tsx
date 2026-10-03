@@ -53,12 +53,12 @@ export function SocialLinks({ variant, className, only, links: source = SOCIAL_L
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                 )}
               >
-                <Glyph aria-hidden="true" size={16} stroke={1.75} />
+                <Glyph aria-hidden="true" size={16} strokeWidth={1.75} />
               </a>
             ) : (
               // No profile URL yet: keep the template's icon row, but never as a dead link.
               <span aria-hidden="true" className={cn(base, 'cursor-default')}>
-                <Glyph size={16} stroke={1.75} />
+                <Glyph size={16} strokeWidth={1.75} />
               </span>
             )}
           </li>

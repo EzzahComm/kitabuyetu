@@ -1,9 +1,9 @@
 /**
- * Platform-wide reminder idempotency (lib/services/reminder.service.ts) -
+ * Platform-wide reminder idempotency (lib/services/reminder.service.ts) —
  * built after notify_loan_due_alerts was found re-sending the same SMS every
  * single day a pending installment stayed within its due window, since the
  * cron scanner had no memory of past sends. These tests exercise the claim/
- * settle state machine in isolation (mocked DB + mocked notifyMember) -
+ * settle state machine in isolation (mocked DB + mocked notifyMember) —
  * the real DB behavior (the UNIQUE constraint that makes the claim atomic)
  * is proven separately by CI's db-integration suite applying migration 106.
  */
@@ -134,7 +134,7 @@ describe('sendOnce', () => {
 
 /**
  * SMS-AUDIT-v3 T3-5 / G26. The (reference, stage) dedup above cannot see that
- * several DIFFERENT reminders are landing on one member at once - which is
+ * several DIFFERENT reminders are landing on one member at once — which is
  * exactly what happens when the monthly scanners all come due on the 1st.
  */
 describe('sendOnce member cooldown', () => {
@@ -178,7 +178,7 @@ describe('sendOnce member cooldown', () => {
     expect(mockNotifyMember).toHaveBeenCalledTimes(1);
   });
 
-  it('allows the send when the cooldown lookup itself fails - it is politeness, not correctness', async () => {
+  it('allows the send when the cooldown lookup itself fails — it is politeness, not correctness', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'dispatch-4' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reminder_dispatch.claimed
     mockQuery.mockRejectedValueOnce(new Error('db blip'));

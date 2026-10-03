@@ -1,5 +1,5 @@
 /**
- * Allocation → funding source wiring - capital layer Phase 2a (migration 117).
+ * Allocation → funding source wiring — capital layer Phase 2a (migration 117).
  *
  * The keystone assertion: when an organization's money settles into a group's
  * books, the group records WHERE it came from. Without that, capital from an
@@ -65,7 +65,7 @@ describe('allocation → group funding source', () => {
   it('lets an organization make its FIRST deposit without having opened the wallet screen', async () => {
     // Pre-existing production bug, found by this job: deposit() row-locked the
     // wallet with a helper that THREW when no wallet row existed, and
-    // createOrganization() seeds a chart of accounts but not a wallet - only
+    // createOrganization() seeds a chart of accounts but not a wallet — only
     // getWallet() creates one, lazily. So an organization's very first deposit
     // failed with "Organization wallet not found" unless a coordinator happened
     // to view the wallet screen first. The live organization in production has
@@ -130,7 +130,7 @@ describe('allocation → group funding source', () => {
 
     expect(sources.some((s) => s.sourceType === 'internal_savings')).toBe(true);
     expect(sources.some((s) => s.sourceType === 'organization_allocation')).toBe(true);
-    // Internal savings sorts first - it is the default funding source for a
+    // Internal savings sorts first — it is the default funding source for a
     // member loan when no explicit funding plan is given.
     expect(sources[0].sourceType).toBe('internal_savings');
   });
@@ -143,7 +143,7 @@ describe('allocation → group funding source', () => {
     expect(rows[0].allocation_code).toMatch(/^ALC-\d{4}-\d{6}$/);
   });
 
-  it('is idempotent - re-settling does not duplicate the funding source', async () => {
+  it('is idempotent — re-settling does not duplicate the funding source', async () => {
     const before = await rawQuery<{ n: string }>(
       `SELECT count(*) AS n FROM group_funding_sources
        WHERE group_id = $1 AND source_type = 'organization_allocation'`,
@@ -232,7 +232,7 @@ describe('allocation → group funding source', () => {
     expect(g2Sources[0].is_repayable).toBe(true);
   });
 
-  describe("processing fee (migration 125) - deducted from what's disbursed", () => {
+  describe("processing fee (migration 125) — deducted from what's disbursed", () => {
     it('nets the fee out of wallet cash while the group owes the full gross principal', async () => {
       const { groupId: g3 } = await createTestGroup('chairperson');
       await rawQuery(
@@ -257,7 +257,7 @@ describe('allocation → group funding source', () => {
 
       const before = await organizationFinanceService.getWallet(orgCtx(coordId));
 
-      // 1,030,928 grossed up so the NET lands at exactly 1,000,000 - the same
+      // 1,030,928 grossed up so the NET lands at exactly 1,000,000 — the same
       // trap flagged to the user: entering 1,000,000 under a 3% fee only
       // nets 970,000, so a real operator entering "The Fionas get 1,000,000
       // cash" must gross up. This test proves the math, not the UI prompt.
@@ -295,7 +295,7 @@ describe('allocation → group funding source', () => {
       expect(walletDelta).toBeCloseTo(parseFloat(row.net_disbursed_amount), 2);
       expect(parseFloat(after.committed_balance)).toBe(0);
 
-      // Group's own cash account reflects NET, not gross - the fee never
+      // Group's own cash account reflects NET, not gross — the fee never
       // reached the group.
       const [groupCash] = await rawQuery<{ debit: string }>(
         `SELECT jl.debit FROM journal_lines jl

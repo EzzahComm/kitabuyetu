@@ -12,7 +12,7 @@ interface ProgramDetailPageProps {
 }
 
 /**
- * Reads the live Changi$ha campaign behind this slug - see the listing page
+ * Reads the live Changi$ha campaign behind this slug — see the listing page
  * for why the `programs` table this used to query is not the source.
  *
  * Donations go through the same CampaignDonateForm /fundraise/[slug] uses, so
@@ -27,7 +27,7 @@ export async function generateMetadata({ params }: ProgramDetailPageProps): Prom
   return marketingMetadata({
     // Same campaign /fundraise/[slug] renders, so that URL is the canonical one.
     path: `/fundraise/${slug}`,
-    title: `${campaign.title} - Support`,
+    title: `${campaign.title} — Support`,
     description: campaign.story?.slice(0, 160) || 'Support this program and make an impact.',
     image: campaign.cover_image_url,
   });
@@ -63,7 +63,7 @@ export default async function ProgramDetailPage({ params }: ProgramDetailPagePro
 
 /**
  * Campaign money columns are numeric-as-string over the wire; the card wants
- * numbers. Deliberately excludes campaign.id - this crosses into a
+ * numbers. Deliberately excludes campaign.id — this crosses into a
  * 'use client' component, and the raw DB primary key has no reason to reach
  * an anonymous visitor.
  */

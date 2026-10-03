@@ -1,18 +1,18 @@
 /**
- * LoanPolicy - the second Configuration Service domain wired end-to-end
+ * LoanPolicy — the second Configuration Service domain wired end-to-end
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.5/§33.5), following the exact
  * pattern proven by ApprovalPolicy (§29's first domain): a typed wrapper
  * over configuration.service.ts's generic resolvePolicy/setPolicy.
  *
- * Replaces credit-scores.service.ts's hardcoded TIER_THRESHOLDS constant -
+ * Replaces credit-scores.service.ts's hardcoded TIER_THRESHOLDS constant —
  * the literal example §29.6 uses to illustrate "code-driven vs
- * policy-driven" - with a Platform -> Organization -> Group configurable
+ * policy-driven" — with a Platform -> Organization -> Group configurable
  * reliability-tier ladder. loan_eligibility_limit (the value this ladder
- * drives) is purely advisory today - no loan-approval code path reads it -
+ * drives) is purely advisory today — no loan-approval code path reads it —
  * so making it configurable changes zero lending-enforcement behavior.
  *
  * Also owns the 'terms' key (default interest rate/method, max term, loan
- * multiplier) - migrated from the retired group_constitutions table by
+ * multiplier) — migrated from the retired group_constitutions table by
  * migration 088 (§33.1) as advisory defaults for the loan-application form.
  */
 import type { PoolClient } from 'pg';
@@ -32,7 +32,7 @@ export interface TierThreshold {
   loanMultiplier: number;
 }
 
-// Kept identical to migration 087's seed - the defensive floor if a domain
+// Kept identical to migration 087's seed — the defensive floor if a domain
 // row is ever missing (should not happen once the migration has run).
 const DEFAULT_TIER_THRESHOLDS: TierThreshold[] = [
   { tier: 'excellent', min: 85, loanMultiplier: 10 },
@@ -47,7 +47,7 @@ export interface EffectiveTierThresholds {
   source: PolicySource;
 }
 
-/** Used inline by credit-scores.service.ts - no route/role concerns, just a read. */
+/** Used inline by credit-scores.service.ts — no route/role concerns, just a read. */
 export async function getEffectiveTierThresholds(
   client: PoolClient,
   scope: { organizationId?: string | null; groupId?: string | null },
@@ -67,7 +67,7 @@ function validateThresholds(thresholds: TierThreshold[]): void {
     if (!(t.min >= 0 && t.min <= 100)) throw new ValidationError(`${t.tier}: min must be between 0 and 100`);
     if (!(t.loanMultiplier >= 0)) throw new ValidationError(`${t.tier}: loanMultiplier must be zero or positive`);
   }
-  // Each tier's min must be strictly greater than the next-lowest tier's -
+  // Each tier's min must be strictly greater than the next-lowest tier's —
   // checked against requiredTiers' fixed rank order, not just the sorted
   // min values, so a shuffled assignment (e.g. 'fair' outranking
   // 'excellent') is caught even though the raw numbers still sort cleanly.
@@ -88,7 +88,7 @@ function validateThresholds(thresholds: TierThreshold[]): void {
 
 // ─── Loan terms (migrated from the retired group_constitutions table) ────────
 // Migration 088 moved group_constitutions' loan fields here (§33.1). These
-// are ADVISORY defaults for the loan-application form - officers can still
+// are ADVISORY defaults for the loan-application form — officers can still
 // set a different rate/term on any individual loan (confirmed product
 // decision: advisory, not hard enforcement).
 
@@ -100,7 +100,7 @@ export interface LoanTerms {
    *
    * Stated because it was not, and that cost money. generate_loan_schedule
    * read this as a rate per MONTH until migration 167, and the application
-   * form was labelled "%/month" to match - so the engine was self-consistent
+   * form was labelled "%/month" to match — so the engine was self-consistent
    * while every rate a human entered was an annual one. Four live loans were
    * scheduled at twelve times their intended price (KES 349,427 over-stated;
    * caught before any instalment was collected).
@@ -114,11 +114,11 @@ export interface LoanTerms {
   loanMultiplier: number;
   /**
    * The specific lengths a loan may run for, e.g. [1, 3, 6, 12]. Groups do not
-   * lend for "any number of months up to the maximum" - they offer a handful of
+   * lend for "any number of months up to the maximum" — they offer a handful of
    * fixed durations, and `maxTermMonths` alone could not express that.
    *
    * Deliberately NOT a product/type entity. Confirmed 2026-08-16: these differ
-   * in length ONLY - same rate, same interest method, same limits - so a
+   * in length ONLY — same rate, same interest method, same limits — so a
    * `loan_products` table would carry one meaningful column and buy nothing.
    * If types ever diverge on rate or eligibility, revisit that decision; the
    * capital layer's funding_programs -> organization_disbursements snapshot
@@ -132,7 +132,7 @@ export interface LoanTerms {
 
 // Kept identical to migration 088's seed (which itself preserved the
 // retired group_constitutions column defaults), plus termOptions, which has
-// no migration-088 ancestor - [1,3,6,12] under the same 12-month ceiling.
+// no migration-088 ancestor — [1,3,6,12] under the same 12-month ceiling.
 const DEFAULT_LOAN_TERMS: LoanTerms = {
   interestRate: 10,
   interestMethod: 'flat',
@@ -146,7 +146,7 @@ export interface EffectiveLoanTerms {
   source: PolicySource;
 }
 
-/** Used inline by loan/credit code paths - no route/role concerns, just a read. */
+/** Used inline by loan/credit code paths — no route/role concerns, just a read. */
 export async function getEffectiveLoanTerms(
   client: PoolClient,
   scope: { organizationId?: string | null; groupId?: string | null },
@@ -201,7 +201,7 @@ export const loanPolicyService = {
     });
   },
 
-  /** Access gated at the route (withRole(req, 'chairperson', ...)) - changes scoring for the whole group. */
+  /** Access gated at the route (withRole(req, 'chairperson', ...)) — changes scoring for the whole group. */
   async setGroupOverride(ctx: TenantContext, thresholds: TierThreshold[]): Promise<void> {
     validateThresholds(thresholds);
     await withTransaction(ctx, async (client) => {
@@ -209,7 +209,7 @@ export const loanPolicyService = {
     });
   },
 
-  /** Platform-wide default - super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformPolicy(client: PoolClient): Promise<EffectiveTierThresholds> {
     const resolved = await resolvePolicyDetailed<TierThreshold[]>(
       client,
@@ -241,7 +241,7 @@ export const loanPolicyService = {
     });
   },
 
-  /** Access gated at the route (withRole(req, 'chairperson', ...)) - changes the group's default lending terms. */
+  /** Access gated at the route (withRole(req, 'chairperson', ...)) — changes the group's default lending terms. */
   async setGroupTermsOverride(ctx: TenantContext, terms: LoanTerms): Promise<void> {
     validateLoanTerms(terms);
     await withTransaction(ctx, async (client) => {
@@ -249,7 +249,7 @@ export const loanPolicyService = {
     });
   },
 
-  /** Platform-wide default - super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformTerms(client: PoolClient): Promise<EffectiveLoanTerms> {
     const resolved = await resolvePolicyDetailed<LoanTerms>(client, DOMAIN, TERMS_KEY, {}, DEFAULT_LOAN_TERMS);
     return { terms: resolved.value, source: resolved.source };

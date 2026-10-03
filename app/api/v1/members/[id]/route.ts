@@ -38,7 +38,7 @@ export async function PUT(req: NextRequest, { params }: Ctx): Promise<Response> 
   const { id } = await params;
   return withAuth(req, async (auth) => {
     // Changing a member's group role is the same capability as assigning
-    // roles elsewhere in the app (roles.manage, chairperson+) - not
+    // roles elsewhere in the app (roles.manage, chairperson+) — not
     // members.manage, which secretary already has and shouldn't extend to
     // role changes.
     requirePermission(auth, 'roles.manage');

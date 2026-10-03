@@ -219,7 +219,7 @@ describe('loansService.reject', () => {
   });
 });
 
-// ACCOUNTING_ARCHITECTURE_AUDIT.md §15 - write-off workflow with maker-checker.
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §15 — write-off workflow with maker-checker.
 // The DB CHECK constraint (migration 084) is the authoritative backstop; these
 // cover the application-level guards that surface a clean error first.
 describe('loansService.markDefaulted', () => {

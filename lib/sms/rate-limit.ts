@@ -5,13 +5,13 @@
  * caller could spend it: the only brake was the prepaid credit balance itself,
  * so a compromised officer token could drain a group's entire balance in
  * seconds (SMS_MESSAGING_AUDIT_2026-08.md H2). That gap was masked while the
- * billed send path was broken by C1 - fixing C1 re-arms these endpoints, so the
+ * billed send path was broken by C1 — fixing C1 re-arms these endpoints, so the
  * limiter has to land in the same change, not after it.
  *
  * Scoped per group rather than per user: the credit balance being protected is
  * the group's, so two officers of one group share its budget. `checkRateLimit`
  * is fail-open by design (a Redis outage must not block sending), so this is
- * abuse control, not an accounting guarantee - the ledger remains the authority
+ * abuse control, not an accounting guarantee — the ledger remains the authority
  * on what was actually spent.
  *
  * Request-count limiting only. Volume-aware limiting (recipients per window,

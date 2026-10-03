@@ -14,7 +14,7 @@ const inviteSchema = z.object({
   orgRole: z.enum(['lead', 'staff']).default('staff'),
 });
 
-/** POST - invite a new staff member by email (Phase 2, two-channel verification). */
+/** POST — invite a new staff member by email (Phase 2, two-channel verification). */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;

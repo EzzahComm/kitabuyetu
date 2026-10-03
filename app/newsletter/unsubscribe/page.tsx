@@ -23,7 +23,7 @@ async function tryUnsubscribe(token: string): Promise<boolean> {
 
 /**
  * A server component, not an API route: unsubscribing is "click a link in an
- * email, see a confirmation" - no client-side interactivity needed, so the
+ * email, see a confirmation" — no client-side interactivity needed, so the
  * DB write happens directly in the page render rather than round-tripping
  * through a public API endpoint (one less thing to whitelist in proxy.ts).
  */

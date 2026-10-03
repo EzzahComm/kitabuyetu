@@ -1,8 +1,8 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/reversal          â€" Initiate reversal (treasurer+)
- * POST /api/v1/mpesa/reversal?type=result  â€" Safaricom callback (no JWT)
- * POST /api/v1/mpesa/reversal?type=timeout â€" Safaricom timeout  (no JWT)
+ * POST /api/v1/mpesa/reversal          â€” Initiate reversal (treasurer+)
+ * POST /api/v1/mpesa/reversal?type=result  â€” Safaricom callback (no JWT)
+ * POST /api/v1/mpesa/reversal?type=timeout â€” Safaricom timeout  (no JWT)
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
@@ -34,12 +34,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
-    // Callback authenticity (Phase 4 - same mechanism as B2C/B2B): a forged
+    // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
     // callback that doesn't carry the shared secret is dropped before it can
     // touch any money state. Acked (not rejected) so a prober learns nothing
     // from the response, and logged so a real misconfiguration is visible.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[reversal callback] invalid or missing token - dropped', { type, ip });
+      logger.warn('[reversal callback] invalid or missing token — dropped', { type, ip });
       return ack();
     }
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Authenticated reversal initiation (treasurer or above)
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
-      // Sensitive op (§2.5): reversals move money - re-check epochs, and
+      // Sensitive op (§2.5): reversals move money — re-check epochs, and
       // re-verify against LIVE roles.permissions, not just the token's claim.
       const freshPermissions = await assertAuthFresh(auth);
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');

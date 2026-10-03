@@ -1,10 +1,10 @@
 /**
- * CRM service layer - external relationship records (Phase 9.1).
+ * CRM service layer — external relationship records (Phase 9.1).
  *
  * Distinct from lib/services/ecosystem.service.ts (the platform marketplace)
  * and lib/services/campaigns.service.ts (Changi$ha fundraising). A
- * crm_contacts row is a tenant's own relationship record - donor, lender,
- * insurer, trainer, professional, partner rep, lead - never the platform's.
+ * crm_contacts row is a tenant's own relationship record — donor, lender,
+ * insurer, trainer, professional, partner rep, lead — never the platform's.
  */
 
 import { PoolClient } from 'pg';
@@ -180,7 +180,7 @@ export async function updateContact(
   });
 }
 
-/** Explicit opt-in - the only way marketing_opt_in becomes true (consent-first). */
+/** Explicit opt-in — the only way marketing_opt_in becomes true (consent-first). */
 export async function recordOptIn(ctx: TenantContext, contactId: string): Promise<Contact> {
   return withDb(ctx, async (db) => {
     const result = await db.query<Contact>(
@@ -238,7 +238,7 @@ export async function createOpportunity(
 }
 
 /**
- * Partial update, including a stage move - the core "workflow" action a
+ * Partial update, including a stage move — the core "workflow" action a
  * pipeline board performs. Any stage is reachable from any other (a card can
  * move backward, e.g. 'proposal' back to 'qualified'); nothing in this schema
  * enforces a one-way funnel, and CRM boards conventionally don't either.
@@ -292,7 +292,7 @@ export interface OpportunityWithContact extends Opportunity {
 }
 
 /**
- * Every opportunity in scope, joined with its contact - the pipeline board's
+ * Every opportunity in scope, joined with its contact — the pipeline board's
  * data source. RLS on crm_opportunities already scopes rows to contacts this
  * caller can see (migration 192), so no explicit group/org filter is needed
  * here beyond the JOIN itself.
@@ -354,7 +354,7 @@ async function logActivity(
  * A contact's full relationship timeline: activities logged directly against
  * it, PLUS activities logged against any of its opportunities (e.g. the
  * "Stage changed to X" entries updateOpportunity() writes with only an
- * opportunity_id, no contact_id) - otherwise a stage move would be invisible
+ * opportunity_id, no contact_id) — otherwise a stage move would be invisible
  * on the contact page that motivated it.
  */
 export async function listActivitiesForContact(ctx: TenantContext, contactId: string): Promise<Activity[]> {
@@ -376,7 +376,7 @@ export interface ActivityWithSubject extends Activity {
 }
 
 /**
- * The CRM-wide activity feed - every call/email/meeting/note/stage-change
+ * The CRM-wide activity feed — every call/email/meeting/note/stage-change
  * across every contact and opportunity in scope, newest first. RLS on
  * crm_activities already restricts rows to this caller's contacts/
  * opportunities (migration 192).
@@ -402,7 +402,7 @@ export async function listRecentActivity(ctx: TenantContext, limit = 30): Promis
 }
 
 // ============================================================================
-// EMAIL SUPPRESSION - consumed by Phase 9.3's send wrapper
+// EMAIL SUPPRESSION — consumed by Phase 9.3's send wrapper
 // ============================================================================
 
 export async function isEmailSuppressed(

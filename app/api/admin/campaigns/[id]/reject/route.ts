@@ -5,7 +5,7 @@ import { campaignsService } from '@/lib/services/campaigns.service';
 import { RejectCampaignSchema } from '@/lib/validators/campaign.schema';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/admin/campaigns/[id]/reject - pending_review -> rejected. Super-admin only. */
+/** POST /api/admin/campaigns/[id]/reject — pending_review -> rejected. Super-admin only. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     const { id } = await params;

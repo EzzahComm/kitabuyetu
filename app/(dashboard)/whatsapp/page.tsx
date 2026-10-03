@@ -169,7 +169,7 @@ export default function WhatsAppPage() {
                     {...register('memberId')}
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
                   >
-                    <option value="">- Select -</option>
+                    <option value="">— Select —</option>
                     {members.map((m) => (
                       <option key={m.id} value={m.id}>
                         {m.first_name} {m.last_name} ({m.phone})

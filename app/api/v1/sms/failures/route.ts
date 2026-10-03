@@ -14,14 +14,14 @@ const QuerySchema = z.object({
 });
 
 /**
- * GET /api/v1/sms/failures - messages that failed and have not been resolved
+ * GET /api/v1/sms/failures — messages that failed and have not been resolved
  * (SMS-REAUDIT-2026-09-02 F3/F6).
  *
  * Added because `POST /sms/failures/[id]/retry` shipped without one, so
  * nothing could learn an `[id]` to retry. The retry action was undiscoverable
  * rather than merely un-wired.
  *
- * `messaging.view` to read, matching /sms/usage - seeing which of the group's
+ * `messaging.view` to read, matching /sms/usage — seeing which of the group's
  * messages failed is a reporting question. Actually retrying one spends
  * credits and needs `messaging.send`, which the sibling retry route enforces.
  */

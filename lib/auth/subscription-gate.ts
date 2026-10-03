@@ -10,7 +10,7 @@ import type { SubscriptionProduct } from '@/types/enums';
  * Every plan is paid (migration 138 / PLAN_MONTHLY_FEES), so a group with no
  * active subscription is locked out of the product until it pays. Before this,
  * the only enforcement anywhere was `assertFeatureAccess` on the two import
- * routes plus reserve_sms_credits' own check - so an unpaid group kept full
+ * routes plus reserve_sms_credits' own check — so an unpaid group kept full
  * access to contributions, loans, accounting and reports, and "no free plan"
  * meant nothing in practice.
  *
@@ -18,23 +18,23 @@ import type { SubscriptionProduct } from '@/types/enums';
  * communication-only product: register_group() gives it no chart of accounts,
  * so it has nothing to post journals against. Asking only "is this group paying
  * for anything" would let it straight into /api/v1/loans and /api/v1/accounting
- * and fail deep inside a posting template. The alternative - auditing every
- * downstream code path that assumes a general ledger exists - is unbounded, so
+ * and fail deep inside a posting template. The alternative — auditing every
+ * downstream code path that assumes a general ledger exists — is unbounded, so
  * the check happens once, here, where every tenant route already passes.
  *
  * THE CARVE-OUTS ARE THE LOAD-BEARING PART. A lock that also blocks paying is
  * just an outage: a locked group must still be able to sign in, see what it
  * owes, get an STK prompt or the PayBill details, and have the resulting
  * payment activate its plan. Everything marked 'open' is required for that loop
- * to close - do not trim those without walking the pay-from-locked path end to
+ * to close — do not trim those without walking the pay-from-locked path end to
  * end.
  */
 
 /**
  * What a route requires.
- *   'open'  - reachable with no subscription at all (the pay-from-locked path).
- *   'any'   - any active product. The shared surface both products use.
- *   product - that specific product must be active.
+ *   'open'  — reachable with no subscription at all (the pay-from-locked path).
+ *   'any'   — any active product. The shared surface both products use.
+ *   product — that specific product must be active.
  */
 export type RouteEntitlement = 'open' | 'any' | SubscriptionProduct;
 
@@ -45,7 +45,7 @@ export type RouteEntitlement = 'open' | 'any' | SubscriptionProduct;
  *   - A new Kitabu Yetu route added later with no entry here is correct with
  *     zero action. That is the overwhelmingly common case.
  *   - A new SHARED route added later with no entry 402s for Chama Reminder
- *     groups - loud, immediate, and found the first time the reminder portal
+ *     groups — loud, immediate, and found the first time the reminder portal
  *     opens it. One line to fix.
  *
  * The reverse default fails silently and dangerously: a group with no chart of
@@ -63,7 +63,7 @@ export const ENTITLEMENT_RULES: ReadonlyArray<readonly [string, RouteEntitlement
   // payment. A group with ZERO subscriptions has to reach this to render its
   // own subscribe page, which is why /billing/entitlements lives here too.
   ['/api/v1/billing', 'open'],
-  // Send the STK prompt, poll its status, and receive Safaricom's callback -
+  // Send the STK prompt, poll its status, and receive Safaricom's callback —
   // the actual act of paying.
   ['/api/v1/mpesa', 'open'],
   // The member's own self-service surface (goals, notifications, passbook,
@@ -76,7 +76,7 @@ export const ENTITLEMENT_RULES: ReadonlyArray<readonly [string, RouteEntitlement
   ['/api/v1/daraja', 'open'],
   // The organization axis used to be listed here as 'open'. It has moved to
   // /api/admin/organization/* (backoffice audience), and this gate only ever
-  // runs inside withAuth - the backoffice guards never call it - so a rule for
+  // runs inside withAuth — the backoffice guards never call it — so a rule for
   // it would be dead. Organization access is a platform role, not a group
   // subscription, which is exactly why it never belonged behind this lock.
 
@@ -97,7 +97,7 @@ const CACHE_TTL_MS = 60_000;
 /**
  * Segment-aware prefix match. `startsWith` alone is wrong here and was wrong in
  * production: '/api/v1/me' matched BOTH '/api/v1/members' and '/api/v1/meetings'
- * by raw string prefix, so migration 139's lock never covered either of them -
+ * by raw string prefix, so migration 139's lock never covered either of them —
  * an unpaid group kept full access to the member list and to member creation.
  *
  * A prefix must match a whole path segment: exactly the prefix, or the prefix
@@ -137,7 +137,7 @@ interface CacheEntry {
  * was wrong twice over: it added a network hop per request, and when Upstash
  * is unreachable the client retries with backoff, so an outage would slow down
  * every request in the product rather than just the features that cache. CI
- * proved the point immediately - it points REDIS_URL at a nonexistent host,
+ * proved the point immediately — it points REDIS_URL at a nonexistent host,
  * and every authenticated test blew its 5s budget on retries.
  *
  * A per-group product set needs no sharing between instances, so a Map is a
@@ -155,13 +155,13 @@ const MAX_CACHE_ENTRIES = 10_000;
 
 /**
  * A negative (deny-path) cache was tried here and reverted. It seemed safe
- * at an 8s TTL - an order of magnitude below CACHE_TTL_MS - but
+ * at an 8s TTL — an order of magnitude below CACHE_TTL_MS — but
  * subscription-lock.test.ts's "unlocks the moment a subscription becomes
  * active" test proved it wasn't: that test calls subscribeTestGroup()
  * synchronously right after a 402 and expects the very next request to
  * succeed, with ZERO staleness tolerance on the deny→grant transition. ANY
  * positive TTL on a deny reintroduces exactly the "I paid and it's still
- * broken" bug this file's whole design exists to prevent - there is no
+ * broken" bug this file's whole design exists to prevent — there is no
  * window short enough to be both "some real caching" and "compatible with
  * an immediate re-check after paying." Every deny re-reads the database,
  * on purpose, still (docs/audits/optimization-2026-09 finding #13's
@@ -175,7 +175,7 @@ function remember(groupId: string, products: ReadonlySet<SubscriptionProduct>): 
     for (const [key, entry] of entitlements) {
       if (entry.expiresAt <= now) entitlements.delete(key);
     }
-    // Still full - every entry is live. Drop the oldest insertion (Map
+    // Still full — every entry is live. Drop the oldest insertion (Map
     // preserves insertion order) rather than refuse to cache anything.
     if (entitlements.size >= MAX_CACHE_ENTRIES) {
       const oldest = entitlements.keys().next();
@@ -203,8 +203,8 @@ async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProd
 
 /**
  * Throws when this group cannot reach this route:
- *   402 PAYMENT_REQUIRED     - holds no active subscription at all.
- *   402 PRODUCT_NOT_ENTITLED - is paying, but not for this product.
+ *   402 PAYMENT_REQUIRED     — holds no active subscription at all.
+ *   402 PRODUCT_NOT_ENTITLED — is paying, but not for this product.
  *
  * Both are 402 because both are entitlement/payment conditions with the same
  * remedy (pay). They carry different codes so the client can send a Kitabu
@@ -214,7 +214,7 @@ async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProd
  *
  * THE CACHE IS AN ALLOW-LIST: a cached entry may only ever GRANT. Any decision
  * that would DENY re-reads the database first. That generalises the old
- * positives-only rule, and it is not optional - caching a product SET naively
+ * positives-only rule, and it is not optional — caching a product SET naively
  * would re-break the exact case the old rule protected: a group holding
  * kitabu_yetu that buys chama_reminder would have a stale {kitabu_yetu} cached
  * for up to a minute, so the portal it just paid for would 402. "I paid and
@@ -227,7 +227,7 @@ async function loadActiveProducts(groupId: string): Promise<Set<SubscriptionProd
  * Does NOT fail open on a database error: that path throws, and a request that
  * cannot establish entitlement must not be served as though it had one.
  *
- * This cannot move to proxy.ts - that runs on the edge runtime with no `pg` -
+ * This cannot move to proxy.ts — that runs on the edge runtime with no `pg` —
  * which is why it hangs off withAuth instead.
  */
 export async function assertSubscriptionActive(req: NextRequest, auth: AuthContext): Promise<void> {
@@ -242,7 +242,7 @@ export async function assertSubscriptionActive(req: NextRequest, auth: AuthConte
   if (cached && cached.expiresAt > Date.now() && satisfies(cached.products)) return;
 
   // Nothing cached, expired, or cached but insufficient for THIS route.
-  // Never deny on cached state - re-read.
+  // Never deny on cached state — re-read.
   const products = await loadActiveProducts(auth.groupId);
   if (products.size > 0) remember(auth.groupId, products);
 

@@ -17,7 +17,7 @@ export default function ProductsPage() {
   return (
     <PageShell
       title="Products"
-      description="Four products, one platform - from the core ledger to the wider ecosystem it connects to."
+      description="Four products, one platform — from the core ledger to the wider ecosystem it connects to."
       layout="sections"
     >
       <ProductTabsSection />

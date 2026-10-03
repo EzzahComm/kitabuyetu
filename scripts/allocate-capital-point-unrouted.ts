@@ -4,12 +4,12 @@
  *
  * Both landed in mpesa_unrouted with reason='unknown_prefix' because the C2B
  * router only recognises a full group+member reference, and candidate_group_id
- * was NULL for both (already fixed by hand, see the memory note on this) - the
+ * was NULL for both (already fixed by hand, see the memory note on this) — the
  * in-app treasurer Unrouted screen can never reach a NULL-candidate row, which
  * is exactly why these two sat unresolved since 2026-07.
  *
  *   UG11G9WNIU  KES 430  bill_ref '300004'    -> Cyril Murunga (member code
- *               KY000000300004 - '300004' is literally the tail of it)
+ *               KY000000300004 — '300004' is literally the tail of it)
  *   UF5QT6SMNR  KES 100  bill_ref 'KY0000003' -> Anthony Situma (C2B payload
  *               FirstName='ANTHONY'; the ref itself is only the group code,
  *               which is why routing could get the group but not the member)
@@ -17,9 +17,9 @@
  *   npx tsx --env-file=.env.local scripts/allocate-capital-point-unrouted.ts          # dry run
  *   npx tsx --env-file=.env.local scripts/allocate-capital-point-unrouted.ts --apply  # write
  *
- * Calls the real resolveUnrouted('allocate', ...) service - same contribution
+ * Calls the real resolveUnrouted('allocate', ...) service — same contribution
  * insert + journal posting + spine allocation a treasurer clicking "Allocate"
- * in the UI would trigger - rather than reimplementing the accounting here.
+ * in the UI would trigger — rather than reimplementing the accounting here.
  * Idempotent: resolveUnrouted no-ops if the row is already resolved, and the
  * contribution insert itself is ON CONFLICT (mpesa_receipt_number) DO NOTHING.
  */
@@ -61,9 +61,9 @@ async function main() {
     if (!apply) continue;
 
     await resolveUnrouted(
-      // Joseph Bienda - the group's actual (and only) registered officer
+      // Joseph Bienda — the group's actual (and only) registered officer
       // (chairperson). resolveUnrouted runs under a real tenant context via
-      // withTransaction, which sets RLS session vars from ctx.role - an
+      // withTransaction, which sets RLS session vars from ctx.role — an
       // ops script impersonating a non-officer member risks the insert being
       // rejected by RLS, and would misattribute the action either way. This
       // is an ops correction performed on the group's behalf, not literally
@@ -77,7 +77,7 @@ async function main() {
   }
 
   if (!apply) {
-    console.log('\nDry run only - rerun with --apply to write.');
+    console.log('\nDry run only — rerun with --apply to write.');
   }
 }
 

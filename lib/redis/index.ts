@@ -4,7 +4,7 @@ import { logger } from '@/lib/logger';
 // Parse REST URL and token from the REDIS_URL connection string.
 // Both formats are accepted:
 //   rediss://default:TOKEN@host.upstash.io:6380  (Upstash Redis URL)
-//   https://host.upstash.io                      (Upstash REST URL - token via REDIS_TOKEN)
+//   https://host.upstash.io                      (Upstash REST URL — token via REDIS_TOKEN)
 function buildRedisClient(): Redis | null {
   const raw = process.env.REDIS_URL;
   if (!raw) return null;
@@ -29,7 +29,7 @@ if (!globalWithRedis._kyRedis) {
 export const redis = globalWithRedis._kyRedis as Redis;
 
 // ------------------------------------------------------------------
-// Typed key namespaces - prevents key collisions across modules
+// Typed key namespaces — prevents key collisions across modules
 // ------------------------------------------------------------------
 export const keys = {
   refreshToken: (tokenHash: string) => `rt:${tokenHash}`,
@@ -65,7 +65,7 @@ export async function revokeRefreshToken(tokenHash: string): Promise<void> {
 /**
  * Delete every stored refresh token, forcing all users to log in again.
  *
- * Redis - not the refresh_tokens table - is what POST /auth/refresh consults,
+ * Redis — not the refresh_tokens table — is what POST /auth/refresh consults,
  * so this is the only place a refresh token can actually be invalidated.
  * Used at release boundaries where a token's claims become unusable (e.g. the
  * member_role rename in migration 050).
@@ -141,7 +141,7 @@ export async function acquireStkLock(fingerprint: string, ttlSeconds = 30): Prom
     const res = await redis.set(k(keys.stkLock(fingerprint)), '1', { nx: true, ex: ttlSeconds });
     return res === 'OK';
   } catch (err) {
-    logger.warn('[redis] STK lock unavailable - allowing request', { err: String(err) });
+    logger.warn('[redis] STK lock unavailable — allowing request', { err: String(err) });
     return true;
   }
 }
@@ -158,7 +158,7 @@ export async function releaseStkLock(fingerprint: string): Promise<void> {
 /**
  * Fixed-window rate limiter. Returns true while the caller is under `limit`
  * events per `windowSeconds` for the given key. Fail-open: a Redis outage
- * must never block payments - abuse control degrades, correctness doesn't.
+ * must never block payments — abuse control degrades, correctness doesn't.
  */
 export async function checkRateLimit(key: string, limit: number, windowSeconds: number): Promise<boolean> {
   try {
@@ -167,17 +167,17 @@ export async function checkRateLimit(key: string, limit: number, windowSeconds: 
     if (count === 1) await redis.expire(fullKey, windowSeconds);
     return count <= limit;
   } catch (err) {
-    logger.warn('[redis] rate limiter unavailable - allowing request', { err: String(err) });
+    logger.warn('[redis] rate limiter unavailable — allowing request', { err: String(err) });
     return true;
   }
 }
 
 /**
  * Read-through cache for expensive, frequently-repeated reads (dashboard and
- * report aggregates - OPTIMIZATION_CLEANUP_AUDIT.md High #8). TTL-only
+ * report aggregates — OPTIMIZATION_CLEANUP_AUDIT.md High #8). TTL-only
  * expiry, no manual invalidation: the audit's own recommendation is a short
  * TTL (30-120s) traded for "minimal staleness risk," not cache-busting on
- * every write. Fail-open on any Redis error - a cache outage degrades to a
+ * every write. Fail-open on any Redis error — a cache outage degrades to a
  * direct DB read, it must never fail the request (same convention as
  * `acquireStkLock`/`checkRateLimit` above).
  */
@@ -186,7 +186,7 @@ export async function cached<T>(key: string, ttlSeconds: number, fn: () => Promi
     const hit = await redis.get<T>(k(key));
     if (hit !== null && hit !== undefined) return hit;
   } catch (err) {
-    logger.warn('[redis] cache read failed - falling through to source', { key, err: String(err) });
+    logger.warn('[redis] cache read failed — falling through to source', { key, err: String(err) });
   }
 
   const value = await fn();

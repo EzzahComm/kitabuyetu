@@ -28,7 +28,7 @@ export default function BillingPage() {
   const onTopupPaid = useCallback(
     (amount: number) => {
       // Crediting itself happens server-side off the M-Pesa callback
-      // (mpesa/callback/route.ts → billingService.addSmsCredits) - nothing left
+      // (mpesa/callback/route.ts → billingService.addSmsCredits) — nothing left
       // to do here but refresh the balance and confirm. Note the callback is
       // processed asynchronously (Next's after()), so the invalidated balance
       // query may still read the pre-credit value on the first refetch; the
@@ -85,7 +85,7 @@ export default function BillingPage() {
                 KES {smsKesValue != null ? smsKesValue.toFixed(2) : '0.00'}
                 <span className="text-sm font-normal text-muted-foreground ml-2">
                   ({smsCredits != null ? smsCredits.toFixed(0) : '0'} purchased
-                  {smsRate != null ? ` - KES ${smsRate.toFixed(2)}/credit` : ''})
+                  {smsRate != null ? ` · KES ${smsRate.toFixed(2)}/credit` : ''})
                 </span>
               </p>
               {/* The plan's BUNDLED messages, a separate pool from purchased

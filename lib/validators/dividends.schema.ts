@@ -28,7 +28,7 @@ export const CreateDividendDeclarationSchema = z
     message: 'periodEnd must be on or after periodStart',
   });
 
-// Patch shape - only safe fields are mutable while the declaration is still
+// Patch shape — only safe fields are mutable while the declaration is still
 // 'draft'. Service rejects edits on non-draft declarations.
 export const UpdateDividendDeclarationSchema = z.object({
   periodLabel: z.string().min(2).max(60).optional(),

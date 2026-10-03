@@ -8,7 +8,7 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem/programs',
-  title: 'Programs - Ecosystem',
+  title: 'Programs — Ecosystem',
   description: 'Browse active programs and support causes that matter to you.',
 });
 
@@ -16,7 +16,7 @@ export const metadata: Metadata = marketingMetadata({
  * Reads live Changi$ha campaigns, not the `programs` table this page used to
  * query. That table has never held a row: its only writer posted to
  * /api/v1/programs, which does not exist. The organization-side
- * `funding_programs` table is not an alternative here - it holds internal
+ * `funding_programs` table is not an alternative here — it holds internal
  * financial-product configuration (budgets, interest rates, loss bearer) and
  * its RLS correctly admits only super admins and the owning organization, so
  * an anonymous visitor reads nothing from it and should not.
@@ -29,7 +29,7 @@ export default async function EcosystemProgramsPage() {
   try {
     campaigns = await campaignsService.listActiveCampaigns();
   } catch {
-    // The database may be unreachable at build time in CI - fall through to
+    // The database may be unreachable at build time in CI — fall through to
     // the empty state rather than failing the prerender.
   }
 
@@ -57,7 +57,7 @@ export default async function EcosystemProgramsPage() {
 
 /**
  * Campaign money columns are numeric-as-string over the wire; the card wants
- * numbers. Deliberately excludes campaign.id - this crosses into a
+ * numbers. Deliberately excludes campaign.id — this crosses into a
  * 'use client' component, and the raw DB primary key has no reason to reach
  * an anonymous visitor (the key= above uses campaign.id directly, server-side,
  * independent of this object).

@@ -44,7 +44,7 @@ export const contributionSplitsService = {
         [ctx.groupId, data.accountCode, data.percentage ?? null, data.fixedAmount ?? null, data.priority, ctx.userId],
       );
 
-      // Record audit log for contribution split creation - user-triggered
+      // Record audit log for contribution split creation — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -122,7 +122,7 @@ export const contributionSplitsService = {
       );
       if (!rows[0]) throw new NotFoundError('Contribution split', id);
 
-      // Record audit log for contribution split update - user-triggered
+      // Record audit log for contribution split update — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -169,7 +169,7 @@ export const contributionSplitsService = {
       ]);
       if (!rowCount) throw new NotFoundError('Contribution split', id);
 
-      // Record audit log for contribution split removal - user-triggered
+      // Record audit log for contribution split removal — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -248,7 +248,7 @@ export const contributionSplitsService = {
  * Loads the active split rules for a group as plain `SplitRule[]` ready for
  * the allocator. Accepts a raw PoolClient so the M-Pesa callback path can
  * call it inside its existing admin transaction (no separate connection).
- * Returns [] when the group hasn't configured any - the allocator then sends
+ * Returns [] when the group hasn't configured any — the allocator then sends
  * 100% to the default account.
  */
 export async function loadActiveSplitRules(db: PoolClient, groupId: string): Promise<SplitRule[]> {

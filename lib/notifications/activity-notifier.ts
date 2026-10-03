@@ -1,5 +1,5 @@
 /**
- * emitActivity() - the single entry point for platform activity.
+ * emitActivity() — the single entry point for platform activity.
  *
  *   USER ACTION → business logic (commits) → emitActivity()
  *      → platform_activity_logs (audit)
@@ -155,7 +155,7 @@ export async function emitActivity(rawInput: EmitActivityInput): Promise<EmitRes
     if (deliveryIds.length) {
       const inline = Promise.allSettled(deliveryIds.map((id) => deliverNotification(id)));
       // HIGH/CRITICAL: wait briefly so the alert is effectively immediate.
-      // Others: fire and forget - the queued job is the guaranteed path.
+      // Others: fire and forget — the queued job is the guaranteed path.
       if (SEVERITY_RANK[severity] >= SEVERITY_RANK.HIGH) await withTimeout(inline, INLINE_TIMEOUT_MS);
       else void inline;
     }

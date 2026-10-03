@@ -3,7 +3,7 @@
  *
  * There was no way to halt SMS during an incident short of a redeploy or
  * revoking the provider credential. The switch is a `feature_flags` row so it
- * can be flipped without a deploy, checked in reserveCredits - the one
+ * can be flipped without a deploy, checked in reserveCredits — the one
  * chokepoint every billed send passes through, so automation paths are
  * covered as well as the HTTP routes.
  *
@@ -83,7 +83,7 @@ describe('SMS dispatch kill switch (V3-05)', () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.reason).toBe('dispatch_halted');
 
-    // Nothing was earmarked - a halted send must cost nothing.
+    // Nothing was earmarked — a halted send must cost nothing.
     const [acct] = await rawQuery<{ sms_credits: string; reserved_sms_credits: string }>(
       `SELECT sms_credits, reserved_sms_credits FROM billing_accounts WHERE group_id=$1`,
       [groupId],

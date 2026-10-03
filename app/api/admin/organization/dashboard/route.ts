@@ -5,7 +5,7 @@ import { organizationFinanceService } from '@/lib/services/organization-finance.
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/organization/dashboard - financial + portfolio metrics for the
+ * GET /api/v1/organization/dashboard — financial + portfolio metrics for the
  * organization ecosystem dashboard (wallet position, linked-group aggregates,
  * active programs).
  */

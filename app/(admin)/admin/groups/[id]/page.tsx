@@ -80,7 +80,7 @@ const PLAN_BADGE: Record<string, string> = {
 };
 
 // Third copy of this map, now retired in favour of the shared one in
-// types/enums.ts. It said 'organization_group' - never an enum member - so an
+// types/enums.ts. It said 'organization_group' — never an enum member — so an
 // NGO group fell through to displaying its raw value, and it silently omitted
 // every type added since. `Record<string, string>` is kept at the call sites
 // via the `?? t` fallback so an unknown value from the DB still renders.
@@ -145,7 +145,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     // Send only what actually changed. A PATCH that echoes every field back
     // would rewrite the group name on every save, and a no-op rename still
     // trips uq_group_name_per_county against the group's own row in some
-    // orderings - a 409 for changing nothing.
+    // orderings — a 409 for changing nothing.
     const original: Record<string, string> = {
       name: grp.name ?? '',
       type: grp.group_type ?? '',
@@ -161,7 +161,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
     const body: Record<string, string | null> = {};
     for (const [k, v] of Object.entries(edits)) {
       if (v === original[k]) continue;
-      // name and type are NOT nullable - blanking them is a mistake, not an
+      // name and type are NOT nullable — blanking them is a mistake, not an
       // instruction, so they are simply skipped rather than sent as null.
       if (v === '') {
         if (NULLABLE.has(k)) body[k] = null;
@@ -181,7 +181,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       setEditOpen(false);
     } catch (e) {
       // 409 from uq_group_name_per_county arrives here with a readable
-      // message - surfaced as-is rather than retried.
+      // message — surfaced as-is rather than retried.
       toast({ variant: 'destructive', title: 'Could not save', description: getErrorMessage(e) });
     }
   };
@@ -219,7 +219,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       {/* Header */}
       <PageHeader
         title={grp.name}
-        description={`${TYPE_LABELS[grp.group_type] ?? grp.group_type}${grp.registration_number ? ` - ${grp.registration_number}` : ''}`}
+        description={`${TYPE_LABELS[grp.group_type] ?? grp.group_type}${grp.registration_number ? ` · ${grp.registration_number}` : ''}`}
         breadcrumbs={[{ label: 'Groups', href: '/admin/groups' }, { label: grp.name }]}
         actions={
           <div className="flex items-center gap-2">
@@ -354,7 +354,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
               <div>
                 <p className="text-muted-foreground mb-0.5">Plan Period End</p>
                 <p className="font-medium text-foreground">
-                  {grp.current_period_end ? formatDate(grp.current_period_end) : '-'}
+                  {grp.current_period_end ? formatDate(grp.current_period_end) : '—'}
                 </p>
               </div>
               <div>
@@ -371,7 +371,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
               )}
             </div>
 
-            {/* Governance health score - computed monthly by the health-
+            {/* Governance health score — computed monthly by the health-
                 scoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10) from
                 real liquidity/credit/profitability/growth metrics. */}
             <div className="pt-2.5 border-t border-border">
@@ -380,7 +380,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
               </p>
               {!snapshot?.healthScore ? (
                 <p className="text-xs text-muted-foreground">
-                  Not yet computed - runs monthly, or trigger it manually from Admin tools.
+                  Not yet computed — runs monthly, or trigger it manually from Admin tools.
                 </p>
               ) : (
                 <div className="space-y-2">
@@ -406,7 +406,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                     />
                   </div>
                   <p className="text-[11px] text-muted-foreground">
-                    As of {snapshot.asOf ? formatDate(snapshot.asOf) : '-'}
+                    As of {snapshot.asOf ? formatDate(snapshot.asOf) : '—'}
                   </p>
                 </div>
               )}
@@ -490,7 +490,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         </Card>
       </div>
 
-      {/* Members - SUPER_ADMIN_PLATFORM_AUDIT.md §2.1/§2.5 Phase 1: this
+      {/* Members — SUPER_ADMIN_PLATFORM_AUDIT.md §2.1/§2.5 Phase 1: this
           page previously had no member table at all, only aggregate stats. */}
       <Card>
         <CardHeader className="pb-2">
@@ -536,7 +536,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 render: (m) => (
                   <span className="text-xs text-muted-foreground">
                     {m.phone}
-                    {m.email ? ` - ${m.email}` : ''}
+                    {m.email ? ` · ${m.email}` : ''}
                   </span>
                 ),
               },
@@ -574,7 +574,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                   <span className={`w-2 h-2 rounded-full shrink-0 ${ACTION_DOT[log.action] ?? 'bg-gray-400'}`} />
                   <div className="flex-1 min-w-0">
                     <span className="text-xs font-medium text-muted-foreground">{log.action}</span>
-                    <span className="text-xs text-muted-foreground mx-1.5">-</span>
+                    <span className="text-xs text-muted-foreground mx-1.5">·</span>
                     <span className="text-xs text-muted-foreground font-mono">{log.table_name}</span>
                   </div>
                   <span className="text-xs text-muted-foreground shrink-0">{formatDate(log.created_at)}</span>
@@ -585,7 +585,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
         </CardContent>
       </Card>
 
-      {/* Edit group profile - the typo-correction path. Deliberately separate
+      {/* Edit group profile — the typo-correction path. Deliberately separate
           from the status actions above: the API branches on whether the body
           carries `action`, and mixing a rename into a suspension would be an
           audit-trail mess. */}
@@ -603,7 +603,7 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
                 onChange={(e) => setEdits({ ...edits, name: e.target.value })}
               />
               <p className="text-xs text-muted-foreground">
-                Group names must be unique within a county - a clash is reported rather than saved.
+                Group names must be unique within a county — a clash is reported rather than saved.
               </p>
             </div>
             <div className="space-y-1">

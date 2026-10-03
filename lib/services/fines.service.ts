@@ -1,7 +1,7 @@
 /**
  * Fines issuance and tracking (Phase 3, migration 180).
  *
- * fine-policy.service.ts is an advisory tariff schedule only - its own header
+ * fine-policy.service.ts is an advisory tariff schedule only — its own header
  * says "nothing auto-charges them". This service is what actually ISSUES a
  * fine against a member (reading a suggested amount from that schedule, but
  * allowing an officer override with a reason), tracks its lifecycle
@@ -16,7 +16,7 @@
  * markPaid is an explicit officer confirmation, not a payment_requests
  * webhook hook: 'fine' has been a payment_requests.product enum value since
  * migration 059, but dispatchProduct (mpesa-allocation.service.ts) has no
- * case for it - a 'fine' payment_request can never be auto-fulfilled by the
+ * case for it — a 'fine' payment_request can never be auto-fulfilled by the
  * M-Pesa engine today (it falls through to the same manual-confirmation path
  * 'share' purchases already use, per that switch's own comment). Gating
  * markPaid on the linked request reaching 'fulfilled' would therefore strand
@@ -108,7 +108,7 @@ export const finesService = {
         const suggested = schedule[input.fineType];
         if (suggested === undefined) {
           throw new ValidationError(
-            `No tariff amount for offence '${input.fineType}' and none was supplied - ` +
+            `No tariff amount for offence '${input.fineType}' and none was supplied — ` +
               `add it to the fine schedule (PUT /api/v1/fines/policy) or pass an explicit amount`,
           );
         }
@@ -116,7 +116,7 @@ export const finesService = {
       }
       // Zero is a legal tariff entry (fine-policy.service.ts's validateSchedule
       // allows it, meaning "no fine for this offence") but not a legal ISSUED
-      // fine - there would be nothing to track or collect.
+      // fine — there would be nothing to track or collect.
       if (!(amount > 0)) {
         throw new ValidationError('Fine amount must be greater than zero');
       }
@@ -205,7 +205,7 @@ export const finesService = {
         rows: [fine],
       } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!fine) throw new NotFoundError('Fine', id);
-      // Administrative correction ("issued in error") - only before any
+      // Administrative correction ("issued in error") — only before any
       // money has moved. Once paid/waived this must stay an honest record
       // rather than being erased retroactively.
       if (fine.status !== 'issued') {
@@ -218,7 +218,7 @@ export const finesService = {
         } = await client.query('SELECT status FROM payment_requests WHERE id=$1', [fine.payment_request_id]);
         if (request?.status === 'fulfilled') {
           throw new ValidationError(
-            'This fine has already been collected via its linked payment request - mark it paid instead of cancelling',
+            'This fine has already been collected via its linked payment request — mark it paid instead of cancelling',
           );
         }
       }
@@ -247,7 +247,7 @@ export const finesService = {
 
       // Best-effort: an open request against a now-cancelled fine would
       // otherwise linger unpayable forever (nothing else will ever close
-      // it). Ignore failure - paymentRequestsService.cancel throws if it is
+      // it). Ignore failure — paymentRequestsService.cancel throws if it is
       // no longer 'open' (already fulfilled/expired/cancelled), which is
       // fine here: there's nothing left to tidy up in that case.
       if (fine.payment_request_id) {
@@ -295,7 +295,7 @@ export const finesService = {
         } = await client.query('SELECT * FROM fines WHERE id=$1 AND group_id=$2 FOR UPDATE', [id, ctx.groupId]);
         if (!f) throw new NotFoundError('Fine', id);
         if (f.status !== 'issued' || f.payment_request_id) {
-          throw new ValidationError(`Fine status changed to '${f.status}' while initiating collection - try again`);
+          throw new ValidationError(`Fine status changed to '${f.status}' while initiating collection — try again`);
         }
 
         const { rows } = await client.query(
@@ -322,7 +322,7 @@ export const finesService = {
         return rows[0];
       });
     } catch (err) {
-      // The fine-side link failed (race) - don't leave an orphaned open
+      // The fine-side link failed (race) — don't leave an orphaned open
       // request nobody will ever pay against.
       await paymentRequestsService.cancel(ctx, paymentRequest.id).catch(() => {});
       throw err;
@@ -330,12 +330,12 @@ export const finesService = {
   },
 
   /**
-   * Marks a fine paid and posts the GL entry - a fine actually collected is
+   * Marks a fine paid and posts the GL entry — a fine actually collected is
    * realized revenue for the group (postTemplatedJournal('fine_collection'),
    * see posting-templates.service.ts, rather than an ad-hoc journal insert).
    *
    * Deliberately does not require the linked payment_request (if any) to be
-   * 'fulfilled' first - see this file's header for why that gate would be
+   * 'fulfilled' first — see this file's header for why that gate would be
    * unsatisfiable today. Cash collected with no payment_request at all is
    * equally valid, mirroring welfare.disburse()'s 'cash' path.
    */
@@ -377,7 +377,7 @@ export const finesService = {
         ctx.groupId,
         ctx.userId,
         'fine_collection',
-        `Fine collected - ${fine.fine_type} (fine ${id})`,
+        `Fine collected — ${fine.fine_type} (fine ${id})`,
         { amount: Number(fine.amount) },
         { reference: id, memberId: fine.member_id, groupMembershipId: fine.group_membership_id },
       );

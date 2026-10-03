@@ -119,7 +119,7 @@ describe('templates', () => {
   });
 
   it('keeps SMS GSM-safe', () => {
-    expect(gsmSafe('Wangari - "tea" … ok')).toBe('Wangari - "tea" ... ok');
+    expect(gsmSafe('Wangari — “tea” … ok')).toBe('Wangari - "tea" ... ok');
   });
 });
 

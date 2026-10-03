@@ -1,12 +1,5 @@
 import type { Metadata } from 'next';
-import {
-  Smartphone,
-  ShieldCheck,
-  BookOpen,
-  DollarSign,
-  ListChecks,
-  TrendingUp,
-} from 'lucide-react';
+import { Banknote, BookOpen, ListChecks, ShieldCheck, Smartphone, TrendingUp } from 'lucide-react';
 
 import { SectionTitle } from '@/components/SectionTitle';
 import { Benefits } from '@/components/Benefits';
@@ -27,7 +20,7 @@ export const metadata: Metadata = marketingMetadata({
 
 /**
  * This page predates the marketing redesign and was missed when the rest of
- * the site moved to SiteHeader/SiteFooter - it shipped with no navigation at
+ * the site moved to SiteHeader/SiteFooter — it shipped with no navigation at
  * all, live, at /how-it-works. Wrapping it here (rather than porting its
  * content into PageShell) keeps this fix to "put the nav back" and out of
  * "redesign the page", since its layout is a custom icon/benefit grid that
@@ -39,7 +32,7 @@ export default function HowItWorksPage() {
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="How it works" title="Member pays. Books update. Done." titleAs="h1">
-          Spend meetings making decisions - not rebuilding records.
+          Spend meetings making decisions — not rebuilding records.
         </SectionTitle>
 
         <Benefits data={theFlow} />
@@ -73,7 +66,7 @@ const theFlow = {
     },
     {
       title: 'The records update',
-      desc: 'Split into savings, welfare and loan repayment by your rules - and confirmed to the member by SMS.',
+      desc: 'Split into savings, welfare and loan repayment by your rules — and confirmed to the member by SMS.',
       icon: <BookOpen />,
     },
   ],
@@ -93,11 +86,11 @@ const theEdges = {
     {
       title: 'Cash still counts',
       desc: 'Cash collected at the meeting is recorded by hand, in the same books.',
-      icon: <DollarSign />,
+      icon: <Banknote />,
     },
     {
       title: 'Money goes out the same way',
-      desc: 'Loans, welfare and dividends go straight to members' M-Pesa - approved first, then confirmed.',
+      desc: 'Loans, welfare and dividends go straight to members’ M-Pesa — approved first, then confirmed.',
       icon: <TrendingUp />,
     },
   ],

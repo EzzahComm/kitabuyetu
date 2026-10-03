@@ -7,12 +7,12 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem/donors',
-  title: 'Top Supporters - Ecosystem',
+  title: 'Top Supporters — Ecosystem',
   description: 'Meet the community of supporters making an impact.',
 });
 
 async function EcosystemDonorsPage() {
-  // Public, anonymous page - see listPublicActiveOrganizations's own header
+  // Public, anonymous page — see listPublicActiveOrganizations's own header
   // for why this no longer reads via the Supabase anon-key client.
   const activeOrgs = await listPublicActiveOrganizations(10);
 

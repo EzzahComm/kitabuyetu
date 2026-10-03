@@ -1,6 +1,6 @@
 /**
  * One-off correction: the four THE FIONA'S borrowers were notified on
- * 2026-08-16 with figures that have since changed TWICE - first from 10% flat
+ * 2026-08-16 with figures that have since changed TWICE — first from 10% flat
  * to 10% reducing balance, then to 5% reducing balance. Every number they hold
  * (instalment, total, method) overstates what they now owe by roughly 38%.
  *
@@ -40,7 +40,7 @@ interface Row {
 }
 
 async function main() {
-  if (!PAYBILL) throw new Error('MPESA_SHORTCODE is not set - refusing to send a paybill-less message');
+  if (!PAYBILL) throw new Error('MPESA_SHORTCODE is not set — refusing to send a paybill-less message');
 
   const rows = await withAdminDb(async (db) => {
     const { rows } = await db.query<Row>(`
@@ -61,7 +61,7 @@ async function main() {
     return rows;
   });
 
-  if (rows.length !== 4) throw new Error(`Expected 4 disbursed loans, found ${rows.length} - refusing`);
+  if (rows.length !== 4) throw new Error(`Expected 4 disbursed loans, found ${rows.length} — refusing`);
 
   const money = (v: string) =>
     Number(v).toLocaleString('en-KE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -92,7 +92,7 @@ async function main() {
     SEND
       ? "\nQueued. Local dispatch 401s on placeholder provider creds; production's" +
           ' sms_retry_failed sweep delivers them within ~5 minutes.'
-      : '\nDry run only - pass --send to dispatch.',
+      : '\nDry run only — pass --send to dispatch.',
   );
 }
 

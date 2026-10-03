@@ -14,7 +14,7 @@ export { Spinner } from './ui/Spinner';
 export { FormSection, FormFieldGroup, FormDivider } from './shared/form-section';
 export { PageSection, FormActions } from './shared/page-section';
 
-// Layout Components - legacy dashboard components have been removed
+// Layout Components — legacy dashboard components have been removed
 // See components/shared/ and components/ui/ for current component primitives
 export { ToastContainer } from './Toast';
 

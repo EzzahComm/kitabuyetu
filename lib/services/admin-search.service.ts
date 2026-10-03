@@ -1,5 +1,5 @@
 /**
- * Unified cross-entity search for the (admin) command palette and topbar -
+ * Unified cross-entity search for the (admin) command palette and topbar —
  * SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3. The palette's ⌘K shell already
  * existed; this is the missing data source (previously pure static nav).
  */

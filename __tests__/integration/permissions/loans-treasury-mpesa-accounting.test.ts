@@ -1,5 +1,5 @@
 /**
- * RBAC permission activation, Batch 9 - the final batch
+ * RBAC permission activation, Batch 9 — the final batch
  * (SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4). Loans/Credit-scores/
  * Accounting/M-Pesa/Payment-requests map mostly onto strings already seeded
  * in 077/079 (loans.approve, mpesa.view, payments.request, payments.disburse,
@@ -187,7 +187,7 @@ describe('Loans/Treasury/M-Pesa/Accounting permission gates (final batch)', () =
 
   it('assertAuthFresh tightening: a forged treasurer/members.manage claim that matches the epoch but NOT the live DB role is still denied', async () => {
     // plainMemberId really is a 'member' in the DB (auth_version defaults to
-    // 1, matching the forged authVersion below) - so the epoch check inside
+    // 1, matching the forged authVersion below) — so the epoch check inside
     // assertAuthFresh passes silently, but the live roles.permissions lookup
     // it now also returns has none of the elevated permissions this forged
     // claim asserts. Without the Batch 9 tightening, the route's FIRST gate

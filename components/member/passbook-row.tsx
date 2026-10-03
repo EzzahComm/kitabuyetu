@@ -38,7 +38,7 @@ export function PassbookRow({ entry }: { entry: PassbookEntry }) {
         </p>
         <p className="flex items-center gap-1 text-xs text-muted-foreground">
           <MethodIcon size={11} /> {time}
-          {entry.ref && <span className="font-mono text-muted-foreground/70">- {entry.ref}</span>}
+          {entry.ref && <span className="font-mono text-muted-foreground/70">· {entry.ref}</span>}
         </p>
       </div>
 

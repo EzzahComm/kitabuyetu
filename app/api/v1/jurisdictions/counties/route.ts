@@ -1,5 +1,5 @@
 // Public read of the canonical Kenya counties list.
-// Used by the registration form's county dropdown - must be reachable
+// Used by the registration form's county dropdown — must be reachable
 // pre-auth, which is granted in proxy.ts.
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +25,7 @@ export async function GET(): Promise<Response> {
       return rows;
     });
 
-    // Counties don't change - cache the response aggressively at the CDN.
+    // Counties don't change — cache the response aggressively at the CDN.
     const res = ok(counties);
     res.headers.set('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
     return res;

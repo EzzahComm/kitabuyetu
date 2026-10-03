@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic';
  * Mirrors the real money flow: donations are STK-pushed to the platform
  * paybill (daraja.service SHORTCODE) and held on the group's 4006 Changi$ha
  * account; withdrawals go to the campaign's payout destination (phone, paybill
- * or till - lib/campaigns/payout-destination.ts) after maker-checker approval
+ * or till — lib/campaigns/payout-destination.ts) after maker-checker approval
  * by two group officials and then Kitabu Yetu's own sign-off
  * (campaign-withdrawals.service, migration 203).
  */
@@ -33,7 +33,7 @@ const STEPS = [
   },
   {
     title: 'We check it',
-    body: 'Every campaign is checked before it goes public, so donors know it's genuine.',
+    body: 'Every campaign is checked before it goes public, so donors know it’s genuine.',
   },
   {
     title: 'Share and release',
@@ -42,11 +42,11 @@ const STEPS = [
 ];
 
 /**
- * Real listing of live and past Changi$ha campaigns (migration 182) - was a static
+ * Real listing of live and past Changi$ha campaigns (migration 182) — was a static
  * "coming soon" page until the product actually existed. Reads via
  * campaignsService.listActiveCampaigns(), which goes through withAdminDb with
  * an explicit `status = 'active'` filter rather than any anon/PostgREST
- * grant - see that migration's header for why.
+ * grant — see that migration's header for why.
  *
  * Marked dynamic to avoid prerender failures when DB is unavailable at build time.
  */
@@ -60,7 +60,7 @@ export default async function FundraisePage() {
     ]);
   } catch {
     // During build time in CI, the database may not be accessible. Gracefully
-    // fall back to an empty list - the page will render the "no campaigns" state.
+    // fall back to an empty list — the page will render the "no campaigns" state.
     // At runtime in production, the database will be available.
   }
 
@@ -100,7 +100,7 @@ export default async function FundraisePage() {
             id="past-heading"
             pill="Past Fundraisers"
             title="What communities have raised"
-            lede="Finished campaigns stay on record - every shilling."
+            lede="Finished campaigns stay on record — every shilling."
             className="mb-10 max-w-3xl"
           />
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -136,8 +136,8 @@ export default async function FundraisePage() {
 
       <CtaBand
         title="Raising money for a cause?"
-        subtitle={`No monthly fee. ${CHANGISHA_PRICING.platformFeePct}% plus the M-Pesa charge - only when you withdraw.`}
-        footnote="Donors pay nothing extra - Every campaign checked before it goes live"
+        subtitle={`No monthly fee. ${CHANGISHA_PRICING.platformFeePct}% plus the M-Pesa charge — only when you withdraw.`}
+        footnote="Donors pay nothing extra · Every campaign checked before it goes live"
         showPlanPrices={false}
         primary={{ label: 'Start a campaign', href: '/start-campaign' }}
       />

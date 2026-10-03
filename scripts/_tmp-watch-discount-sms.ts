@@ -38,7 +38,7 @@ async function main() {
       return;
     }
     if (Date.now() > DEADLINE) {
-      console.log('\nTIMED OUT - still not sent:');
+      console.log('\nTIMED OUT — still not sent:');
       for (const r of rows) console.log(`  ${r.phone} ${r.st} retries=${r.retries ?? '-'} ${r.fail ?? ''}`);
       return;
     }

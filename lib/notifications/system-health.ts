@@ -105,7 +105,7 @@ async function checkJobs(): Promise<CheckResult[]> {
       ok: stalled === 0,
       type: ActivityEventType.JOB_QUEUE_STALLED,
       detail: stalled
-        ? `${stalled} job(s) overdue by 30+ min (oldest ~${Math.round(Number(rows[0]?.oldest_min ?? 0))} min) - the scheduler may not be running`
+        ? `${stalled} job(s) overdue by 30+ min (oldest ~${Math.round(Number(rows[0]?.oldest_min ?? 0))} min) — the scheduler may not be running`
         : undefined,
     },
     {
@@ -129,7 +129,7 @@ async function checkCallbacks(): Promise<CheckResult> {
     check: 'mpesa_callbacks',
     ok: n < 5,
     type: ActivityEventType.PAYMENT_CALLBACK_FAILURE,
-    detail: n >= 5 ? `${n} M-Pesa callbacks unprocessed for 20+ minutes - payments may not be crediting` : undefined,
+    detail: n >= 5 ? `${n} M-Pesa callbacks unprocessed for 20+ minutes — payments may not be crediting` : undefined,
   };
 }
 
@@ -139,7 +139,7 @@ function checkSms(): CheckResult {
     check: 'sms_provider',
     ok,
     type: ActivityEventType.SMS_PROVIDER_FAILURE,
-    detail: ok ? undefined : `Circuit breaker open for ${activeSmsProvider()} - SMS sending is failing fast`,
+    detail: ok ? undefined : `Circuit breaker open for ${activeSmsProvider()} — SMS sending is failing fast`,
   };
 }
 

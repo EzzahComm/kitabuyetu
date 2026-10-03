@@ -3,14 +3,14 @@
  *
  * `sendBulkCampaign` wrote `notification_type = 'campaign'` as a hardcoded
  * literal while the very next column, `reference_type`, carried the real
- * category. So the usage-analytics screen's per-feature breakdown - which
- * GROUP BYs `notification_type` - reported every scheduled reminder under one
+ * category. So the usage-analytics screen's per-feature breakdown — which
+ * GROUP BYs `notification_type` — reported every scheduled reminder under one
  * uninformative label, for the highest-volume send path in the product and the
  * whole of Chama Reminder's mechanism.
  *
  * Nothing looked broken because nothing was missing: the rows were all there,
  * all saying the same useless thing. The only way to catch that is to assert
- * the VALUE, which is what this file does - through `handleJob('sms_bulk_send')`
+ * the VALUE, which is what this file does — through `handleJob('sms_bulk_send')`
  * so it exercises the same chokepoint all four bulk paths funnel through.
  *
  * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
@@ -57,7 +57,7 @@ async function provisionBilling(groupId: string): Promise<void> {
      ON CONFLICT (group_id) DO UPDATE SET sms_credits = 500`,
     [groupId],
   );
-  // Paid credits only - a bundled allowance would change which pool is drawn
+  // Paid credits only — a bundled allowance would change which pool is drawn
   // from, and this file is about attribution, not about the split.
   await rawQuery(
     `UPDATE subscriptions SET sms_rate = 0.90, sms_allowance_included = 0
@@ -137,7 +137,7 @@ describe('bulk SMS feature attribution', () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
     await provisionBilling(groupId);
 
-    // The campaign routes pass no referenceType - 'campaign' is the honest
+    // The campaign routes pass no referenceType — 'campaign' is the honest
     // label there, so the fix must not relabel it.
     await handleJob(
       await makeBulkJob({

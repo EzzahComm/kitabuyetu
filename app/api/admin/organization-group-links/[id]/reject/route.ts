@@ -5,7 +5,7 @@ import { organizationGroupLinksService } from '@/lib/services/organization-group
 import { RejectOrgGroupLinkSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/admin/organization-group-links/[id]/reject - pending -> rejected, reason required. Super-admin only. */
+/** POST /api/admin/organization-group-links/[id]/reject — pending -> rejected, reason required. Super-admin only. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     const { id } = await params;

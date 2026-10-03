@@ -1,7 +1,7 @@
 /**
  * Property tests for the Membership Number check digit (production-readiness
  * checklist item 2): the Damm algorithm must catch ALL single-character
- * errors and ALL adjacent transpositions - the guarantees the payment
+ * errors and ALL adjacent transpositions — the guarantees the payment
  * architecture leans on to stop typos paying strangers in other groups.
  */
 import {
@@ -54,7 +54,7 @@ describe('composeMembershipNo / isValidMembershipNo', () => {
         const orig = no.charCodeAt(pos);
         for (let c = 65; c <= 90; c++) {
           if (c === orig) continue;
-          // Same mapped digit (e.g. A↔K↔U) is undetectable by design - skip.
+          // Same mapped digit (e.g. A↔K↔U) is undetectable by design — skip.
           if ((c - 65) % 10 === (orig - 65) % 10) continue;
           const mutated = no.slice(0, pos) + String.fromCharCode(c) + no.slice(pos + 1);
           expect(isValidMembershipNo(mutated)).toBe(false);

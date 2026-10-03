@@ -49,7 +49,7 @@ export default function AdminOpportunityDetailPage() {
   });
   const [rules, setRules] = useState<EligibilityRule[]>([]);
   // Seeded during render (not a useEffect) the moment the opportunity first
-  // arrives - same pattern used for the HR employee detail page, avoiding a
+  // arrives — same pattern used for the HR employee detail page, avoiding a
   // setState-in-effect cascading-render lint error.
   if (opportunity && opportunity.id !== seededId) {
     setSeededId(opportunity.id);

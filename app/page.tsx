@@ -103,7 +103,7 @@ const PARTNER_LOGOS = [
 
 const PROMISES = [
   { icon: Unlock, title: 'No contract', body: 'Pay monthly. Stop any time.' },
-  { icon: Smartphone, title: 'All by M-Pesa', body: 'Your subscription and your members' contributions.' },
+  { icon: Smartphone, title: 'All by M-Pesa', body: 'Your subscription and your members’ contributions.' },
   { icon: UsersRound, title: 'Made for chamas', body: 'Not a business tool squeezed to fit.' },
 ];
 
@@ -214,7 +214,7 @@ export default function Home() {
                 messages matched to names the night before a meeting.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu puts members, money and payments in one place - in books that always balance.
+                Kitabu Yetu puts members, money and payments in one place — in books that always balance.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (

@@ -12,7 +12,7 @@ import type { GroupMemberRow } from '@/types/api.types';
 
 /**
  * Deliberately NOT a reuse of (dashboard)/members. That page carries
- * contributions, loans and share columns, plus the actions that go with them -
+ * contributions, loans and share columns, plus the actions that go with them —
  * all of which a Chama Reminder group has no data for and no entitlement to.
  * What matters to a communication product is: who is here, can we reach them,
  * and do we know their birthday.

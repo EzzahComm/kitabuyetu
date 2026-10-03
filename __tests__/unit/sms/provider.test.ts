@@ -1,8 +1,8 @@
 /**
- * lib/sms/provider.ts (SMS-AUDIT-v3 T3-3) - the funnel every dispatch call
+ * lib/sms/provider.ts (SMS-AUDIT-v3 T3-3) — the funnel every dispatch call
  * goes through: adapter resolution, the circuit breaker wrapping every call,
  * and per-call provider override (retryFailures honouring a historical
- * provider). textsms.service.ts is mocked, not the adapter - this exercises
+ * provider). textsms.service.ts is mocked, not the adapter — this exercises
  * the real TextSmsAdapter wiring, only stubbing the actual HTTP-shaped calls.
  */
 import * as provider from '@/lib/sms/provider';
@@ -82,7 +82,7 @@ describe('sms provider abstraction', () => {
         await provider.sendSingleSms({ mobile: 'bad', message: 'hi' });
       }
       // Still available after far more than FAILURE_THRESHOLD non-throwing
-      // "failures" - a bad number is not a provider-health signal.
+      // "failures" — a bad number is not a provider-health signal.
       expect(provider.isProviderAvailable()).toBe(true);
     });
 

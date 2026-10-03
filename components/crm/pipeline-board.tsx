@@ -47,7 +47,7 @@ export function PipelineBoard() {
             <h3 className="text-sm font-semibold">{column.label}</h3>
             <span className="text-xs text-muted-foreground">
               {column.items.length}
-              {stageTotal(column.items) > 0 && ` - KES ${stageTotal(column.items).toLocaleString()}`}
+              {stageTotal(column.items) > 0 && ` · KES ${stageTotal(column.items).toLocaleString()}`}
             </span>
           </div>
           <div className="space-y-2">

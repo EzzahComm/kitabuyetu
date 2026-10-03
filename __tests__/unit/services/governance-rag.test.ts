@@ -1,5 +1,5 @@
 /**
- * governance.service.ts's RAG-band resolution - pure boundary-condition
+ * governance.service.ts's RAG-band resolution — pure boundary-condition
  * logic, tested in isolation since a subtle off-by-one here would
  * misclassify a real group's financial health. Covers the 3 threshold
  * shapes actually seeded in migration 069: higher_better (only a min),

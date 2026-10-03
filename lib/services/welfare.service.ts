@@ -160,7 +160,7 @@ export const welfareService = {
         ],
       );
 
-      // Record audit log for welfare request creation - user-triggered
+      // Record audit log for welfare request creation — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -203,7 +203,7 @@ export const welfareService = {
           [data.amountApproved ?? req.amount_requested, ctx.userId, data.notes ?? null, id, ctx.groupId],
         );
 
-        // Record audit log for welfare request approval - user-triggered
+        // Record audit log for welfare request approval — user-triggered
         await client.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -229,7 +229,7 @@ export const welfareService = {
           [ctx.userId, data.rejectionReason, data.notes ?? null, id, ctx.groupId],
         );
 
-        // Record audit log for welfare request rejection - user-triggered
+        // Record audit log for welfare request rejection — user-triggered
         await client.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
            VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -274,7 +274,7 @@ export const welfareService = {
         ],
       );
 
-      // Record audit log for welfare request disbursement - user-triggered
+      // Record audit log for welfare request disbursement — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -296,7 +296,7 @@ export const welfareService = {
         ctx.groupId,
         ctx.userId,
         'welfare_disbursement',
-        `Welfare disbursement - ${req.request_type} (request ${id})`,
+        `Welfare disbursement — ${req.request_type} (request ${id})`,
         { amount: data.amountDisbursed },
         { reference: id, memberId: req.member_id },
       );
@@ -364,7 +364,7 @@ export const welfareService = {
         ],
       );
 
-      // Record audit log for welfare pool contribution - user-triggered
+      // Record audit log for welfare pool contribution — user-triggered
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -390,7 +390,7 @@ export const welfareService = {
         ctx.groupId,
         ctx.userId,
         'welfare_pool_contribution',
-        `Welfare pool contribution - ${data.contributionType}`,
+        `Welfare pool contribution — ${data.contributionType}`,
         { amount: data.amount },
         { reference: rows[0].id, memberId: data.memberId },
       );

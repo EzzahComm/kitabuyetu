@@ -4,4 +4,5 @@ export { TemplatesTab } from './templates-tab';
 export { SchedulesTab } from './schedules-tab';
 export { LogsTab } from './logs-tab';
 export { OptOutsTab } from './optouts-tab';
-export { TABS, TabKey, StatusBadge, CategoryBadge } from './helpers';
+export { TABS, StatusBadge, CategoryBadge } from './helpers';
+export type { TabKey } from './helpers';

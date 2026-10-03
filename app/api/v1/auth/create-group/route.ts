@@ -34,7 +34,7 @@ interface CreateAdditionalGroupResult {
 }
 
 /**
- * POST /api/v1/auth/create-group - let an ALREADY-authenticated member found
+ * POST /api/v1/auth/create-group — let an ALREADY-authenticated member found
  * an additional group under their existing identity, instead of the
  * public/anonymous /register form, which always creates a brand-new
  * members/person row and would 409 on this caller's own phone (see migration
@@ -42,7 +42,7 @@ interface CreateAdditionalGroupResult {
  *
  * No password re-entry: the verified access token proves identity, and a new
  * session is minted for the freshly-created membership exactly like
- * /api/v1/auth/switch-group already does for an EXISTING one - same trust
+ * /api/v1/auth/switch-group already does for an EXISTING one — same trust
  * model, same token-issuance shape.
  */
 export async function POST(req: NextRequest): Promise<Response> {
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
         const rpc = rows[0].create_additional_group;
         // Permissions resolved here too (RBAC activation, same lookup as
-        // login) - signAccessToken doesn't derive them itself, and omitting
+        // login) — signAccessToken doesn't derive them itself, and omitting
         // them leaves every withPermission check failing until the member's
         // next login/refresh (see /auth/register's own fix for this).
         const { rows: gm } = await client.query<{ permissions: string[] }>(
@@ -122,7 +122,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         metadata: { groupType: input.groupType, product: input.product, additionalGroup: true },
       });
 
-      // New session for the freshly-created membership - same shape as
+      // New session for the freshly-created membership — same shape as
       // switch-group's, so the client's existing `login(data)` handler works
       // unchanged. The previous session (in whichever group the caller came
       // from) is left untouched, same independent-lineage model.
@@ -207,11 +207,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       if (err instanceof AppError) return handleError(err);
 
-      // The RPC's own not-found guard (defensive - p_member_id always comes
+      // The RPC's own not-found guard (defensive — p_member_id always comes
       // from a verified JWT, so this should never actually fire in practice).
       if (e?.code === 'P0002') return handleError(new NotFoundError('Active membership'));
 
-      // RPC-raised invalid-input errors (SQLSTATE 22023) - same convention
+      // RPC-raised invalid-input errors (SQLSTATE 22023) — same convention
       // register/route.ts uses.
       if (e?.code === '22023') {
         return errorResponse(e.message ?? 'Invalid input', 'INVALID_INPUT', 400);
@@ -219,7 +219,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // A group-name collision (uq_group_name_per_county) or any other
       // unique violation falls through to handleError's generic 23505
-      // mapping - perfectly adequate here, and register/route.ts's own
+      // mapping — perfectly adequate here, and register/route.ts's own
       // catch leaves the equivalent case (it only special-cases the phone
       // and group_code constraints) to the same fallback.
       return handleError(err);

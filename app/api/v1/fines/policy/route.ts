@@ -6,9 +6,9 @@ import { SetFineScheduleSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/fines/policy - this group's effective fine schedule (advisory
+ * GET /api/v1/fines/policy — this group's effective fine schedule (advisory
  *   offence -> amount tariff) with resolution source.
- * PUT /api/v1/fines/policy - set a group-level override. Chairperson only -
+ * PUT /api/v1/fines/policy — set a group-level override. Chairperson only —
  *   this sets the reference tariff for the whole group.
  */
 

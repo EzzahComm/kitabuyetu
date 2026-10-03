@@ -48,7 +48,7 @@ function TemplateForm({
         <Input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="Email subject - use {{variable}}"
+          placeholder="Email subject — use {{variable}}"
         />
       </div>
       <div>

@@ -1,5 +1,5 @@
 /**
- * isValidCallbackToken (B2C audit H1, lib/services/daraja.service.ts) - the
+ * isValidCallbackToken (B2C audit H1, lib/services/daraja.service.ts) — the
  * check that used to live as a module-scope `throw` and crashed the entire
  * Next.js build (every route, not just B2C) whenever MPESA_ENV=production
  * was set without MPESA_CALLBACK_TOKEN, since Next evaluates every route's

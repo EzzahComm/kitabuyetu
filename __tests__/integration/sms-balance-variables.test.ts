@@ -5,7 +5,7 @@
  * (mpesa-spine.service.ts) but were unreachable from a message an officer
  * writes: resolveRecipientVars returned names, membership_no and group_name
  * and nothing else. These tests cover the three things that can go wrong with
- * adding money to that map - a wrong figure, a figure invented for somebody
+ * adding money to that map — a wrong figure, a figure invented for somebody
  * who has none, and a quote that stops matching the bill.
  */
 import { smsService, resolveRecipientVars } from '@/lib/services/sms.service';
@@ -62,15 +62,15 @@ describe('balance variables in a composed message', () => {
    * Two completed contributions for the officer.
    *
    * Deliberately NO loan. An `active` loan trips
-   * `trg_assert_loan_attribution_on_status` - "every disbursed loan must be
-   * fully attributed to its funding sources" - so a valid one needs a
+   * `trg_assert_loan_attribution_on_status` — "every disbursed loan must be
+   * fully attributed to its funding sources" — so a valid one needs a
    * `group_funding_sources` row plus `loan_funding_splits` summing to the
    * principal, and `trg_loans_generate_schedule` then builds a repayment
    * schedule off it. That is loan-lifecycle machinery with its own invariants
    * and its own tests; coupling an SMS-variable test to it buys nothing and
    * breaks whenever loan funding changes.
    *
-   * `loan_balance` is still asserted below - it resolves to "0" for a member
+   * `loan_balance` is still asserted below — it resolves to "0" for a member
    * with no loans, which proves the variable is populated. The non-trivial
    * formatting (thousands separator, retained decimals) is proven by
    * contribution_balance, which is what the money path actually exercises.
@@ -96,7 +96,7 @@ describe('balance variables in a composed message', () => {
     // 4000 + 8500.50, grouped, with the cents kept rather than rounded away:
     // a balance a member can check against their own record must match it.
     expect(mine.contribution_balance).toBe('12,500.5');
-    // Present and zero - a member of the group with no loan. Distinct from the
+    // Present and zero — a member of the group with no loan. Distinct from the
     // non-member case below, where it is absent entirely.
     expect(mine.loan_balance).toBe('0');
   });
@@ -133,7 +133,7 @@ describe('balance variables in a composed message', () => {
 
     // The whole point of the guard: a balance substitutes a variable-length
     // number into the body, so it moves the segment boundary. Preview and
-    // dispatch must resolve the SAME value or the quote drifts from the bill -
+    // dispatch must resolve the SAME value or the quote drifts from the bill —
     // which is why both call resolveRecipientVars with the message.
     const message = `Dear {{first_name}}, your savings are KES {{contribution_balance}}. ${'x'.repeat(110)}`;
 

@@ -1,5 +1,5 @@
 /**
- * Posting templates (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.9 - called out as
+ * Posting templates (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.9 — called out as
  * the single highest-leverage architectural change in the audit's target
  * architecture, and #2 in §29.13's foundational ordering): which accounts a
  * business event posts to becomes Configuration Service data instead of
@@ -11,7 +11,7 @@
  * to EXACTLY the mapping previously hardcoded, so resolution changes zero
  * posting behavior until a tenant actually remaps an account.
  *
- * Overrides may only REMAP ACCOUNTS - the line structure (each line's side
+ * Overrides may only REMAP ACCOUNTS — the line structure (each line's side
  * and amount role) is locked to the platform default's shape. That's the
  * audit's actual ask ("organizations map these templates to the specific
  * accounts in their own chart of accounts"), and it's what keeps a template
@@ -19,10 +19,10 @@
  * structure (e.g. gross = net + tax), which no override can touch.
  *
  * Second rollout: loan disbursement/repayment (postLoanDisbursementJournal/
- * postLoanRepaymentJournal, moved here from accounting.service.ts - they now
+ * postLoanRepaymentJournal, moved here from accounting.service.ts — they now
  * belong here, not in the lower-level posting primitive that file hosts).
  * These turned out to be bounded, conditional-shape (2-3 lines each), not
- * truly variable - unlike contribution splits (accounting.service.ts's
+ * truly variable — unlike contribution splits (accounting.service.ts's
  * postContributionJournal), whose credit-line count is genuinely unbounded
  * (one per distinct account a group's active group_contribution_splits rows
  * resolve to). Contribution splits stay OUT of this engine deliberately:
@@ -34,12 +34,12 @@
  *
  * Loan disbursement's one wrinkle: today, if a charge is passed but the fee
  * account doesn't exist in a group's chart, posting silently drops just the
- * fee and still posts principal/cash - this engine's postSystemJournal is
+ * fee and still posts principal/cash — this engine's postSystemJournal is
  * all-or-nothing (any missing referenced account aborts the whole entry).
  * postLoanDisbursementJournal below preserves the fallback itself (checking
  * the *resolved* charge-role account before deciding whether to pass a zero
  * charge amount) rather than adding an "optional line" concept to the core
- * engine - buildTemplateLines already drops zero-amount lines, so no engine
+ * engine — buildTemplateLines already drops zero-amount lines, so no engine
  * change was needed once the wrapper does that check tenant-aware.
  */
 import type { PoolClient } from 'pg';
@@ -71,7 +71,7 @@ export type PostingEvent =
 export interface TemplateLine {
   accountCode: string;
   side: 'debit' | 'credit';
-  /** Which named amount this line posts - 'amount' for single-amount events. */
+  /** Which named amount this line posts — 'amount' for single-amount events. */
   amount: string;
 }
 
@@ -79,7 +79,7 @@ export interface PostingTemplate {
   lines: TemplateLine[];
 }
 
-// Kept identical to migration 090's seed - each entry is the exact mapping
+// Kept identical to migration 090's seed — each entry is the exact mapping
 // the call sites hardcoded before templates existed.
 export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
   share_purchase: {
@@ -134,7 +134,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     ],
   },
   // Today's single combined "CR cash principal+charge" line becomes two
-  // separate lines (principal-credit, charge-credit) here, both to 1001 -
+  // separate lines (principal-credit, charge-credit) here, both to 1001 —
   // legal (no per-entry uniqueness constraint on account) and nets to the
   // identical account balance, just one more row in the journal detail view.
   loan_disbursement: {
@@ -154,8 +154,8 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     ],
   },
   // A configured loan charge (migration 179: loan_charge_types /
-  // loan_charges) - a processing fee, insurance fee, or automatic late
-  // charge - is added to what the borrower owes and recognized as revenue
+  // loan_charges) — a processing fee, insurance fee, or automatic late
+  // charge — is added to what the borrower owes and recognized as revenue
   // immediately, the moment it is applied (not deferred to when it is
   // eventually collected). DR Loans Receivable / CR revenue.
   //
@@ -165,7 +165,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
   // existing group with no backfill migration needed, unlike a brand-new code
   // which would only reach groups created after one. A group that wants a
   // dedicated 'Loan Fee Income' line can remap this event to its own account
-  // via postingTemplatesService.setGroupOverride - exactly what the override
+  // via postingTemplatesService.setGroupOverride — exactly what the override
   // mechanism exists for. Waiving a charge posts the same event inverted
   // (loan-charges.service.ts's waiveCharge), which correctly reverses
   // whichever account the group has it mapped to.
@@ -176,7 +176,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     ],
   },
   // Bank Accounts / Settlements / Vendor Payments rebuild. Matches migration
-  // 134's policies seed exactly - see postSettlementSweepJournal/
+  // 134's policies seed exactly — see postSettlementSweepJournal/
   // postVendorPaymentJournal below for the wrapper functions.
   settlement_sweep: {
     lines: [
@@ -186,7 +186,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
       { accountCode: '1001', side: 'credit', amount: 'fee' },
     ],
   },
-  // accountCode here is the *default* - postVendorPaymentJournal overrides
+  // accountCode here is the *default* — postVendorPaymentJournal overrides
   // the resolved expense-role line's account with the payment row's own
   // expense_account_code before building lines (per-row, not per-tenant).
   vendor_payment: {
@@ -199,7 +199,7 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
   },
   // Phase 3 (migration 180): a fine actually collected is realized revenue
   // for the group, not a liability held in trust like welfare_pool_contribution
-  // - credited to 4004 (Other Income), the standard chart's only generic
+  // — credited to 4004 (Other Income), the standard chart's only generic
   // income account, rather than adding a new account code to every group's
   // seeded chart of accounts.
   fine_collection: {
@@ -208,14 +208,14 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
       { accountCode: '4004', side: 'credit', amount: 'amount' },
     ],
   },
-  // Changi$ha withdrawal monetization. Three pairs, not two - unlike
+  // Changi$ha withdrawal monetization. Three pairs, not two — unlike
   // settlement_sweep/vendor_payment, whose 'fee' line is a real cost the
   // group incurred moving money it never recognized as extra income. Here,
   // the group already booked the FULL gross donation as income (4006) at
   // donation time (mpesa-stk.service.ts's applyCampaignDonationFromSTK), so
   // the withdrawal must expense both the amount actually paid to the
   // beneficiary (net) AND the platform's own fee (platformFee) AND the
-  // M-Pesa cost (mpesaCharge) - three debits that together equal the gross
+  // M-Pesa cost (mpesaCharge) — three debits that together equal the gross
   // amount being drawn down, closing the campaign's own trial balance:
   // 4006 credit (raised) − (5005+5006+5001 debits, once fully withdrawn) = 0.
   campaign_withdrawal: {
@@ -236,7 +236,7 @@ export const POSTING_EVENTS = Object.keys(DEFAULT_TEMPLATES) as PostingEvent[];
  * Pure line builder: applies named amounts to a template. Zero-valued lines
  * are dropped (a dividend declaration with no withholding tax posts two
  * lines, not three); a role the caller didn't supply is a programming error.
- * `invert` swaps every line's side - used by reversal postings so a reversal
+ * `invert` swaps every line's side — used by reversal postings so a reversal
  * always mirrors whatever mapping the original event resolves to.
  */
 export function buildTemplateLines(
@@ -260,7 +260,7 @@ export function buildTemplateLines(
   return lines;
 }
 
-/** Used inline by posting paths - resolves the group's effective template for an event. */
+/** Used inline by posting paths — resolves the group's effective template for an event. */
 export async function resolvePostingTemplate(
   client: PoolClient,
   event: PostingEvent,
@@ -305,7 +305,7 @@ const toDateString = (d: string | Date): string => (typeof d === 'string' ? d : 
  * Posts a loan disbursement: DR Loans Receivable (principal) [+ DR fee
  * expense (Safaricom charge), when a charge is passed and the resolved
  * template's charge-role account exists] / CR Cash (principal [+ charge]).
- * Moved here from accounting.service.ts (§29.9 second rollout - see file
+ * Moved here from accounting.service.ts (§29.9 second rollout — see file
  * header) so the account mapping is template-driven rather than hardcoded.
  *
  * Preserves the pre-templating fallback: postSystemJournal is all-or-nothing
@@ -313,7 +313,7 @@ const toDateString = (d: string | Date): string => (typeof d === 'string' ? d : 
  * "posts principal-only when the fee account is missing" into "doesn't post
  * at all." Checking the resolved charge-role account here and zeroing the
  * charge amount when it's missing gets the same graceful degradation via
- * buildTemplateLines' existing zero-amount-drops-the-line behavior - no
+ * buildTemplateLines' existing zero-amount-drops-the-line behavior — no
  * change to the shared engine needed.
  */
 export async function postLoanDisbursementJournal(
@@ -354,7 +354,7 @@ export async function postLoanDisbursementJournal(
     client,
     args.groupId,
     args.createdBy,
-    `Loan disbursement - ${args.loanId}`,
+    `Loan disbursement — ${args.loanId}`,
     lines,
     {
       reference: args.reference ?? undefined,
@@ -393,7 +393,7 @@ export async function postLoanDisbursementJournal(
  * rollout). Needs no fallback wrinkle like disbursement's: today, a missing
  * interest account with a nonzero interest portion already aborts the whole
  * entry, which is exactly postSystemJournal's default all-or-nothing
- * behavior - a clean drop-in.
+ * behavior — a clean drop-in.
  */
 export async function postLoanRepaymentJournal(
   client: PoolClient,
@@ -422,7 +422,7 @@ export async function postLoanRepaymentJournal(
     client,
     args.groupId,
     args.createdBy,
-    `Loan repayment - ${args.loanId} #${args.repaymentId}`,
+    `Loan repayment — ${args.loanId} #${args.repaymentId}`,
     lines,
     {
       reference: args.reference ?? undefined,
@@ -457,7 +457,7 @@ export async function postLoanRepaymentJournal(
 /**
  * Posts a settlement sweep: DR Bank Account (1002) / CR Cash (1001), plus
  * the Safaricom B2B fee (DR expense / CR cash), when a fee is passed and the
- * resolved fee-role account exists - same graceful-degradation shape as
+ * resolved fee-role account exists — same graceful-degradation shape as
  * postLoanDisbursementJournal's charge handling.
  */
 export async function postSettlementSweepJournal(
@@ -493,7 +493,7 @@ export async function postSettlementSweepJournal(
     client,
     args.groupId,
     args.createdBy,
-    `Settlement sweep - ${args.settlementId}`,
+    `Settlement sweep — ${args.settlementId}`,
     lines,
     {
       reference: args.reference ?? undefined,
@@ -525,12 +525,12 @@ export async function postSettlementSweepJournal(
 
 /**
  * Posts a vendor payment: DR the row's own expense_account_code (per-row
- * override, not a tenant-level template remap - resolved into the
+ * override, not a tenant-level template remap — resolved into the
  * template's 'amount'-role line before building) / CR Cash, plus the same
  * graceful-degradation fee handling as postSettlementSweepJournal.
  *
  * The override account was already validated to exist in the group's active
- * chart at payment-creation time (vendor-payments.service.ts) - never
+ * chart at payment-creation time (vendor-payments.service.ts) — never
  * deferred to here. If it was deactivated in between, postSystemJournal's
  * all-or-nothing behavior drops the whole entry (not just the fee line,
  * since expense is the main line) and this returns null; the caller logs
@@ -574,7 +574,7 @@ export async function postVendorPaymentJournal(
     client,
     args.groupId,
     args.createdBy,
-    `Vendor payment - ${args.vendorPaymentId}`,
+    `Vendor payment — ${args.vendorPaymentId}`,
     lines,
     {
       reference: args.reference ?? undefined,
@@ -607,11 +607,11 @@ export async function postVendorPaymentJournal(
 /**
  * Posts a Changi$ha withdrawal: DR 5005 (net, the amount paid to the
  * beneficiary) / DR 5006 (the platform's fee) / DR 5001 (the M-Pesa B2C
- * cost) - all three credited from 1001 Cash. Unlike
+ * cost) — all three credited from 1001 Cash. Unlike
  * postSettlementSweepJournal/postVendorPaymentJournal's optional fee line,
  * none of these three lines degrades gracefully if its account is missing:
  * postSystemJournal's all-or-nothing behavior applies to the whole entry,
- * which is correct here - dropping just the fee or charge line while still
+ * which is correct here — dropping just the fee or charge line while still
  * posting net_amount would silently under-book what left the group's cash
  * position, corrupting the campaign's own trial balance rather than merely
  * skipping a nice-to-have breakdown. All three accounts are guaranteed to
@@ -644,7 +644,7 @@ export async function postCampaignWithdrawalJournal(
     client,
     args.groupId,
     args.createdBy,
-    `Changi$ha withdrawal - ${args.campaignWithdrawalId}`,
+    `Changi$ha withdrawal — ${args.campaignWithdrawalId}`,
     lines,
     {
       reference: args.reference ?? undefined,
@@ -678,7 +678,7 @@ export async function postCampaignWithdrawalJournal(
 
 /**
  * Structure lock: an override must keep the default's exact multiset of
- * (side, amount-role) pairs - only account codes may change. This is what
+ * (side, amount-role) pairs — only account codes may change. This is what
  * makes overrides safe to expose to tenants: they can redirect an event to a
  * different account, never restructure the entry.
  */
@@ -691,7 +691,7 @@ function validateOverrideStructure(event: PostingEvent, lines: TemplateLine[]): 
   const expected = DEFAULT_TEMPLATES[event].lines;
   if (lines.length !== expected.length || shape(lines) !== shape(expected)) {
     throw new ValidationError(
-      'A posting-template override may only remap accounts - the entry structure (sides and amount roles) is fixed',
+      'A posting-template override may only remap accounts — the entry structure (sides and amount roles) is fixed',
     );
   }
   for (const l of lines) {
@@ -739,7 +739,7 @@ export const postingTemplatesService = {
     });
   },
 
-  /** Access gated at the route (withRole(req, 'treasurer', ...)) - same bar as the chart of accounts itself. */
+  /** Access gated at the route (withRole(req, 'treasurer', ...)) — same bar as the chart of accounts itself. */
   async setGroupOverride(ctx: TenantContext, event: PostingEvent, lines: TemplateLine[]): Promise<void> {
     validateOverrideStructure(event, lines);
     await withTransaction(ctx, async (client) => {
@@ -748,7 +748,7 @@ export const postingTemplatesService = {
     });
   },
 
-  /** Platform-wide defaults - super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide defaults — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformTemplates(client: PoolClient): Promise<EffectiveTemplate[]> {
     const results: EffectiveTemplate[] = [];
     for (const event of POSTING_EVENTS) {
@@ -771,7 +771,7 @@ export const postingTemplatesService = {
     lines: TemplateLine[],
   ): Promise<void> {
     validateOverrideStructure(event, lines);
-    // Platform templates must stick to the standard seeded chart - every
+    // Platform templates must stick to the standard seeded chart — every
     // group is guaranteed those codes, anything else would silently skip
     // posting (postSystemJournal's missing-account tolerance) somewhere.
     const standard = new Set(DEFAULT_ACCOUNTS.map((a) => a.code));

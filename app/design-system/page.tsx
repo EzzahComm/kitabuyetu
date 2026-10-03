@@ -66,7 +66,7 @@ export default function DesignSystemPage() {
   return (
     <div className={`${displayFont.variable} mx-auto max-w-5xl space-y-12 p-6 lg:p-10`}>
       <PageHeader
-        title="Kitabu Yetu - Design System"
+        title="Kitabu Yetu — Design System"
         description="Living reference for tokens and shared components. Build every portal screen from these primitives."
         breadcrumbs={[{ label: 'Internal', href: '#' }, { label: 'Design System' }]}
         actions={<Badge variant="secondary">v1</Badge>}
@@ -76,7 +76,7 @@ export default function DesignSystemPage() {
       <Section id="color" title="Brand colour">
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Green - primary (CTAs, positive)</CardTitle>
+            <CardTitle className="text-base">Green — primary (CTAs, positive)</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
             {Object.entries(brandGreen).map(([k, v]) => (
@@ -86,7 +86,7 @@ export default function DesignSystemPage() {
         </Card>
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Navy - headings, sidebar, nav</CardTitle>
+            <CardTitle className="text-base">Navy — headings, sidebar, nav</CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-3 gap-3 sm:grid-cols-5 lg:grid-cols-10">
             {Object.entries(brandNavy).map(([k, v]) => (
@@ -101,11 +101,11 @@ export default function DesignSystemPage() {
         <Card>
           <CardContent className="space-y-3 p-6">
             <p className="font-display text-4xl font-semibold">Display / Jost</p>
-            <p className="text-3xl font-bold tracking-tight">Heading 1 - Inter Bold</p>
-            <p className="text-xl font-semibold">Heading 2 - Inter Semibold</p>
-            <p className="text-base">Body - Inter Regular. Build vibrant communities.</p>
-            <p className="text-sm text-muted-foreground">Muted caption - supporting copy.</p>
-            <p className="money font-mono text-lg">KES 1,234,567.00 - DM Mono, tabular figures</p>
+            <p className="text-3xl font-bold tracking-tight">Heading 1 — Inter Bold</p>
+            <p className="text-xl font-semibold">Heading 2 — Inter Semibold</p>
+            <p className="text-base">Body — Inter Regular. Build vibrant communities.</p>
+            <p className="text-sm text-muted-foreground">Muted caption — supporting copy.</p>
+            <p className="money font-mono text-lg">KES 1,234,567.00 — DM Mono, tabular figures</p>
           </CardContent>
         </Card>
       </Section>
@@ -284,13 +284,13 @@ export default function DesignSystemPage() {
                 <TabsTrigger value="tab3">Tab three</TabsTrigger>
               </TabsList>
               <TabsContent value="tab1" className="mt-4 text-sm text-muted-foreground">
-                Content for tab one - use for switching between related datasets or views.
+                Content for tab one — use for switching between related datasets or views.
               </TabsContent>
               <TabsContent value="tab2" className="mt-4 text-sm text-muted-foreground">
-                Content for tab two - maintains scroll position and form state between switches.
+                Content for tab two — maintains scroll position and form state between switches.
               </TabsContent>
               <TabsContent value="tab3" className="mt-4 text-sm text-muted-foreground">
-                Content for tab three - keyboard accessible (arrow keys + Home/End).
+                Content for tab three — keyboard accessible (arrow keys + Home/End).
               </TabsContent>
             </Tabs>
           </CardContent>

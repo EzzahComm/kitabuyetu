@@ -24,7 +24,7 @@ export async function computeB2CCharge(db: PoolClient, amount: number): Promise<
 }
 
 /**
- * Same lookup, 'b2b' tier - added for the settlements/vendor-payments B2B
+ * Same lookup, 'b2b' tier — added for the settlements/vendor-payments B2B
  * flow (Bank Accounts / Settlements / Vendor Payments rebuild). The tier
  * table already has 27 seeded 'b2b' rows (mig 047); only the wrapper was
  * missing.
@@ -38,7 +38,7 @@ export async function computeB2BCharge(db: PoolClient, amount: number): Promise<
 }
 
 /**
- * Records the Safaricom fee in mpesa_charges. Idempotent - the UNIQUE
+ * Records the Safaricom fee in mpesa_charges. Idempotent — the UNIQUE
  * (mpesa_transaction_id) constraint makes a duplicate callback a no-op.
  */
 export async function insertMpesaCharge(
@@ -103,7 +103,7 @@ export async function postStandaloneChargeJournal(
   const cashId = accts.find((a) => a.code === cashCode)?.id;
   const expenseId = accts.find((a) => a.code === expenseCode)?.id;
   if (!cashId || !expenseId) {
-    logger.warn('[mpesa] skipped charge journal - chart missing 1001/5001', { groupId: args.groupId });
+    logger.warn('[mpesa] skipped charge journal — chart missing 1001/5001', { groupId: args.groupId });
     // Still record the charge for reconciliation even if we can't post it.
     await insertMpesaCharge(db, { ...args, journalEntryId: null });
     return;
@@ -136,7 +136,7 @@ export async function postStandaloneChargeJournal(
     ],
   );
 
-  // entry_date is the journal_lines partition key - supplied directly as the
+  // entry_date is the journal_lines partition key — supplied directly as the
   // same CURRENT_DATE literal used for the parent journal_entries row above
   // (a BEFORE INSERT trigger deriving it after Postgres has already routed
   // the row to a partition is unsupported).

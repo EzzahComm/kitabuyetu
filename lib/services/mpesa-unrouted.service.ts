@@ -100,7 +100,7 @@ export async function resolveUnrouted(
     if (!opts.memberId) throw new NotFoundError('Member', 'required for allocate');
 
     // The allocation target must hold an active membership in the resolving
-    // group - treasurers must not be able to park receipts on strangers (audit H-1).
+    // group — treasurers must not be able to park receipts on strangers (audit H-1).
     const { membershipId } = await assertActiveMembership(db, ctx.groupId, opts.memberId);
 
     const amount = parseFloat(row.amount);

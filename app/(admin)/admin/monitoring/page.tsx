@@ -58,7 +58,7 @@ export default function MonitoringPage() {
     queryKey: ['admin', 'monitoring-dashboard'],
     queryFn: () => adminFetch<MonitoringDashboardPayload>('/api/admin/dashboard?widget=monitoring_dashboard'),
     // Server cache TTL for this widget is 20s (admin.service.ts
-    // getMonitoringDashboardData) - deliberately short because this page is
+    // getMonitoringDashboardData) — deliberately short because this page is
     // the one place freshness, not caching, is the real intent. A 120s poll
     // against a 20s TTL meant every scheduled refetch was already a
     // guaranteed cache miss (docs/audits/optimization-2026-09); lowered the
@@ -130,28 +130,28 @@ export default function MonitoringPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Transactions today"
-          value={isLoading ? '-' : txnsToday.toLocaleString()}
+          value={isLoading ? '—' : txnsToday.toLocaleString()}
           description={isLoading ? 'Loading…' : formatKES(valueToday)}
           icon={Activity}
           accent="blue"
         />
         <StatCard
           title="M-Pesa success"
-          value={isLoading ? '-' : `${mpesaSuccess.toFixed(1)}%`}
-          description={isLoading ? 'Loading…' : 'C2B - B2C - STK avg'}
+          value={isLoading ? '—' : `${mpesaSuccess.toFixed(1)}%`}
+          description={isLoading ? 'Loading…' : 'C2B · B2C · STK avg'}
           icon={Smartphone}
           accent="green"
         />
         <StatCard
           title="STK Push p95"
-          value={isLoading ? '-' : `${stk?.latency ?? 0}ms`}
+          value={isLoading ? '—' : `${stk?.latency ?? 0}ms`}
           description={isLoading ? 'Loading…' : stk?.note}
           icon={Zap}
           accent={stk?.status === 'operational' ? 'green' : 'orange'}
         />
         <StatCard
           title="SMS delivered"
-          value={isLoading ? '-' : `${smsRate.toFixed(1)}%`}
+          value={isLoading ? '—' : `${smsRate.toFixed(1)}%`}
           description={
             isLoading ? 'Loading…' : `${smsUsage.delivered.toLocaleString()} of ${smsUsage.sentToday.toLocaleString()}`
           }
@@ -184,7 +184,7 @@ export default function MonitoringPage() {
                       <div className="flex shrink-0 flex-col items-end gap-1">
                         <StatusPill status={s.status} tone={statusToneMap[s.status]} label={s.status} size="sm" />
                         <span className="font-mono text-[11px] text-muted-foreground tabular-nums">
-                          {s.latency}ms - {s.success}%
+                          {s.latency}ms · {s.success}%
                         </span>
                       </div>
                     </div>

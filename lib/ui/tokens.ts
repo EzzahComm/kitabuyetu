@@ -1,5 +1,5 @@
 /**
- * Kitabu Yetu - design tokens for JavaScript consumers.
+ * Kitabu Yetu — design tokens for JavaScript consumers.
  *
  * CSS-driven components should keep using Tailwind tokens (`bg-primary`,
  * `text-muted-foreground`, …) and the HSL variables in app/globals.css.
@@ -10,9 +10,9 @@
  *   • logic that maps a domain status → a visual tone
  *
  * The raw brand scale itself lives in lib/ui/brand-palette.ts (the single
- * source of truth also consumed by tailwind.config.ts and lib/brand.ts) -
+ * source of truth also consumed by tailwind.config.ts and lib/brand.ts) —
  * re-exported here for convenience so existing `@/lib/ui/tokens` imports
- * keep working. Do not invent new shades - extend brand-palette.ts instead.
+ * keep working. Do not invent new shades — extend brand-palette.ts instead.
  */
 
 // ── Brand palette (single source: lib/ui/brand-palette.ts) ──────────────────
@@ -29,7 +29,7 @@ export const tone: Record<Tone, { solid: string; fg: string; bg: string; border:
   negative: { solid: '#DC2626', fg: '#991B1B', bg: '#FEE2E2', border: '#FECACA' },
   warning: { solid: '#D97706', fg: '#92400E', bg: '#FEF3C7', border: '#FDE68A' },
   info: { solid: '#0B3C88', fg: '#0A3477', bg: '#E7EEF8', border: '#C6D5ED' },
-  // Yellow - "awaiting / in progress". Warmer & distinct from amber `warning`;
+  // Yellow — "awaiting / in progress". Warmer & distinct from amber `warning`;
   // matches the product's status language (pending contributions, KYC, etc.).
   pending: { solid: '#CA8A04', fg: '#854D0E', bg: '#FEF9C3', border: '#FEF08A' },
   neutral: { solid: '#64748B', fg: '#334155', bg: '#F1F5F9', border: '#E2E8F0' },
@@ -129,7 +129,7 @@ export const chartTheme = {
 } as const;
 
 // ── Layout scales ────────────────────────────────────────────────────────────
-/** Spacing scale in px (Tailwind 4px base) - for JS-computed layouts. */
+/** Spacing scale in px (Tailwind 4px base) — for JS-computed layouts. */
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, '2xl': 32, '3xl': 48 } as const;
 
 /** Responsive breakpoints (mirror Tailwind defaults; mobile-first). */
@@ -137,7 +137,7 @@ export const breakpoints = { sm: 640, md: 768, lg: 1024, xl: 1280, '2xl': 1536 }
 
 export const radius = { sm: 6, md: 8, lg: 10, full: 9999 } as const;
 
-/** z-index ladder - keep overlays predictable across portals. */
+/** z-index ladder — keep overlays predictable across portals. */
 export const zIndex = {
   base: 0,
   dropdown: 40,

@@ -37,7 +37,7 @@ export function toRecipientSpec(value: RecipientSpecValue): unknown {
   }
 }
 
-/** Reverse of toRecipientSpec - used to seed the editor from an existing rule. */
+/** Reverse of toRecipientSpec — used to seed the editor from an existing rule. */
 export function fromRecipientSpec(raw: unknown): RecipientSpecValue {
   if (raw && typeof raw === 'object') {
     const spec = raw as Record<string, unknown>;

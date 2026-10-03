@@ -7,7 +7,7 @@ import { ok, noContent } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** PATCH /api/v1/me/goals/[id] - update one of the signed-in member's own goals. */
+/** PATCH /api/v1/me/goals/[id] — update one of the signed-in member's own goals. */
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {
@@ -18,7 +18,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   });
 }
 
-/** DELETE /api/v1/me/goals/[id] - delete one of the signed-in member's own goals. */
+/** DELETE /api/v1/me/goals/[id] — delete one of the signed-in member's own goals. */
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {

@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 }
 
 /**
- * POST /api/v1/campaigns/:id/withdrawals/:withdrawalId - approve or reject
+ * POST /api/v1/campaigns/:id/withdrawals/:withdrawalId — approve or reject
  * (payouts.manage). Maker-checker: the service rejects a decision by the
  * requester. Approval dispatches the Daraja B2C call.
  */

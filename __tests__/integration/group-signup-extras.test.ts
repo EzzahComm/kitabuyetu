@@ -1,6 +1,6 @@
 /**
  * applyGroupSignupExtras (lib/services/group-signup-extras.ts), against real
- * Postgres: the optional data written right after register_group() commits - the
+ * Postgres: the optional data written right after register_group() commits — the
  * contribution plan, and the government-registration flag with its number and
  * certificate.
  *
@@ -157,7 +157,7 @@ describe('applyGroupSignupExtras', () => {
     expect(mockUploadGroupDocument).not.toHaveBeenCalled();
   });
 
-  it('stores the certificate at the group's own path and records it', async () => {
+  it('stores the certificate at the group’s own path and records it', async () => {
     await resetDatabase();
     const { groupId, officerId } = await createTestGroup('treasurer');
 

@@ -4,7 +4,7 @@
  * email), this shows the member's FULL history including their own
  * pending/failed attempts, paginated.
  *
- * v1 covers contributions + loan repayments + loan disbursements - the
+ * v1 covers contributions + loan repayments + loan disbursements — the
  * three highest-volume, routine transaction types. Dividends/share
  * transactions/fines/welfare are a deliberate, documented follow-up: they
  * already have GL postings via postTemplatedJournal (see the accounting-
@@ -49,7 +49,7 @@ function mapStatus(dbStatus: string): TxnStatus {
   return 'failed'; // failed | cancelled | overdue
 }
 
-// v1 folds bank_transfer/cheque/standing_order (and null) into 'cash' -
+// v1 folds bank_transfer/cheque/standing_order (and null) into 'cash' —
 // passbook-row.tsx's icon map only distinguishes mpesa/cash/auto today.
 function mapMethod(dbMethod: string | null): TxnMethod {
   return dbMethod === 'mpesa' ? 'mpesa' : 'cash';

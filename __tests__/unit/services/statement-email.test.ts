@@ -1,5 +1,5 @@
 /**
- * Per-member account statement email - closes ACCOUNTING_ARCHITECTURE_AUDIT.md
+ * Per-member account statement email — closes ACCOUNTING_ARCHITECTURE_AUDIT.md
  * §12 ("designed, never wired"). Covers the email_preferences specificity
  * cascade (group-specific override beats a global one) since that's the one
  * piece of non-obvious logic in sendMemberStatements.

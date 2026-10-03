@@ -2,7 +2,7 @@
 
 /**
  * Shared UI for both backoffice login surfaces (/admin-login,
- * /enterprise/login) - same forms, two visual variants: 'dark' (staff
+ * /enterprise/login) — same forms, two visual variants: 'dark' (staff
  * console slate theme, matches /admin-login's original look) and 'light'
  * (enterprise brand green/navy, matches the rest of the (enterprise) portal
  * per its own layout.tsx comment: "carries the brand (green + navy)").

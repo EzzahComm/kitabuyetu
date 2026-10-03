@@ -24,7 +24,7 @@ describe('parseRecipientSpec', () => {
     });
   });
 
-  it('rejects "group_admin" - renamed to chairperson in migration 050', () => {
+  it('rejects "group_admin" — renamed to chairperson in migration 050', () => {
     // Guards the enum cast in resolveSmsRecipients: a role no longer in
     // member_role would reach Postgres as `$2::member_role[]` and throw
     // mid-dispatch. Rules written before the rename must fail as config errors.

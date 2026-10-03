@@ -5,7 +5,7 @@
  * `WHERE (group_id=$1 OR group_id IS NULL) ... ORDER BY is_system DESC`, so
  * the PLATFORM's system templates are offered to every group and sort first.
  * Those are written for the automated paths, which pass their variables
- * explicitly - a bulk send supplies none of them. Loading `payment_received`
+ * explicitly — a bulk send supplies none of them. Loading `payment_received`
  * and sending it produces:
  *
  *   "KES received for Umoja (A/C BG102534). Receipt: . Balance: KES ."

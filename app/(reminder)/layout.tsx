@@ -25,12 +25,12 @@ import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal
  * Chama Reminder portal shell.
  *
  * Deliberately narrower than the Kitabu Yetu dashboard: this product is SMS
- * only, so there is no contributions, loans or accounting surface here - and
+ * only, so there is no contributions, loans or accounting surface here — and
  * a Chama-Reminder-only group has no chart of accounts to back one. The server
  * enforces that independently (lib/auth/subscription-gate.ts); this shell just
  * keeps the user from being shown doors that would 402.
  *
- * Gating is on ENTITLEMENT, not role - which is what makes it different from
+ * Gating is on ENTITLEMENT, not role — which is what makes it different from
  * every other portal in the app. A chairperson is a chairperson in both
  * products; what separates them is what the group paid for.
  */
@@ -53,7 +53,7 @@ const NAV: PortalNavSection[] = [
       { href: '/reminder/campaigns', label: 'Campaigns', icon: Megaphone },
       { href: '/reminder/templates', label: 'Templates', icon: LayoutTemplate },
       { href: '/reminder/birthdays', label: 'Birthdays', icon: Cake },
-      // Meeting/event/custom reminders are Phase 5 - there is no table, job or
+      // Meeting/event/custom reminders are Phase 5 — there is no table, job or
       // service behind them yet. `soon` shows the planned IA as a disabled item
       // rather than a link into a 404.
       { href: '/reminder/reminders', label: 'Reminders', icon: BellRing, soon: true },
@@ -96,7 +96,7 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
         router.push('/login');
       },
       // Both 402s land here. PRODUCT_NOT_ENTITLED means this group pays for
-      // Chama Reminder but the page reached for something else - sending it to
+      // Chama Reminder but the page reached for something else — sending it to
       // the subscribe page would be nonsense, so it goes home. Anything else
       // means it owes money, and the subscribe page is where that is fixed.
       onPaymentRequired: (code) => {
@@ -127,7 +127,7 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
 
     // Registered for Chama Reminder but has not paid: it holds no subscription
     // at all, so `products` is empty and only signup_product knows where it
-    // belongs. Let it reach exactly one page - the one that ends the lock.
+    // belongs. Let it reach exactly one page — the one that ends the lock.
     // This mirrors the server's own carve-out: a lock that also blocks paying
     // is an outage, not a business model.
     if (awaitingPayment) {
@@ -135,7 +135,7 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
       return;
     }
 
-    // Anything else - a Kitabu Yetu group, or a group with nothing at all -
+    // Anything else — a Kitabu Yetu group, or a group with nothing at all —
     // belongs on its own portal, not this one.
     router.replace(postLoginPath(isTenantUser(user) ? user.groupRole : undefined, { products, signupProduct }));
   }, [

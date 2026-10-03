@@ -6,9 +6,9 @@ import { CreateReportScheduleSchema } from '@/lib/validators/organization.schema
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * GET  /api/admin/organization/reports/schedules - this organization's
+ * GET  /api/admin/organization/reports/schedules — this organization's
  *   recurring report schedules.
- * POST /api/admin/organization/reports/schedules - create one. The first run
+ * POST /api/admin/organization/reports/schedules — create one. The first run
  *   fires on the next due 5-minute sweep tick (next_run_at defaults to now);
  *   subsequent runs follow `cadence` from there.
  */

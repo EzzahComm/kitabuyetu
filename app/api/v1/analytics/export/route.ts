@@ -11,7 +11,7 @@ import { errorResponse } from '@/lib/utils/response';
  *
  * Role-gated to officers/admins. A regular `member` shouldn't be able
  * to bulk-export the group's credit scores, share holdings, or loan
- * ledger - those reveal financial details about other members.
+ * ledger — those reveal financial details about other members.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withOneOf(req, ['chairperson', 'treasurer', 'secretary', 'super_admin'], async (auth) => {

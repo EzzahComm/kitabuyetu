@@ -23,7 +23,7 @@ export const accountingKeys = {
 // working unchanged; accounting/page.tsx is the one caller that now passes
 // tab === '<name>' explicitly, since all 9 of these previously fired
 // unconditionally on every /accounting load regardless of which of 8 tabs
-// was open - 13 SQL statements across 9 withDb() calls per view
+// was open — 13 SQL statements across 9 withDb() calls per view
 // (docs/audits/optimization-2026-09).
 export function useAccounts(opts?: { enabled?: boolean }) {
   return useQuery({

@@ -1,5 +1,5 @@
 /**
- * Reallocation correction flow - maker-checker guards (ADR-20) and the
+ * Reallocation correction flow — maker-checker guards (ADR-20) and the
  * threshold decision (§15.5):
  *   - below threshold: executes immediately under single control
  *   - above threshold: parks pending_approval, nothing executes
@@ -79,7 +79,7 @@ describe('reallocationsService.initiate', () => {
     const result = await reallocationsService.initiate(ctx, input);
 
     expect(result.needsApproval).toBe(true);
-    // INSERT + its audit log were the last queries - no execution steps followed.
+    // INSERT + its audit log were the last queries — no execution steps followed.
     expect(mockQuery).toHaveBeenCalledTimes(6);
     expect(mockQuery.mock.calls[4][1]).toContain('pending_approval');
   });

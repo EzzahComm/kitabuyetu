@@ -5,7 +5,7 @@ import { ok } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET /api/v1/loans/[id]/charges - every charge ever applied to this loan (processing fee, late fees, …), most recent first. */
+/** GET /api/v1/loans/[id]/charges — every charge ever applied to this loan (processing fee, late fees, …), most recent first. */
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {

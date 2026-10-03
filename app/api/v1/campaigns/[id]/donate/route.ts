@@ -7,11 +7,11 @@ import { checkRateLimit } from '@/lib/redis';
 import { ok, badRequest, notFound, handleError } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/campaigns/<slug>/donate - the ONE public, unauthenticated
+ * POST /api/v1/campaigns/<slug>/donate — the ONE public, unauthenticated
  * endpoint on this platform that can trigger a real M-Pesa STK push (see
  * migration 182's header on why every other money-in path requires an
- * existing member). Rate-limited by phone AND by IP - generous enough for a
- * real supporter, tight enough to block a script hammering the paybill -
+ * existing member). Rate-limited by phone AND by IP — generous enough for a
+ * real supporter, tight enough to block a script hammering the paybill —
  * same `checkRateLimit` (fail-open on Redis loss) already used by
  * app/api/v1/daraja/[token]/c2b-validate for the same reason.
  */

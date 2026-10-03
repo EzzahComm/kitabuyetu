@@ -24,10 +24,10 @@ export function interpolate(template: string, vars: TemplateVars): string {
 
 // Load a template from DB, with optional locale fallback to 'en'. Cached
 // 5 minutes: email_templates has held zero rows in production the entire
-// time this has existed, yet this ran ~24,500 times in 121 days - every
+// time this has existed, yet this ran ~24,500 times in 121 days — every
 // templated send opened its own connection/BEGIN/COMMIT to ask the same
 // permanently-empty table the same question. The negative (null) result is
-// cached too - DEFAULT_TEMPLATES already supplies the fallback the caller
+// cached too — DEFAULT_TEMPLATES already supplies the fallback the caller
 // needs either way, so "not found" is a perfectly stable, cacheable answer
 // (docs/audits/optimization-2026-09).
 export async function loadDbTemplate(
@@ -71,7 +71,7 @@ export async function loadDbTemplate(
   });
 }
 
-// Load group branding from DB. Cached 5 minutes - group_email_branding has
+// Load group branding from DB. Cached 5 minutes — group_email_branding has
 // held zero rows in production the entire time this has existed, yet this
 // ran ~24,400 times in 121 days for the same reason as loadDbTemplate above.
 export async function loadBranding(groupId: string | null): Promise<BrandingContext> {
@@ -98,7 +98,7 @@ export async function loadBranding(groupId: string | null): Promise<BrandingCont
   });
 }
 
-// Wrap body content in a branded HTML shell. Designed for email clients -
+// Wrap body content in a branded HTML shell. Designed for email clients —
 // inline styles, table-based layout, no JS, no external CSS.
 export function wrapWithBranding(content: string, branding: BrandingContext): string {
   const primary = branding.primaryColor ?? BRAND.colors.green;
@@ -164,7 +164,7 @@ export async function renderTemplate(
   }
 
   // Fall back to inline default. Previously discarded the fallback
-  // template's own subject entirely - every one of the 47,947
+  // template's own subject entirely — every one of the 47,947
   // group_verification_link emails ever sent (its DEFAULT_TEMPLATES entry
   // has never had a DB row to override it) carried the generic subject
   // "Kitabu Yetu" instead of "Verify your Kitabu Yetu group", with no

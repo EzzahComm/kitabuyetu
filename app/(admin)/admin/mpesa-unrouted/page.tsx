@@ -44,7 +44,7 @@ interface UnroutedRow {
 type Action = 'allocate' | 'activate_subscription' | 'dismiss';
 
 /** account_reference values the real STK purchase flow actually sends
- *  (PRODUCT_REFERENCE in plan-purchase.tsx) - a payment carrying one of
+ *  (PRODUCT_REFERENCE in plan-purchase.tsx) — a payment carrying one of
  *  these almost certainly started as a subscription attempt, so default the
  *  dialog to "Activate subscription" instead of "Allocate" for these. */
 const SUBSCRIPTION_REFS = new Set(['SUBSCRIPT', 'REMINDER']);
@@ -56,13 +56,13 @@ const SUBSCRIPTION_REFS = new Set(['SUBSCRIPT', 'REMINDER']);
  * own dashboard: that one can only resolve a row whose candidate_group_id
  * already matches the signed-in treasurer's group, and the router leaves
  * candidate_group_id NULL whenever it can't even guess a group
- * (reason='unknown_prefix') - which is most rows here. No group's treasurer
+ * (reason='unknown_prefix') — which is most rows here. No group's treasurer
  * session can ever reach those, no matter how obvious the right member is
  * from the receipt reference or the payer's name on the C2B payload. This
  * page picks the group explicitly instead of relying on that guess.
  *
  * 'Activate subscription' exists alongside 'Allocate' because 'SUBSCRIPT'
- * (and Chama Reminder's 'REMINDER') are not per-group references - every
+ * (and Chama Reminder's 'REMINDER') are not per-group references — every
  * group's STK subscription attempt sends the same one, so a payment stuck
  * here on that ref could belong to any kitabu_yetu/chama_reminder group.
  * Staff pick the actual group the same way as allocate; the plan/product/
@@ -93,7 +93,7 @@ export default function MpesaUnroutedPage() {
   const items: UnroutedRow[] = data?.items ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
-  // Server-computed over the whole filtered queue, not just this page - a
+  // Server-computed over the whole filtered queue, not just this page — a
   // page-only reduce here silently understated the true unreconciled amount
   // once the backlog exceeded one page (docs/audits/optimization-2026-09).
   const totalAmount = data?.totalValue ?? 0;
@@ -112,7 +112,7 @@ export default function MpesaUnroutedPage() {
 
   const closeResolve = () => setTarget(null);
 
-  // What one cycle of the selected plan actually costs - shown so staff can
+  // What one cycle of the selected plan actually costs — shown so staff can
   // see at a glance whether the receipt's amount plausibly covers it before
   // submitting (the server enforces this for real; this is just a preview).
   const expectedFee = PLAN_MONTHLY_FEES[product][planType] * BILLING_CYCLE_MONTHS[cycle];
@@ -156,7 +156,7 @@ export default function MpesaUnroutedPage() {
     <div className="space-y-5">
       <PageHeader
         title="Unrouted M-Pesa Payments"
-        description="Payments the automatic router couldn't place - allocate to a member, activate a subscription, or dismiss (e.g. a confirmed test payment)"
+        description="Payments the automatic router couldn't place — allocate to a member, activate a subscription, or dismiss (e.g. a confirmed test payment)"
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -190,7 +190,7 @@ export default function MpesaUnroutedPage() {
         isError={isError}
         error={error}
         onPageChange={setPage}
-        emptyMessage="No unrouted payments - the queue is clear"
+        emptyMessage="No unrouted payments — the queue is clear"
         columns={[
           {
             key: 'receipt',
@@ -207,7 +207,7 @@ export default function MpesaUnroutedPage() {
             header: 'Account ref',
             render: (row) => (
               <span className="font-mono text-xs text-muted-foreground">
-                {row.bill_ref ?? '-'}
+                {row.bill_ref ?? '—'}
                 {SUBSCRIPTION_REFS.has(row.bill_ref ?? '') && (
                   <span className="ml-1.5 rounded-full bg-blue-50 px-1.5 py-0.5 text-[10px] font-sans font-medium text-blue-700">
                     likely subscription
@@ -223,7 +223,7 @@ export default function MpesaUnroutedPage() {
               row.candidate_group_name ? (
                 <span className="text-sm">{row.candidate_group_name}</span>
               ) : (
-                <span className="text-xs text-muted-foreground italic">none - router couldn&apos;t guess</span>
+                <span className="text-xs text-muted-foreground italic">none — router couldn&apos;t guess</span>
               ),
           },
           {
@@ -262,8 +262,8 @@ export default function MpesaUnroutedPage() {
             <div className="space-y-4">
               <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground space-y-0.5">
                 <p>
-                  <span className="font-medium">{formatKES(Number(target.amount))}</span> - ref{' '}
-                  <span className="font-mono">{target.bill_ref ?? '-'}</span>
+                  <span className="font-medium">{formatKES(Number(target.amount))}</span> · ref{' '}
+                  <span className="font-mono">{target.bill_ref ?? '—'}</span>
                 </p>
                 <p>{target.reason}</p>
               </div>
@@ -420,7 +420,7 @@ export default function MpesaUnroutedPage() {
                     {Number(target.amount) < expectedFee && (
                       <span className="text-red-600">
                         {' '}
-                        - this receipt doesn&apos;t cover it; the server will refuse to activate.
+                        — this receipt doesn&apos;t cover it; the server will refuse to activate.
                       </span>
                     )}
                   </p>

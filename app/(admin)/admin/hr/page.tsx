@@ -87,7 +87,7 @@ export default function HrEmployeesPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="HR - Employees"
+        title="HR — Employees"
         description="Kitabu Yetu's internal team directory."
         actions={
           <Dialog
@@ -293,8 +293,8 @@ export default function HrEmployeesPage() {
                       </Link>
                       <p className="text-xs text-muted-foreground">{e.email}</p>
                     </TableCell>
-                    <TableCell>{e.department ?? '-'}</TableCell>
-                    <TableCell>{e.job_title ?? '-'}</TableCell>
+                    <TableCell>{e.department ?? '—'}</TableCell>
+                    <TableCell>{e.job_title ?? '—'}</TableCell>
                     <TableCell>{EMPLOYMENT_TYPE_LABEL[e.employment_type]}</TableCell>
                     <TableCell>
                       <Badge variant={STATUS_VARIANT[e.employment_status]}>

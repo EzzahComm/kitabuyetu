@@ -6,7 +6,7 @@
  *
  * Why this exists: a plain `<a href="/api/v1/…" download>` looks like the
  * obvious solution but it 401s. The proxy enforces JWT on /api/v1/*, and
- * the JWT lives in localStorage - browsers do NOT include localStorage
+ * the JWT lives in localStorage — browsers do NOT include localStorage
  * values on navigation/download requests, so the request goes out without
  * any Authorization header.
  *
@@ -36,7 +36,7 @@ function filenameFromContentDisposition(header: string | null): string | null {
   if (!header) return null;
   // Match `filename="..."` or `filename=...` (no quotes); RFC 5987's
   // `filename*=UTF-8''...` form is not handled because no current endpoint
-  // emits it - add only when needed.
+  // emits it — add only when needed.
   const m = /filename\s*=\s*"?([^";]+)"?/i.exec(header);
   return m?.[1] ?? null;
 }
@@ -67,7 +67,7 @@ export async function downloadAuthenticated(url: string, options: DownloadOption
       const body = (await res.json()) as { error?: string };
       if (body?.error) detail = body.error;
     } catch {
-      // Body wasn't JSON - keep the HTTP status as the error message.
+      // Body wasn't JSON — keep the HTTP status as the error message.
     }
     throw new Error(detail);
   }

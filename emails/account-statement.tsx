@@ -58,7 +58,7 @@ export default function AccountStatement({
         Your statement
       </Heading>
       <Text style={{ margin: 0, fontSize: 14, color: c.textMuted }}>
-        {memberName} - {groupName} - {period}
+        {memberName} · {groupName} · {period}
       </Text>
 
       <Section style={{ padding: '14px 0 4px' }}>
@@ -82,7 +82,7 @@ export default function AccountStatement({
       {transactions.slice(0, 8).map((t, i) => (
         <InfoRow
           key={i}
-          label={`${t.date} - ${t.label}`}
+          label={`${t.date} · ${t.label}`}
           value={
             <span style={{ color: t.direction === 'in' ? c.green : c.text }}>
               {t.direction === 'in' ? '+' : '−'}

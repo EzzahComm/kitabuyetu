@@ -6,11 +6,11 @@ import { SetLoanTermsSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/loans/policy - this group's effective loan terms (default
+ * GET /api/v1/loans/policy — this group's effective loan terms (default
  *   interest rate/method, max term, loan multiplier) with resolution source.
  *   Any authenticated member can read: the loan-application form uses these
  *   as its advisory defaults.
- * PUT /api/v1/loans/policy - set a group-level override. Chairperson only -
+ * PUT /api/v1/loans/policy — set a group-level override. Chairperson only —
  *   this changes the group's default lending terms.
  */
 

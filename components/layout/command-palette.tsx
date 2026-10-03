@@ -31,7 +31,7 @@ import { authApi } from '@/lib/api/endpoints';
 import { createCommandPalette, type CommandPaletteGroup } from '@/components/shared/command-palette';
 
 /**
- * Global ⌘K / Ctrl-K command palette for the tenant dashboard - a
+ * Global ⌘K / Ctrl-K command palette for the tenant dashboard — a
  * configuration wrapper around the shared shell in
  * components/shared/command-palette.tsx (the same shell components/admin's
  * palette uses). Only the command set, role-conditional entries, and the
@@ -109,7 +109,7 @@ function useDashboardCommandGroups(): CommandPaletteGroup[] {
 
     // The Funding Portal entry lived here pointing at /organization. That
     // screen moved to the Organizations portal (/enterprise/funding) and is
-    // reached from its own sidebar - this palette serves the GROUP portal, so
+    // reached from its own sidebar — this palette serves the GROUP portal, so
     // offering a jump into a different portal's screen would just 403 anyone
     // whose session isn't an organization one.
 

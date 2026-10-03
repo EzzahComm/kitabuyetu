@@ -127,7 +127,7 @@ export default function DataImportPage() {
   const [kind, setKind] = useState<Kind>('members');
   const [phase, setPhase] = useState<Phase>('idle');
   const [job, setJob] = useState<ImportJob | null>(null);
-  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 - rollback used to gate on a native
+  // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — rollback used to gate on a native
   // window.confirm(): unstyled, unbrandable, and on some mobile browsers
   // suppressible entirely, which would silently skip the guard on a
   // destructive action. The audit flagged this site; a repo grep found three
@@ -212,7 +212,7 @@ export default function DataImportPage() {
         <PageHeader className="flex-1" title="Data Import" />
       </div>
 
-      {/* Kind selector - locked once a job is in flight */}
+      {/* Kind selector — locked once a job is in flight */}
       <div className="flex gap-2 flex-wrap">
         {(Object.keys(KIND_META) as Kind[]).map((k) => {
           const meta = KIND_META[k];
@@ -319,7 +319,7 @@ function IdleView({ kind, onUpload }: { kind: Kind; onUpload: (f: File) => void 
             <Upload className="mx-auto h-10 w-10 text-muted-foreground" />
             <p className="mt-3 font-medium">Drag &amp; drop your {KIND_META[kind].label.toLowerCase()} CSV</p>
             <p className="text-sm text-muted-foreground">or click to browse</p>
-            <p className="mt-3 text-xs text-muted-foreground">Maximum 5MB - up to 5000 rows - CSV only</p>
+            <p className="mt-3 text-xs text-muted-foreground">Maximum 5MB · up to 5000 rows · CSV only</p>
             <input
               ref={inputEl}
               type="file"
@@ -371,7 +371,7 @@ function PreviewView({ job, onCommit, onDiscard }: { job: ImportJob; onCommit: (
         <StatCard title="Valid" value={job.valid_rows} />
         {/* Not converted: color here is a real signal (turns red only when
             error_rows > 0), which StatCard's plain string|number value can't
-            express - kept on SummaryCard per the component-reference skip rule. */}
+            express — kept on SummaryCard per the component-reference skip rule. */}
         <SummaryCard label="Errors" value={job.error_rows} valueClass={hasErrors ? 'text-red-600' : ''} />
       </div>
 
@@ -456,7 +456,7 @@ function PreviewTable({ kind, rows }: { kind: Kind; rows: MemberRow[] | Contribu
             render: (r) => [r.first_name, r.middle_name, r.last_name].filter(Boolean).join(' '),
           },
           { key: 'role', header: 'Role', render: (r) => <Badge variant="secondary">{r.role}</Badge> },
-          { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '-' },
+          { key: 'occupation', header: 'Occupation', render: (r) => r.occupation ?? '—' },
           {
             key: 'warnings',
             header: 'Warnings',
@@ -464,7 +464,7 @@ function PreviewTable({ kind, rows }: { kind: Kind; rows: MemberRow[] | Contribu
               r.warnings.length > 0 ? (
                 <span className="text-amber-600">{r.warnings.join('; ')}</span>
               ) : (
-                <span className="text-muted-foreground">-</span>
+                <span className="text-muted-foreground">—</span>
               ),
           },
         ]}
@@ -493,11 +493,11 @@ function PreviewTable({ kind, rows }: { kind: Kind; rows: MemberRow[] | Contribu
             ),
           },
           { key: 'contribution_date', header: 'Date', render: (r) => r.contribution_date },
-          { key: 'payment_method', header: 'Method', render: (r) => r.payment_method ?? '-' },
+          { key: 'payment_method', header: 'Method', render: (r) => r.payment_method ?? '—' },
           {
             key: 'mpesa_receipt',
             header: 'Receipt',
-            render: (r) => <span className="font-mono text-xs">{r.mpesa_receipt ?? '-'}</span>,
+            render: (r) => <span className="font-mono text-xs">{r.mpesa_receipt ?? '—'}</span>,
           },
         ]}
       />
@@ -545,7 +545,7 @@ function PreviewTable({ kind, rows }: { kind: Kind; rows: MemberRow[] | Contribu
             </Badge>
           ),
         },
-        { key: 'purpose', header: 'Purpose', render: (r) => r.purpose ?? '-' },
+        { key: 'purpose', header: 'Purpose', render: (r) => r.purpose ?? '—' },
       ]}
     />
   );
@@ -589,7 +589,7 @@ function ResultView({
         <div className="grid gap-3 md:grid-cols-3">
           <StatCard title="Imported" value={job.imported ?? job.created_member_ids.length} />
           <StatCard title="Skipped" value={job.skipped ?? 0} />
-          {/* Not converted: amber only when error_rows > 0 - same real-signal
+          {/* Not converted: amber only when error_rows > 0 — same real-signal
               exception as the preview view above. */}
           <SummaryCard label="Errors" value={job.error_rows} valueClass={job.error_rows > 0 ? 'text-amber-600' : ''} />
         </div>

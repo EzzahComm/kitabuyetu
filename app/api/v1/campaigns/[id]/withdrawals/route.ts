@@ -9,7 +9,7 @@ import { ok, created, handleError, errorResponse } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** GET /api/v1/campaigns/:id/withdrawals - list this campaign's withdrawals. */
+/** GET /api/v1/campaigns/:id/withdrawals — list this campaign's withdrawals. */
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'payouts.manage', async (auth) => {
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 }
 
 /**
- * POST /api/v1/campaigns/:id/withdrawals - request a withdrawal to the
+ * POST /api/v1/campaigns/:id/withdrawals — request a withdrawal to the
  * campaign's payout phone. Reserves the funds immediately; a second officer
  * must approve before anything reaches Daraja. Same sensitive-op re-check as
  * every other outbound-money route (§2.5): outbound money must not ride a

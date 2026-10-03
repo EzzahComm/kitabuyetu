@@ -5,7 +5,7 @@ import { retryDelivery } from '@/lib/notifications/activity-query';
 import { NotFoundError } from '@/lib/utils/errors';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/admin/activity/deliveries/:id/retry - re-arm a FAILED admin notification. */
+/** POST /api/admin/activity/deliveries/:id/retry — re-arm a FAILED admin notification. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const { id } = await params;

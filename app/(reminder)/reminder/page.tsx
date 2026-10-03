@@ -25,17 +25,17 @@ export default function ReminderDashboardPage() {
   const upcoming = birthdays?.upcoming ?? [];
 
   // Deliberately four plain numbers rather than charts. The people running a
-  // chama want to know whether they can send, to how many, and what is due -
+  // chama want to know whether they can send, to how many, and what is due —
   // not to interpret a trend line.
   const stats = [
     {
       label: 'Members',
-      value: members?.total ?? '-',
+      value: members?.total ?? '—',
       tone: 'text-foreground',
     },
     {
       label: 'SMS credits',
-      value: credits ?? '-',
+      value: credits ?? '—',
       // The only number that stops the product working when it hits zero.
       tone: credits != null && credits < 50 ? 'text-amber-600' : 'text-foreground',
     },

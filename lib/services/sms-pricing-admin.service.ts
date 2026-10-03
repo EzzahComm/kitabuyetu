@@ -6,7 +6,7 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 /**
  * Super-admin control over SMS pricing (spec §12). INTERNAL ONLY.
  *
- * Every mutation here writes an audit_logs row - §12 ends with "All changes
+ * Every mutation here writes an audit_logs row — §12 ends with "All changes
  * should be auditable", and a price change with no record of who made it is
  * the one kind of change you most want to be able to trace.
  *
@@ -18,7 +18,7 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  * Row shapes for the three pricing tables (migration 143), snake_case exactly
  * as Postgres returns them. Declared here so `getPricingConfig()`'s return type
  * is real rather than `any[]`, which is what lets the admin screen derive its
- * types from this service instead of hand-writing a parallel set that drifts -
+ * types from this service instead of hand-writing a parallel set that drifts —
  * the same failure `CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md` catalogued.
  *
  * NUMERIC columns arrive as strings: node-postgres will not narrow a
@@ -227,7 +227,7 @@ export async function setActiveTiers(actorId: string, tierIds: string[]) {
     await audit(db, actorId, 'sms_pricing.tiers_activated', null, before, after);
 
     // The overlap check runs when withAdminDb commits. An overlapping request
-    // therefore throws and changes nothing - the price list cannot be left
+    // therefore throws and changes nothing — the price list cannot be left
     // half-switched.
     return after;
   });
@@ -264,7 +264,7 @@ export async function updatePackage(
     if (!before[0]) throw new NotFoundError('SMS package', id);
 
     // Only one active package may be recommended (partial unique index), and
-    // the same per-row checking applies - clear the old one first rather than
+    // the same per-row checking applies — clear the old one first rather than
     // relying on a single statement to sequence itself.
     if (input.isRecommended) {
       await db.query(
@@ -310,7 +310,7 @@ export async function updatePackage(
  */
 export async function setProviderCost(actorId: string, unitCost: number, notes?: string) {
   if (unitCost < 0) throw new ValidationError('Provider cost cannot be negative');
-  // Again no manual transaction - withAdminDb provides one, and closing the old
+  // Again no manual transaction — withAdminDb provides one, and closing the old
   // window plus opening the new one must land together or not at all.
   return withAdminDb(async (db) => {
     const { rows: before } = await db.query<SmsProviderCostRow>(

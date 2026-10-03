@@ -136,8 +136,8 @@ export function CallbackForm({ variant = 'callback', className }: CallbackFormPr
         </button>
       </div>
       <p role="status" className="text-sm text-finanza-text sm:col-span-2">
-        {sent === 'whatsapp' && 'WhatsApp has opened with your message - press send there and we will reply.'}
-        {sent === 'email' && `Your email app has opened with your message to ${CONTACT.email} - press send there.`}
+        {sent === 'whatsapp' && 'WhatsApp has opened with your message — press send there and we will reply.'}
+        {sent === 'email' && `Your email app has opened with your message to ${CONTACT.email} — press send there.`}
         {!sent && 'Opens WhatsApp or your email app with your message ready to send.'}
       </p>
     </form>

@@ -1,10 +1,10 @@
 /**
- * Portfolio health - the "what needs attention?" layer of the enterprise
+ * Portfolio health — the "what needs attention?" layer of the enterprise
  * dashboard (§1.5).
  *
  * §1.5 requires every dashboard to answer three questions in order: what is
  * happening, what needs attention, what do I do next. The portfolio dashboard
- * answered only the first - it showed totals and nothing about risk, so a
+ * answered only the first — it showed totals and nothing about risk, so a
  * coordinator could read a healthy-looking page while a third of the portfolio
  * sat in arrears.
  *
@@ -15,7 +15,7 @@
  *
  * THE PREDICATES ARE NOT NEW. They are lifted verbatim from
  * analytics.service.ts (the group-level risk view), because two definitions of
- * "overdue" that disagree would be worse than having none - the coordinator
+ * "overdue" that disagree would be worse than having none — the coordinator
  * would see one number on the portfolio page and a different one after drilling
  * into a group:
  *
@@ -50,7 +50,7 @@ export interface PortfolioHealth {
   groupsInArrearsPct: number | null;
   defaultedLoans: number;
   defaultedOutstanding: string;
-  /** Members currently marked inactive. A COUNT, not a rate - see below. */
+  /** Members currently marked inactive. A COUNT, not a rate — see below. */
   inactiveMembers: number;
   /** Members who joined in the last 30 days. */
   newMembers30d: number;
@@ -68,7 +68,7 @@ interface HealthRow {
   new_members_30d: string;
 }
 
-/** Percentage, or null when the denominator is zero - never a fabricated 0%. */
+/** Percentage, or null when the denominator is zero — never a fabricated 0%. */
 const pct = (numerator: number, denominator: number): number | null =>
   denominator > 0 ? Math.round((numerator / denominator) * 1000) / 10 : null;
 
@@ -81,12 +81,12 @@ export const organizationHealthService = {
    * to be active and no period over which a rate could honestly be computed.
    * What is returned instead is the current inactive COUNT plus 30-day joins.
    * Deriving a "churn %" from those would be presenting a number the data does
-   * not support - the same failure R10 names for money, applied to a ratio.
+   * not support — the same failure R10 names for money, applied to a ratio.
    * A real rate needs a `left_at` column; backfilling one for past departures
    * would be fiction.
    *
    * R10: returns null rather than throwing when the aggregate cannot be read,
-   * so the caller reports it as unavailable instead of rendering zero risk -
+   * so the caller reports it as unavailable instead of rendering zero risk —
    * "no arrears" and "could not check for arrears" must not look alike.
    */
   async getPortfolioHealth(ctx: TenantContext): Promise<PortfolioHealth | null> {
@@ -151,7 +151,7 @@ export const organizationHealthService = {
         if (!r) {
           // The aggregate runs over `linked`, so an organization with no linked
           // groups still yields one row of zeros. No row means the read gave no
-          // answer - reporting that as "no risk" is the failure to avoid.
+          // answer — reporting that as "no risk" is the failure to avoid.
           logger.error('[organization-health] portfolio health aggregate returned no row');
           return null;
         }

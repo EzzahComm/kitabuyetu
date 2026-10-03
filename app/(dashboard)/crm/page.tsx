@@ -153,7 +153,7 @@ export default function CrmContactsPage() {
                           This contact has agreed to receive marketing communications
                         </Label>
                         <p className="text-xs text-muted-foreground">
-                          Leave unchecked unless they&rsquo;ve explicitly consented - a contact can&rsquo;t be targeted
+                          Leave unchecked unless they&rsquo;ve explicitly consented — a contact can&rsquo;t be targeted
                           by any campaign until this is on.
                         </p>
                       </div>
@@ -192,7 +192,7 @@ export default function CrmContactsPage() {
                       {c.marketing_opt_in && <Badge variant="outline">Opted in</Badge>}
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      {[c.email, c.phone].filter(Boolean).join(' - ') || 'No contact details on file'}
+                      {[c.email, c.phone].filter(Boolean).join(' · ') || 'No contact details on file'}
                     </p>
                   </div>
                 </CardContent>

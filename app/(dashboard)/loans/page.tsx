@@ -37,7 +37,7 @@ type LoanRow = Loan & { member_name: string };
 const applySchema = z.object({
   memberId: z.string().min(1),
   principalAmount: z.coerce.number().positive().min(100),
-  // Annual. Mirrors CreateLoanSchema's 300 ceiling - a tighter bound here just
+  // Annual. Mirrors CreateLoanSchema's 300 ceiling — a tighter bound here just
   // blocks the value client-side before the server ever sees it.
   interestRate: z.coerce.number().positive().max(300),
   loanTermMonths: z.coerce.number().int().positive().max(120),
@@ -58,7 +58,7 @@ export default function LoansPage() {
     status: status === 'all' ? undefined : status,
   });
   // pageSize is not a param the members API accepts (silently dropped by
-  // zod's non-strict parse, leaving `limit` at its default of 20) - matches
+  // zod's non-strict parse, leaving `limit` at its default of 20) — matches
   // the working contributions/page.tsx precedent (docs/audits/
   // optimization-2026-09).
   const { data: membersData } = useMembers({ limit: 100, status: 'active' });
@@ -66,7 +66,7 @@ export default function LoansPage() {
   const applyLoan = useApplyLoan();
 
   // Advisory defaults from the group's resolved LoanPolicy (group ->
-  // organization -> platform cascade) - officers can still type a different
+  // organization -> platform cascade) — officers can still type a different
   // rate/term on any individual loan.
   const policyTerms = loanPolicy?.terms;
   // Empty when the group has not declared fixed durations, which keeps the
@@ -85,7 +85,7 @@ export default function LoansPage() {
   });
 
   // Watched so the officer sees the instalment count change as they pick a
-  // cadence - a 12-month loan is 12 payments monthly but 52 weekly, and that
+  // cadence — a 12-month loan is 12 payments monthly but 52 weekly, and that
   // is the single most surprising consequence of this field.
   const watchedTerm = useWatch({ control, name: 'loanTermMonths' });
   const watchedFreq = useWatch({ control, name: 'repaymentFrequency' });
@@ -141,7 +141,7 @@ export default function LoansPage() {
       render: (row: LoanRow) =>
         `${row.loan_term_months}m${
           row.repayment_frequency && row.repayment_frequency !== 'monthly'
-            ? ` - ${FREQUENCY_LABELS[row.repayment_frequency].toLowerCase()}`
+            ? ` · ${FREQUENCY_LABELS[row.repayment_frequency].toLowerCase()}`
             : ''
         }`,
     },
@@ -149,7 +149,7 @@ export default function LoansPage() {
     {
       key: 'disbursedAt',
       header: 'Disbursed',
-      render: (row: LoanRow) => (row.disbursed_at ? formatDate(row.disbursed_at) : '-'),
+      render: (row: LoanRow) => (row.disbursed_at ? formatDate(row.disbursed_at) : '—'),
     },
   ];
 
@@ -222,7 +222,7 @@ export default function LoansPage() {
               <div className="space-y-1">
                 {/* Says "per year" because migration 167 made the engine read
                     it that way. It previously said "%/month" and the engine
-                    agreed - but every rate anyone actually entered was an
+                    agreed — but every rate anyone actually entered was an
                     annual one, so a product sold at 5% p.a. was scheduled at
                     5% a month and priced twelve times over. The unit belongs
                     on the label; leaving it to be inferred is what cost
@@ -282,7 +282,7 @@ export default function LoansPage() {
                   number and size of instalments, never the total cost. */}
               <p className="text-xs text-muted-foreground">
                 {watchedTerm > 0 && watchedFreq
-                  ? `${installmentCount(Number(watchedTerm), watchedFreq)} instalments over ${watchedTerm} month${Number(watchedTerm) === 1 ? '' : 's'} - same total cost either way`
+                  ? `${installmentCount(Number(watchedTerm), watchedFreq)} instalments over ${watchedTerm} month${Number(watchedTerm) === 1 ? '' : 's'} — same total cost either way`
                   : 'Term stays in months; this only changes how often instalments fall due'}
               </p>
             </div>

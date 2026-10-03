@@ -17,7 +17,7 @@
  * some POS apps strip dashes entirely. We normalise on parse and only fall
  * through to `kind=unknown` when no prefix matches.
  *
- * Returns a pure RoutingDecision object - no DB calls, no I/O. The handler
+ * Returns a pure RoutingDecision object — no DB calls, no I/O. The handler
  * decides what to do with it (look up the group, fall through to unrouted,
  * etc.).
  */
@@ -69,7 +69,7 @@ export function parseBillRefNumber(input: string | null | undefined): RoutingDec
   const raw = (input ?? '').toString();
   const normalised = normalise(raw);
 
-  // Invoice number: INV-YYYY-NNNNNN. Highest priority - distinct format.
+  // Invoice number: INV-YYYY-NNNNNN. Highest priority — distinct format.
   if (INVOICE_RE.test(normalised)) {
     return decision('invoice', { normalised, raw, invoiceNumber: normalised });
   }
@@ -124,7 +124,7 @@ export function parseBillRefNumber(input: string | null | undefined): RoutingDec
     });
   }
 
-  // First token didn't look like a group code - pass it through as entity id
+  // First token didn't look like a group code — pass it through as entity id
   // for the handler to attempt a soft match.
   return decision(kind, {
     normalised,
@@ -135,7 +135,7 @@ export function parseBillRefNumber(input: string | null | undefined): RoutingDec
 }
 
 /**
- * Lightweight predicate - true when the input *looks like* a Daraja test/sandbox
+ * Lightweight predicate — true when the input *looks like* a Daraja test/sandbox
  * test ref. Used by the handler to skip noisy unrouted-queue inserts during
  * sandbox testing. We don't bypass routing entirely, just suppress unrouted
  * inserts for known-junk values.

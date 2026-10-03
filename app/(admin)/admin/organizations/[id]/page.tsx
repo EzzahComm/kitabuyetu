@@ -347,7 +347,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
       {/* Header */}
       <PageHeader
         title={org.name}
-        description={`${org.county || 'No county set'}${org.registration_number ? ` - ${org.registration_number}` : ''}`}
+        description={`${org.county || 'No county set'}${org.registration_number ? ` · ${org.registration_number}` : ''}`}
         breadcrumbs={[{ label: 'Organizations', href: '/admin/organizations' }, { label: org.name }]}
         actions={
           <DropdownMenu>
@@ -396,7 +396,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
         />
       </div>
 
-      {/* Plan - never self-serve; only assigned/changed here. */}
+      {/* Plan — never self-serve; only assigned/changed here. */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-4 py-4">
           <div className="flex items-center gap-2.5">
@@ -405,17 +405,17 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Plan</p>
               <p className="text-lg font-semibold text-foreground capitalize">
                 {planLoading
-                  ? '-'
+                  ? '—'
                   : planData?.subscription
-                    ? `${planData.subscription.plan_type.replace('_', '+')} - ${formatKES(planData.subscription.monthly_fee)}/mo`
+                    ? `${planData.subscription.plan_type.replace('_', '+')} · ${formatKES(planData.subscription.monthly_fee)}/mo`
                     : 'No plan assigned'}
               </p>
             </div>
           </div>
           {planData?.subscription && !planLoading && (
             <p className="text-xs text-muted-foreground">
-              {planData.usage.linkedGroups} of {planData.subscription.max_linked_groups ?? '∞'} groups -{' '}
-              {planData.usage.staff} of {planData.subscription.max_staff ?? '∞'} staff -{' '}
+              {planData.usage.linkedGroups} of {planData.subscription.max_linked_groups ?? '∞'} groups ·{' '}
+              {planData.usage.staff} of {planData.subscription.max_staff ?? '∞'} staff ·{' '}
               {planData.usage.activeFundingPrograms} of {planData.subscription.max_funding_programs ?? '∞'} programs
             </p>
           )}
@@ -445,7 +445,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
           <CardContent>
             {assigned.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No groups assigned yet. Use "Assign group" to link groups this organization oversees.
+                No groups assigned yet. Use “Assign group” to link groups this organization oversees.
               </p>
             ) : (
               <div className="divide-y divide-gray-100">
@@ -455,9 +455,9 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                       <p className="text-sm font-medium text-foreground truncate">{g.group_name}</p>
                       <p className="text-xs text-muted-foreground">
                         <span className="font-mono">{g.group_code}</span>
-                        {' - '}
+                        {' · '}
                         {parseInt(g.member_count ?? '0').toLocaleString()} members
-                        {' - '}
+                        {' · '}
                         {formatKES(g.total_contributions)} contributions
                         <span className="ml-1 uppercase text-[10px] text-muted-foreground">({g.access_level})</span>
                       </p>
@@ -478,7 +478,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
         </Card>
 
         <div className="space-y-5">
-          {/* Staff - multi-staff organizations (migration 101). Coordinator
+          {/* Staff — multi-staff organizations (migration 101). Coordinator
               info used to be a single read-only name/email/phone here; that
               was also the only place org staff could ever be assigned, and
               only by direct SQL (no UI existed at all). This replaces it
@@ -511,7 +511,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                       </p>
                       <p className="truncate text-[11px] text-muted-foreground">
                         {s.phone}
-                        {s.email ? ` - ${s.email}` : ''}
+                        {s.email ? ` · ${s.email}` : ''}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
@@ -538,12 +538,12 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               <p className="flex items-start gap-1.5 rounded-md bg-muted px-2 py-1.5 text-[11px] leading-snug text-muted-foreground">
                 <Info size={12} className="mt-0.5 shrink-0" />
                 Staff sign in and manage this organization (wallet, programs, disbursements) through the separate Kitabu
-                Enterprise portal - same organization, a different sign-in.
+                Enterprise portal — same organization, a different sign-in.
               </p>
             </CardContent>
           </Card>
 
-          {/* Pending invitations - the invite feature (migration 102) shipped
+          {/* Pending invitations — the invite feature (migration 102) shipped
               without any way to see what happened after "Send invite" was
               clicked. This closes that gap: status, resend, cancel. */}
           {(() => {
@@ -695,8 +695,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                   onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="staff">Staff - day-to-day operations</option>
-                  <option value="lead">Lead - can also manage other staff</option>
+                  <option value="staff">Staff — day-to-day operations</option>
+                  <option value="lead">Lead — can also manage other staff</option>
                 </select>
               </div>
               <DialogFooter>
@@ -711,7 +711,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
 
             <TabsContent value="invite" className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Emails a link to confirm and set their own password - they also verify their phone by SMS code.
+                Emails a link to confirm and set their own password — they also verify their phone by SMS code.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -743,8 +743,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                   onChange={(e) => setStaffRole(e.target.value as 'lead' | 'staff')}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="staff">Staff - day-to-day operations</option>
-                  <option value="lead">Lead - can also manage other staff</option>
+                  <option value="staff">Staff — day-to-day operations</option>
+                  <option value="lead">Lead — can also manage other staff</option>
                 </select>
               </div>
               <DialogFooter>
@@ -806,7 +806,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                 <option value="">Select a group…</option>
                 {assignable.map((g) => (
                   <option key={g.id} value={g.id}>
-                    {g.name} - {g.group_code}
+                    {g.name} — {g.group_code}
                   </option>
                 ))}
               </select>
@@ -818,8 +818,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                 onChange={(e) => setAccessLevel(e.target.value as 'read' | 'report')}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="read">Read - view aggregated data</option>
-                <option value="report">Report - view + reporting exports</option>
+                <option value="read">Read — view aggregated data</option>
+                <option value="report">Report — view + reporting exports</option>
               </select>
             </div>
           </div>
@@ -902,7 +902,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
           {planType === 'premium_plus' && (
             <div className="grid gap-3 sm:grid-cols-2 rounded-md border bg-muted/20 p-3">
               <p className="sm:col-span-2 text-xs text-muted-foreground">
-                Negotiated per contract - every term below is entered by hand. Blank limits mean unlimited.
+                Negotiated per contract — every term below is entered by hand. Blank limits mean unlimited.
               </p>
               <div className="space-y-1">
                 <Label>
@@ -972,7 +972,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
           )}
 
           <p className="text-xs text-muted-foreground">
-            Changing the plan cancels the current one and starts a new one immediately - past usage keeps whatever terms
+            Changing the plan cancels the current one and starts a new one immediately — past usage keeps whatever terms
             were in force when it happened.
           </p>
           <DialogFooter>

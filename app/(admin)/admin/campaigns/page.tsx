@@ -98,7 +98,7 @@ export default function AdminCampaignsPage() {
                   <p className="font-semibold">{c.title}</p>
                   <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{c.story}</p>
                   <p className="mt-2 text-xs text-muted-foreground">
-                    Target {formatKES(c.target_amount)} - submitted {formatDate(c.created_at)}
+                    Target {formatKES(c.target_amount)} · submitted {formatDate(c.created_at)}
                   </p>
                   {/* The reviewer vets where the money will go, not just the story. */}
                   <p className="mt-1 text-xs">
@@ -140,11 +140,11 @@ export default function AdminCampaignsPage() {
                 <div className="min-w-0 flex-1">
                   <p className="font-semibold">{r.campaign_title}</p>
                   <p className="text-xs text-muted-foreground">
-                    {r.group_name} - requested {formatDate(r.requested_at)} - campaign has raised{' '}
+                    {r.group_name} · requested {formatDate(r.requested_at)} · campaign has raised{' '}
                     {formatKES(r.amount_raised)}
                   </p>
                   <p className="mt-2 text-sm">
-                    Release <span className="font-semibold">{formatKES(r.gross_amount)}</span> - payee receives{' '}
+                    Release <span className="font-semibold">{formatKES(r.gross_amount)}</span> — payee receives{' '}
                     <span className="font-semibold">{formatKES(r.net_amount)}</span>
                     <span className="text-muted-foreground">
                       {' '}

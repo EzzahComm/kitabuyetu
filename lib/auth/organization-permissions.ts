@@ -3,11 +3,11 @@
  * platform-role axis. `/api/v1/organization/*` was previously gated 3 layers
  * deep in organizationService.assertOrganizationCoordinator, invisible from
  * the route file. This makes that gate an explicit, visible route-level
- * check - but deliberately NOT DB-backed like lib/auth/permissions.ts:
+ * check — but deliberately NOT DB-backed like lib/auth/permissions.ts:
  * roles.base_role is typed `member_role` and cannot represent
  * organization_coordinator/super_admin at all (they're platform roles, not
  * group-member roles), and ROLE_HIERARCHY even ranks organization_coordinator
- * (10) below plain member (20) - a numeric rank comparison would be actively
+ * (10) below plain member (20) — a numeric rank comparison would be actively
  * wrong here, which is exactly why organizationService.assertOrganizationCoordinator
  * and withPlatformRole both already use flat exact-match allowlists, never
  * hasRole. This mirrors that established shape rather than inventing new
@@ -18,9 +18,9 @@ import { ForbiddenError } from '@/lib/utils/errors';
 
 // Every permission below currently maps to the exact same two roles because
 // no route in the real inventory distinguishes coordinator-vs-super_admin
-// capability within the org domain - intentionally a flat map today. If a
+// capability within the org domain — intentionally a flat map today. If a
 // narrower split is ever needed (e.g. a read-only coordinator tier), this is
-// the one place to add it - do not fork the roles table for it.
+// the one place to add it — do not fork the roles table for it.
 export const ORGANIZATION_PERMISSIONS = [
   'organization.profile.view',
   'organization.branding.manage',
@@ -34,7 +34,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.dashboard.view',
   'organization.programs.manage',
   // Distinct from organization.programs.manage, which is funding_programs
-  // (budget/disbursement config) - group_programs is the unrelated
+  // (budget/disbursement config) — group_programs is the unrelated
   // recruitment/membership "Programs" feature (migration 206).
   'organization.group_programs.manage',
   'organization.group_programs.view',
@@ -46,7 +46,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.policies.manage',
   'organization.marketing.manage',
   // Capital & Investment Layer (docs/capital-layer/). These live here, on the
-  // code-level org axis, and NOT in roles.permissions - per the note above,
+  // code-level org axis, and NOT in roles.permissions — per the note above,
   // roles.base_role is typed member_role and cannot represent org roles.
   // Consequence: no roles migration, and no edit to clear-tenant-data.sql's
   // reseed block (the drift trap documented at that file's line 141).
@@ -77,7 +77,7 @@ export interface OrganizationActor {
 export function requireOrganizationPermission(auth: OrganizationActor, _permission: OrganizationPermission): void {
   if (!hasOrganizationPermission(auth.role)) {
     throw new ForbiddenError(
-      `Role '${auth.role}' cannot perform this action - organization_coordinator or super_admin required`,
+      `Role '${auth.role}' cannot perform this action — organization_coordinator or super_admin required`,
     );
   }
   if (auth.role === 'organization_coordinator' && !auth.organizationId) {

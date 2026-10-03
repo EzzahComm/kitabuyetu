@@ -5,7 +5,7 @@ import * as newsletterDigestService from '@/lib/services/newsletter-digest.servi
 import { ok } from '@/lib/utils/response';
 
 /**
- * POST /api/admin/newsletter/digest/[id]/send - the explicit fire action.
+ * POST /api/admin/newsletter/digest/[id]/send — the explicit fire action.
  * Snapshots the current active-subscriber list and flips the digest to
  * 'sending'; actual delivery happens on the next job-queue tick (see
  * newsletter-digest.service.ts's sendDigest). Super-admin only.

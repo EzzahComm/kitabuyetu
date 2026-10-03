@@ -13,7 +13,7 @@ import { NextRequest } from 'next/server';
  *
  * The sibling result/timeout branch in the same file always called
  * isValidCallbackToken, and daraja.service.ts's own header records that Phase 4
- * extended the shared-secret mechanism to Account Balance - this branch simply
+ * extended the shared-secret mechanism to Account Balance — this branch simply
  * never got it. assertSafaricomIp is not a substitute: it is advisory by design
  * and logs rather than throws.
  *

@@ -25,7 +25,7 @@ const passwordSchema = z.object({
 type PasswordValues = z.infer<typeof passwordSchema>;
 
 /**
- * Staff/backoffice reset-password - the link target from the email
+ * Staff/backoffice reset-password — the link target from the email
  * admin-password-reset.service.ts sends. The token in the URL IS the proof
  * of possession, mirroring accept-org-invite's shape: this page takes no
  * session and re-authenticates nothing, just the token + new password.
@@ -74,7 +74,7 @@ function ResetPasswordBody() {
               <CardDescription className="text-slate-400">
                 {token
                   ? 'This link is single-use and expires 30 minutes after it was sent.'
-                  : 'This link is missing its token - request a new one below.'}
+                  : 'This link is missing its token — request a new one below.'}
               </CardDescription>
             )}
           </CardHeader>

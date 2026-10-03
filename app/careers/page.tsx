@@ -107,7 +107,7 @@ const HOW_TO_APPLY = [
   {
     icon: FileUp,
     title: 'Apply online',
-    body: 'Send your details, your CV (PDF or Word) and a short note on why the role interests you - straight from the role page.',
+    body: 'Send your details, your CV (PDF or Word) and a short note on why the role interests you — straight from the role page.',
   },
   {
     icon: MessagesSquare,
@@ -117,7 +117,7 @@ const HOW_TO_APPLY = [
 ];
 
 /**
- * Open positions are Sanity-backed (kitabuyetu-studio's "job" type) - see
+ * Open positions are Sanity-backed (kitabuyetu-studio's "job" type) — see
  * CareersOpenings for the filtering UI and app/careers/[slug] for the detail
  * page. Falls back to an honest "no open roles" state when the CMS has
  * nothing published.
@@ -141,7 +141,7 @@ export default async function CareersPage() {
               id="why-join-heading"
               pill="Why Join Us"
               title="Serious about the work, human about the people."
-              lede="Every group that switches from a notebook to Kitabu Yetu trusts us with its members, its money and its history. That trust is the job - and the reason the job matters."
+              lede="Every group that switches from a notebook to Kitabu Yetu trusts us with its members, its money and its history. That trust is the job — and the reason the job matters."
             />
             <div className="mt-8 flex flex-wrap gap-4">
               <a href={`#${OPENINGS_ID}`} className={btnPrimary}>

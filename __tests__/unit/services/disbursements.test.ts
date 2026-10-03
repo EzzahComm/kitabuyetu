@@ -1,5 +1,5 @@
 /**
- * Unified B2C disbursement spine - closes B2C_DISBURSEMENT_AUDIT.md C1-C5:
+ * Unified B2C disbursement spine — closes B2C_DISBURSEMENT_AUDIT.md C1-C5:
  *   - C1: balance check before any Daraja call
  *   - C2: idempotent replay returns the existing row, never a second payout
  *   - C3: maker-checker (threshold parks pending_approval; approver != initiator)
@@ -80,7 +80,7 @@ describe('disbursementsService.initiateDisbursement', () => {
 
     expect(result.id).toBe('disb-1');
     expect(initiateB2C).not.toHaveBeenCalled();
-    // Only the lookup + getById queries ran - no balance check, no reservation.
+    // Only the lookup + getById queries ran — no balance check, no reservation.
     expect(mockQuery).toHaveBeenCalledTimes(2);
   });
 

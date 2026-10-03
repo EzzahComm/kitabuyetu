@@ -66,7 +66,7 @@ export const contributionsService = {
 
   // Active members with no completed contribution in the current calendar month.
   // Powers the treasurer home "needs you now" list. Only ever returns a
-  // 5-row sample + a count - COUNT(*) OVER () computes the true total over
+  // 5-row sample + a count — COUNT(*) OVER () computes the true total over
   // every matching row before LIMIT trims the output, so this needs one
   // query and one round trip instead of materializing the full non-
   // contributor set to then slice it in JS (docs/audits/optimization-2026-09).
@@ -97,7 +97,7 @@ export const contributionsService = {
     });
   },
 
-  // Ad-hoc "Remind" action on the dashboard's non-contributors task row - an
+  // Ad-hoc "Remind" action on the dashboard's non-contributors task row — an
   // officer-triggered nudge for the *current*, still-open month. Deliberately
   // a distinct referenceType/reminderStage from the scheduled
   // `notify_contribution_reminders` job (lib/jobs/handlers.ts), which flags
@@ -105,7 +105,7 @@ export const contributionsService = {
   // button's send silently satisfy that job's own once-per-month claim (or
   // vice versa) via reminder_dispatch_log's UNIQUE constraint, suppressing a
   // real reminder neither action actually sent. Idempotent per (member,
-  // month) regardless - clicking twice in the same month only sends once.
+  // month) regardless — clicking twice in the same month only sends once.
   async remindNonContributors(
     ctx: TenantContext,
   ): Promise<{ attempted: number; sent: number; skipped: number; failed: number }> {
@@ -149,7 +149,7 @@ export const contributionsService = {
     const { renderTemplate, platformPaybill, DEFAULT_TEMPLATES, TEMPLATE_KEYS } = await import('@/lib/sms/templates');
     const { sendOnce } = await import('./reminder.service');
     // The body and the paybill lookup both used to live here as literals,
-    // duplicated in lib/jobs/handlers.ts and mpesa-stk.service.ts - so a
+    // duplicated in lib/jobs/handlers.ts and mpesa-stk.service.ts — so a
     // wording or shortcode change had to be made three times or the three
     // silently diverged. Both now have one home, and the template is
     // customisable by a group like every other one.
@@ -169,7 +169,7 @@ export const contributionsService = {
           group_name: r.group_name,
           month: r.month_label,
           paybill,
-          // No product suffix - a bare membership_no is the contribution/
+          // No product suffix — a bare membership_no is the contribution/
           // savings account reference (lib/utils/membership-no.ts's
           // ParsedAccountRef: -L/-W/-S are loan/welfare/shares; the base
           // number alone is what mpesa-c2b.service.ts's matcher treats as
@@ -190,7 +190,7 @@ export const contributionsService = {
         billingMode: 'billed',
       });
       if (result.sent) sent++;
-      // 'cooldown' defers rather than fails - see the identical note in
+      // 'cooldown' defers rather than fails — see the identical note in
       // lib/jobs/handlers.ts.
       else if (
         result.status === 'already_sent' ||
@@ -220,7 +220,7 @@ export const contributionsService = {
 
   async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
     return withTransaction(ctx, async (client) => {
-      // The target member must hold an active membership in THIS group -
+      // The target member must hold an active membership in THIS group —
       // RLS scopes group_id but never member_id (audit H-1). The returned
       // membership id is stamped on the row (§6a): validation and
       // attribution are the same act.
@@ -316,7 +316,7 @@ export const contributionsService = {
 
   /**
    * Best-effort: email the member their React Email contribution receipt.
-   * Never throws - a missing/failed email must never affect the contribution.
+   * Never throws — a missing/failed email must never affect the contribution.
    * Only fires for completed contributions.
    */
   async notifyReceipt(ctx: TenantContext, contribution: Contribution): Promise<void> {

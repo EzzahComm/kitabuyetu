@@ -41,7 +41,7 @@ export const UpdateInvestmentSchema = z.object({
 
 export const RecordReturnSchema = z.object({
   // Must stay in lockstep with public.return_type (migration 022). 'coupon'
-  // used to be listed here and is not a member of that enum - it passed
+  // used to be listed here and is not a member of that enum — it passed
   // validation and then failed at INSERT with an invalid-input-value error.
   returnType: z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
   amount: z.coerce.number().positive(),
@@ -139,7 +139,7 @@ export const investmentsService = {
   async getById(ctx: TenantContext, id: string) {
     return withDb(ctx, async (client) => {
       // total_returns/total_expenses mirror list()'s own correlated
-      // subqueries above - the detail page used to re-reduce inv.returns/
+      // subqueries above — the detail page used to re-reduce inv.returns/
       // inv.expenses client-side for the same numbers list() already
       // computes in SQL (docs/audits/optimization-2026-09); getById never
       // selected these fields even though the shared TypeScript type
@@ -165,7 +165,7 @@ export const investmentsService = {
       );
       if (!inv) throw new NotFoundError('Investment', id);
 
-      // returns/expenses only need `id`, not each other's result - no
+      // returns/expenses only need `id`, not each other's result — no
       // reason to await them sequentially. member_investment_shares is
       // dropped entirely: zero writers anywhere in the product (confirmed
       // by grep), so this query has provably never returned a row.
@@ -386,7 +386,7 @@ export const investmentsService = {
   async getSummary(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
       // Portfolio value is summed over everything the group still counts as an
-      // investment - every status except 'cancelled', which never happened.
+      // investment — every status except 'cancelled', which never happened.
       //
       // Two things this deliberately does NOT do, both of which used to make
       // the summary read as a loss on a perfectly healthy portfolio:
@@ -432,7 +432,7 @@ export const investmentsService = {
         [ctx.groupId],
       );
 
-      // numeric comes back from pg as a string - Number() before arithmetic or
+      // numeric comes back from pg as a string — Number() before arithmetic or
       // comparison, or `'0' > 0` style coercion decides the branch.
       const totalPrincipal = Number(s.total_principal);
       const totalCurrentValue = Number(s.total_current_value);
@@ -440,7 +440,7 @@ export const investmentsService = {
       // `?? 0` is not redundant with the query's COALESCE: it guards the
       // JS side. A missing field here yields Number(undefined) === NaN, and
       // NaN propagates silently through the ROI arithmetic all the way to a
-      // literal "NaN%" on the dashboard - which is exactly how six tests
+      // literal "NaN%" on the dashboard — which is exactly how six tests
       // failed the moment this column was added to the SELECT.
       const totalExpenses = Number(s.total_expenses ?? 0);
 
@@ -458,7 +458,7 @@ export const investmentsService = {
         /**
          * Net of what the activity cost to run (migration 156). Before
          * expenses existed this was value + returns - principal, which
-         * overstated any activity with real running costs - a poultry or
+         * overstated any activity with real running costs — a poultry or
          * farming project can return well and still lose money once feed and
          * labour are counted, and the old formula could not express that.
          */
@@ -469,7 +469,7 @@ export const investmentsService = {
         /**
          * Whether `roi` means anything yet. With nothing revalued and no
          * returns or expenses recorded, every holding is carried at cost and
-         * the formula yields exactly 0% - a number that looks like a real
+         * the formula yields exactly 0% — a number that looks like a real
          * answer but is really "no data". The UI shows a dash instead.
          */
         roiMeasurable: totalPrincipal > 0 && (revaluedCount > 0 || totalReturns > 0 || totalExpenses > 0),

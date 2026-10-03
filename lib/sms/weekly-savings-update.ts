@@ -1,11 +1,11 @@
 /**
  * The weekly savings-update SMS sent by the notify_weekly_savings_update job
- * (lib/jobs/handlers.ts) to EVERY active member of EVERY active group -
+ * (lib/jobs/handlers.ts) to EVERY active member of EVERY active group —
  * unlike contribution-statement.ts's monthly arrears statement, this is not
  * limited to members who are behind or groups with a configured
  * contribution-plan.service.ts plan.
  *
- * Plain ASCII on purpose - see contribution-statement.ts's own header on why.
+ * Plain ASCII on purpose — see contribution-statement.ts's own header on why.
  */
 
 export interface WeeklySavingsUpdateRow {
@@ -16,11 +16,11 @@ export interface WeeklySavingsUpdateRow {
   first_name: string;
   membership_no: string | null;
   group_name: string;
-  /** Numeric text from Postgres (SUM(...)::text). Lifetime, gross - see migration 207's header on why this is never netted against SMS/subscription costs. */
+  /** Numeric text from Postgres (SUM(...)::text). Lifetime, gross — see migration 207's header on why this is never netted against SMS/subscription costs. */
   total_contributed: string;
   /** The group's own lifetime total, across every member. */
   group_total_saved: string;
-  /** This member's own arrears against the effective weekly target (their own override, or the platform default - weekly-contribution-default.service.ts), since the later of their join date and the group's onboarding. */
+  /** This member's own arrears against the effective weekly target (their own override, or the platform default — weekly-contribution-default.service.ts), since the later of their join date and the group's onboarding. */
   outstanding: string;
 }
 

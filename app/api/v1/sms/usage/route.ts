@@ -7,7 +7,7 @@ import { summarizeUsageRows } from '@/lib/sms/analytics';
 import { ok } from '@/lib/utils/response';
 
 /**
- * Was withRole('treasurer'), which excluded the SECRETARY - the role that in
+ * Was withRole('treasurer'), which excluded the SECRETARY — the role that in
  * practice does the messaging and already holds messaging.send. Reading how
  * many messages the group has sent should not require outranking the person
  * sending them. messaging.view (migration 140) is the read half of the

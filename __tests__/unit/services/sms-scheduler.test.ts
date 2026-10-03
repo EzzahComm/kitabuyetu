@@ -104,7 +104,7 @@ describe('processDueSmsSchedules', () => {
 
     await processDueSmsSchedules();
 
-    // {{first_name}} survives the enqueue on purpose - handleSmsBulkSend
+    // {{first_name}} survives the enqueue on purpose — handleSmsBulkSend
     // renders it per recipient against resolveRecipientVars()'s phone→member
     // map, and strips whatever is still unresolved after that. Stripping it
     // here would delete it before that step could ever resolve it.

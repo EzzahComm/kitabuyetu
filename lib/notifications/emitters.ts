@@ -108,8 +108,8 @@ export interface SmsBulkActivity {
 const preview = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
 /**
- * A group sent an SMS campaign / bulk message. One aggregated event per send -
- * never per recipient - with a message preview so admins can spot misuse.
+ * A group sent an SMS campaign / bulk message. One aggregated event per send —
+ * never per recipient — with a message preview so admins can spot misuse.
  */
 export async function emitSmsBulkActivity(a: SmsBulkActivity): Promise<void> {
   try {

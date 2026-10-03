@@ -1,5 +1,5 @@
 /**
- * lib/sms/circuit-breaker.ts (SMS-AUDIT-v3 T3-3). Pure in-memory module - no
+ * lib/sms/circuit-breaker.ts (SMS-AUDIT-v3 T3-3). Pure in-memory module — no
  * mocks needed beyond controlling Date.now(), which is spied rather than
  * faked with Jest timers so each assertion states exactly what "now" is
  * without depending on fake-timer/Date interop.
@@ -53,7 +53,7 @@ describe('circuit breaker', () => {
     recordFailure(PROVIDER);
     recordFailure(PROVIDER);
     recordFailure(PROVIDER);
-    // 4 failures again, not the 5th of an unbroken run of 8 - still closed.
+    // 4 failures again, not the 5th of an unbroken run of 8 — still closed.
     expect(circuitState(PROVIDER).state).toBe('closed');
   });
 
@@ -107,7 +107,7 @@ describe('circuit breaker', () => {
     recordFailure(PROVIDER);
     expect(circuitState(PROVIDER).state).toBe('open');
 
-    // Cool-down restarted from THIS failure, not the original one - the old
+    // Cool-down restarted from THIS failure, not the original one — the old
     // 60s mark has already passed, so a stale openedAt would wrongly probe
     // again immediately.
     expect(canAttempt(PROVIDER)).toBe(false);

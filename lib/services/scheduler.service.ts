@@ -100,7 +100,7 @@ function computeNextRun(scheduleType: string, current: Date): Date {
 }
 
 // Retry failed emails from email_logs (status=failed, older than 5 min, fewer than 3 retries
-// per recipient+template+reference in the last 24h - see the guard below).
+// per recipient+template+reference in the last 24h — see the guard below).
 export async function retryFailedEmails(): Promise<{
   retried: number;
   skipped: number;
@@ -120,7 +120,7 @@ export async function retryFailedEmails(): Promise<{
   let retried = 0;
   let skipped = 0;
   for (const log of rows) {
-    // Bounds this handler inside the job tick's remaining budget - without
+    // Bounds this handler inside the job tick's remaining budget — without
     // it, a run of dead-SMTP-fallback sends can eat the whole 50s tick and
     // abort the round-robin before other job types get a turn.
     if (tickBudgetExhausted(35_000)) break;
@@ -130,10 +130,10 @@ export async function retryFailedEmails(): Promise<{
     // no way to reconstruct the original vars (name/groupName/groupCode/
     // verifyUrl), so a "retry" always sends with vars={}, which the
     // DEFAULT_TEMPLATES fallback renders as a blank-name, blank-group email
-    // with an EMPTY verify link - confirmed live as the mechanism behind a
+    // with an EMPTY verify link — confirmed live as the mechanism behind a
     // real incident (one recipient received hundreds of broken verification
-    // emails). Bounding the retry count doesn't fix this - even one retry
-    // sends something unusable - so this template is excluded from retry
+    // emails). Bounding the retry count doesn't fix this — even one retry
+    // sends something unusable — so this template is excluded from retry
     // entirely rather than merely rate-limited (docs/audits/
     // optimization-2026-09).
     if (log.template_key === 'group_verification_link') {
@@ -143,15 +143,15 @@ export async function retryFailedEmails(): Promise<{
 
     // Retry-count guard. Each attempt (success or failure) INSERTs a new
     // email_logs row rather than updating the original, so without this a
-    // poison (recipient, template, reference) triple re-sends forever -
+    // poison (recipient, template, reference) triple re-sends forever —
     // confirmed live: one recipient received hundreds of duplicate emails
     // in 24h before this guard existed. IS NOT DISTINCT FROM (not
     // COALESCE(..., '')): reference_id is a uuid column, and an empty
-    // string is not a valid uuid literal - Postgres resolves COALESCE's
+    // string is not a valid uuid literal — Postgres resolves COALESCE's
     // common type at parse time, so `COALESCE(reference_id, '')` fails
     // unconditionally, not just when reference_id happens to be null. This
     // silently crashed the guard (and therefore this whole function) on
-    // every invocation since it was added - job_logs showed
+    // every invocation since it was added — job_logs showed
     // 'invalid input syntax for type uuid: ""' on every attempt, which
     // also meant genuine transient failures for every OTHER template were
     // never being retried either.
@@ -169,7 +169,7 @@ export async function retryFailedEmails(): Promise<{
       guardCount = Number(countRows[0]?.count ?? 0);
     } catch (err) {
       // A guard-query failure must not crash the whole batch the way the
-      // COALESCE bug did - skip just this row.
+      // COALESCE bug did — skip just this row.
       logger.error('[scheduler] Retry-count guard failed, skipping row', err);
       skipped++;
       continue;
@@ -192,12 +192,12 @@ export async function retryFailedEmails(): Promise<{
         retried++;
       } else if (/quota/i.test(result.error ?? '')) {
         // A quota rejection means every remaining send in this batch fails
-        // the same way - stop burning tick budget on certain failures.
-        logger.warn('[scheduler] Provider quota hit - aborting retry batch', result.error);
+        // the same way — stop burning tick budget on certain failures.
+        logger.warn('[scheduler] Provider quota hit — aborting retry batch', result.error);
         break;
       }
     } catch {
-      // Give up on this one - it will age out of the 24h window
+      // Give up on this one — it will age out of the 24h window
     }
   }
 

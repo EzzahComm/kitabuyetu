@@ -49,7 +49,7 @@ export default function HrEmployeeDetailPage() {
     notes: '',
   });
   // Seeds the form the moment `employee` first arrives (or changes to a
-  // different id) - done during render, not a useEffect, per React's
+  // different id) — done during render, not a useEffect, per React's
   // "adjusting state when a prop changes" pattern: setState here re-renders
   // before the browser paints, so it never flashes empty fields first.
   const [seededId, setSeededId] = useState<string | null>(null);
@@ -110,7 +110,7 @@ export default function HrEmployeeDetailPage() {
 
       <PageHeader
         title={`${employee.first_name} ${employee.last_name}`}
-        description={`${employee.employee_number} - ${employee.email}`}
+        description={`${employee.employee_number} · ${employee.email}`}
         actions={
           !isTerminated && (
             <Dialog open={termOpen} onOpenChange={setTermOpen}>
@@ -139,7 +139,7 @@ export default function HrEmployeeDetailPage() {
                   </div>
                   {(allActive ?? []).some((e) => e.manager_id === employee.id) && (
                     <p className="text-xs text-muted-foreground">
-                      This employee manages others - their reports will be left without a manager.
+                      This employee manages others — their reports will be left without a manager.
                     </p>
                   )}
                 </div>

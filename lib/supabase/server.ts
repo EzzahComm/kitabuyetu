@@ -31,7 +31,7 @@ export async function createClient() {
             cookieStore.set(name, value, options);
           });
         } catch {
-          // setAll is called from a Server Component - ignore (read-only context).
+          // setAll is called from a Server Component — ignore (read-only context).
         }
       },
     },
@@ -39,7 +39,7 @@ export async function createClient() {
 }
 
 /**
- * Service-role client - bypasses RLS.
+ * Service-role client — bypasses RLS.
  * Never expose this to the client.
  */
 export async function createAdminClient() {

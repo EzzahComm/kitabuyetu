@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 
 /**
  * A Changi$ha payout to a paybill/till (migration 202) is a Daraja B2B
- * transaction, so Safaricom reports its result to /api/v1/mpesa/b2b - not the
+ * transaction, so Safaricom reports its result to /api/v1/mpesa/b2b — not the
  * B2C route the withdrawal flow was first wired into. If the B2B route never
  * calls handleCampaignWithdrawalResult, the withdrawal sits in 'processing'
  * forever with its funds reserved. These tests pin both halves: the route
@@ -71,7 +71,7 @@ describe('POST /api/v1/mpesa/b2b?type=result', () => {
   });
 });
 
-describe('handleCampaignWithdrawalResult - failure path by channel', () => {
+describe('handleCampaignWithdrawalResult — failure path by channel', () => {
   const mockQuery = jest.fn();
 
   beforeEach(() => {

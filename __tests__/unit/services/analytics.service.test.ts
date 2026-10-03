@@ -1,7 +1,7 @@
 import { analyticsService, type ExecutiveSummary } from '@/lib/services/analytics.service';
 
 /**
- * Unit tests for analytics.service.ts - executive summary aggregations.
+ * Unit tests for analytics.service.ts — executive summary aggregations.
  *
  * This is a template for tests that should be added. Each aggregation query
  * in analyticsService.getExecutiveSummary() has off-by-one and filter risks:
@@ -51,7 +51,7 @@ import { analyticsService, type ExecutiveSummary } from '@/lib/services/analytic
  *   → Should fail (overstate outstanding by repayment amount)
  */
 
-describe('analyticsService (stub - tests to implement)', () => {
+describe('analyticsService (stub — tests to implement)', () => {
   it.todo('sums all-time contributions correctly, excluding non-completed');
   it.todo('calculates period contributions within date boundaries');
   it.todo('counts overdue loans correctly (due_date < today, not <=)');

@@ -57,7 +57,7 @@ describe('checkCertificate', () => {
     expect(result.certificate).toBeDefined();
   });
 
-  it('rejects a non-PDF declared as application/pdf - the signature is what counts', async () => {
+  it('rejects a non-PDF declared as application/pdf — the signature is what counts', async () => {
     const disguised = new File(['<html>not a pdf</html>'], 'certificate.pdf', { type: 'application/pdf' });
     const result = await checkCertificate(disguised);
     expect(result.certificate).toBeUndefined();

@@ -4,7 +4,7 @@ import { resetAdminPasswordWithToken } from '@/lib/services/admin-password-reset
 import { AdminResetPasswordSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
-/** POST /api/v1/auth/admin/forgot-password/reset - public. Verifies the emailed token and sets a new password in one step. */
+/** POST /api/v1/auth/admin/forgot-password/reset — public. Verifies the emailed token and sets a new password in one step. */
 export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { token, password } = AdminResetPasswordSchema.parse(await req.json());

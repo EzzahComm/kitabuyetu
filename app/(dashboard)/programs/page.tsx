@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * Group side of the Programs feature (migration 206) - browse programs an
+ * Group side of the Programs feature (migration 206) — browse programs an
  * organization publishes, apply, and respond to invitations. No
  * platform-admin step: the group and organization manage this themselves.
  * This path was previously a dead page pointing at an unrelated, empty
- * crowdfunding-shaped `programs` table (see phantom-programs memory) - now
+ * crowdfunding-shaped `programs` table (see phantom-programs memory) — now
  * free to reuse for the real feature. Distinct from the public
  * /ecosystem/programs pages (Changi$ha campaign browsing).
  */

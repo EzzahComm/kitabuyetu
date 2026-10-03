@@ -1,5 +1,5 @@
 /**
- * CRM service (Phase 9.1) - consent-first contact creation, opt-in/opt-out
+ * CRM service (Phase 9.1) — consent-first contact creation, opt-in/opt-out
  * audit trail, and the email-suppression check Phase 9.3's send path will
  * rely on.
  */
@@ -119,7 +119,7 @@ describe('createOpportunity', () => {
   });
 });
 
-describe('updateOpportunity - Phase 9.5 pipeline moves', () => {
+describe('updateOpportunity — Phase 9.5 pipeline moves', () => {
   it('rejects an update with no fields before any query runs', async () => {
     await expect(updateOpportunity(ctx, 'o1', {})).rejects.toBeInstanceOf(ValidationError);
     expect(mockQuery).not.toHaveBeenCalled();
@@ -157,7 +157,7 @@ describe('updateOpportunity - Phase 9.5 pipeline moves', () => {
   });
 });
 
-describe('listOpportunities - pipeline board data source', () => {
+describe('listOpportunities — pipeline board data source', () => {
   it('joins contact name/type and orders by stage', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'o1', stage: 'draft', contact_name: 'Jane' }] });
     const result = await listOpportunities(ctx);
@@ -174,7 +174,7 @@ describe('listOpportunities - pipeline board data source', () => {
   });
 });
 
-describe('listActivitiesForContact - includes opportunity-only activities', () => {
+describe('listActivitiesForContact — includes opportunity-only activities', () => {
   it('queries by contact_id OR an opportunity owned by that contact', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await listActivitiesForContact(ctx, 'c1');
@@ -184,7 +184,7 @@ describe('listActivitiesForContact - includes opportunity-only activities', () =
   });
 });
 
-describe('listRecentActivity - cross-CRM feed', () => {
+describe('listRecentActivity — cross-CRM feed', () => {
   it('caps an out-of-range limit and falls back to 30 for a non-numeric one', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await listRecentActivity(ctx, NaN);

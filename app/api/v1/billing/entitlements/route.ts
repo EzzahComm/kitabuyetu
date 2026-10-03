@@ -13,7 +13,7 @@ import type { SubscriptionProduct } from '@/types/enums';
  * to render its own subscribe page. Behind the lock it would be unreachable
  * exactly when it matters most.
  *
- * `products` is the live entitlement - it is what the portals gate on. Product
+ * `products` is the live entitlement — it is what the portals gate on. Product
  * is NOT a JWT claim on purpose: the server gate re-reads live so that paying
  * unlocks immediately, and a token claim would keep the client denying for a
  * full access-token TTL after payment, with client and server actively

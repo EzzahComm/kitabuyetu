@@ -1,10 +1,10 @@
 /**
- * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) - "disbursements" category.
+ * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) — "disbursements" category.
  * Proves `POST /api/v1/mpesa/disbursements/[id]` (disbursementsService
  * approve/reject, `WHERE id = $1 AND group_id = $2 ... FOR UPDATE`) actually
  * blocks a cross-tenant action against a real Postgres instance.
  *
- * Only `reject` is used for the same-tenant "succeeds" assertions -
+ * Only `reject` is used for the same-tenant "succeeds" assertions —
  * `approve` dispatches a real Daraja B2C call on success (fire-and-forget,
  * errors are swallowed internally), which this suite deliberately avoids
  * triggering to stay hermetic. The cross-tenant and maker-checker `approve`

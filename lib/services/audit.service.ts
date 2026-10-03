@@ -1,5 +1,5 @@
 /**
- * Audit writing - the organization axis (R11).
+ * Audit writing — the organization axis (R11).
  *
  * R11 covers reads on role-gated surfaces as well as writes. Every existing
  * caller hand-writes its own `INSERT INTO audit_logs`, so there was no single
@@ -11,11 +11,11 @@
  *    `refetchInterval: 120_000`, so a coordinator who simply leaves the tab
  *    open would generate ~720 rows a day by doing nothing. An audit log that
  *    large stops answering the question it exists for ("who looked at this?"),
- *    so only *significant* reads are recorded - report generation, exports,
- *    and drill-downs into a named group - and repeats inside a short window
+ *    so only *significant* reads are recorded — report generation, exports,
+ *    and drill-downs into a named group — and repeats inside a short window
  *    collapse to one row.
  *
- * 2. PRIVILEGED WRITE. audit_logs_insert is `WITH CHECK (is_super_admin())` -
+ * 2. PRIVILEGED WRITE. audit_logs_insert is `WITH CHECK (is_super_admin())` —
  *    direct inserts are blocked for app roles by design, so this uses
  *    withAdminDb rather than the tenant pool. Rows are also immutable
  *    (audit_logs_immutable trigger), so this only ever INSERTs.
@@ -47,7 +47,7 @@ export interface OrgReadAudit {
  *
  * Best-effort by design: a failure here is logged loudly but does NOT fail the
  * request. Refusing to show a coordinator their own report because the audit
- * insert failed trades a real outage for a bookkeeping gap - the wrong way
+ * insert failed trades a real outage for a bookkeeping gap — the wrong way
  * round for a read. (A *write* path must not make that trade: there the audit
  * row belongs in the same transaction as the change it describes.)
  */
@@ -66,7 +66,7 @@ export async function recordOrgRead(a: OrgReadAudit): Promise<void> {
       await db.query(
         // Every parameter is cast explicitly. Each of $1/$3/$4/$6 appears both in
         // the SELECT list and in the NOT EXISTS comparison, and Postgres infers
-        // those two positions independently - an uncast $4 comes out `text` in
+        // those two positions independently — an uncast $4 comes out `text` in
         // the SELECT but `character varying` against the column in the WHERE,
         // which fails with "inconsistent types deduced for parameter $4".
         `INSERT INTO audit_logs

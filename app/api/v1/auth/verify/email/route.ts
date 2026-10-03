@@ -12,10 +12,10 @@ const LINK_ERROR_COPY: Record<string, string> = {
 };
 
 /**
- * POST /api/v1/auth/verify/email - public email-link completion (§4A). The
+ * POST /api/v1/auth/verify/email — public email-link completion (§4A). The
  * token itself is the proof of possession (it's a 32-byte random value whose
  * SHA-256 hash alone identifies the open verification row), so this route
- * intentionally takes no Authorization header - someone clicking the link
+ * intentionally takes no Authorization header — someone clicking the link
  * from their email client may not have the app's session on that device.
  * proxy.ts's PUBLIC_AUTH_PATHS bypasses JWT verification for this exact path.
  */

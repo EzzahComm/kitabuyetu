@@ -85,7 +85,7 @@ export type DlrClass = 'delivered' | 'failed' | 'pending';
 /**
  * Recognised in-transit states. Explicit rather than implied by the fallthrough
  * so that a description we have genuinely never seen can be told apart from one
- * we deliberately treat as pending - see the warn below.
+ * we deliberately treat as pending — see the warn below.
  *
  * 'scheduled' is TextSMS's own word for "accepted, queued, not yet handed to
  * the operator". It is the normal state for the first seconds of a message's
@@ -118,13 +118,13 @@ export function classifyDlrStatus(raw: string): DlrClass {
   // Falling through to 'pending' is the safe answer, but a description we do
   // not recognise at all is exactly how C1 stayed invisible for months: a
   // value that means "delivered" in some dialect would be quietly parked here
-  // forever. Pending is still returned - this only makes the unknown loud.
+  // forever. Pending is still returned — this only makes the unknown loud.
   //
-  // An absent/blank status is NOT "unrecognised vocabulary" - it's a report we
+  // An absent/blank status is NOT "unrecognised vocabulary" — it's a report we
   // simply haven't received yet, which is the normal state of every message
   // between send and first DLR. Warning on it would bury the real signal.
   if (s !== '' && !DLR_PENDING.test(s)) {
-    logger.warn('[sms] unrecognised DLR description - treating as pending', { raw });
+    logger.warn('[sms] unrecognised DLR description — treating as pending', { raw });
   }
   return 'pending';
 }
@@ -133,7 +133,7 @@ export function classifyDlrStatus(raw: string): DlrClass {
  * Who pays for a send.
  *
  * A group may be overseen by several organizations, so the payer can never be
- * inferred from the group - it is stated by the caller and recorded on every
+ * inferred from the group — it is stated by the caller and recorded on every
  * sms_usage_logs row. Organization-scoped trigger rules and organization
  * campaigns bill the organization; everything else bills the group.
  */
@@ -155,7 +155,7 @@ export interface BulkCampaignInput {
   /**
    * Stable identifier for THIS dispatch attempt, used to deduplicate
    * recipients on a job-level retry (SMS_MESSAGING_AUDIT_2026-08.md H3).
-   * Only meaningful when campaignId is absent - a real campaign already has
+   * Only meaningful when campaignId is absent — a real campaign already has
    * one (its own id), so campaignId always takes priority when both are set.
    * lib/jobs/handlers.ts's handleSmsBulkSend passes the job_queue row's own
    * id, which is stable across retries of the same job (only its `attempts`
@@ -168,7 +168,7 @@ export interface BulkCampaignInput {
    * not hand-build keys in another format).
    *
    * When present, `message` is rendered once per recipient instead of being
-   * sent verbatim - see personalize(). Built by resolveRecipientVars() and
+   * sent verbatim — see personalize(). Built by resolveRecipientVars() and
    * passed by lib/jobs/handlers.ts's handleSmsBulkSend, which is the single
    * chokepoint every bulk path (immediate campaign, ad-hoc /sms/bulk,
    * scheduled campaign, sms_schedules occurrence) funnels through.
@@ -177,10 +177,10 @@ export interface BulkCampaignInput {
   /**
    * Total recipient count for the campaign THIS call's `phones` is a chunk
    * of. Only set by chunked QStash dispatch (lib/jobs/handlers.ts's
-   * handleSmsBulkSend - closes SMS_MESSAGING_AUDIT_2026-08.md H3, docs/
+   * handleSmsBulkSend — closes SMS_MESSAGING_AUDIT_2026-08.md H3, docs/
    * messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3 item 10). Defaults
-   * to `phones.length` - i.e. "this call is the
-   * whole campaign" - which is exactly today's single-call behavior, so
+   * to `phones.length` — i.e. "this call is the
+   * whole campaign" — which is exactly today's single-call behavior, so
    * every existing caller is unaffected.
    *
    * Threading the true total through matters because `sms_campaigns
@@ -196,11 +196,11 @@ export interface BulkCampaignInput {
 // ─── Credit helpers ───────────────────────────────────────────────────────────
 //
 // The provider SQLSTATE constants that used to live here moved to
-// lib/services/messaging-billing.ts along with debitPayer's logic - mapping
+// lib/services/messaging-billing.ts along with debitPayer's logic — mapping
 // them in one place is the point of that module.
 
 // The old billing unit, CREDITS_PER_MESSAGE = 1, is gone (SMS-AUDIT-v3 G5).
-// One credit is now one provider SEGMENT - see lib/sms/segments.ts. A flat
+// One credit is now one provider SEGMENT — see lib/sms/segments.ts. A flat
 // credit per recipient under-billed every message longer than one segment,
 // and by a factor of five for anything containing an emoji or a curly quote.
 // Migration 144's separate fix (credits are a message COUNT, never money)
@@ -222,7 +222,7 @@ const SEND_CALL_BUDGET_MS = 21_000;
  * Recipient count at which a bulk send should ask "are you sure?"
  * (SMS-AUDIT-v3 T3-5 / G28).
  *
- * A threshold, not a cap - nothing here refuses a send. It marks where a
+ * A threshold, not a cap — nothing here refuses a send. It marks where a
  * misfire stops being cheap: 100 recipients is roughly a whole small chama,
  * and an accidental "all members" past that is a real amount of somebody's
  * money, spent irreversibly the moment the provider accepts.
@@ -233,7 +233,7 @@ const BULK_CONFIRM_THRESHOLD = 100;
  * Map this module's payer shape onto the shared reservation target.
  *
  * Billing itself now lives in lib/services/messaging-billing.ts, which is the
- * single place credits are earmarked, charged or returned - the balance check,
+ * single place credits are earmarked, charged or returned — the balance check,
  * the row lock and the `FOR UPDATE OF ba` that Phase 1 fixed all moved into
  * reserve_sms_credits() (migration 123).
  */
@@ -246,7 +246,7 @@ function toReservationTarget(groupId: string, payer: SmsPayer): ReservationTarge
 /**
  * Convert a reservation failure into the error this module's callers expect.
  * `/sms/send` turns PaymentRequiredError/InsufficientSmsCreditsError into a
- * 402, and trigger-engine.ts catches to drive retryOrFail - so this path must
+ * 402, and trigger-engine.ts catches to drive retryOrFail — so this path must
  * keep throwing even though the primitive underneath never does.
  */
 function reserveFailureToError(reason: ReserveFailure, detail: string): Error {
@@ -286,16 +286,16 @@ async function fetchOptOuts(client: import('pg').PoolClient, groupId: string): P
 /**
  * Recompute a campaign's sent/failed tallies from its real `sms_usage_logs`
  * rows and flip `status` to 'completed' only once every recipient has a
- * terminal outcome - i.e. `resolved_count >= recipient_count`.
+ * terminal outcome — i.e. `resolved_count >= recipient_count`.
  *
  * Safe to call once per single-shot send (today's only caller shape) or
  * once per chunk of a QStash-dispatched campaign (SMS_MESSAGING_AUDIT_
- * 2026-08.md H3 - see BulkCampaignInput.totalRecipientCount): each call only ever advances
+ * 2026-08.md H3 — see BulkCampaignInput.totalRecipientCount): each call only ever advances
  * status forward, never back, and a chunk that finishes before its
  * siblings correctly leaves status at 'sending' rather than completing the
  * campaign early. `recipient_count` itself must already reflect the true
  * total (written once, idempotently, by sendBulkCampaign's caller-count
- * write above) - see that call site's comment.
+ * write above) — see that call site's comment.
  */
 async function syncCampaignCompletion(client: import('pg').PoolClient, campaignId: string): Promise<void> {
   await client.query(
@@ -319,12 +319,12 @@ async function syncCampaignCompletion(client: import('pg').PoolClient, campaignI
 
 /**
  * Minimal TenantContext for module functions whose public signature predates
- * TenantContext and receives only a bare groupId - cron/job callers
+ * TenantContext and receives only a bare groupId — cron/job callers
  * (trigger-engine.ts, sms-scheduler.service.ts, the DLR/retry sweeps) have no
  * per-request session to hand in. Same "unset" sentinel this codebase already
  * uses for a system-triggered actor (campaign.service.ts's createCampaign):
  * every RLS policy on these tables keys off group_id alone, so an empty
- * role/userId does not weaken the scoping - it just means "no specific human
+ * role/userId does not weaken the scoping — it just means "no specific human
  * is acting", which is already true for these callers.
  */
 function systemCtx(groupId: string): TenantContext {
@@ -336,7 +336,7 @@ function systemCtx(groupId: string): TenantContext {
 /**
  * Resolve a campaign/schedule recipient definition to a list of normalized
  * phone numbers. Shared by the campaign route (immediate send) and the
- * scheduler (deferred send) so both resolve membership identically - and
+ * scheduler (deferred send) so both resolve membership identically — and
  * always against *current* membership at send time.
  */
 export async function resolveSmsRecipients(
@@ -376,7 +376,7 @@ export async function resolveSmsRecipients(
     return rows.map((r) => normalizePhone(r.phone));
   }
 
-  // Officers holding one of the given group roles - used by trigger rules that
+  // Officers holding one of the given group roles — used by trigger rules that
   // notify approvers (e.g. withdrawal requests to treasurer + chairperson).
   if (recipientType === 'roles') {
     const roles = (rawRecipients as { roles?: string[] })?.roles ?? [];
@@ -401,8 +401,8 @@ export async function resolveSmsRecipients(
  * group: the group-level ones (identical for every recipient) merged into a
  * per-recipient map keyed by normalized phone.
  *
- * A phone with no matching member - every `custom_phones` recipient, and any
- * member removed from the group between scheduling and sending - is simply
+ * A phone with no matching member — every `custom_phones` recipient, and any
+ * member removed from the group between scheduling and sending — is simply
  * absent from the map. It still gets the group-level vars (see the merge
  * below), and its per-recipient placeholders are stripped rather than sent
  * as literal `{{first_name}}` text.
@@ -438,8 +438,8 @@ export async function resolveRecipientVars(
 
   // Balances cost four aggregate scans over the group's whole financial
   // history, so they are resolved ONLY when the body actually asks for one.
-  // An ordinary `Dear {{first_name}}` campaign - the overwhelmingly common
-  // case - pays nothing for this, exactly as it pays nothing for the variable
+  // An ordinary `Dear {{first_name}}` campaign — the overwhelmingly common
+  // case — pays nothing for this, exactly as it pays nothing for the variable
   // lookup itself when the body has no `{{` at all.
   //
   // `message` is optional so every existing caller keeps working untouched;
@@ -458,7 +458,7 @@ export async function resolveRecipientVars(
         member_id: string;
       }>(
         // membership_no is the SHORT per-group number (NC000078), not the long
-        // platform member_code - it is what a member is asked to quote, and it
+        // platform member_code — it is what a member is asked to quote, and it
         // makes {{membership_no}} usable in an ordinary campaign body, not
         // only in the trigger engine's templates.
         `SELECT m.phone, m.first_name, m.last_name, gm.membership_no, gm.member_id
@@ -472,7 +472,7 @@ export async function resolveRecipientVars(
 
     // Reused rather than re-implemented. member-balances.service.ts exists
     // precisely so the wallet, the bulk email job and now SMS cannot drift
-    // apart on what "savings" or "loan balance" mean - its own header cites
+    // apart on what "savings" or "loan balance" mean — its own header cites
     // this codebase's documented history of bugs from duplicated calculation
     // logic. It is already set-based (one row per active member, balances
     // pre-aggregated per member before joining, so no fan-out inflates a
@@ -493,7 +493,7 @@ export async function resolveRecipientVars(
   for (const m of members) {
     const key = normalizePhone(m.phone);
     // Only recipients of THIS send, and only the first member holding a given
-    // phone - two members can share a handset (a spouse pair is common), and
+    // phone — two members can share a handset (a spouse pair is common), and
     // the send is one message to that number either way. Oldest membership
     // wins, so the rendered name is stable run to run rather than dependent
     // on row order.
@@ -501,9 +501,9 @@ export async function resolveRecipientVars(
     const existing = byPhone.get(key);
     if (existing?.first_name !== undefined) continue;
 
-    // A member with no snapshot row - computeMemberFinancialSnapshot returns
+    // A member with no snapshot row — computeMemberFinancialSnapshot returns
     // only `status='active'` memberships, while the name query above
-    // deliberately does not filter - keeps their name variables and has their
+    // deliberately does not filter — keeps their name variables and has their
     // balance placeholders stripped, rather than being told their balance is
     // zero. "No figure" and "zero" are different claims to make about
     // somebody's money.
@@ -517,7 +517,7 @@ export async function resolveRecipientVars(
       membership_no: m.membership_no ?? undefined,
       ...(bal
         ? {
-            // Grouped thousands, no decimals, no "KES" - the currency word stays
+            // Grouped thousands, no decimals, no "KES" — the currency word stays
             // in the template so an officer writes "KES {{contribution_balance}}"
             // and controls the phrasing. Matches how the receipt path formats its
             // own {{balance}} (mpesa-spine.service.ts).
@@ -537,7 +537,7 @@ export async function resolveRecipientVars(
  *
  * The provider's bulk endpoint already carries an independent `message` per
  * `mobile` (textsms.service.ts's BulkSmsItem), so personalization costs
- * nothing at the wire level - what was missing was the phone→member mapping
+ * nothing at the wire level — what was missing was the phone→member mapping
  * to render against (resolveRecipientVars, above).
  *
  * A message with no `{{` at all is returned untouched. stripUnresolved()
@@ -565,19 +565,19 @@ export const smsService = {
 
     // Bill + create 'queued' log rows atomically, then dispatch *after* the
     // transaction commits. Dispatch is awaited (not setImmediate) because
-    // post-response background work is not guaranteed to run on serverless -
+    // post-response background work is not guaranteed to run on serverless —
     // the previous setImmediate left messages stuck 'queued' while credits
     // were already debited. This path is single/few recipients (transactional
     // receipts, manual sends); large fan-out goes through sendBulkCampaign.
     const result = await withTransaction(ctx, async (client) => {
       // Opt-outs are resolved before billing so a fully-suppressed send costs
-      // nothing - for either payer.
+      // nothing — for either payer.
       const optOuts = await fetchOptOuts(client, ctx.groupId);
       const eligible = normalized.filter((p) => !optOuts.has(p));
       if (!eligible.length) return { fresh: [] as SmsUsageLog[], alreadyLogged: [] as SmsUsageLog[] };
 
       // Already-logged recipients under this correlation key are skipped, the
-      // same guard sendBulkCampaign has had since H3 - this path never got it.
+      // same guard sendBulkCampaign has had since H3 — this path never got it.
       //
       // Without it there were TWO uncoordinated retry owners for one message.
       // The trigger engine re-invokes send() with the same phones on its own
@@ -622,14 +622,14 @@ export const smsService = {
       );
       if (!reservation.ok) {
         // Reserve BEFORE inserting any row, so an unaffordable send leaves no
-        // trace - an existing integration test pins exactly this ordering.
+        // trace — an existing integration test pins exactly this ordering.
         void raiseLowBalanceAlert(toReservationTarget(ctx.groupId, payer));
         throw reserveFailureToError(reservation.reason, reservation.detail);
       }
       const [payerType, payerOrgId] = payerCols(payer);
 
       // Phase 2b: the reservation already split this batch between the
-      // bundled allowance and paid credits (migration 124) - spend the
+      // bundled allowance and paid credits (migration 124) — spend the
       // allowance count down per row so each row records its own true
       // source. One row is one message, so the split is all-or-nothing per
       // row: a message is never half-allowance/half-paid.
@@ -726,7 +726,7 @@ export const smsService = {
       await settleReservation(failedIds, 'release');
 
       // Re-read what dispatch actually recorded. The rows returned by the
-      // INSERT above carry status 'queued' - the column default - because
+      // INSERT above carry status 'queued' — the column default — because
       // dispatchBatch writes the provider's verdict to the DATABASE and never
       // touches these in-memory objects. Returning them unrefreshed reported
       // every send as 'queued' no matter what happened.
@@ -737,7 +737,7 @@ export const smsService = {
       // that test can never be true: 'queued' !== 'failed' for every row, so
       // the retry branch was unreachable and an execution was marked 'sent'
       // even when the provider rejected every recipient. That is precisely
-      // the defect PR #124 set out to fix - the guard it added was correct
+      // the defect PR #124 set out to fix — the guard it added was correct
       // but was reading data that could never show a failure.
       // sms_trigger_executions is append-only, so a wrongly-terminal row can
       // never be corrected.
@@ -786,20 +786,20 @@ export const smsService = {
 
     // dispatchKey is bound to sms_usage_logs.correlation_id and .reference_id,
     // both `uuid`. A non-uuid used to reach Postgres and fail there with 22P02
-    // - on the dedup SELECT below, i.e. AFTER the caller had already been told
+    // — on the dedup SELECT below, i.e. AFTER the caller had already been told
     // the send was queued, so every chunked bulk send failed silently and
     // wrote nothing. Fail loudly at the boundary instead: this is a caller
     // bug, never a runtime condition, and it must not look like a send that
     // merely reached no one.
     if (dispatchKey !== null && !isUuid(dispatchKey)) {
       throw new Error(
-        `sendBulkCampaign: dispatchKey must be a UUID (got "${dispatchKey}") - ` +
+        `sendBulkCampaign: dispatchKey must be a UUID (got "${dispatchKey}") — ` +
           'it is persisted to sms_usage_logs.correlation_id/.reference_id, both uuid columns',
       );
     }
 
     // One rendered copy per recipient, computed once and reused by BOTH the
-    // sms_usage_logs insert and the provider items below - message_text must
+    // sms_usage_logs insert and the provider items below — message_text must
     // record what that number actually received, not the unrendered template.
     // Memoized rather than rendered twice because a large campaign resolves
     // to the same string for every recipient sharing a first name.
@@ -831,10 +831,10 @@ export const smsService = {
       const optOuts = new Set(optOutRows.map((r) => r.phone));
       let eligible = phones.filter((p) => !optOuts.has(p));
 
-      // H3 (SMS_MESSAGING_AUDIT_2026-08.md) - a job-level retry (e.g. after
+      // H3 (SMS_MESSAGING_AUDIT_2026-08.md) — a job-level retry (e.g. after
       // resetStuckJobs reclaims a timed-out job) re-invokes this with the
       // SAME full phone list. Recipients already logged under this dispatch
-      // key - whether their first attempt was accepted or rejected - must
+      // key — whether their first attempt was accepted or rejected — must
       // not be billed or dispatched a second time; a rejected message's own
       // retry goes through sms_failures' dedicated backoff (retryFailures()),
       // not a wholesale re-run of the batch that created it.
@@ -858,7 +858,7 @@ export const smsService = {
       // Reserve against the stated payer: the group, or the organization
       // running the campaign. Mirrors send()'s guards for each path.
       // Personalisation means each recipient's rendered body can differ in
-      // length, so segments are summed per recipient rather than multiplied -
+      // length, so segments are summed per recipient rather than multiplied —
       // one member's name pushing their copy over 160 characters must cost
       // what it actually costs (SMS-AUDIT-v3 G5).
       const segsByPhone = new Map(eligible.map((p) => [p, segmentsOf(messageFor(p))]));
@@ -870,7 +870,7 @@ export const smsService = {
       }
       const [payerType, payerOrgId] = payerCols(payer);
 
-      // Phase 2b: spend the allowance count down per row (migration 124) -
+      // Phase 2b: spend the allowance count down per row (migration 124) —
       // one row is one message, so the split is all-or-nothing per row.
       let allowanceLeft = reservation.fromAllowanceCount;
 
@@ -879,7 +879,7 @@ export const smsService = {
        * exactly as the single-send path above does it.
        *
        * `notification_type` used to be the hardcoded literal 'campaign' while
-       * the very next column carried the real category - so every scheduled
+       * the very next column carried the real category — so every scheduled
        * reminder, the highest-volume path in the product and the whole of Chama
        * Reminder's mechanism, landed in the analytics screen's per-feature
        * breakdown under one uninformative label. The rows were not missing,
@@ -887,7 +887,7 @@ export const smsService = {
        * the same useless thing.
        *
        * Campaigns pass no referenceType and keep falling back to 'campaign',
-       * which is what they are - and they stay separately attributed by
+       * which is what they are — and they stay separately attributed by
        * campaign id regardless.
        * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
        */
@@ -902,7 +902,7 @@ export const smsService = {
         const batch = eligible.slice(i, i + batchSize);
         for (const phone of batch) {
           // One credit per SEGMENT (SMS-AUDIT-v3 G5), and the allowance can
-          // part-fund a multi-segment message - see the single-send path.
+          // part-fund a multi-segment message — see the single-send path.
           const segs = segsByPhone.get(phone) ?? 1;
           const fromAllowance = Math.min(allowanceLeft, segs);
           allowanceLeft -= fromAllowance;
@@ -959,7 +959,7 @@ export const smsService = {
       }
 
       if (input.campaignId) {
-        // recipient_count is the campaign's TOTAL, not this call's slice -
+        // recipient_count is the campaign's TOTAL, not this call's slice —
         // see totalRecipientCount's doc comment. Every chunk of the same
         // campaign writes the same value, so this is idempotent regardless
         // of call order or how many chunks there are.
@@ -1000,7 +1000,7 @@ export const smsService = {
       return { eligible, logIds, dedupedAway };
     });
 
-    // Nothing left to send - either everyone opted out, or (H3) this is a
+    // Nothing left to send — either everyone opted out, or (H3) this is a
     // job-level retry that found every recipient already logged under this
     // dispatch key. In the latter case an earlier attempt may have crashed
     // between dispatching and marking the campaign complete; finish that now
@@ -1008,7 +1008,7 @@ export const smsService = {
     // will ever revisit it once this job stops retrying.
     if (!eligible.length) {
       // Only re-syncs when THIS call's own dedup actually matched something
-      // (dedupedAway > 0) - an empty chunk with nothing to dedupe against
+      // (dedupedAway > 0) — an empty chunk with nothing to dedupe against
       // (e.g. every one of its recipients opted out) has no evidence any
       // other chunk finished, so it must not touch the campaign row.
       // syncCampaignCompletion itself decides completion from the real
@@ -1036,15 +1036,15 @@ export const smsService = {
       result = await sendBulkSmsChunked(items);
     } catch (err) {
       // The provider call never answered at all (network error, timeout, DNS
-      // failure) - distinct from a provider *rejection*, which
+      // failure) — distinct from a provider *rejection*, which
       // sendBulkSmsChunked already resolves per-item without throwing.
       // Previously uncaught here: the exception propagated out of
       // sendBulkCampaign entirely, leaving every row in this batch at its
-      // INSERT default (status='queued', billing_state='reserved') - no
+      // INSERT default (status='queued', billing_state='reserved') — no
       // sms_failures row, invisible to retryFailures(), and recoverable only
       // ~15 minutes later when the stale-reservation sweeper released the
       // credits without ever retrying the send itself
-      // (SMS_MESSAGING_AUDIT_2026-08.md H5's surviving half - the refund half
+      // (SMS_MESSAGING_AUDIT_2026-08.md H5's surviving half — the refund half
       // is already covered by the reservation model, see settleReservation
       // below and messaging-billing.ts's header comment).
       logger.error('[sms] sendBulkCampaign dispatch error:', err);
@@ -1077,7 +1077,7 @@ export const smsService = {
             `INSERT INTO sms_failures
                (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
              VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
-            // -1: sentinel failure_code - there is no provider response to
+            // -1: sentinel failure_code — there is no provider response to
             // report, only a local/network exception.
             [input.groupId, logId, phoneByLogId.get(logId)!, input.message, '-1', reason],
           );
@@ -1107,13 +1107,13 @@ export const smsService = {
         }
       });
 
-      // Nothing here is chargeable - return every reservation in this batch.
+      // Nothing here is chargeable — return every reservation in this batch.
       await settleReservation(logIds, 'release');
       return { sent: 0, failed: logIds.length, logs: [] };
     }
 
     // Align responses back to log rows by clientSmsId, not array position
-    // (SMS_MESSAGING_AUDIT_2026-08.md H6) - see alignBulkResponses's own
+    // (SMS_MESSAGING_AUDIT_2026-08.md H6) — see alignBulkResponses's own
     // comment for why positional indexing across chunked sends is unsafe.
     const byLogId = alignBulkResponses(result.responses, logIds);
 
@@ -1121,7 +1121,7 @@ export const smsService = {
     await withAdminDb(async (db) => {
       for (const logId of logIds) {
         const r = byLogId.get(logId);
-        if (!r) continue; // unmatched - handled as a rejection below, same as before
+        if (!r) continue; // unmatched — handled as a rejection below, same as before
 
         await db.query(
           `UPDATE sms_usage_logs
@@ -1160,11 +1160,11 @@ export const smsService = {
       }
 
       // Aggregated from the real rows, not result.sent/result.failed (this
-      // call's own batch only) - a partially-deduped retry (H3), or one
+      // call's own batch only) — a partially-deduped retry (H3), or one
       // chunk of a QStash-dispatched campaign, would otherwise
       // overwrite the campaign's totals with just its own recipients'
       // counts, losing every other call's already-sent tally. status only
-      // flips to 'completed' once the aggregate covers recipient_count -
+      // flips to 'completed' once the aggregate covers recipient_count —
       // see syncCampaignCompletion's own comment.
       if (input.campaignId) {
         await syncCampaignCompletion(db, input.campaignId);
@@ -1173,7 +1173,7 @@ export const smsService = {
 
     // Settle the reservation per response: accepted ⇒ charge, rejected ⇒ return
     // the earmark. A row the provider never answered is treated as rejected
-    // (not left 'reserved') - this function's own pre-existing choice, kept
+    // (not left 'reserved') — this function's own pre-existing choice, kept
     // unchanged; only WHICH rows count as unanswered is now correct.
     const acceptedIds: string[] = [];
     const rejectedIds: string[] = [];
@@ -1245,7 +1245,7 @@ export const smsService = {
    * Only `credits` (purchased top-ups) used to be returned, so a group that
    * had just paid for a plan including 50 messages saw a balance of 0 and
    * reasonably concluded its package came with nothing. The allowance is
-   * real - reserve_sms_credits draws from it first - it simply had no way to
+   * real — reserve_sms_credits draws from it first — it simply had no way to
    * reach the UI. Reported in production right after a Starter purchase.
    */
   async getBalance(ctx: TenantContext): Promise<{
@@ -1264,7 +1264,7 @@ export const smsService = {
       }>(
         // SUM the allowance across active subscriptions, matching what
         // reserve_sms_credits itself does for a group holding more than one
-        // product - taking a single row would under-report a group with both.
+        // product — taking a single row would under-report a group with both.
         `SELECT ba.sms_credits,
                 COALESCE(MIN(s.sms_rate)::text,'0.90')            AS sms_rate,
                 COALESCE(SUM(s.sms_allowance_included), 0)::int   AS allowance_included,
@@ -1335,7 +1335,7 @@ export const smsService = {
    * caller's own group before touching it, while the DLR polling cron
    * legitimately spans every tenant. Making the system case opt-in (rather
    * than a defaultable/omittable argument) is what stops the request path
-   * from silently regaining cross-tenant reach - the shape of C3, where the
+   * from silently regaining cross-tenant reach — the shape of C3, where the
    * route never applied a group predicate at all
    * (SMS_MESSAGING_AUDIT_2026-08.md C3).
    *
@@ -1350,7 +1350,7 @@ export const smsService = {
     // every mutation below it on the RLS-enforced tenant pool, scoped to the
     // caller's own group: RLS's `group_id = app_current_group_id()` policy is
     // now the real reason a caller cannot touch another tenant's row, not
-    // merely this hand-written predicate (kept as defense-in-depth) - closing
+    // merely this hand-written predicate (kept as defense-in-depth) — closing
     // the residual reach of C3 (SMS_MESSAGING_AUDIT_2026-08.md) one layer
     // deeper. The DLR poll cron (`system: true`) spans every tenant in one
     // pass with no single group to scope to, so it keeps the admin pool
@@ -1441,9 +1441,9 @@ export const smsService = {
       // group_id must be set: sms_delivery_reports carries a group-scoped RLS
       // policy (group_id = app_current_group_id(), no separate WITH CHECK, so
       // Postgres reuses USING for INSERT/UPDATE too), and this INSERT used to
-      // omit the column entirely - group_id defaulted to NULL, and NULL never
+      // omit the column entirely — group_id defaulted to NULL, and NULL never
       // equals the GUC, so every request-driven getDlr() call (the 'groupId'
-      // scope - an officer manually checking a message) threw "new row
+      // scope — an officer manually checking a message) threw "new row
       // violates row-level security policy" here, unconditionally. The
       // system-cron path ('system: true') runs on withAdminDb, which bypasses
       // RLS, so it was never affected and NULL there is fine.
@@ -1502,7 +1502,7 @@ export const smsService = {
    * per tick (each check is one provider HTTP call). Refreshes campaign
    * delivered_count for any campaign whose messages reached a terminal state.
    *
-   * `limit` was 50 - one job doing up to 50 sequential outbound HTTP calls
+   * `limit` was 50 — one job doing up to 50 sequential outbound HTTP calls
    * could alone exceed processJobBatch's per-tick time budget (see
    * lib/jobs/processor.ts), which is exactly how sms_poll_dlr ended up stuck
    * "sent" and never "delivered" for real production messages for days:
@@ -1525,7 +1525,7 @@ export const smsService = {
     //
     // A message that has aged past the polling window below can never be
     // asked about again, so it would otherwise sit at 'sent' forever and keep
-    // the "still stuck" count climbing - which is how 151 rows accumulated
+    // the "still stuck" count climbing — which is how 151 rows accumulated
     // before migration 166 backfilled them.
     //
     // This marks the ABSENCE of knowledge, not a bad outcome: status stays
@@ -1588,7 +1588,7 @@ export const smsService = {
           // LEFT JOIN + queried_at ordering is what stops a handful of
           // never-reported messages holding every slot. sent_at ASC alone put
           // them permanently at the head of the queue, so newer messages were
-          // never polled and aged out of the window still 'sent' - 175 of 353
+          // never polled and aged out of the window still 'sent' — 175 of 353
           // lifetime rows are in exactly that state (SMS-AUDIT-v3 G3).
           //
           // The join is 1:1: sms_delivery_reports has a unique index on
@@ -1604,7 +1604,7 @@ export const smsService = {
            AND l.sent_at <= NOW() - INTERVAL '2 minutes'
            -- Widened from 24 hours: that window silently orphaned any message
            -- the poller hadn't reached in time, which is exactly what the
-           -- 2026-08-12/17 job-queue stall did to real production sends -
+           -- 2026-08-12/17 job-queue stall did to real production sends —
            -- once older than 24h they'd NEVER be checked again, stuck 'sent'
            -- forever. 7 days sweeps up that incident backlog too; the
            -- provider's own DLR data is unlikely to be meaningful much past
@@ -1638,7 +1638,7 @@ export const smsService = {
       // One provider lookup can take up to its 15s timeout, so starting
       // another with less than that left risks the platform killing the whole
       // invocation mid-write (Vercel Hobby caps the function at 60s and
-      // cannot be raised - see lib/jobs/deadline.ts). Partial progress is
+      // cannot be raised — see lib/jobs/deadline.ts). Partial progress is
       // safe: this is an idempotent sweep and the rest is picked up next tick.
       if (tickBudgetExhausted(DLR_CALL_BUDGET_MS)) {
         stoppedEarly = true;
@@ -1699,7 +1699,7 @@ export const smsService = {
     }
 
     // `checked` is what was actually polled, which is NOT logs.length when the
-    // loop stopped early - reporting the selected count as the checked count
+    // loop stopped early — reporting the selected count as the checked count
     // would hide exactly the budget pressure this bound exists to reveal.
     logger.info(
       `[sms] DLR poll: ${checked}/${logs.length} checked, ${delivered} delivered, ` +
@@ -1756,7 +1756,7 @@ export const smsService = {
     );
 
     // M6: read through validated env (lib/env.ts), not a second, drifted
-    // 'KITABU' fallback - env.TEXTSMS_SENDER_ID's own default is the
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
     // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
     let retried = 0,
@@ -1769,7 +1769,7 @@ export const smsService = {
       // Stop before starting a send there is no time to finish. This loop is
       // the most dangerous one to have killed mid-flight: the provider may
       // accept the message AFTER the invocation dies, so the sms_failures row
-      // stays unresolved and the SAME message is sent again on the next tick -
+      // stays unresolved and the SAME message is sent again on the next tick —
       // a real duplicate to a real member, and a second charge. Leaving the
       // remainder for the next tick costs 5 minutes and nothing else.
       if (tickBudgetExhausted(SEND_CALL_BUDGET_MS)) {
@@ -1804,20 +1804,20 @@ export const smsService = {
    * (SMS-AUDIT-v3 T3-5 / G28).
    *
    * An officer composing a message had no way to learn either number that
-   * matters - how many people it reaches, and what it costs - until after the
+   * matters — how many people it reaches, and what it costs — until after the
    * send had happened and the credits were gone. Both are knowable up front,
    * and both have surprised people here before: "Send to All Members" once
    * silently resolved to 20 recipients, and a 200-character message costs two
    * credits per person, not one.
    *
    * Resolves the audience through the SAME resolveSmsRecipients() the send
-   * path uses and prices with the SAME segmentsOf() the reservation uses - a
+   * path uses and prices with the SAME segmentsOf() the reservation uses — a
    * preview computed by a second implementation would eventually disagree
    * with the charge, which is worse than no preview. (Exactly the three-way
    * quoting divergence V3-01 found in the UI's own "SMS parts" counter.)
    *
    * Opt-outs are applied, so the count is who will really be messaged, not
-   * who was selected. Reads only - nothing is reserved, nothing is written.
+   * who was selected. Reads only — nothing is reserved, nothing is written.
    */
   async previewBulkSend(
     ctx: TenantContext,
@@ -1828,7 +1828,7 @@ export const smsService = {
     recipients: number;
     segmentsPerMessage: number;
     creditsRequired: number;
-    /** Written in the body but supplied to no recipient - these will send as holes. */
+    /** Written in the body but supplied to no recipient — these will send as holes. */
     unresolvableVariables: string[];
     balance: { credits: number; allowanceRemaining: number; available: number };
     affordable: boolean;
@@ -1847,13 +1847,13 @@ export const smsService = {
 
     // ── Price what will ACTUALLY be sent, not what was typed ──────────
     //
-    // This used to be segmentsOf(input.message) - the RAW template, complete
+    // This used to be segmentsOf(input.message) — the RAW template, complete
     // with its `{{first_name}}` placeholders. That text is never sent to
     // anybody: personalize() either substitutes the variable (`{{first_name}}`
     // is 14 characters, `Mary` is 4) or, on a send carrying no vars, STRIPS it
     // entirely. So the quoted figure was computed on a string that does not
     // exist, and it disagreed with the charge in precisely the case that costs
-    // money - long values, or many of them.
+    // money — long values, or many of them.
     //
     // The dispatch path was always right: sendBulkCampaign prices
     // segmentsOf(messageFor(phone)) per recipient (G5). This performs the same
@@ -1871,8 +1871,8 @@ export const smsService = {
       segmentsOf(personalize(input.message, varsByPhone?.get(normalizePhone(phone)))),
     );
     const creditsRequired = perRecipient.reduce((sum, n) => sum + n, 0);
-    // Personalisation makes this vary between recipients - one long name can
-    // tip a single message into a second segment - so the headline figure is
+    // Personalisation makes this vary between recipients — one long name can
+    // tip a single message into a second segment — so the headline figure is
     // the WORST case rather than an average that understates somebody's bill.
     const segmentsPerMessage = perRecipient.length
       ? Math.max(...perRecipient)
@@ -1881,18 +1881,18 @@ export const smsService = {
     // ── Variables that will not resolve for ANYONE ────────────────────
     //
     // Reported because the composer's own "Load Template" list includes the
-    // platform's system templates - ordered is_system DESC, so they appear
-    // FIRST - and those are written for the automated paths that pass their
+    // platform's system templates — ordered is_system DESC, so they appear
+    // FIRST — and those are written for the automated paths that pass their
     // variables explicitly. Loading `payment_received` into a campaign gives
     // an officer {{amount}}, {{product}}, {{receipt}} and {{balance}}, none
     // of which a bulk send supplies, so it goes out as
-    // "KES received for Umoja (A/C BG102534). Receipt: . Balance: KES ." -
+    // "KES received for Umoja (A/C BG102534). Receipt: . Balance: KES ." —
     // the same shape as the receipt defect mpesa-spine.service.ts already
     // documents and skips a send to avoid.
     //
     // Only variables unresolved for EVERY recipient are reported. A message
     // to a mix of members and custom_phones legitimately leaves
-    // {{first_name}} unfilled for the non-members - that is the documented,
+    // {{first_name}} unfilled for the non-members — that is the documented,
     // intended stripping, and warning about it on every such send would
     // train an officer to click past the warning that matters.
     const unresolvableVariables =
@@ -1916,7 +1916,7 @@ export const smsService = {
       balance: { credits, allowanceRemaining: balance.allowanceRemaining, available },
       affordable: available >= creditsRequired,
       // A threshold, not a hard cap: the caller decides how to present it.
-      // Set where a mistake stops being cheap - 100 recipients is roughly a
+      // Set where a mistake stops being cheap — 100 recipients is roughly a
       // whole small chama, and past that an accidental "all members" is a
       // real amount of somebody's money.
       requiresConfirmation: recipients.length >= BULK_CONFIRM_THRESHOLD,
@@ -1926,7 +1926,7 @@ export const smsService = {
   /**
    * Retry ONE failed message on an operator's say-so (SMS-AUDIT-v3 T3-5 / G22).
    *
-   * Runs retryOneFailure - the same path the cron sweep uses - so the consent
+   * Runs retryOneFailure — the same path the cron sweep uses — so the consent
    * gate, the reserve-before-dispatch ordering and the settle discipline are
    * inherited rather than re-derived. What it deliberately overrides is only
    * the SCHEDULING: `next_retry_at` and `max_retries` are ignored, because
@@ -1957,7 +1957,7 @@ export const smsService = {
    * `exhausted` is computed rather than left to the caller: it is the whole
    * reason a person needs this screen. Those rows are the ones the 5-minute
    * sweep has permanently abandoned, so a human deciding to retry is the only
-   * thing that will ever move them - 7 such rows existed on the day this
+   * thing that will ever move them — 7 such rows existed on the day this
    * shipped.
    *
    * Tenant pool, so RLS scopes the read; the explicit group_id predicate is
@@ -2002,8 +2002,8 @@ export const smsService = {
     // officer of one group can never resolve another tenant's failure id,
     // not merely this hand-written `f.group_id = $2` (kept below as
     // defense-in-depth). retryOneFailure() itself stays on the admin pool
-    // below - it is shared with the cron sweep (retryFailures()), which has
-    // no per-request session - but every write inside it is already scoped
+    // below — it is shared with the cron sweep (retryFailures()), which has
+    // no per-request session — but every write inside it is already scoped
     // to this specific row's own f.group_id.
     const [row] = await withDb(ctx, (db) =>
       db
@@ -2020,7 +2020,7 @@ export const smsService = {
 
     if (!row) return { status: 'not_found' };
     // Already delivered or already suppressed. Re-sending would be a duplicate
-    // to a real person and a second charge - the exact pair of harms the
+    // to a real person and a second charge — the exact pair of harms the
     // dedup work in T1-2 existed to stop.
     if (row.resolved) return { status: 'already_resolved' };
 
@@ -2094,7 +2094,7 @@ export const smsService = {
 
   /**
    * Record an opt-out. `source` says how the request reached us and `actorId`
-   * who recorded it - the two things the old text[] could not hold, and the
+   * who recorded it — the two things the old text[] could not hold, and the
    * two a data subject or a regulator actually asks about (DPA 2019).
    *
    * Idempotent: opting out twice keeps the FIRST timestamp, because that is
@@ -2151,10 +2151,10 @@ export const smsService = {
   },
 
   /**
-   * Reverses optOut() - the missing half of the pair (SMS_MESSAGING_AUDIT_2026-08.md
+   * Reverses optOut() — the missing half of the pair (SMS_MESSAGING_AUDIT_2026-08.md
    * M5). Without this, a member who opts out via the self-service preference
    * toggle has no way back in short of an officer editing the raw DB array.
-   * No-op (not an error) if the row or the phone in it doesn't exist -
+   * No-op (not an error) if the row or the phone in it doesn't exist —
    * mirrors optOut()'s own "already in the desired state" tolerance.
    */
   async optIn(groupId: string, phone: string): Promise<void> {
@@ -2207,7 +2207,7 @@ export const smsService = {
  * Align a chunked bulk-send's provider responses back to the log rows that
  * requested them (SMS_MESSAGING_AUDIT_2026-08.md H6).
  *
- * The naive approach - `responses[i]` against `logIds[i]` - assumes the
+ * The naive approach — `responses[i]` against `logIds[i]` — assumes the
  * provider returns exactly one response per item, in submission order, for
  * every 100-item chunk. If any single chunk returns fewer responses than it
  * was sent, every subsequent index shifts: the wrong log row gets marked
@@ -2216,7 +2216,7 @@ export const smsService = {
  * The request already carries a caller-assigned clientSmsId (1-based index
  * into logIds) per item specifically so the response can be matched back
  * unambiguously regardless of chunk boundaries, ordering, or drops. Prefer
- * it - but only when EVERY response in the batch carries a usable one: a
+ * it — but only when EVERY response in the batch carries a usable one: a
  * provider that omits it on some rows and not others is not a signal we can
  * trust row-by-row, so a partial availability falls back to the exact
  * historical positional behaviour wholesale rather than guessing which rows
@@ -2224,7 +2224,7 @@ export const smsService = {
  * echoes clientsmsid, and fixes the bug outright when it reliably does.
  *
  * Responses that end up unmatched (a dropped item, in the fallback path) are
- * simply absent from the returned map - logIds not present in it stay
+ * simply absent from the returned map — logIds not present in it stay
  * 'reserved', which the stale-reservation sweeper already recovers.
  */
 function alignBulkResponses(responses: SmsResponse[], logIds: string[]): Map<string, SmsResponse> {
@@ -2263,7 +2263,7 @@ async function dispatchBatch(
 
   try {
     // M6: read through validated env (lib/env.ts), not a second, drifted
-    // 'KITABU' fallback - env.TEXTSMS_SENDER_ID's own default is the
+    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
     // registered sender ID, 'KITABU YETU'.
     const sender = env.TEXTSMS_SENDER_ID;
 
@@ -2288,7 +2288,7 @@ async function dispatchBatch(
 
       for (const logId of logIds) {
         const r = byLogId.get(logId);
-        if (!r) continue; // unmatched - left 'reserved' for the stale-reservation sweeper
+        if (!r) continue; // unmatched — left 'reserved' for the stale-reservation sweeper
         await updateLogRow(
           logId,
           r.success ? 'sent' : 'failed',
@@ -2301,8 +2301,8 @@ async function dispatchBatch(
           await logFailure(groupId, logId, phoneByLogId.get(logId)!, message, r.responseCode, r.responseDescription);
         } else sentIds.push(logId);
       }
-      // Anything the provider never answered (a genuinely dropped item, or -
-      // in the positional fallback - a short chunk) stays out of both lists,
+      // Anything the provider never answered (a genuinely dropped item, or —
+      // in the positional fallback — a short chunk) stays out of both lists,
       // matching this function's own documented "stays reserved" contract.
     }
 
@@ -2344,11 +2344,11 @@ async function dispatchBatch(
     } finally {
       client.release();
     }
-    // The provider never confirmed acceptance, so nothing here is chargeable -
+    // The provider never confirmed acceptance, so nothing here is chargeable —
     // the caller's settleReservation(failedIds, 'release') already returns the
     // earmark. But unlike a provider *rejection* (handled per-row above via
     // logFailure), this exception path previously wrote no sms_failures row at
-    // all, so it got no retry - SMS_MESSAGING_AUDIT_2026-08.md H5's surviving
+    // all, so it got no retry — SMS_MESSAGING_AUDIT_2026-08.md H5's surviving
     // half (the refund half is already covered by the reservation model).
     // -1 is a sentinel failure_code: there is no provider response to report,
     // only a local/network exception.
@@ -2433,9 +2433,9 @@ interface RetryableFailure {
  * Extracted from retryFailures' loop so the manual retry action
  * (SMS-AUDIT-v3 T3-5 / G22) runs the identical path rather than a second
  * implementation of it. Everything delicate about this sequence was learned
- * from a production defect - the reservation ordering (a retry that delivered
+ * from a production defect — the reservation ordering (a retry that delivered
  * for free, 2026-08-16), the release-on-throw (a stranded earmark), the
- * opt-out check preceding any spend - and a hand-rolled "retry" button that
+ * opt-out check preceding any spend — and a hand-rolled "retry" button that
  * re-derived it would eventually get one of them wrong.
  *
  * Returns an outcome rather than mutating counters, so both callers can
@@ -2447,12 +2447,12 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
   // Circuit open ⇒ skip without touching retry_count/next_retry_at at all
   // (SMS-AUDIT-v3 T3-3 closure test: "an outage does not exhaust a message's
   // max_retries budget while the circuit is open"). Checked BEFORE the opt-out
-  // lookup and the credit reservation below, deliberately - an outage is not
+  // lookup and the credit reservation below, deliberately — an outage is not
   // this row's fault, so nothing about it should change state, including work
   // that would otherwise need undoing.
   if (!isProviderAvailable(provider)) return 'skipped_circuit';
 
-  // Consent gate - never re-send to a number that has since opted out. Ahead
+  // Consent gate — never re-send to a number that has since opted out. Ahead
   // of the reservation, so a suppressed retry costs nothing.
   if (await smsService.isOptedOut(f.group_id, f.phone)) {
     await withAdminDb((db) =>
@@ -2492,13 +2492,13 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
   // The first attempt reserved credits and RELEASED them when it failed
   // (billing_state='released'). Nothing re-reserved on retry, so a message
   // that failed once and succeeded on retry was delivered with
-  // credits_deducted = 0 - free, for every tenant, silently. Confirmed on
+  // credits_deducted = 0 — free, for every tenant, silently. Confirmed on
   // real production sends 2026-08-16.
   //
   // The reservation has to happen BEFORE sendSingleSms, not after: once the
   // provider has accepted the message we can no longer decline to send it, so
   // discovering an empty balance at that point would leave us having delivered
-  // something unbilled all over again. This mirrors the order in send() -
+  // something unbilled all over again. This mirrors the order in send() —
   // reserve, dispatch, then consume or release.
   const target = {
     payerType: (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
@@ -2510,10 +2510,10 @@ async function retryOneFailure(f: RetryableFailure, sender: string): Promise<Ret
   const retrySegments = segmentsOf(f.message);
   const reservation = await withAdminDb((db) => reserveCredits(db, target, retrySegments));
   if (!reservation.ok) {
-    // Out of credits is not a transient provider fault - retrying on a timer
+    // Out of credits is not a transient provider fault — retrying on a timer
     // will not conjure a balance. Record it and stop; a top-up puts the row
     // back in play because retry_count is untouched.
-    await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} - ${reservation.detail}`);
+    await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} — ${reservation.detail}`);
     return 'failed';
   }
 

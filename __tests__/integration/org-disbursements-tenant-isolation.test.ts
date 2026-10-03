@@ -1,5 +1,5 @@
 /**
- * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) - "admin" category. The literal
+ * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) — "admin" category. The literal
  * `/api/admin/organizations|groups/[id]` routes are `super_admin`-only by
  * design (global access, nothing to scope), so the meaningful admin-tier
  * isolation boundary is `organization_coordinator`, tested here via

@@ -1,17 +1,17 @@
 /**
- * R10 on the portfolio dashboard - GET /api/admin/organization/dashboard.
+ * R10 on the portfolio dashboard — GET /api/admin/organization/dashboard.
  *
  * The distinction under test is the whole point of the change: an organization
  * that genuinely holds nothing and a query that failed to read must NOT look
  * alike. Before this, both rendered "KES 0", because the service fell back to
- * `?? '0'` per field and the UI did it again - so a coordinator could read a
+ * `?? '0'` per field and the UI did it again — so a coordinator could read a
  * failed query as their groups' money having vanished.
  *
  * After: a real empty org returns a populated `portfolio` of genuine zeros with
  * `incomplete: []`; an unreadable section returns `null` and names itself in
  * `incomplete`, and the UI renders a dash rather than a number.
  *
- * Each test uses its OWN organization on purpose - getDashboard caches on
+ * Each test uses its OWN organization on purpose — getDashboard caches on
  * `org-dashboard:<orgId>` for 30s, so sharing one org between cases would let
  * the first result satisfy the second.
  */
@@ -34,7 +34,7 @@ const call = (userId: string, organizationId: string) =>
     }),
   );
 
-describe('Portfolio dashboard - R10 per-metric fallback', () => {
+describe('Portfolio dashboard — R10 per-metric fallback', () => {
   beforeAll(async () => {
     await resetDatabase();
   });
@@ -51,7 +51,7 @@ describe('Portfolio dashboard - R10 per-metric fallback', () => {
 
     // Nothing failed, so nothing may be flagged...
     expect(data.incomplete).toEqual([]);
-    // ...and the section must be PRESENT rather than null - "empty" is an
+    // ...and the section must be PRESENT rather than null — "empty" is an
     // answer, and it has to be distinguishable from "no answer".
     expect(data.portfolio).not.toBeNull();
     expect(data.portfolio!.linkedGroups).toBe(0);
@@ -73,7 +73,7 @@ describe('Portfolio dashboard - R10 per-metric fallback', () => {
     expect(data.portfolio!.linkedGroups).toBe(1);
 
     // The wallet was funded and drawn down by the fixture, so these are real
-    // movements - proving the financial section carries actual data rather
+    // movements — proving the financial section carries actual data rather
     // than a zero-filled placeholder.
     expect(data.financial).not.toBeNull();
     expect(parseFloat(String(data.financial!.totalDisbursed))).toBeGreaterThan(0);

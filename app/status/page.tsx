@@ -15,23 +15,23 @@ export const metadata: Metadata = marketingMetadata({
 
 /**
  * This page used to render a hardcoded "All systems operational" with a
- * disclaimer that it was updated manually - flagged by the 2026-08-25
+ * disclaimer that it was updated manually — flagged by the 2026-08-25
  * hero-brief claim audit as a false live-status marker (defect 5). It now
  * runs three real checks server-side on every regeneration:
  *
  *  - Database: the same pool every request handler uses (`lib/db`).
  *  - Cache/jobs: Redis, which SMS delivery, rate limiting and job dispatch
  *    all depend on (`lib/redis`).
- *  - M-Pesa: `getAccessToken()` from daraja.service.ts - the same
+ *  - M-Pesa: `getAccessToken()` from daraja.service.ts — the same
  *    in-memory + Redis-cached OAuth token every STK push, B2C and B2B call
  *    uses. Calling it here almost always hits that cache rather than making
  *    a fresh call to Safaricom, so this doesn't add load to their API.
  *
- * A module-level cache below caps how often those checks actually run - this
+ * A module-level cache below caps how often those checks actually run — this
  * is a public, unauthenticated, potentially crawler-hit page, and a
  * DB/Redis/Daraja round trip on every single request would be its own small
  * liability. This is a plain `export const revalidate` away from being ISR
- * - but the three checks are raw `pg`/`ioredis` calls, not `fetch()`, and
+ * — but the three checks are raw `pg`/`ioredis` calls, not `fetch()`, and
  * only `fetch()` participates in Next's Data Cache, so `revalidate` alone
  * does nothing here and the route renders fully dynamic regardless. Same
  * shape as the Daraja token cache itself: process-local, good enough for a
@@ -90,7 +90,7 @@ async function checkMpesa(): Promise<CheckState> {
  *
  *  1. Every provider call now runs through lib/sms/provider.ts's circuit
  *     breaker, so a probe fired from a public, unauthenticated page would
- *     feed that breaker - letting anyone who can load this URL influence
+ *     feed that breaker — letting anyone who can load this URL influence
  *     whether real sends are allowed through. A status page must observe the
  *     system, never steer it.
  *  2. "Did one balance call succeed" is a weaker question than "are messages
@@ -103,7 +103,7 @@ async function checkMpesa(): Promise<CheckState> {
  * waits an hour for a real verdict.
  *
  * Queue depth is deliberately NOT published here. It is internal operational
- * detail of exactly the kind T1-7 removed from tenant surfaces - it belongs
+ * detail of exactly the kind T1-7 removed from tenant surfaces — it belongs
  * in the tick log line and the job history, not on a public page.
  */
 async function checkSms(): Promise<CheckState> {
@@ -112,7 +112,7 @@ async function checkSms(): Promise<CheckState> {
     const health = await withTimeout(readProviderHealth(), 4_000);
     return health?.state === 'degraded' ? 'down' : 'operational';
   } catch {
-    // Reading the verdict failed - that says nothing about the provider.
+    // Reading the verdict failed — that says nothing about the provider.
     return 'operational';
   }
 }
@@ -124,7 +124,7 @@ async function getStatus(): Promise<StatusSnapshot> {
 
   const [db, cache, mpesa, sms] = await Promise.all([checkDatabase(), checkRedis(), checkMpesa(), checkSms()]);
 
-  // The API and the web app itself share the database's fate - neither can
+  // The API and the web app itself share the database's fate — neither can
   // serve a real request without it, so there is no separate probe for them.
   const snapshot: StatusSnapshot = {
     checkedAt: Date.now(),

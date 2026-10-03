@@ -61,7 +61,7 @@ export default function CampaignsPage() {
       });
       toast({
         title: 'Campaign created as a draft',
-        description: 'Submit it for review when you're ready to go live.',
+        description: 'Submit it for review when you’re ready to go live.',
       });
       setOpen(false);
       form.reset();
@@ -184,7 +184,7 @@ export default function CampaignsPage() {
               <Label htmlFor="payoutPhone">Payout phone (optional)</Label>
               <Input id="payoutPhone" {...form.register('payoutPhone')} placeholder="07XXXXXXXX" />
               <p className="text-xs text-muted-foreground">
-                Where withdrawals are paid out to. Can also be set later - required before submitting for review.
+                Where withdrawals are paid out to. Can also be set later — required before submitting for review.
               </p>
             </div>
             <DialogFooter>

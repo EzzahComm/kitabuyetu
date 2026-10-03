@@ -69,7 +69,7 @@ export const loansService = {
 
   /**
    * Next N unpaid installments due across every active loan in the group,
-   * soonest first - the dashboard's "Upcoming Loan Repayments" card
+   * soonest first — the dashboard's "Upcoming Loan Repayments" card
    * (SIMPLIFICATION_AND_RBAC_AUDIT.md §4: no group-wide aggregation existed
    * before this; `loan_repayments` itself is a real, DB-trigger-generated
    * schedule per loan, so this is a straightforward cross-loan query, not a
@@ -158,7 +158,7 @@ export const loansService = {
       // the long-standing product decision recorded in loan-policy.service.ts.
       // The difference is deliberate: a rate is a number an officer may have a
       // good reason to vary, whereas the group has declared it offers loans of
-      // exactly these lengths. A dropdown alone would not hold - the API is
+      // exactly these lengths. A dropdown alone would not hold — the API is
       // reachable without the form.
       //
       // Applies ONLY to new applications. import.service.ts intentionally does
@@ -167,7 +167,7 @@ export const loansService = {
       // record what actually happened.
       if (policyTerms.termOptions?.length && !policyTerms.termOptions.includes(data.loanTermMonths)) {
         throw new ValidationError(
-          `This group lends for ${policyTerms.termOptions.join(', ')} months - ${data.loanTermMonths} is not offered`,
+          `This group lends for ${policyTerms.termOptions.join(', ')} months — ${data.loanTermMonths} is not offered`,
         );
       }
 
@@ -350,7 +350,7 @@ export const loansService = {
         throw new ValidationError(`Only approved loans can be disbursed`);
       }
 
-      // Transition to disbursed - the DB trigger generates the repayment schedule
+      // Transition to disbursed — the DB trigger generates the repayment schedule
       const prev = existing[0];
 
       const { rows } = await client.query<Loan>(
@@ -367,7 +367,7 @@ export const loansService = {
 
       const updated = rows[0];
 
-      // Attribute the money to its funding source(s) - migration 118.
+      // Attribute the money to its funding source(s) — migration 118.
       //
       // This is what distinguishes "the group lent its own savings" from "the
       // group on-lent an organization's capital", which are otherwise the same
@@ -399,7 +399,7 @@ export const loansService = {
       });
 
       // Auto-apply any configured one-time charges (processing fee, insurance
-      // fee, …) - migration 179. A no-op today for every group, since nothing
+      // fee, …) — migration 179. A no-op today for every group, since nothing
       // seeds a default charge type; only fires once a chairperson configures
       // one via loanChargesService.configureChargeType. Inside this same
       // transaction so a charge is atomic with the disbursement itself.
@@ -524,9 +524,9 @@ export const loansService = {
       });
 
       // Auto-apply any configured late-payment charge when this instalment was
-      // paid after its due date - migration 179. Parallel to, not a
+      // paid after its due date — migration 179. Parallel to, not a
       // replacement for, the manual `penalty_amount` above: a no-op today for
-      // every group, since nothing seeds a default charge type. Idempotent -
+      // every group, since nothing seeds a default charge type. Idempotent —
       // an instalment can only reach this point once (the completed-status
       // guard above), and applyOverdueCharges itself checks for a prior
       // application before inserting.
@@ -552,7 +552,7 @@ export const loansService = {
     });
   },
 
-  /** First step of the write-off workflow - flags an active loan as uncollectible. */
+  /** First step of the write-off workflow — flags an active loan as uncollectible. */
   async markDefaulted(ctx: TenantContext, id: string, data: MarkDefaultedInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Loan>(
@@ -588,10 +588,10 @@ export const loansService = {
   },
 
   /**
-   * Second step - maker-checker: the officer who marked the loan defaulted
+   * Second step — maker-checker: the officer who marked the loan defaulted
    * cannot be the one who writes it off (DB CHECK backstop in migration 084).
    * Posts DR 5004 Loan Write-offs / CR 1101 Loans Receivable for the
-   * outstanding balance and zeroes it out - this debt is no longer expected
+   * outstanding balance and zeroes it out — this debt is no longer expected
    * to be collected.
    */
   async writeOff(ctx: TenantContext, id: string, data: WriteOffLoanInput): Promise<Loan> {
@@ -619,7 +619,7 @@ export const loansService = {
           ctx.groupId,
           ctx.userId,
           'loan_writeoff',
-          `Loan write-off - ${id}`,
+          `Loan write-off — ${id}`,
           { outstanding },
           { reference: id },
         );

@@ -6,7 +6,7 @@
  *
  * 1. An AUTOMATED message signs with the group, never a person. A cron
  *    reminder at 08:00 is not from the treasurer, and "- John, Treasurer" on
- *    it tells a member something untrue - in a chama that is a social fact,
+ *    it tells a member something untrue — in a chama that is a social fact,
  *    not a UI detail.
  * 2. The separator is a HYPHEN. An em-dash is not in GSM-7, and one non-GSM-7
  *    character forces the whole message to UCS-2 (67 chars/segment instead of
@@ -49,7 +49,7 @@ describe('buildSenderVars', () => {
     expect(buildSenderVars({ groupName: 'Umoja Chama', person: { name: '' } }).sender_signature).toBe('Umoja Chama');
   });
 
-  it('never emits a non-GSM-7 separator - the cost guard', () => {
+  it('never emits a non-GSM-7 separator — the cost guard', () => {
     const withPerson = buildSenderVars({
       groupName: 'Umoja Chama',
       person: { name: 'John', role: 'Treasurer' },
@@ -63,7 +63,7 @@ describe('buildSenderVars', () => {
 describe('GSM-7 cost guard on the built-in templates', () => {
   /**
    * A single non-GSM-7 character anywhere in a template forces UCS-2 for the
-   * WHOLE message and cuts a segment from 153 characters to 67 - so an
+   * WHOLE message and cuts a segment from 153 characters to 67 — so an
    * innocuous curly quote or em-dash pasted into a template roughly triples
    * what every send costs. Every group, every message, silently.
    */
@@ -80,7 +80,7 @@ describe('GSM-7 cost guard on the built-in templates', () => {
       membership_no: 'BG102534',
     });
 
-    // 151 of 153 when this was written - deliberately tight. If a future edit
+    // 151 of 153 when this was written — deliberately tight. If a future edit
     // pushes it over, that DOUBLES the cost of every reminder the platform
     // sends, so this failing is the point rather than an inconvenience.
     expect(countSegments(body).segments).toBe(1);
@@ -97,7 +97,7 @@ describe('GSM-7 cost guard on the built-in templates', () => {
     const signed = `${body} - Umoja Chama`;
 
     // The body already says "your Umoja Chama contribution", so the signature
-    // repeats it - and costs a whole extra segment to do so.
+    // repeats it — and costs a whole extra segment to do so.
     expect(body).toContain('Umoja Chama');
     expect(countSegments(body).segments).toBe(1);
     expect(countSegments(signed).segments).toBe(2);

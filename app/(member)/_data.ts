@@ -1,6 +1,6 @@
 /**
  * Shared presentational constants for the (member) portal. Real data comes
- * from hooks/use-member.ts (backed by lib/services/member-*.service.ts) -
+ * from hooks/use-member.ts (backed by lib/services/member-*.service.ts) —
  * this file no longer holds any mock data, only the type re-exports and
  * label/emoji lookup table that components/member/*.tsx were already built
  * against.

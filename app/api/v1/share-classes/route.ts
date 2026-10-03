@@ -5,7 +5,7 @@ import { sharesService } from '@/lib/services/shares.service';
 import { CreateShareClassSchema } from '@/lib/validators/shares.schema';
 import { created, ok } from '@/lib/utils/response';
 
-/** GET /api/v1/share-classes - list share classes for the current group. */
+/** GET /api/v1/share-classes — list share classes for the current group. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
@@ -15,7 +15,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/share-classes - create a new share class (treasurer+). */
+/** POST /api/v1/share-classes — create a new share class (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'shares.manage', async (auth) => {
     const body = await req.json();

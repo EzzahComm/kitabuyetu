@@ -1,6 +1,6 @@
 /**
  * Single source of truth for Kitabu Yetu brand constants used outside of
- * Tailwind/CSS - specifically transactional emails and server-rendered PDFs.
+ * Tailwind/CSS — specifically transactional emails and server-rendered PDFs.
  *
  * UI components (navbar, footer, sidebars) use the logo components in
  * components/branding/ (<BrandLockup />, <BrandLogo />) and Tailwind tokens (`bg-brand-500`, `text-brand-blue-500`).
@@ -16,7 +16,7 @@ export const BRAND = {
   tagline: BRAND_TAGLINE,
 
   // Hex values sourced from lib/ui/brand-palette.ts (also consumed by
-  // tailwind.config.ts and lib/ui/tokens.ts) - do not hand-copy shades here.
+  // tailwind.config.ts and lib/ui/tokens.ts) — do not hand-copy shades here.
   colors: {
     green: brandGreen[500], // primary brand green (CTAs, success, accents)
     greenDark: brandGreen[600],
@@ -32,7 +32,7 @@ export const BRAND = {
     warning: '#D97706',
   },
 
-  // Font stack mirrors the Tailwind sans configuration - Inter primary,
+  // Font stack mirrors the Tailwind sans configuration — Inter primary,
   // system fallbacks for environments where the font can't load (email/PDF).
   fontFamily: "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif",
 } as const;
@@ -50,7 +50,7 @@ export function getBrandLogoUrl(): string {
   return `${base}/brand/kitabu-yetu-logo-email.png`;
 }
 
-/** Standard email/PDF footer line - brand name + tagline. */
+/** Standard email/PDF footer line — brand name + tagline. */
 export function brandFooterLine(): string {
-  return `${BRAND.name} - ${BRAND.tagline}`;
+  return `${BRAND.name} — ${BRAND.tagline}`;
 }

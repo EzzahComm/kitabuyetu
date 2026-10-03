@@ -3,7 +3,7 @@
  *
  * Billing charged one credit per RECIPIENT regardless of message length, while
  * the provider bills per SEGMENT. A 300-character message is 2 GSM-7 segments,
- * or 5 if a single character forces UCS-2 - so long messages cost the platform
+ * or 5 if a single character forces UCS-2 — so long messages cost the platform
  * a multiple of what they billed, invisibly, with sms-margin.service reporting
  * the wrong unit as if it were right.
  *
@@ -28,7 +28,7 @@ const GSM7_BASIC = new Set(
 /**
  * GSM 03.38 extension table. Each of these is still GSM-7 encodable but costs
  * TWO septets: an 0x1B escape followed by the character. A message of 80 '€'
- * signs is therefore 160 septets - a full single segment, not half of one.
+ * signs is therefore 160 septets — a full single segment, not half of one.
  */
 const GSM7_EXTENDED = new Set(['^', '{', '}', '\\', '[', ']', '~', '|', '€']);
 
@@ -49,7 +49,7 @@ export interface SegmentInfo {
   encoding: SmsEncoding;
   /** Billable parts the provider will charge for. Always >= 1. */
   segments: number;
-  /** Septets for GSM-7, UTF-16 code units for UCS-2 - the unit that fills a segment. */
+  /** Septets for GSM-7, UTF-16 code units for UCS-2 — the unit that fills a segment. */
   units: number;
   /** Characters as a human counts them, for display next to the segment count. */
   characters: number;
@@ -63,7 +63,7 @@ function isGsm7(text: string): boolean {
   return true;
 }
 
-/** Septet cost of a GSM-7 string - extended characters cost 2. */
+/** Septet cost of a GSM-7 string — extended characters cost 2. */
 function gsm7Units(text: string): number {
   let units = 0;
   for (const ch of text) units += GSM7_EXTENDED.has(ch) ? 2 : 1;
@@ -95,7 +95,7 @@ export function countSegments(body: string): SegmentInfo {
   }
 
   // UCS-2 is billed in UTF-16 code units, which is what .length already
-  // measures - a surrogate pair correctly costs 2.
+  // measures — a surrogate pair correctly costs 2.
   const units = text.length;
   return {
     encoding: 'ucs2',

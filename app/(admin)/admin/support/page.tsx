@@ -94,7 +94,7 @@ export default function SupportPage() {
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / 20);
 
-  // Queue-wide (matching the current filters), computed server-side - not a
+  // Queue-wide (matching the current filters), computed server-side — not a
   // JS filter over just this page's 20 rows, which silently diverged from
   // these numbers past the first page or under any filter
   // (docs/audits/optimization-2026-09).
@@ -238,7 +238,7 @@ export default function SupportPage() {
             key: 'org',
             header: 'Organization',
             render: (ticket) => (
-              <span className="text-sm text-muted-foreground">{ticket.group_name ?? ticket.member_name ?? '-'}</span>
+              <span className="text-sm text-muted-foreground">{ticket.group_name ?? ticket.member_name ?? '—'}</span>
             ),
           },
           {

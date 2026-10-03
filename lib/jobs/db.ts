@@ -1,18 +1,18 @@
 /**
  * Raw SQL operations for the job queue.
- * Uses the shared pg Pool directly (no RLS context needed - job queue
+ * Uses the shared pg Pool directly (no RLS context needed — job queue
  * is admin-only; the postgres superuser has BYPASSRLS).
  */
 import type { PoolClient } from 'pg';
 import { pool } from '@/lib/db';
 import type { Job, JobStatus, JobType, EnqueueOptions } from './types';
 
-/** A pg Pool or a transaction-bound PoolClient - anything with `.query`. */
+/** A pg Pool or a transaction-bound PoolClient — anything with `.query`. */
 type Queryable = Pick<PoolClient, 'query'>;
 
 /**
  * Atomically claim the next batch of pending jobs using
- * `FOR UPDATE SKIP LOCKED` - safe for concurrent Vercel invocations.
+ * `FOR UPDATE SKIP LOCKED` — safe for concurrent Vercel invocations.
  *
  * `onlyType` lets processJobBatch round-robin across every distinct pending
  * type instead of always draining by strict `priority DESC`. A per-type cap
@@ -22,14 +22,14 @@ type Queryable = Pick<PoolClient, 'query'>;
  * are all priority 5), so even capped at a few each, that tier alone can
  * fill an entire tick's time budget before a lower-priority type like
  * sms_poll_dlr (priority 4) or sms_release_stale_reservations (priority 3)
- * is ever reached - they made zero progress for hours even after that cap
+ * is ever reached — they made zero progress for hours even after that cap
  * shipped. Restricting a claim to one specific type is what lets the
  * processor guarantee every distinct pending type gets touched once per
  * round before any type gets a second job.
  */
 export async function claimPendingJobs(limit = 10, onlyType?: JobType): Promise<Job[]> {
   // Split into two statements rather than one query with
-  // `($2::text IS NULL OR type = $2)` - that disjunction isn't sargable, so
+  // `($2::text IS NULL OR type = $2)` — that disjunction isn't sargable, so
   // the planner can't seek on `type` and falls back to scanning the pending
   // set from the front of the priority order, filtering as it goes. Measured
   // live at up to 10,815 buffers / 16.9ms for a single-row claim against a
@@ -76,7 +76,7 @@ export async function claimPendingJobs(limit = 10, onlyType?: JobType): Promise<
 export interface JobQueueSnapshot {
   /**
    * Every distinct job type with pending, due work right now, ordered by its
-   * own highest priority - purely a claiming preference within a round (see
+   * own highest priority — purely a claiming preference within a round (see
    * processJobBatch). Each type here gets exactly one claim attempt before
    * any type gets a second.
    */
@@ -96,8 +96,8 @@ export interface JobQueueSnapshot {
  * Previously two separate queries (getDistinctPendingTypes + getQueueDepth)
  * ran back-to-back over the same `status='pending' AND run_at<=NOW()` rows
  * every tick. Measured live: the first pays the full scan cost (~931ms
- * against a ~19,700-row backlog) and the second - identical shape, same
- * rows, still warm - costs ~15ms. Billing both separately overstated the
+ * against a ~19,700-row backlog) and the second — identical shape, same
+ * rows, still warm — costs ~15ms. Billing both separately overstated the
  * "introspection tax" by 2x and did two scans where Postgres only needed one
  * (docs/audits/optimization-2026-09). `idx_job_queue_claim` makes this an
  * index-only scan once the backlog is small, same index that serves
@@ -129,7 +129,7 @@ export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
       pending: Number(r.pending),
       oldestMins: Number(r.oldest_mins),
     }))
-    // Worst (oldest) first for the tick's log line - independent of the
+    // Worst (oldest) first for the tick's log line — independent of the
     // priority ordering above, which only matters for claim order.
     .sort((a, b) => b.oldestMins - a.oldestMins);
 
@@ -146,7 +146,7 @@ export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
  * threshold (safeguard against Vercel function timeouts).
  *
  * Counts the timeout as an attempt. Previously this only flipped the status
- * back to 'pending' and left `attempts` untouched - but `attempts` is
+ * back to 'pending' and left `attempts` untouched — but `attempts` is
  * incremented *only* in processSingleJob's catch branch, which a timed-out
  * invocation never reaches (the function died; nothing threw). A job that
  * reliably exceeds the function budget was therefore reset forever, never
@@ -160,7 +160,7 @@ export async function getJobQueueSnapshot(): Promise<JobQueueSnapshot> {
  * A job that exhausts its attempts here is marked 'failed' rather than
  * released again, matching what the catch branch does on a thrown error.
  * This bounds the retry loop; it does NOT make a retried campaign stop
- * re-billing what it already billed - that needs a dispatch-level idempotency
+ * re-billing what it already billed — that needs a dispatch-level idempotency
  * key and is tracked with the credit-reservation work (SMS-007/SMS-015,
  * docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 2/3).
  */
@@ -223,7 +223,7 @@ export async function scheduleRetry(id: string, attempts: number, delaySecs: num
 
 /**
  * Append a log entry for a job execution.
- * Fire-and-forget safe - does not throw if it fails.
+ * Fire-and-forget safe — does not throw if it fails.
  */
 export async function logJob(
   jobId: string,
@@ -248,7 +248,7 @@ export async function logJob(
  *
  * Pass `executor` to run the INSERT on a caller's open transaction (a
  * PoolClient) instead of the shared pool. This lets a producer commit the
- * enqueue atomically with its own state change - e.g. the SMS scheduler
+ * enqueue atomically with its own state change — e.g. the SMS scheduler
  * advances a schedule and enqueues its send in one transaction, so neither can
  * happen without the other. Defaults to the shared pool (its own connection).
  */
@@ -288,7 +288,7 @@ export async function pruneOldJobs(days = 30): Promise<number> {
 }
 
 /**
- * job_logs has no retention of its own - pruneOldJobs only ever deletes the
+ * job_logs has no retention of its own — pruneOldJobs only ever deletes the
  * *job_queue* row (job_logs then cascades via job_logs_job_id_fkey), so a
  * job still inside its 30-day retention window keeps accumulating "started"/
  * "completed" log rows indefinitely across every retry. Measured live:
@@ -296,7 +296,7 @@ export async function pruneOldJobs(days = 30): Promise<number> {
  * zero application code reading the table by id (docs/audits/
  * optimization-2026-09).
  *
- * 'failed' and 'retried' rows are kept regardless of age - they're the only
+ * 'failed' and 'retried' rows are kept regardless of age — they're the only
  * rows with real diagnostic content and the ones an operator would actually
  * want after a week.
  */

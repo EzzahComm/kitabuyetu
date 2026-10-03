@@ -1,5 +1,5 @@
 /**
- * Donor/grant spend report - closes ACCOUNTING_ARCHITECTURE_AUDIT.md §12
+ * Donor/grant spend report — closes ACCOUNTING_ARCHITECTURE_AUDIT.md §12
  * ("no endpoint aggregates spend-by-donor into a report"). Verifies programs
  * roll up correctly by funding_source (including the null -> 'Unspecified'
  * bucket) and that per-group settled-spend breakdowns land in the right bucket.
@@ -18,7 +18,7 @@ jest.mock(
   }),
   { virtual: true },
 );
-// Passthrough - this suite tests the query/aggregation logic, not the
+// Passthrough — this suite tests the query/aggregation logic, not the
 // read-through cache (OPTIMIZATION_CLEANUP_AUDIT.md High #8; that has its
 // own dedicated unit test at __tests__/unit/utils/redis-cache.test.ts).
 jest.mock('@/lib/redis', () => ({
@@ -41,7 +41,7 @@ const ctx = {
   organizationId: 'org-1',
 } as unknown as TenantContext;
 
-// Organization plans (migration 152) gate this report on advancedReports -
+// Organization plans (migration 152) gate this report on advancedReports —
 // a query donorSpendReport now issues (via assertReportsAccess) BEFORE its
 // own two, so it must be the first mockResolvedValueOnce in every test here,
 // or the report's real queries consume this one's response instead.

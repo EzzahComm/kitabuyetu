@@ -1,5 +1,5 @@
 /**
- * Runtime feature-flag evaluation (audit §33.4) - the targeting semantics
+ * Runtime feature-flag evaluation (audit §33.4) — the targeting semantics
  * (enabled / applies_to / conditions / rollout_pct) that migration 025
  * declared but nothing had ever evaluated.
  */
@@ -97,7 +97,7 @@ describe('isFeatureEnabled', () => {
       await expect(isFeatureEnabled(mockClient, 'welfare_module', { groupId: 'g1' })).resolves.toBe(false);
     });
 
-    it('is deterministic - the same subject always resolves the same way', async () => {
+    it('is deterministic — the same subject always resolves the same way', async () => {
       const results: boolean[] = [];
       for (let i = 0; i < 5; i++) {
         mockQuery.mockResolvedValueOnce(flagRow({ rollout_pct: 50 }));
@@ -117,7 +117,7 @@ describe('isFeatureEnabled', () => {
       expect(onCount).toBeLessThan(n * 0.65);
     });
 
-    it('needs a stable subject - no group or member means off for partial rollouts', async () => {
+    it('needs a stable subject — no group or member means off for partial rollouts', async () => {
       mockQuery.mockResolvedValueOnce(flagRow({ rollout_pct: 50 }));
       await expect(isFeatureEnabled(mockClient, 'welfare_module', {})).resolves.toBe(false);
     });

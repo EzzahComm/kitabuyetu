@@ -5,7 +5,7 @@ import { groupBankAccountsService } from '@/lib/services/group-bank-accounts.ser
 import { CreateGroupBankAccountSchema } from '@/lib/validators/group-bank-accounts.schema';
 import { ok, created, handleError } from '@/lib/utils/response';
 
-/** GET /api/v1/treasury/bank-accounts - list all bank accounts for the group. */
+/** GET /api/v1/treasury/bank-accounts — list all bank accounts for the group. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/treasury/bank-accounts - register a bank account (pending_approval). */
+/** POST /api/v1/treasury/bank-accounts — register a bank account (pending_approval). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {

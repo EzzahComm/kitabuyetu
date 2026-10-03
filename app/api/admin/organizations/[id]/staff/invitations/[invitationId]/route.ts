@@ -5,7 +5,7 @@ import { cancelOrgInvitation } from '@/lib/services/organization-members.service
 
 export const dynamic = 'force-dynamic';
 
-/** DELETE - cancel a pending invitation. */
+/** DELETE — cancel a pending invitation. */
 export function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
   return withPlatformRole(req, 'super_admin', async () => {
     const { invitationId } = await params;

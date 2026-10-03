@@ -2,8 +2,8 @@
  * Provider abstraction for outbound SMS (SMS-AUDIT-v3 T3-3, closes G15/V3-07,
  * INV-17).
  *
- * Before this, textsms.service.ts - a client for exactly one provider's wire
- * format - was imported directly by six call sites across sms.service.ts and
+ * Before this, textsms.service.ts — a client for exactly one provider's wire
+ * format — was imported directly by six call sites across sms.service.ts and
  * notifications.service.ts, and the literal 'textsms' was hardcoded in
  * roughly a dozen more places as a provider identity (cost tables, pricing
  * admin, sms_usage_logs/sms_provider_balances inserts). Every dispatch call
@@ -13,13 +13,13 @@
  *     outage fails fast instead of every caller separately discovering it
  *     through a 20-second timeout (see ./circuit-breaker.ts's own header for
  *     why that mattered).
- *  2. A single resolver for "which provider" - today always TextSMS, but
+ *  2. A single resolver for "which provider" — today always TextSMS, but
  *     `sms_usage_logs.provider` recording the REAL provider (not a hardcoded
  *     string) is what makes retryFailures() honouring it on retry a genuine
  *     choice rather than a no-op formality.
  *  3. A closure test that is actually checkable: adding a second provider
  *     means adding a second file to ./adapters and one line in the registry
- *     below - nothing calling sendSingleSms/sendBulkSmsChunked/etc. here
+ *     below — nothing calling sendSingleSms/sendBulkSmsChunked/etc. here
  *     should need to change.
  *
  * Modeled directly on lib/email/provider.ts's getAdapter() pattern.
@@ -45,7 +45,7 @@ const adapters: Record<string, ISmsAdapter> = {
 
 /**
  * The provider a FRESH send is placed with, absent an explicit override.
- * `SMS_PROVIDER` is intentionally not in lib/env.ts's validated schema yet -
+ * `SMS_PROVIDER` is intentionally not in lib/env.ts's validated schema yet —
  * there is exactly one adapter registered, so an env var to choose between
  * providers has nothing to choose between. Add it there when a second
  * adapter is registered below.
@@ -61,7 +61,7 @@ function resolveAdapter(name?: string | null): ISmsAdapter {
     // A historical row can name a provider that is no longer configured
     // (retired, renamed). Silently sending it through whatever adapter IS
     // configured would attribute the message to the wrong sender-ID/account
-    // relationship - fail closed instead. This is the opposite posture from
+    // relationship — fail closed instead. This is the opposite posture from
     // the feature-flag kill switch's fail-OPEN-on-unknown-key rule
     // (messaging-billing.ts): that guards against an operator's own lookup
     // breaking sends; this guards against a provider-identity mismatch
@@ -82,15 +82,15 @@ export function isProviderAvailable(name?: string | null): boolean {
 }
 
 /**
- * Every provider call funnels through here. Fails fast - without attempting
- * the network call at all - while the circuit is open, and records the
+ * Every provider call funnels through here. Fails fast — without attempting
+ * the network call at all — while the circuit is open, and records the
  * outcome of any call it does let through.
  *
  * A per-item provider REJECTION (invalid number, low bulk credits) never
  * reaches here as a throw: sendSingle/sendBulk resolve those in the returned
  * SmsResponse/BulkSmsResult, exactly as textsms.service.ts already does. So
  * the breaker trips only on a genuine transport failure (timeout, DNS,
- * connection refused, an unparseable response) - which is the actual signal
+ * connection refused, an unparseable response) — which is the actual signal
  * "is this provider reachable at all", not "did this one recipient's number
  * get rejected".
  */
@@ -109,7 +109,7 @@ async function guarded<T>(providerName: string, fn: () => Promise<T>): Promise<T
 }
 
 /**
- * `provider` lets a caller honour a HISTORICAL choice - retryFailures() reads
+ * `provider` lets a caller honour a HISTORICAL choice — retryFailures() reads
  * it off the original sms_usage_logs row so a message retries on the
  * provider that actually accepted it the first time, not whatever is active
  * now. Every fresh-send call site omits it and gets the active provider.

@@ -1,15 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  MessageSquare,
-  Calendar,
-  Users,
-  Phone,
-  CheckCircle2,
-  TrendingUp,
-  Bell,
-  Clock,
-} from 'lucide-react';
+import { Bell, Calendar, CircleCheck, Clock, MessagesSquare, Phone, TrendingUp, Users } from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -25,13 +16,13 @@ import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
-  title: 'Kumbusha - Bulk SMS Reminders for Chamas & Welfare Groups',
+  title: 'Kumbusha — Bulk SMS Reminders for Chamas & Welfare Groups',
   description:
     'Automated SMS reminders for contributions, meetings and loan repayments, plus announcements, so every member of your chama or welfare group stays informed.',
 });
 
 /**
- * Chama Reminder - the communication-only product. Separate purchase from
+ * Chama Reminder — the communication-only product. Separate purchase from
  * Bookkeeper, with its own pricing tier. No accounting setup, just a member
  * list and scheduled SMS.
  *
@@ -46,13 +37,13 @@ export default function ChamaReminderPage() {
         <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
             <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
-              Chama Reminder - Kumbusha
+              Chama Reminder · Kumbusha
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
               Contributions on time. <em className="not-italic text-brand-500">No follow-up calls.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
-              Automatic SMS reminders and announcements to every member's phone. Nothing to install, nothing to set up.
+              Automatic SMS reminders and announcements to every member’s phone. Nothing to install, nothing to set up.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <Link
@@ -72,7 +63,7 @@ export default function ChamaReminderPage() {
         </Container>
 
         <SectionTitle preTitle="Features" title="Reach every member, every time">
-          Your member list and SMS - no bookkeeping needed.
+          Your member list and SMS — no bookkeeping needed.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -156,7 +147,7 @@ export default function ChamaReminderPage() {
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
-                      <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+                      <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
                   ))}
@@ -203,8 +194,8 @@ export default function ChamaReminderPage() {
         <Cta
           title="Stop chasing contributions."
           subtitle="Set your reminders once. They go out on their own."
-          note="Add bookkeeping any time - no re-setup."
-          footnote="Month to month - Pay by M-Pesa - Free move to Bookkeeper"
+          note="Add bookkeeping any time — no re-setup."
+          footnote="Month to month · Pay by M-Pesa · Free move to Bookkeeper"
           primary={{
             text: 'Send your first reminder',
             href: signUpUrl('chama_reminder'),
@@ -225,23 +216,23 @@ const coreFeatures = [
   },
   {
     title: 'SMS campaigns',
-    description: 'Send now or schedule - to one member or everyone.',
-    icon: <MessageSquare size={24} />,
+    description: 'Send now or schedule — to one member or everyone.',
+    icon: <MessagesSquare size={24} />,
   },
   {
     title: 'Message templates',
-    description: 'Personalised with each member's name, amount and date.',
+    description: 'Personalised with each member’s name, amount and date.',
     icon: <Bell size={24} />,
   },
   {
     title: 'Scheduled reminders',
-    description: 'Contribution reminders, meeting notices and birthday greetings - on time, every time.',
+    description: 'Contribution reminders, meeting notices and birthday greetings — on time, every time.',
     icon: <Clock size={24} />,
   },
   {
     title: 'Delivery tracking',
-    description: 'See what was delivered and resend what wasn't.',
-    icon: <CheckCircle2 size={24} />,
+    description: 'See what was delivered and resend what wasn’t.',
+    icon: <CircleCheck size={24} />,
   },
   {
     title: 'Simple pricing',
@@ -263,7 +254,7 @@ const keepMembersInformed = {
     },
     {
       title: 'Reminders that go out on time',
-      desc: 'Scheduled once, sent automatically - no one has to remember.',
+      desc: 'Scheduled once, sent automatically — no one has to remember.',
       icon: <Clock size={24} />,
     },
     {
@@ -322,7 +313,7 @@ const useCases = [
   },
   {
     name: 'Loan reminders',
-    description: 'Repayment due dates, before they're missed.',
+    description: 'Repayment due dates, before they’re missed.',
     icon: '💳',
   },
 ];

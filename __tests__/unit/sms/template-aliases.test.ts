@@ -4,7 +4,7 @@
  *
  * The personalization spec asked for `short_member_id`, `payment_account` and
  * `paybill_number`. Every one already existed under another name, and the
- * spec's own §12 forbids creating parallel identifiers for data that exists -
+ * spec's own §12 forbids creating parallel identifiers for data that exists —
  * so these resolve to the canonical values rather than duplicating them.
  *
  * The property that makes this safe to ship against live templates and live
@@ -14,13 +14,13 @@
 import { renderTemplate, VARIABLE_ALIASES, DEFAULT_TEMPLATES, TEMPLATE_KEYS } from '@/lib/sms/templates';
 
 // platformPaybill is exercised through require() after jest.resetModules()
-// below, because it reads the validated env at module load - a static import
+// below, because it reads the validated env at module load — a static import
 // would capture the env of the first test to run.
 
 describe('template variable aliases', () => {
   const vars = { first_name: 'Mary', membership_no: 'BG102534', paybill: '123456', amount: '2000' };
 
-  it('resolves the spec's names to the values that already exist', () => {
+  it('resolves the spec’s names to the values that already exist', () => {
     expect(renderTemplate('{{short_member_id}}', vars)).toBe('BG102534');
     expect(renderTemplate('{{payment_account}}', vars)).toBe('BG102534');
     expect(renderTemplate('{{account_number}}', vars)).toBe('BG102534');
@@ -33,7 +33,7 @@ describe('template variable aliases', () => {
     expect(renderTemplate('{{paybill}}', vars)).toBe('123456');
   });
 
-  it('an EXPLICIT value always wins over the alias - this is what makes it additive', () => {
+  it('an EXPLICIT value always wins over the alias — this is what makes it additive', () => {
     // A caller that already passes account_number must behave exactly as
     // before, even if it deliberately differs from membership_no.
     const explicit = { ...vars, account_number: 'BG102534-L' };
@@ -67,7 +67,7 @@ describe('template variable aliases', () => {
     expect(body).toContain('Mary');
     expect(body).toContain('Umoja Chama');
     expect(body).toContain('Paybill 123456');
-    // account_number was never passed - it resolved through the alias.
+    // account_number was never passed — it resolved through the alias.
     expect(body).toContain('Account BG102534');
     expect(body).not.toContain('{{');
   });
@@ -99,7 +99,7 @@ describe('platformPaybill', () => {
 /**
  * unresolvedVars() must agree with renderTemplate() about what "resolved"
  * means, including through the alias table. The two share resolveVar() for
- * exactly this reason - a guard that disagrees with its renderer either
+ * exactly this reason — a guard that disagrees with its renderer either
  * clears a message that sends with a hole, or blocks one that renders fine.
  */
 describe('unresolvedVars agrees with renderTemplate', () => {
@@ -107,7 +107,7 @@ describe('unresolvedVars agrees with renderTemplate', () => {
 
   it('counts a variable satisfied THROUGH an alias as resolved', () => {
     // `account_number` is an alias of `membership_no`, so supplying the
-    // canonical name must satisfy the alias - and the guard must agree.
+    // canonical name must satisfy the alias — and the guard must agree.
     const body = 'Pay to A/C {{account_number}}';
     const vars = { membership_no: 'BG102534' };
 

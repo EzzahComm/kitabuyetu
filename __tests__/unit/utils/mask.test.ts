@@ -22,9 +22,9 @@ describe('maskEmail', () => {
   });
 
   it('masks the entire string when local part is 1 character or fewer', () => {
-    // 'a@example.com' (atIdx=1, ≤1) → fully masked - 13 chars
+    // 'a@example.com' (atIdx=1, ≤1) → fully masked — 13 chars
     expect(maskEmail('a@example.com')).toBe('*'.repeat('a@example.com'.length));
-    // '@domain.com' (atIdx=0, ≤1) → fully masked - 11 chars
+    // '@domain.com' (atIdx=0, ≤1) → fully masked — 11 chars
     expect(maskEmail('@domain.com')).toBe('*'.repeat('@domain.com'.length));
   });
 

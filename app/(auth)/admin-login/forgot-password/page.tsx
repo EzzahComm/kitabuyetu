@@ -22,11 +22,11 @@ const emailSchema = z.object({
 type EmailValues = z.infer<typeof emailSchema>;
 
 /**
- * Staff/backoffice forgot-password - ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
+ * Staff/backoffice forgot-password — ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
  * Phase 1. Same dark/slate treatment as /admin-login so staff don't land on
  * an unfamiliar-looking page mid-flow. Always shows the same "check your
  * inbox" confirmation regardless of whether the email is a real staff
- * account - the API is enumeration-safe by design.
+ * account — the API is enumeration-safe by design.
  */
 export default function AdminForgotPasswordPage() {
   const router = useRouter();

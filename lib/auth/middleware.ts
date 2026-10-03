@@ -31,7 +31,7 @@ export function getAuthContext(req: NextRequest): AuthContext {
     throw new UnauthorizedError('Missing authentication context');
   }
 
-  // Active Membership Context + epochs (§2.1/§2.5) - proxy-stamped from the
+  // Active Membership Context + epochs (§2.1/§2.5) — proxy-stamped from the
   // JWT; absent on legacy tokens.
   const membershipId = req.headers.get('x-membership-id') ?? undefined;
   const membershipNo = req.headers.get('x-membership-no') ?? undefined;
@@ -63,8 +63,8 @@ export function withAuth<T extends unknown[]>(
 ): Promise<Response> {
   try {
     const auth = getAuthContext(req);
-    // Every tenant route reaches the handler through here - withRole,
-    // withOneOf, withPermission and withAnyPermission all delegate to it - so
+    // Every tenant route reaches the handler through here — withRole,
+    // withOneOf, withPermission and withAnyPermission all delegate to it — so
     // this is the one place a paid-subscription check covers the whole tenant
     // surface. The gate carves out the routes a locked group needs in order to
     // pay; see lib/auth/subscription-gate.ts.
@@ -102,7 +102,7 @@ export function withOneOf(
 
 /**
  * withAuth variant that enforces a specific permission string (RBAC
- * activation - SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4), resolved from
+ * activation — SIMPLIFICATION_AND_RBAC_AUDIT.md Workstream 4), resolved from
  * roles.permissions at token-issue time rather than a coarse role tier.
  * super_admin bypasses this check (see lib/auth/permissions.ts).
  */
@@ -131,7 +131,7 @@ export function withAnyPermission(
 
 // The old `withOrganizationPermission` lived here. It was built on
 // withAuth/getAuthContext and so required a TENANT token with a groupId,
-// which an organization coordinator never has - see withOrganizationAccess
+// which an organization coordinator never has — see withOrganizationAccess
 // at the foot of this file for the full story. Deleted rather than left
 // unused: it typechecks fine and reads plausibly, so the next organization
 // route to be added would have reached for it and silently reintroduced the
@@ -187,7 +187,7 @@ export function withBackofficeAuth<T extends unknown[]>(
 /**
  * Enforce that the backoffice caller has one of the allowed platform roles.
  * Unlike withOneOf (tenant), this uses an explicit allowlist rather than the
- * numeric ROLE_HIERARCHY - the platform-role tier doesn't have a meaningful
+ * numeric ROLE_HIERARCHY — the platform-role tier doesn't have a meaningful
  * "rank" (a `support` is not "lesser than" a `super_admin`, just different
  * scope), so a flat allowlist is the right shape here.
  */
@@ -219,7 +219,7 @@ export function withPlatformRole(
  * `/api/v1/` to `/api/admin/`; the routes now live in the bucket whose token
  * they actually receive.
  *
- * The handler is given a `TenantContext` with NO `groupId` - organization
+ * The handler is given a `TenantContext` with NO `groupId` — organization
  * scoping is `organizationId` (+ the app.current_organization_id GUC), and
  * the services only ever read `ctx.organizationId` for it.
  */
@@ -235,7 +235,7 @@ export function withOrganizationAccess(
       // No group, and that is the point. '' is the sentinel
       // app_current_group_id() already reads as "no group"
       // (NULLIF(current_setting(...), '')::uuid), so group-scoped RLS matches
-      // nothing - correct for an organization coordinator. TenantContext
+      // nothing — correct for an organization coordinator. TenantContext
       // keeps groupId required so no group-scoped service loses that
       // guarantee; this tree simply never reads it.
       groupId: '',

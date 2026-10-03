@@ -101,7 +101,7 @@ export function ComposeTab() {
               value={templateId}
               onChange={(e) => handleTemplateSelect(e.target.value)}
             >
-              <option value="">- Select a template -</option>
+              <option value="">— Select a template —</option>
               {tplList.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.name}
@@ -123,12 +123,12 @@ export function ComposeTab() {
               <span>{seg.characters} chars</span>
               <span>
                 {seg.segments} SMS part{seg.segments > 1 ? 's' : ''}
-                {seg.encoding === 'ucs2' ? ' - unicode' : ''}
+                {seg.encoding === 'ucs2' ? ' · unicode' : ''}
               </span>
             </div>
             {hasVariables && (
               <p className="text-xs text-muted-foreground mt-1">
-                Variables change the final length - Review and send shows the real cost.
+                Variables change the final length — Review and send shows the real cost.
               </p>
             )}
             {seg.encoding === 'ucs2' && (
@@ -175,7 +175,7 @@ export function ComposeTab() {
               }`}
             >
               <p className="text-sm font-medium">
-                {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'} - {preview.creditsRequired} credit
+                {preview.recipients} recipient{preview.recipients === 1 ? '' : 's'} · {preview.creditsRequired} credit
                 {preview.creditsRequired === 1 ? '' : 's'}
               </p>
               <p className="text-xs text-muted-foreground">
@@ -188,7 +188,7 @@ export function ComposeTab() {
 
               {!preview.affordable && (
                 <p className="text-xs font-medium text-rose-700">
-                  Not enough credits - this needs {preview.creditsRequired} and {preview.balance.available} are
+                  Not enough credits — this needs {preview.creditsRequired} and {preview.balance.available} are
                   available.
                 </p>
               )}

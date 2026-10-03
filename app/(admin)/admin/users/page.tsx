@@ -227,8 +227,8 @@ export default function UsersPage() {
             hideBelow: 'lg' as const,
             render: (u) => (
               <>
-                <p className="text-xs text-muted-foreground">{u.email ?? '-'}</p>
-                <p className="text-xs text-muted-foreground">{u.phone_number ?? '-'}</p>
+                <p className="text-xs text-muted-foreground">{u.email ?? '—'}</p>
+                <p className="text-xs text-muted-foreground">{u.phone_number ?? '—'}</p>
               </>
             ),
           },
@@ -236,13 +236,13 @@ export default function UsersPage() {
             key: 'org',
             header: 'Organization',
             hideBelow: 'lg' as const,
-            render: (u) => <span className="text-sm text-muted-foreground">{u.organization_name ?? '-'}</span>,
+            render: (u) => <span className="text-sm text-muted-foreground">{u.organization_name ?? '—'}</span>,
           },
           {
             key: 'group',
             header: 'Group',
             hideBelow: 'md' as const,
-            render: (u) => <span className="text-sm text-muted-foreground">{u.group_name ?? '-'}</span>,
+            render: (u) => <span className="text-sm text-muted-foreground">{u.group_name ?? '—'}</span>,
           },
           {
             key: 'groupRole',
@@ -250,7 +250,7 @@ export default function UsersPage() {
             hideBelow: 'lg' as const,
             render: (u) => (
               <span className="text-xs text-muted-foreground capitalize">
-                {u.role_name ?? u.group_role?.replace('_', ' ') ?? '-'}
+                {u.role_name ?? u.group_role?.replace('_', ' ') ?? '—'}
               </span>
             ),
           },
@@ -263,7 +263,7 @@ export default function UsersPage() {
                   {ROLE_LABELS[u.platform_role] ?? u.platform_role}
                 </Badge>
               ) : (
-                <span className="text-xs text-muted-foreground">-</span>
+                <span className="text-xs text-muted-foreground">—</span>
               ),
           },
           {
@@ -382,20 +382,20 @@ export default function UsersPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Member No.</span>
-                <span className="font-mono text-xs text-muted-foreground">{roleUser.member_code ?? '-'}</span>
+                <span className="font-mono text-xs text-muted-foreground">{roleUser.member_code ?? '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Organization</span>
-                <span className="text-muted-foreground">{roleUser.organization_name ?? '-'}</span>
+                <span className="text-muted-foreground">{roleUser.organization_name ?? '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Group</span>
-                <span className="text-muted-foreground">{roleUser.group_name ?? '-'}</span>
+                <span className="text-muted-foreground">{roleUser.group_name ?? '—'}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Current role</span>
                 <span className="text-muted-foreground capitalize">
-                  {roleUser.role_name ?? roleUser.group_role?.replace('_', ' ') ?? '-'}
+                  {roleUser.role_name ?? roleUser.group_role?.replace('_', ' ') ?? '—'}
                 </span>
               </div>
             </div>

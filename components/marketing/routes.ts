@@ -9,7 +9,7 @@
  *
  * THE INVARIANT: every href below resolves to a real page in `app/`. A
  * previous version of the footer shipped 10 dead links out of 16 (see its own
- * note in git history) - "the link works" is checked here, once.
+ * note in git history) — "the link works" is checked here, once.
  * ──────────────────────────────────────────────────────────────────────────── */
 import { DEPARTMENTS } from '@/lib/departments';
 
@@ -34,7 +34,7 @@ export const ROUTES = {
   bookkeeper: '/bookkeeper',
   chamaReminder: '/chama-reminder',
   fundraise: '/fundraise',
-  // Deliberately NOT `/enterprise` - that path is the authenticated
+  // Deliberately NOT `/enterprise` — that path is the authenticated
   // organization portal (`app/(enterprise)/enterprise`), a real logged-in
   // dashboard, not a marketing page. Reusing it for a public pitch would put
   // a sign-in gate where a prospect expects a description of the product.
@@ -61,7 +61,7 @@ export const ROUTES = {
   backoffice: '/admin-login',
 } as const;
 
-/** In-page anchors on the home page, referenced from the header and footer -
+/** In-page anchors on the home page, referenced from the header and footer —
  *  so the ids are declared once instead of as loose strings in three files. */
 export const SECTION_IDS = {
   paths: 'who-its-for',
@@ -112,7 +112,7 @@ export const PRODUCT_ITEMS: NavLink[] = [
   {
     label: 'Bookkeeper',
     href: ROUTES.bookkeeper,
-    description: 'Contributions, loans and welfare - books that balance.',
+    description: 'Contributions, loans and welfare — books that balance.',
   },
   {
     label: 'Chama Reminder / Kumbusha',
@@ -156,7 +156,7 @@ export const PRICING_ITEMS: NavLink[] = [
   {
     label: 'Changi$ha',
     href: `${ROUTES.pricing}#changisha`,
-    description: 'No monthly fee - a small fee per withdrawal.',
+    description: 'No monthly fee — a small fee per withdrawal.',
   },
   { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];
@@ -191,7 +191,7 @@ export interface FooterColumn {
 /**
  * Privacy and Terms (app/legal/privacy, app/legal/terms) hold real policy
  * text supplied directly by the business owner, published 2026-09. Data
- * Protection (app/legal/data-protection) is still a deliberate placeholder -
+ * Protection (app/legal/data-protection) is still a deliberate placeholder —
  * a wrong policy document for a product handling real money and personal
  * data is a liability, not a marketing choice, so nobody should draft it
  * except counsel or the business owner themself. Do not generate policy
@@ -292,7 +292,7 @@ export interface SocialLink {
 
 /**
  * Social profiles shown in the header, footer and team cards. To publish one,
- * set its `href` to the full profile URL - nothing else needs to change.
+ * set its `href` to the full profile URL — nothing else needs to change.
  */
 export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
@@ -303,7 +303,7 @@ export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'whatsapp', label: 'WhatsApp', href: whatsappHref(CONTACT.phones[0]) },
 ];
 
-/** The founder's own profiles, for the team card - personal, not the company's. Same rule: fill in `href`. */
+/** The founder's own profiles, for the team card — personal, not the company's. Same rule: fill in `href`. */
 export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
   {
     platform: 'linkedin',

@@ -1,5 +1,5 @@
 /**
- * POST /api/v1/workers/cron - Manual trigger (authenticated by WORKER_SECRET)
+ * POST /api/v1/workers/cron — Manual trigger (authenticated by WORKER_SECRET)
  *
  * Use this endpoint for:
  *   - Local development testing
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       processed,
     });
   } catch (err) {
-    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 - no longer echoes the raw
+    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 — no longer echoes the raw
     // error message to the caller; still fully logged server-side.
     logger.error('[workers/cron] Error:', err);
     return NextResponse.json(

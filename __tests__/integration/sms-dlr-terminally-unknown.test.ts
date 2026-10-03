@@ -3,7 +3,7 @@
  *
  * 151 rows sat permanently at status='sent': 112 from the C2-era backfill that
  * never set sent_at (the poller requires it), and 39 aged past the 7-day
- * window. They cost nothing and risk no money - but T3-1's closure metric
+ * window. They cost nothing and risk no money — but T3-1's closure metric
  * ("rows stuck 'sent' >7 days trends to 0") could never be satisfied, so every
  * future audit would re-flag it.
  *
@@ -75,7 +75,7 @@ describe('terminally-unknown DLR outcomes', () => {
   });
 
   it('retires the C2-era cohort, which the poller could never see', async () => {
-    // status='sent' with NO sent_at - the poller requires sent_at IS NOT NULL,
+    // status='sent' with NO sent_at — the poller requires sent_at IS NOT NULL,
     // so these 112 rows were unreachable rather than merely old.
     await seedSent(groupId, 'msg-nulldate', null);
 
@@ -85,7 +85,7 @@ describe('terminally-unknown DLR outcomes', () => {
     expect((await rowFor('msg-nulldate')).dlr_abandoned_at).toBeInstanceOf(Date);
   });
 
-  it('does NOT invent a failure - status stays sent', async () => {
+  it('does NOT invent a failure — status stays sent', async () => {
     await seedSent(groupId, 'msg-old-2', `NOW() - INTERVAL '9 days'`);
 
     await smsService.pollPendingDlrs();
@@ -116,7 +116,7 @@ describe('terminally-unknown DLR outcomes', () => {
     expect(mockGetDeliveryReport).not.toHaveBeenCalled();
   });
 
-  it('is idempotent - a second sweep retires nothing new', async () => {
+  it('is idempotent — a second sweep retires nothing new', async () => {
     await seedSent(groupId, 'msg-old-4', `NOW() - INTERVAL '9 days'`);
 
     await smsService.pollPendingDlrs();
@@ -133,7 +133,7 @@ describe('terminally-unknown DLR outcomes', () => {
     await smsService.pollPendingDlrs();
 
     // "Still genuinely stuck" is now status='sent' AND dlr_abandoned_at IS NULL,
-    // and the fresh row is not stuck - it is simply not due yet.
+    // and the fresh row is not stuck — it is simply not due yet.
     const [{ stuck }] = await rawQuery<{ stuck: string }>(
       `SELECT COUNT(*)::text AS stuck FROM sms_usage_logs
         WHERE status = 'sent' AND dlr_abandoned_at IS NULL

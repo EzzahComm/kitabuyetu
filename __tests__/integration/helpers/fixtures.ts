@@ -13,7 +13,7 @@ import { rawQuery } from './db';
 // register_group() requires E.164 Kenyan format (2547######## / 2541########)
 // and phone is UNIQUE across the whole `members` table. Each test file is a
 // separate Jest module instance, so a simple in-process counter would repeat
-// across files - use a random 8-digit block instead.
+// across files — use a random 8-digit block instead.
 function uniquePhone(): string {
   return `2547${crypto.randomInt(10_000_000, 100_000_000)}`;
 }
@@ -27,7 +27,7 @@ export interface TestGroup {
 
 /**
  * Creates a fully valid group + founding officer via the app's own
- * register_group() RPC - reuses real validated logic instead of hand-rolling
+ * register_group() RPC — reuses real validated logic instead of hand-rolling
  * INSERTs against a schema that's evolved across ~95 migrations since it was
  * first defined.
  *
@@ -35,7 +35,7 @@ export interface TestGroup {
  * plan), and assertSubscriptionActive locks a group with none out of every
  * route except sign-in and billing. A test group that can actually exercise
  * the product is therefore a group that has PAID, so one is provisioned here
- * by default - otherwise every route-level test would assert against a 402
+ * by default — otherwise every route-level test would assert against a 402
  * rather than the behaviour it is trying to cover.
  *
  * Pass `{ subscribed: false }` to get a genuinely unpaid group, which is what
@@ -44,8 +44,8 @@ export interface TestGroup {
  * Pass `{ product: 'chama_reminder' }` to register the way a standalone Chama
  * Reminder signup does. CAVEAT WORTH KNOWING BEFORE YOU USE IT: since migration
  * 140 such a group gets NO chart of accounts, so anything that posts a journal
- * - `fundGroupCashAccount()` included, which UPDATEs the '1001' account and
- * would silently affect zero rows - does not apply to it. That is the product
+ * — `fundGroupCashAccount()` included, which UPDATEs the '1001' account and
+ * would silently affect zero rows — does not apply to it. That is the product
  * working as designed, not a broken fixture.
  */
 export async function createTestGroup(
@@ -100,7 +100,7 @@ export async function subscribeTestGroup(
   );
 }
 
-/** Adds a second officer to an existing group via the real membersService (handles person_id/member_code correctly) - needed for maker-checker tests where approver must differ from initiator. */
+/** Adds a second officer to an existing group via the real membersService (handles person_id/member_code correctly) — needed for maker-checker tests where approver must differ from initiator. */
 export async function addGroupOfficer(
   groupId: string,
   actorMemberId: string,
@@ -150,7 +150,7 @@ export interface TestDisbursement {
 
 /**
  * Initiates a real disbursement_requests row via disbursementsService
- * (requires_approval = true - amount set above the group's default 20,000
+ * (requires_approval = true — amount set above the group's default 20,000
  * maker-checker threshold, lib/services/approval-policy.service.ts's
  * FALLBACKS.group_disbursement_threshold), so it lands in pending_approval
  * for the approve/reject tests.
@@ -179,7 +179,7 @@ export interface TestOrganization {
 /**
  * Creates a member with platform_role='organization_coordinator'. Note:
  * `assertOrganizationCoordinator` (organization.service.ts) checks only
- * `ctx.role === 'organization_coordinator' && ctx.organizationId` - there is
+ * `ctx.role === 'organization_coordinator' && ctx.organizationId` — there is
  * no DB-level link tying a specific coordinator member to a specific
  * organization, so any coordinator member works for any organizationId in
  * this fixture; a fresh member per call is enough to get a distinct actor
@@ -201,12 +201,12 @@ export async function createOrgCoordinator(): Promise<string> {
  * Also assigns an unlimited (premium_plus, all caps omitted) plan by default.
  * Every test in this suite predates organization_subscriptions existing at
  * all, and many create several groups/staff/funding-programs against one
- * fixture org - an unconfigured org now defaults to Starter's real caps
+ * fixture org — an unconfigured org now defaults to Starter's real caps
  * (organization-plan.service.ts), so leaving this ungated would fail a wide
  * swath of unrelated suites the moment caps started being enforced (confirmed
- * - that's exactly what happened before this fixture was updated). A test
+ * — that's exactly what happened before this fixture was updated). A test
  * that specifically wants to exercise a real cap calls assignOrganizationPlan
- * again itself afterward - that cancels this default and installs its own,
+ * again itself afterward — that cancels this default and installs its own,
  * same as any real plan change would.
  */
 export async function createTestOrganization(): Promise<TestOrganization> {

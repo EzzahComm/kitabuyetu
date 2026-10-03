@@ -6,7 +6,7 @@
  * (NEXT_PHASE=phase-production-build) and returns raw process.env, so
  * env.DATABASE_URL is undefined whenever the build environment lacks it.
  * lib/db builds its pools at module scope, and Next.js evaluates every route's
- * module graph while collecting page data - so anything that throws on import
+ * module graph while collecting page data — so anything that throws on import
  * here fails the ENTIRE build, at whichever route imports lib/db first,
  * regardless of whether that route touches the database.
  *
@@ -15,7 +15,7 @@
  * the build at /api/admin/analytics. Same class as the module-scope throw in
  * daraja.service.ts (b6ee340).
  *
- * Nothing is weakened by tolerating a missing DSN here - at real runtime
+ * Nothing is weakened by tolerating a missing DSN here — at real runtime
  * validateEnv() has already proven DATABASE_URL is a valid URL, and pg does not
  * open a socket until .connect().
  */
@@ -62,7 +62,7 @@ describe('lib/db pool construction at build time', () => {
     const db = await import('@/lib/db');
 
     // With no tenant DSN, the tenant pool falls back to the same instance as the
-    // admin pool - the documented no-op until the app_tenant cutover.
+    // admin pool — the documented no-op until the app_tenant cutover.
     expect(db.tenantPool).toBe(db.pool);
   });
 
@@ -80,7 +80,7 @@ describe('lib/db pool construction at build time', () => {
  * The Supabase check decides whether to relax TLS certificate verification
  * (`rejectUnauthorized: false`), so it must match on HOST, not substring.
  * A plain `.includes('supabase.com')` accepted `supabase.com.attacker.net` and
- * `evilsupabase.com` - i.e. it would silently stop pinning the cert chain for
+ * `evilsupabase.com` — i.e. it would silently stop pinning the cert chain for
  * an attacker-controlled host (CodeQL js/incomplete-url-substring-sanitization,
  * high severity).
  *
@@ -107,7 +107,7 @@ describe('Supabase host detection (TLS relaxation boundary)', () => {
   it.each([
     ['pooler (session mode)', 'postgresql://u:p@aws-0-eu-central-1.pooler.supabase.com:5432/postgres'],
     ['direct db host', 'postgresql://u:p@db.qztcgryhoanennsizcll.supabase.co:5432/postgres'],
-  ])('accepts a real Supabase host - %s', (_label, dsn) => {
+  ])('accepts a real Supabase host — %s', (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(true);
   });
 
@@ -124,7 +124,7 @@ describe('Supabase host detection (TLS relaxation boundary)', () => {
     ['undefined', undefined],
     ['empty', ''],
     ['garbage', 'not-a-url'],
-  ])('rejects an absent or unparseable DSN - %s', (_label, dsn) => {
+  ])('rejects an absent or unparseable DSN — %s', (_label, dsn) => {
     expect(isSupabaseHost(dsn)).toBe(false);
   });
 });

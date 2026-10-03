@@ -2,7 +2,7 @@
  * Business event catalog for the SMS trigger engine.
  *
  * A business event is emitted by the code that owns the state change (payment
- * completion, loan approval, …). It carries no notion of SMS - deciding whether
+ * completion, loan approval, …). It carries no notion of SMS — deciding whether
  * a message goes out, to whom, and from which template is the trigger engine's
  * job, driven by sms_trigger_rules rows.
  *
@@ -52,7 +52,7 @@ export type EventPayload = Record<string, string | number | boolean | null | und
 
 export interface BusinessEvent {
   eventType: SmsEventType;
-  /** Originating business row id - the idempotency key. Must be a UUID. */
+  /** Originating business row id — the idempotency key. Must be a UUID. */
   eventId: string;
   groupId: string;
   payload: EventPayload;
@@ -62,7 +62,7 @@ export interface BusinessEvent {
 
 /**
  * Group roles a rule may target. Must stay in step with the `member_role` enum
- * (renamed in migration 050) - resolveSmsRecipients casts to it, so an unknown
+ * (renamed in migration 050) — resolveSmsRecipients casts to it, so an unknown
  * value would surface as a raw Postgres enum error mid-dispatch rather than a
  * config error. 'chairperson' is the group's top officer role.
  */

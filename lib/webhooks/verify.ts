@@ -2,7 +2,7 @@
  * Webhook signature verification helpers.
  *
  * Each provider uses a different signing scheme. The helpers below take the
- * *raw* request body (not the JSON-parsed object - the signature is over
+ * *raw* request body (not the JSON-parsed object — the signature is over
  * bytes, not whitespace-normalised JSON) and return a boolean.
  *
  * Implementations are dependency-free (Node `crypto` only) so they run in
@@ -11,13 +11,13 @@
 import crypto from 'crypto';
 
 // =============================================================================
-// Resend (svix) - HMAC-SHA256 signed with a base64 secret + replay window
+// Resend (svix) — HMAC-SHA256 signed with a base64 secret + replay window
 // =============================================================================
 //
 // Headers Resend sends (svix-* are the actual headers):
-//   svix-id         - unique message id
-//   svix-timestamp  - unix seconds, used as a replay-protection nonce
-//   svix-signature  - space-separated list of "v1,<base64-sig>" tokens.
+//   svix-id         — unique message id
+//   svix-timestamp  — unix seconds, used as a replay-protection nonce
+//   svix-signature  — space-separated list of "v1,<base64-sig>" tokens.
 //                     Multiple tokens accommodate rotated secrets.
 //
 // HMAC input  = `${svix-id}.${svix-timestamp}.${raw-body}`
@@ -48,7 +48,7 @@ export function verifySvixSignature(
     return { ok: false, reason: 'missing svix headers' };
   }
 
-  // Replay-window check first - cheap, prevents an attacker from replaying
+  // Replay-window check first — cheap, prevents an attacker from replaying
   // a previously-captured valid request indefinitely.
   const ts = parseInt(svixTimestamp, 10);
   if (!Number.isFinite(ts)) {
@@ -59,7 +59,7 @@ export function verifySvixSignature(
     return { ok: false, reason: 'svix-timestamp outside tolerance window' };
   }
 
-  // Decode the secret. svix secrets are typically `whsec_<base64>` - strip
+  // Decode the secret. svix secrets are typically `whsec_<base64>` — strip
   // the prefix if present. Some users paste the raw base64 directly.
   const rawSecret = secret.startsWith('whsec_') ? secret.slice(6) : secret;
   let key: Buffer;

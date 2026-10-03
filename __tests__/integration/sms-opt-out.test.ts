@@ -4,11 +4,11 @@
  *
  * smsService.optOut() and the opt-out check itself (fetchOptOuts in
  * sms.service.ts, isPhoneOptedOut in notifications.service.ts) already
- * existed and were already honoured by every send path - the actual finding
+ * existed and were already honoured by every send path — the actual finding
  * was that nothing ever CALLED optOut(), so a member had no way to get their
  * own phone onto the opt-out list. (That list is now the sms_opt_outs consent
  * record rather than the sms_group_settings.opt_out_phones array it was
- * written against - migration 162.) This file proves the
+ * written against — migration 162.) This file proves the
  * full loop: the new /api/v1/sms/preferences route -> smsService.optOut ->
  * a real send attempt is actually suppressed, and the new optIn() reverses it.
  */
@@ -78,10 +78,10 @@ describe('SMS opt-out (M5)', () => {
     );
     expect((await getRes.json()).data.optedOut).toBe(true);
 
-    // Directly against the underlying table - this is the actual gap the
+    // Directly against the underlying table — this is the actual gap the
     // audit found: before this route existed, nothing could ever populate it.
     // Storage moved from sms_group_settings.opt_out_phones (a text[] that
-    // could not record when/how/who) to the sms_opt_outs consent record -
+    // could not record when/how/who) to the sms_opt_outs consent record —
     // SMS-AUDIT-v3 INV-24, migration 162. The behaviour asserted above is
     // unchanged; only where it is written moved.
     const [row] = await rawQuery<{ phone: string; source: string }>(
@@ -92,7 +92,7 @@ describe('SMS opt-out (M5)', () => {
     expect(row.source).toBe('member');
   });
 
-  it('a real send attempt is suppressed for an opted-out member - nothing dispatched, nothing billed', async () => {
+  it('a real send attempt is suppressed for an opted-out member — nothing dispatched, nothing billed', async () => {
     const result = await notifyMember({
       groupId,
       memberId: officerId,
@@ -102,7 +102,7 @@ describe('SMS opt-out (M5)', () => {
     });
 
     // notifyMember's consent gate returns {channel:'none', status:'suppressed'}
-    // - it runs before any channel is even attempted, so no SMS/WhatsApp leg
+    // — it runs before any channel is even attempted, so no SMS/WhatsApp leg
     // exists to report a per-channel outcome.
     expect(result.status).toBe('suppressed');
     expect(result.detail).toMatch(/opted out/);
@@ -111,7 +111,7 @@ describe('SMS opt-out (M5)', () => {
       `SELECT count(*) AS n FROM sms_usage_logs WHERE group_id = $1 AND recipient_phone = $2`,
       [groupId, phone],
     );
-    // suppressed before any log row / reservation - nothing to bill or send.
+    // suppressed before any log row / reservation — nothing to bill or send.
     expect(Number(log.n)).toBe(0);
   });
 
@@ -143,7 +143,7 @@ describe('SMS opt-out (M5)', () => {
     await expect(smsService.optIn(freshGroupId, '254700000001')).resolves.toBeUndefined();
   });
 
-  it('opt-out is scoped per group, not global - a different group is unaffected', async () => {
+  it('opt-out is scoped per group, not global — a different group is unaffected', async () => {
     const { groupId: otherGroupId, officerId: otherOfficerId } = await createTestGroup('treasurer');
     const [row] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [otherOfficerId]);
 

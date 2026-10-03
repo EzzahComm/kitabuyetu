@@ -21,11 +21,11 @@ export interface ContributionStatementRow {
   contribution_months: number;
   outstanding_welfare: string;
   welfare_months: number;
-  /** Lifetime totals paid to this group - uncapped, unlike the arrears figures above. */
+  /** Lifetime totals paid to this group — uncapped, unlike the arrears figures above. */
   total_contributed: string;
   total_welfare_contributed: string;
   /**
-   * Group-wide (not per-member) - contributions + welfare collected, minus
+   * Group-wide (not per-member) — contributions + welfare collected, minus
    * SMS usage cost and subscription fees paid. The same figure for every
    * member of a given group. Can be negative if the group has spent more on
    * platform costs than it has collected.

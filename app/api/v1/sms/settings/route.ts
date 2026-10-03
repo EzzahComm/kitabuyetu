@@ -6,7 +6,7 @@ import { SmsGroupSettingsUpdateSchema } from '@/lib/validators/sms.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * Per-group messaging settings - in practice, the automation toggles.
+ * Per-group messaging settings — in practice, the automation toggles.
  *
  * `sms_group_settings.auto_send_birthday` has existed since migration 013 and
  * the job that reads it shipped in Phase 1, but there has never been an API or
@@ -18,7 +18,7 @@ import { ok } from '@/lib/utils/response';
  * withTransaction so RLS (`group_id = app_current_group_id()`) is the real
  * enforcement, not just the hand-written `auth.groupId` scoping kept below as
  * defense-in-depth. withDb/withTransaction can INSERT and UPSERT just as well
- * as withAdminDb - the PUT's ON CONFLICT upsert works unchanged even though
+ * as withAdminDb — the PUT's ON CONFLICT upsert works unchanged even though
  * register_group never creates this row ahead of time.
  */
 
@@ -64,7 +64,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       ),
     );
     // A group with no row has every automation off, which is the same thing
-    // the jobs see - they INNER JOIN this table, so no row means no sends.
+    // the jobs see — they INNER JOIN this table, so no row means no sends.
     return ok(present(rows[0]));
   });
 }
@@ -77,7 +77,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
     const { rows } = await withTransaction(ctx, (db) =>
       db.query<SettingsRow>(
         // Upsert: the row may genuinely not exist yet. COALESCE on every column
-        // makes this a partial update - a page that only toggles birthdays must
+        // makes this a partial update — a page that only toggles birthdays must
         // not silently clear the other three automations.
         // daily_send_limit uses the same COALESCE partial-update idiom as the
         // booleans. That works here precisely BECAUSE the column is NOT NULL

@@ -1,7 +1,7 @@
 import type { Config } from 'jest';
 import nextJest from 'next/jest.js';
 
-// Same next/jest wrapper as jest.config.ts - needed so `next/server`'s
+// Same next/jest wrapper as jest.config.ts — needed so `next/server`'s
 // NextRequest resolves correctly in the Node test environment, and so
 // .env.test is loaded the same way Next.js itself loads it.
 const createJestConfig = nextJest({ dir: './' });
@@ -19,7 +19,7 @@ const config: Config = {
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
-  // These hit a real Postgres instance and mutate real rows - no coverage
+  // These hit a real Postgres instance and mutate real rows — no coverage
   // thresholds, and run serially (see package.json's --runInBand) rather
   // than adding transaction-rollback isolation plumbing.
   //
@@ -27,7 +27,7 @@ const config: Config = {
   // single case here can reset tables, seed a group with members, and make
   // several round trips to a real database, all while --runInBand queues it
   // behind every other suite. On a loaded CI runner that legitimately exceeds
-  // 5s, and the failure reads "Exceeded timeout of 5000 ms" - indistinguishable
+  // 5s, and the failure reads "Exceeded timeout of 5000 ms" — indistinguishable
   // from a genuine hang.
   //
   // That produced four separate false CI failures on unrelated PRs (#115,

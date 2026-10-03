@@ -1,12 +1,12 @@
 /**
- * Kenyan MOBILE subscriber numbers begin 7 or 1 after the 254 country code -
+ * Kenyan MOBILE subscriber numbers begin 7 or 1 after the 254 country code —
  * 07xx/01xx locally. Landlines and special ranges (020 Nairobi, 041 Mombasa,
  * 051 Nakuru …) do not.
  *
  * The rule used to be "0 followed by ten digits", which admitted every one of
  * those. A landline entered as a member's phone normalised happily to
  * 254201234567, then reserved credit, dispatched, failed at the provider, and
- * burned its whole sms_failures retry budget - paid for, undeliverable, and
+ * burned its whole sms_failures retry budget — paid for, undeliverable, and
  * indistinguishable in the logs from a real network failure (SMS-AUDIT-v3
  * V3-03).
  *
@@ -22,7 +22,7 @@ const KE_MOBILE_PREFIX = /^[71]/;
  */
 export function normalizePhone(raw: string): string {
   // Throw the documented error for a null/undefined/non-string caller rather
-  // than a TypeError from .replace - callers catch on message, and a
+  // than a TypeError from .replace — callers catch on message, and a
   // TypeError escapes the guards written against this contract.
   if (typeof raw !== 'string') {
     throw new Error(`Invalid Kenyan phone number: ${String(raw)}`);
@@ -59,7 +59,7 @@ export function isValidKenyanPhone(raw: string): boolean {
 /**
  * Like normalizePhone, but returns null instead of throwing.
  *
- * For callers where the phone is INCIDENTAL - recorded for the audit trail,
+ * For callers where the phone is INCIDENTAL — recorded for the audit trail,
  * not used to identify anyone. Safaricom sends a hashed MSISDN (a 64-char
  * SHA-256, not a number) on C2B confirmation callbacks depending on shortcode
  * configuration, and the throwing version turned that into a total failure of

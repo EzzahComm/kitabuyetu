@@ -4,7 +4,7 @@ import { finanzaDark } from '@/lib/ui/finanza-palette';
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: `Kitabu Yetu - ${BRAND_TAGLINE}`,
+    name: `Kitabu Yetu — ${BRAND_TAGLINE}`,
     short_name: 'Kitabu Yetu',
     description: 'Digital bookkeeping for chamas, SACCOs, welfare groups, and investment clubs across East Africa.',
     start_url: '/dashboard',

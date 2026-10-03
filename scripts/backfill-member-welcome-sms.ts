@@ -7,7 +7,7 @@
  * landed never had the event emitted for them, so this replays it.
  *
  * SAFE TO RUN TWICE. emitBusinessEvent claims an execution row keyed on
- * (rule, eventId), and eventId here is the member id - exactly what the live
+ * (rule, eventId), and eventId here is the member id — exactly what the live
  * path uses. A second run finds the execution already claimed and suppresses
  * the send rather than double-messaging anyone.
  *
@@ -65,7 +65,7 @@ async function main() {
   );
 
   if (rows.length === 0) {
-    console.log('Nothing to do - every active member with a phone already has a welcome execution.');
+    console.log('Nothing to do — every active member with a phone already has a welcome execution.');
     return;
   }
 
@@ -77,7 +77,7 @@ async function main() {
   }
 
   if (!apply) {
-    console.log('\nDry run only - rerun with --apply to send.');
+    console.log('\nDry run only — rerun with --apply to send.');
     return;
   }
 
@@ -107,7 +107,7 @@ async function main() {
       console.log(`  sent    ${r.membership_no} ${r.first_name} ${r.last_name}`);
     } else {
       skipped++;
-      console.log(`  skipped ${r.membership_no} ${r.first_name} ${r.last_name} - ${JSON.stringify(summary)}`);
+      console.log(`  skipped ${r.membership_no} ${r.first_name} ${r.last_name} — ${JSON.stringify(summary)}`);
     }
   }
 

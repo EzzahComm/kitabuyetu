@@ -1,5 +1,5 @@
 /**
- * LoanPolicy - second Configuration Service domain (ACCOUNTING_ARCHITECTURE_AUDIT.md
+ * LoanPolicy — second Configuration Service domain (ACCOUNTING_ARCHITECTURE_AUDIT.md
  * §29.5/§33.5). Replaces credit-scores.service.ts's hardcoded TIER_THRESHOLDS
  * with a Platform -> Organization -> Group cascade, same shape as ApprovalPolicy.
  */
@@ -107,7 +107,7 @@ describe('loanPolicyService.setPlatformDefault', () => {
 
 /**
  * Term options (2026-08-16). Groups do not lend for "any length up to the
- * maximum" - they offer a handful of fixed durations (1, 3, 6, 12 months),
+ * maximum" — they offer a handful of fixed durations (1, 3, 6, 12 months),
  * which maxTermMonths alone could not express.
  *
  * Unlike the rate, which stays advisory by long-standing product decision,
@@ -115,7 +115,7 @@ describe('loanPolicyService.setPlatformDefault', () => {
  * bearing: a policy that lets an option exceed its own ceiling would have the
  * two halves contradicting each other.
  */
-describe('loanPolicyService.setGroupTermsOverride - term options', () => {
+describe('loanPolicyService.setGroupTermsOverride — term options', () => {
   const VALID_TERMS = {
     interestRate: 10,
     interestMethod: 'flat' as const,
@@ -158,7 +158,7 @@ describe('loanPolicyService.setGroupTermsOverride - term options', () => {
     ).rejects.toBeInstanceOf(ValidationError);
   });
 
-  it('accepts terms with no options at all - any term up to the maximum', async () => {
+  it('accepts terms with no options at all — any term up to the maximum', async () => {
     // Backwards compatibility: every policy stored before term options existed
     // has no termOptions key, and must keep resolving.
     const { termOptions: _omitted, ...withoutOptions } = VALID_TERMS;

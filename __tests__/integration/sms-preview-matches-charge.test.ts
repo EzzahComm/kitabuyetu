@@ -1,7 +1,7 @@
 /**
  * The quote must equal the invoice (§11).
  *
- * `previewBulkSend` used to price `segmentsOf(input.message)` - the RAW
+ * `previewBulkSend` used to price `segmentsOf(input.message)` — the RAW
  * template, `{{first_name}}` placeholders and all. That text is never sent:
  * personalize() either substitutes the variable (`{{first_name}}` is 14
  * characters, `Mary` is 4) or strips it entirely when the send carries no
@@ -9,7 +9,7 @@
  * not exist, and it diverged from the charge in exactly the case that costs
  * money.
  *
- * The dispatch path was always correct - it prices the personalised body per
+ * The dispatch path was always correct — it prices the personalised body per
  * recipient. These tests pin the two to each other, because a preview that
  * disagrees with the bill is worse than no preview: it is a number someone
  * will plan around.
@@ -25,7 +25,7 @@ import { rawQuery } from './helpers/db';
 //
 // sendBulkSmsChunked must return a genuine BulkSmsResult. A bare jest.fn()
 // resolves to `undefined`, and sendBulkCampaign reads `result.responses`
-// immediately after dispatch - so the campaign died on a TypeError before it
+// immediately after dispatch — so the campaign died on a TypeError before it
 // could settle a single reservation.
 //
 // Responses are built FROM the items and echo each clientSmsId back, because
@@ -87,7 +87,7 @@ describe('preview matches what will be charged', () => {
 
     const renderedLength = officer.first_name.length + 1 + filler.length;
     expect(renderedLength).toBeLessThanOrEqual(153);
-    // One segment, because the NAME is short - not two, as the placeholder
+    // One segment, because the NAME is short — not two, as the placeholder
     // would have implied.
     expect(preview.creditsRequired).toBe(1);
     expect(preview.segmentsPerMessage).toBe(1);
@@ -108,8 +108,8 @@ describe('preview matches what will be charged', () => {
 
     // Compared against sendBulkCampaign specifically, because that is the path
     // preview MODELS: it is the only caller of personalize(). smsService.send()
-    // transmits verbatim - a `{{first_name}}` typed into the ad-hoc /sms/send
-    // route goes out literally - so comparing a personalised quote against it
+    // transmits verbatim — a `{{first_name}}` typed into the ad-hoc /sms/send
+    // route goes out literally — so comparing a personalised quote against it
     // would be comparing two different messages, which is what an earlier
     // version of this test got wrong.
     //
@@ -120,8 +120,8 @@ describe('preview matches what will be charged', () => {
     //   sendBulkCampaign requires its CALLER to have resolved them.
     //
     // Production satisfies that at lib/jobs/handlers.ts:850, the single point
-    // all four bulk paths funnel through. Calling sendBulkCampaign bare -
-    // as this test first did - makes personalize() strip `{{first_name}}`
+    // all four bulk paths funnel through. Calling sendBulkCampaign bare —
+    // as this test first did — makes personalize() strip `{{first_name}}`
     // instead of substituting it, which is 157 characters against the
     // preview's 161: ONE segment billed against TWO quoted. The test failed
     // for the same reason a caller that forgets this argument would silently
@@ -160,7 +160,7 @@ describe('preview matches what will be charged', () => {
   });
 
   it('reports the WORST case per message, never an average that understates', async () => {
-    // Two recipients, only one of whom is a member - so one renders a name
+    // Two recipients, only one of whom is a member — so one renders a name
     // and the other has its placeholder stripped, giving different lengths.
     const [officer] = await rawQuery<{ phone: string }>(
       `SELECT m.phone FROM members m JOIN group_members gm ON gm.member_id = m.id

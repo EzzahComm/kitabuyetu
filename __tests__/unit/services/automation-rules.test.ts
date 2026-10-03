@@ -1,8 +1,8 @@
 /**
- * Automation rules service (Phase 9.4.3) - unified CRUD over sms_trigger_rules
+ * Automation rules service (Phase 9.4.3) — unified CRUD over sms_trigger_rules
  * and email_trigger_rules: validation of the recipient_spec/conditions
  * grammars, the template-exists guard (the direct fix for the class of bug
- * this phase surfaced in email-trigger.service.ts - a rule silently no-op'ing
+ * this phase surfaced in email-trigger.service.ts — a rule silently no-op'ing
  * because its template_key was never created), scope requirements, and the
  * ownership check that keeps an inherited org/platform rule read-only.
  */
@@ -41,7 +41,7 @@ const validSmsInput = {
   recipient_spec: { type: 'active_members' },
 };
 
-describe('createAutomationRule - validation', () => {
+describe('createAutomationRule — validation', () => {
   it('rejects a blank name before any query runs', async () => {
     await expect(createAutomationRule(groupCtx, 'sms', { ...validSmsInput, name: '  ' })).rejects.toBeInstanceOf(
       ValidationError,
@@ -171,7 +171,7 @@ describe('getAutomationRule', () => {
   });
 });
 
-describe('updateAutomationRule - ownership + validation', () => {
+describe('updateAutomationRule — ownership + validation', () => {
   it("throws NotFoundError when the rule does not belong to the caller's own group", async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // ownership-scoped UPDATE matches nothing
     await expect(

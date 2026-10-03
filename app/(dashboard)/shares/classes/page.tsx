@@ -151,7 +151,7 @@ export default function ShareClassesPage() {
         onRowClick={openEdit}
         emptyMessage="No share classes yet"
         emptyIcon={Layers}
-        emptyDescription="Create your first class - e.g. Ordinary Shares at KES 100 par value with a 30-day lock period."
+        emptyDescription="Create your first class — e.g. Ordinary Shares at KES 100 par value with a 30-day lock period."
         columns={[
           {
             key: 'name',
@@ -174,7 +174,7 @@ export default function ShareClassesPage() {
             key: 'currentValue',
             header: 'Current value',
             className: 'text-right',
-            render: (c) => <span className="font-mono">{c.current_value ? fmtMoney(c.current_value) : '-'}</span>,
+            render: (c) => <span className="font-mono">{c.current_value ? fmtMoney(c.current_value) : '—'}</span>,
           },
           {
             key: 'cap',
@@ -182,7 +182,7 @@ export default function ShareClassesPage() {
             className: 'text-right',
             render: (c) => (
               <span className="font-mono">
-                {c.min_per_member ?? 0}-{c.max_per_member ?? '∞'}
+                {c.min_per_member ?? 0}–{c.max_per_member ?? '∞'}
               </span>
             ),
           },

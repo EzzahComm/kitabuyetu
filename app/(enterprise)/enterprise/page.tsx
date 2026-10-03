@@ -21,7 +21,7 @@ import type { PaginatedResult } from '@/types/db.types';
 import type { OrgCountyAggregationRow } from '@/lib/services/organization-geography.service';
 
 interface OrgDashboard {
-  /** null when the portfolio aggregate could not be read - NEVER zero-filled (R10). */
+  /** null when the portfolio aggregate could not be read — NEVER zero-filled (R10). */
   portfolio: {
     linkedGroups: number;
     activeMembers: number;
@@ -80,9 +80,9 @@ export default function EnterpriseDashboardPage() {
     queryKey: enterpriseKeys.groups(),
     queryFn: () => organizationApi.groups(),
   });
-  // Phase 5 gap analysis - geography, the last missing item on the
+  // Phase 5 gap analysis — geography, the last missing item on the
   // organization axis. Server returns every county (including zero-coverage
-  // ones - a coverage gap is itself signal), so the card below filters to
+  // ones — a coverage gap is itself signal), so the card below filters to
   // covered counties only and surfaces the ratio as the signal instead.
   const {
     data: geoResponse,
@@ -97,11 +97,11 @@ export default function EnterpriseDashboardPage() {
   const p = dash?.portfolio;
   const h = healthResponse?.health;
 
-  // R10 - a figure we could not actually read is shown as a dash, never as 0.
+  // R10 — a figure we could not actually read is shown as a dash, never as 0.
   // "KES 0" is a confident lie here: it is indistinguishable from an
   // organization that genuinely holds nothing, so a coordinator could read a
   // failed query as their groups' money having disappeared.
-  const NA = '-';
+  const NA = '—';
   const count = (v: number | undefined, available: boolean = true) =>
     available && v !== undefined ? v.toLocaleString() : NA;
   const money = (v: string | undefined, available: boolean = true) =>
@@ -127,7 +127,7 @@ export default function EnterpriseDashboardPage() {
   const topCounties = coveredCounties.slice(0, 6).map((c) => ({ ...c, id: c.county_id }));
 
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md C5: this landing page had zero
-  // loading/error handling on its KPI query - first paint and a fetch
+  // loading/error handling on its KPI query — first paint and a fetch
   // failure both showed "KES 0" tiles with no signal anything was wrong.
   if (dashLoading) {
     return (
@@ -166,7 +166,7 @@ export default function EnterpriseDashboardPage() {
       )}
 
       {/* Partial failure: the request succeeded but a section could not be read.
-          Named explicitly - §1.5's "what needs attention" - rather than letting
+          Named explicitly — §1.5's "what needs attention" — rather than letting
           a missing figure pass as a real one. */}
       {!dashError && (dash?.incomplete?.length ?? 0) > 0 && (
         <Alert variant="destructive">
@@ -174,7 +174,7 @@ export default function EnterpriseDashboardPage() {
           <AlertTitle>Some figures are unavailable</AlertTitle>
           <AlertDescription>
             Couldn&apos;t read: {dash!.incomplete!.join(', ')}. Those figures show &ldquo;{NA}&rdquo; instead of a
-            number - they are not zero. Refresh to retry.
+            number — they are not zero. Refresh to retry.
           </AlertDescription>
         </Alert>
       )}
@@ -195,12 +195,12 @@ export default function EnterpriseDashboardPage() {
           <AlertTitle>Risk indicators unavailable</AlertTitle>
           <AlertDescription>
             Couldn&apos;t read: {healthResponse!.incomplete!.join(', ')}. Those metrics show &ldquo;{NA}&rdquo; instead
-            of a number - they are not zero. Refresh to retry.
+            of a number — they are not zero. Refresh to retry.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* KPI grid - "what is happening?" */}
+      {/* KPI grid — "what is happening?" */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard title="Total members" value={count(p?.activeMembers, !!p)} icon={Users2} />
         <StatCard title="Total savings" value={money(p?.totalSavings, !!p)} icon={PiggyBank} />
@@ -210,7 +210,7 @@ export default function EnterpriseDashboardPage() {
         <StatCard title="Linked groups" value={count(p?.linkedGroups, !!p)} icon={Network} />
       </div>
 
-      {/* Risk indicators - "what needs attention?" (§1.5) */}
+      {/* Risk indicators — "what needs attention?" (§1.5) */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Portfolio health</CardTitle>
@@ -260,15 +260,15 @@ export default function EnterpriseDashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Charts - no historical-trend data exists yet */}
+      {/* Charts — no historical-trend data exists yet */}
       <div className="grid gap-6 lg:grid-cols-3">
         <ComingSoon title="Portfolio growth (savings vs loans, over time)" />
 
-        {/* Geography - Phase 5 gap analysis: the last missing item on the
+        {/* Geography — Phase 5 gap analysis: the last missing item on the
             organization axis. Coverage by county, scoped to this org's own
             linked groups (organization-geography.service.ts). A ward
             drill-down exists server-side (GET .../counties/:id/wards) but
-            isn't wired into this compact card - same "backend-only for a
+            isn't wired into this compact card — same "backend-only for a
             later focused pass" precedent as the programme-group drill-down. */}
         <Card>
           <CardHeader className="pb-3">
@@ -346,7 +346,7 @@ export default function EnterpriseDashboardPage() {
                   render: (g) => (
                     <>
                       <p className="font-medium text-foreground">{g.groupName}</p>
-                      <p className="text-xs text-muted-foreground">{g.county ?? '-'}</p>
+                      <p className="text-xs text-muted-foreground">{g.county ?? '—'}</p>
                     </>
                   ),
                 },

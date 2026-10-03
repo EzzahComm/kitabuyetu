@@ -96,7 +96,7 @@ describe('sms_release_stale_reservations', () => {
     const s = await stateOf(id);
     expect(s.billing_state).toBe('consumed');
     expect(parseFloat(s.credits_deducted)).toBeCloseTo(0.9, 2);
-    // The provider already billed us for this one - releasing it would be
+    // The provider already billed us for this one — releasing it would be
     // giving the SMS away.
     expect(await creditsOf(groupId)).toBeCloseTo(99.1, 2);
   });
@@ -124,7 +124,7 @@ describe('sms_release_stale_reservations', () => {
 
     await handleJob(SWEEP_JOB);
 
-    // Still in flight - settling it here would race the live send.
+    // Still in flight — settling it here would race the live send.
     expect((await stateOf(row.id)).billing_state).toBe('reserved');
   });
 });

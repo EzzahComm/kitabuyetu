@@ -132,7 +132,7 @@ interface VendorPaymentRow {
   failure_reason: string | null;
 }
 
-// ─── API helpers - api.get / api.post return T directly ──────────────────────
+// ─── API helpers — api.get / api.post return T directly ──────────────────────
 
 const fetchBalance = () => api.get<BalanceResult | null>('/mpesa/balance');
 const triggerBalance = () => api.post<{ message: string }>('/mpesa/balance', {});
@@ -145,7 +145,7 @@ const fetchFunding = () => api.get<ExternalFundingPage>('/treasury/external-fund
 // ─── Shared display helpers ──────────────────────────────────────────────────
 
 function reconciliationDuration(run: ReconciliationRun): string {
-  if (!run.completed_at) return '-';
+  if (!run.completed_at) return '—';
   const durSec = Math.round((new Date(run.completed_at).getTime() - new Date(run.started_at).getTime()) / 1000);
   return `${durSec}s`;
 }
@@ -190,11 +190,11 @@ const txColumns = [
     header: 'Amount',
     render: (r: MpesaTransaction) => <span className="font-medium">{formatKES(r.amount)}</span>,
   },
-  { key: 'phone', header: 'Phone', render: (r: MpesaTransaction) => r.phone_number ?? '-' },
+  { key: 'phone', header: 'Phone', render: (r: MpesaTransaction) => r.phone_number ?? '—' },
   {
     key: 'receipt',
     header: 'Receipt',
-    render: (r: MpesaTransaction) => <span className="font-mono text-xs">{r.mpesa_receipt_number ?? '-'}</span>,
+    render: (r: MpesaTransaction) => <span className="font-mono text-xs">{r.mpesa_receipt_number ?? '—'}</span>,
   },
   {
     key: 'status',
@@ -257,7 +257,7 @@ export default function TreasuryPage() {
     mutationFn: triggerReconcile,
     onSuccess: (res) => {
       setReconcileMsg(
-        `Checked ${res.transactionsChecked} transactions - ${res.mismatchesFound} mismatches, ${res.resolvedCount} resolved.`,
+        `Checked ${res.transactionsChecked} transactions — ${res.mismatchesFound} mismatches, ${res.resolvedCount} resolved.`,
       );
       qc.invalidateQueries({ queryKey: ['mpesa-transactions'] });
       qc.invalidateQueries({ queryKey: ['mpesa-reconciliations'] });
@@ -285,7 +285,7 @@ export default function TreasuryPage() {
             key={key}
             title={label}
             icon={icon}
-            value={balanceQ.isLoading ? '…' : balance ? formatKES(balance[key]) : '-'}
+            value={balanceQ.isLoading ? '…' : balance ? formatKES(balance[key]) : '—'}
             description={balance?.queriedAt ? `As of ${formatDateTime(balance.queriedAt)}` : undefined}
           />
         ))}
@@ -293,7 +293,7 @@ export default function TreasuryPage() {
 
       {balanceMut.isSuccess && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-          Balance query sent. Results appear within ~30 s - refresh to see updated figures.
+          Balance query sent. Results appear within ~30 s — refresh to see updated figures.
         </p>
       )}
 
@@ -462,7 +462,7 @@ export default function TreasuryPage() {
           </Card>
         </TabsContent>
 
-        {/* External funding - org → group disbursements received */}
+        {/* External funding — org → group disbursements received */}
         <TabsContent value="funding" className="space-y-4">
           <Card>
             <CardContent className="p-5">
@@ -505,7 +505,7 @@ export default function TreasuryPage() {
                     key: 'program_name',
                     header: 'Program',
                     className: 'text-muted-foreground',
-                    render: (d: ExternalFundingItem) => d.program_name ?? '-',
+                    render: (d: ExternalFundingItem) => d.program_name ?? '—',
                   },
                   {
                     key: 'disbursement_type',
@@ -595,7 +595,7 @@ function BankAccountsTab() {
       setAccountNumber('');
       setLabel('');
       invalidate();
-      toast({ title: 'Bank account submitted', description: 'Awaiting a second officer's activation.' });
+      toast({ title: 'Bank account submitted', description: 'Awaiting a second officer’s activation.' });
     },
     onError: (err) =>
       toast({ variant: 'destructive', title: 'Failed to add bank account', description: getErrorMessage(err) }),
@@ -652,7 +652,7 @@ function BankAccountsTab() {
                 key: 'label',
                 header: 'Label',
                 className: 'text-muted-foreground',
-                render: (r: BankAccountRow) => r.label ?? '-',
+                render: (r: BankAccountRow) => r.label ?? '—',
               },
               {
                 key: 'status',
@@ -791,7 +791,7 @@ function BankAccountsTab() {
 
 // ─── Settlements tab ───────────────────────────────────────────────────────
 
-/** Client-generated idempotency key - one per submit attempt, so a retry of
+/** Client-generated idempotency key — one per submit attempt, so a retry of
  *  the SAME click reuses it while a fresh click gets a new one. */
 const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -832,7 +832,7 @@ function SettlementsTab() {
       setBankAccountId('');
       setAmount('');
       invalidate();
-      toast({ title: 'Settlement requested', description: 'Funds reserved - awaiting a second officer's approval.' });
+      toast({ title: 'Settlement requested', description: 'Funds reserved — awaiting a second officer’s approval.' });
     },
     onError: (err) =>
       toast({ variant: 'destructive', title: 'Failed to request settlement', description: getErrorMessage(err) }),
@@ -858,7 +858,7 @@ function SettlementsTab() {
 
       {activeBanks.length === 0 && !banksQ.isLoading && (
         <p className="text-sm text-muted-foreground bg-muted/40 border rounded-lg px-4 py-3">
-          Add and activate a bank account first - settlements can only be sent to an active destination.
+          Add and activate a bank account first — settlements can only be sent to an active destination.
         </p>
       )}
 
@@ -877,7 +877,7 @@ function SettlementsTab() {
                 key: 'bank_name',
                 header: 'Destination',
                 className: 'font-medium',
-                render: (r: SettlementRow) => r.bank_name ?? '-',
+                render: (r: SettlementRow) => r.bank_name ?? '—',
               },
               {
                 key: 'amount',
@@ -909,7 +909,7 @@ function SettlementsTab() {
                 key: 'completed_at',
                 header: 'Completed',
                 className: 'text-muted-foreground',
-                render: (r: SettlementRow) => (r.completed_at ? formatDate(r.completed_at) : '-'),
+                render: (r: SettlementRow) => (r.completed_at ? formatDate(r.completed_at) : '—'),
               },
               {
                 key: 'actions',
@@ -952,7 +952,7 @@ function SettlementsTab() {
                 <option value="">Select an account…</option>
                 {activeBanks.map((b) => (
                   <option key={b.id} value={b.id}>
-                    {b.bank_name} - {b.account_number}
+                    {b.bank_name} — {b.account_number}
                   </option>
                 ))}
               </select>
@@ -988,7 +988,7 @@ function SettlementsTab() {
         details={
           approveTarget
             ? [
-                { label: 'Destination', value: approveTarget.bank_name ?? '-' },
+                { label: 'Destination', value: approveTarget.bank_name ?? '—' },
                 { label: 'Requested', value: formatDate(approveTarget.requested_at) },
               ]
             : []
@@ -1082,7 +1082,7 @@ function VendorPaymentsTab() {
       invalidate();
       toast({
         title: 'Vendor payment requested',
-        description: 'Funds reserved - awaiting a second officer's approval.',
+        description: 'Funds reserved — awaiting a second officer’s approval.',
       });
     },
     onError: (err) =>
@@ -1100,7 +1100,7 @@ function VendorPaymentsTab() {
   });
 
   const destination = (r: VendorPaymentRow) =>
-    r.channel === 'b2c' ? (r.payee_phone ?? '-') : `${r.payee_shortcode ?? '-'} / ${r.payee_account ?? '-'}`;
+    r.channel === 'b2c' ? (r.payee_phone ?? '—') : `${r.payee_shortcode ?? '—'} / ${r.payee_account ?? '—'}`;
 
   const canSubmit =
     payeeName &&

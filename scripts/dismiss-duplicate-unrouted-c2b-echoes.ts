@@ -2,22 +2,22 @@
  * Dismiss 7 unrouted M-Pesa rows that are pure C2B duplicate echoes of
  * payments that already completed successfully via STK.
  *
- * Root cause (found 2026-08-26): Safaricom - or this app's own webhook
- * setup - delivers BOTH the STK success callback AND a separate C2B-style
+ * Root cause (found 2026-08-26): Safaricom — or this app's own webhook
+ * setup — delivers BOTH the STK success callback AND a separate C2B-style
  * notification for the same underlying transaction. The STK callback
  * correctly matches by checkout_request_id and completes normally
  * (payment, subscription/contribution, confirmation SMS, all real). The C2B
  * handler receives the SAME receipt moments later, doesn't recognise
- * 'SUBSCRIPT'/'CONTRIB' (real references, just STK-only ones - see
+ * 'SUBSCRIPT'/'CONTRIB' (real references, just STK-only ones — see
  * PRODUCT_REFERENCE in plan-purchase.tsx and stk-prompt-dialog.tsx) as a
- * routable account reference, and files it to mpesa_unrouted - even though
+ * routable account reference, and files it to mpesa_unrouted — even though
  * there is nothing left to route, the money already landed correctly.
  *
  * Confirmed for all 7 by an EXACT mpesa_receipt_number match against an
- * already `status='completed', channel='stk'` payments row - not a guess.
+ * already `status='completed', channel='stk'` payments row — not a guess.
  * Ndengelwa's (500, SUBSCRIPT) is confirmed premium; the other three
  * SUBSCRIPT rows (Khaka Womens Group, CAPITAL POINT CHAMA, Munyali Ukulima)
- * are confirmed starter - matching what the user stated independently.
+ * are confirmed starter — matching what the user stated independently.
  *
  *   npx tsx --env-file=.env.local scripts/dismiss-duplicate-unrouted-c2b-echoes.ts          # dry run
  *   npx tsx --env-file=.env.local scripts/dismiss-duplicate-unrouted-c2b-echoes.ts --apply  # write
@@ -56,16 +56,16 @@ async function main() {
   for (const target of ROWS) {
     const row = unrouted.find((u) => u.receipt === target.receipt);
     if (!row) {
-      console.log(`SKIP ${target.receipt} - no unrouted row found (already resolved?)`);
+      console.log(`SKIP ${target.receipt} — no unrouted row found (already resolved?)`);
       continue;
     }
     if (row.resolved) {
-      console.log(`SKIP ${target.receipt} - already resolved`);
+      console.log(`SKIP ${target.receipt} — already resolved`);
       continue;
     }
 
     console.log(
-      `${apply ? 'DISMISSING' : '[DRY RUN] would dismiss'}: ${target.receipt} (${target.group}) - duplicate of payment ${target.existingPayment}`,
+      `${apply ? 'DISMISSING' : '[DRY RUN] would dismiss'}: ${target.receipt} (${target.group}) — duplicate of payment ${target.existingPayment}`,
     );
     if (!apply) continue;
 
@@ -73,12 +73,12 @@ async function main() {
       adminId: 'script:dismiss-duplicate-unrouted-c2b-echoes',
       notes:
         `Duplicate C2B echo of an already-completed STK payment (${target.existingPayment}, group: ${target.group}). ` +
-        `No money was ever unaccounted for - this row never represented anything to route.`,
+        `No money was ever unaccounted for — this row never represented anything to route.`,
     });
     console.log(`  done: ${target.receipt}`);
   }
 
-  if (!apply) console.log('\nDry run only - rerun with --apply to write.');
+  if (!apply) console.log('\nDry run only — rerun with --apply to write.');
 }
 
 main()

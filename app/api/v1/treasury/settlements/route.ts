@@ -7,7 +7,7 @@ import { requirePermission } from '@/lib/auth/permissions';
 import { CreateSettlementSchema } from '@/lib/validators/settlements.schema';
 import { ok, created, handleError, errorResponse } from '@/lib/utils/response';
 
-/** GET /api/v1/treasury/settlements - list this group's settlement sweeps. */
+/** GET /api/v1/treasury/settlements — list this group's settlement sweeps. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 /**
- * POST /api/v1/treasury/settlements - request a sweep of M-Pesa float to an
+ * POST /api/v1/treasury/settlements — request a sweep of M-Pesa float to an
  * active bank account. Reserves the funds immediately; a second officer must
  * approve before anything reaches Daraja.
  */
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       const freshPermissions = await assertAuthFresh(auth);
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'treasury.manage');
 
-      // Same contract as the B2C disbursement route - a client retry must
+      // Same contract as the B2C disbursement route — a client retry must
       // never produce a second real sweep.
       const idempotencyKey = req.headers.get('idempotency-key');
       if (!idempotencyKey) {

@@ -169,7 +169,7 @@ export default function AdminActivityPage() {
                 <p className="font-medium">{r.title}</p>
                 <p className="text-xs text-muted-foreground">
                   {r.ref}
-                  {r.aggregate ? ' - in digest' : ''}
+                  {r.aggregate ? ' · in digest' : ''}
                 </p>
                 {r.description && <p className="mt-0.5 line-clamp-2 text-xs text-muted-foreground">{r.description}</p>}
               </div>
@@ -192,9 +192,9 @@ export default function AdminActivityPage() {
             hideBelow: 'md',
             render: (r) => (
               <div className="text-sm">
-                <p>{r.actor?.name ?? '-'}</p>
+                <p>{r.actor?.name ?? '—'}</p>
                 <p className="text-xs text-muted-foreground">
-                  {[r.group_name, r.organization_name].filter(Boolean).join(' - ') || '-'}
+                  {[r.group_name, r.organization_name].filter(Boolean).join(' · ') || '—'}
                 </p>
               </div>
             ),
@@ -205,8 +205,8 @@ export default function AdminActivityPage() {
             hideBelow: 'lg',
             render: (r) => (
               <div className="text-sm">
-                <p>{r.amount ? formatKES(Number(r.amount)) : '-'}</p>
-                <p className="text-xs text-muted-foreground">{[r.reference, r.status].filter(Boolean).join(' - ')}</p>
+                <p>{r.amount ? formatKES(Number(r.amount)) : '—'}</p>
+                <p className="text-xs text-muted-foreground">{[r.reference, r.status].filter(Boolean).join(' · ')}</p>
               </div>
             ),
           },

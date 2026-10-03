@@ -5,7 +5,7 @@ import { AdminForgotPasswordStartSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/auth/admin/forgot-password/start - public. Always returns the
+ * POST /api/v1/auth/admin/forgot-password/start — public. Always returns the
  * same generic success response, whether or not the email belongs to a
  * staff (super_admin/support/organization_coordinator) account.
  */

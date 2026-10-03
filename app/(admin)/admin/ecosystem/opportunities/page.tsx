@@ -74,7 +74,7 @@ export default function AdminEcosystemOpportunitiesPage() {
         application_url: form.application_url || undefined,
         featured: form.featured,
       });
-      toast({ title: 'Opportunity created', description: 'It is saved as a draft - publish it to make it visible.' });
+      toast({ title: 'Opportunity created', description: 'It is saved as a draft — publish it to make it visible.' });
       setForm(EMPTY_FORM);
       setRules([]);
       setOpen(false);

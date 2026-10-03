@@ -6,7 +6,7 @@
  *
  * Security model:
  *   - Timing-safe CRON_SECRET validation (prevents brute-force + timing attacks)
- *   - POST only - no GET so the route can never be triggered by crawlers / prefetch
+ *   - POST only — no GET so the route can never be triggered by crawlers / prefetch
  *   - Returns generic error messages to avoid information leakage
  *
  * Architecture:
@@ -21,14 +21,14 @@ import crypto from 'crypto';
 import { enqueueTimeBasedJobs, processJobBatch } from '@/lib/jobs';
 import { logger } from '@/lib/logger';
 
-// Force Node.js runtime - pg driver requires it (not Edge-compatible)
+// Force Node.js runtime — pg driver requires it (not Edge-compatible)
 export const runtime = 'nodejs';
-// Disable Next.js static optimisation - every call must be fresh
+// Disable Next.js static optimisation — every call must be fresh
 export const dynamic = 'force-dynamic';
 /**
  * Pinned, not inherited. processJobBatch enforces its own TIME_BUDGET_MS
  * (50s) and that budget is only safe if it is provably below the function's
- * real ceiling - a platform default can move underneath it, and if it ever
+ * real ceiling — a platform default can move underneath it, and if it ever
  * moved DOWN the batch would resume being killed mid-write, which is the
  * exact failure that once left jobs in 'processing' limbo for days.
  *
@@ -49,7 +49,7 @@ function timingSafeEqual(a: string, b: string): boolean {
 
 function isAuthorised(req: NextRequest): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return false; // reject if not configured - fail closed
+  if (!secret) return false; // reject if not configured — fail closed
 
   const authHeader = req.headers.get('authorization') ?? '';
   if (!authHeader.startsWith('Bearer ')) return false;
@@ -79,7 +79,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       processed,
     });
   } catch (err) {
-    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 - this used to include the
+    // OPTIMIZATION_CLEANUP_AUDIT.md Medium #22 — this used to include the
     // raw error message in the response body, contradicting this file's own
     // header comment ("Returns generic error messages to avoid information
     // leakage"). The full error is still logged server-side.

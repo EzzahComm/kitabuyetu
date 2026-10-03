@@ -6,10 +6,10 @@ import { SetTierThresholdsSchema } from '@/lib/validators/credit-scores.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/credit-scores/policy - this group's effective reliability-tier
+ * GET /api/v1/credit-scores/policy — this group's effective reliability-tier
  *   ladder (min score + loan multiplier per tier), with resolution source.
- * PUT /api/v1/credit-scores/policy - set a group-level override. Gated at
- *   chairperson (same bar as recomputeAll - this changes scoring for every
+ * PUT /api/v1/credit-scores/policy — set a group-level override. Gated at
+ *   chairperson (same bar as recomputeAll — this changes scoring for every
  *   member, not just one).
  */
 

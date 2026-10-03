@@ -1,9 +1,9 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/balance              â€" Trigger balance query (treasurer+)
- * GET  /api/v1/mpesa/balance              â€" Return latest stored balance result
- * POST /api/v1/mpesa/balance?type=result  â€" Safaricom async result callback
- * POST /api/v1/mpesa/balance?type=timeout â€" Safaricom timeout callback
+ * POST /api/v1/mpesa/balance              â€” Trigger balance query (treasurer+)
+ * GET  /api/v1/mpesa/balance              â€” Return latest stored balance result
+ * POST /api/v1/mpesa/balance?type=result  â€” Safaricom async result callback
+ * POST /api/v1/mpesa/balance?type=timeout â€” Safaricom timeout callback
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
@@ -24,12 +24,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
-    // Callback authenticity (Phase 4 - same mechanism as B2C/B2B): a forged
+    // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
     // callback that doesn't carry the shared secret is dropped before it can
     // touch any money state. Acked (not rejected) so a prober learns nothing
     // from the response, and logged so a real misconfiguration is visible.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[balance callback] invalid or missing token - dropped', { type, ip });
+      logger.warn('[balance callback] invalid or missing token — dropped', { type, ip });
       return ack();
     }
 
@@ -60,7 +60,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  // Authenticated balance query trigger â€" treasurer, chairperson, or super_admin
+  // Authenticated balance query trigger â€” treasurer, chairperson, or super_admin
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
       const shortcode = process.env.MPESA_SHORTCODE ?? '';

@@ -3,7 +3,7 @@
  * Batch 1 plumbing. The whole "permissions claim, bounded staleness" design
  * rests on group_members.auth_version actually bumping when a member's role
  * changes (migration 060's trg_gm_bump_auth_version trigger) and on
- * login/refresh actually re-resolving roles.permissions fresh each time -
+ * login/refresh actually re-resolving roles.permissions fresh each time —
  * this proves both against real Postgres and the real route handlers, not
  * just the trigger SQL in isolation.
  */
@@ -98,7 +98,7 @@ describe('permissions claim tracks live role via auth_version (Batch 1 plumbing)
       `SELECT auth_version FROM group_members WHERE group_id = $1 AND member_id = $2`,
       [groupId, memberId],
     );
-    // The trigger, not application code, is what must fire here - this is
+    // The trigger, not application code, is what must fire here — this is
     // the single most load-bearing assertion in the whole design.
     expect(authVersionAfter).toBeGreaterThan(authVersionBefore);
 

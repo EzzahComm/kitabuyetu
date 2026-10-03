@@ -1,5 +1,5 @@
 /**
- * ContributionPlan - a Configuration Service domain (same pattern as
+ * ContributionPlan — a Configuration Service domain (same pattern as
  * SavingsPolicy/FinePolicy/LoanPolicy: a typed wrapper over
  * configuration.service.ts's generic resolvePolicy/setPolicy).
  *
@@ -7,7 +7,7 @@
  * are load-bearing: notify_contribution_reminders (lib/jobs/handlers.ts)
  * reads them to compute each member's outstanding contribution/welfare
  * balance and arrears for the monthly SMS statement. 0 means "this group
- * doesn't track that obligation" - not "no limit" - and a group with both at
+ * doesn't track that obligation" — not "no limit" — and a group with both at
  * 0 is simply excluded from the arrears scan.
  */
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';

@@ -10,11 +10,11 @@ import { useAuth } from '@/lib/auth/context';
 
 /**
  * Shown when a signed-in session doesn't carry the role/audience a portal
- * guard requires - distinct from "not signed in at all" (those cases still
+ * guard requires — distinct from "not signed in at all" (those cases still
  * redirect straight to the relevant login page). Reached from
  * (admin)/layout.tsx and (enterprise)/layout.tsx's role-mismatch branches,
  * which previously bounced an already-authenticated-but-denied user back to
- * the login page they'd just come from - a dead-end loop, not an explanation.
+ * the login page they'd just come from — a dead-end loop, not an explanation.
  */
 export default function UnauthorizedPage() {
   const { user, audience, logout } = useAuth();
@@ -22,7 +22,7 @@ export default function UnauthorizedPage() {
 
   // Backoffice audience splits further by role now that organization staff
   // and platform staff have separate login surfaces (SURFACE_ALLOWED_ROLES,
-  // app/api/v1/auth/admin/login/route.ts) - sending an organization_coordinator
+  // app/api/v1/auth/admin/login/route.ts) — sending an organization_coordinator
   // to /admin-login would just get them turned away again.
   const signOutHref =
     audience !== 'backoffice'

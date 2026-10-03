@@ -1,6 +1,6 @@
 /**
  * Personal savings-goal tracker for the (member) portal (migration 103).
- * Deliberately NOT tied to real contributions/GL - the member manually logs
+ * Deliberately NOT tied to real contributions/GL — the member manually logs
  * progress toward a self-set target, like a savings jar. Every query
  * explicitly scopes by member_id/group_id rather than relying on RLS alone
  * (ADR-001: RLS may still be decorative in production pending the

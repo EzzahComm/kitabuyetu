@@ -11,22 +11,22 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 export const metadata: Metadata = marketingMetadata({
   path: '/docs',
   title: 'Documentation',
-  description: 'Getting-started guides for Kitabu Yetu - set up your group, collect by M-Pesa, and manage your book.',
+  description: 'Getting-started guides for Kitabu Yetu — set up your group, collect by M-Pesa, and manage your book.',
 });
 
 /**
- * No fabricated API reference or written manual - there is no public API,
+ * No fabricated API reference or written manual — there is no public API,
  * and no separate documentation content system exists yet. What genuinely
  * does exist (a real setup flow, real product pages, real pricing FAQ) is
  * organized here as a starting point instead of a one-paragraph stub, and
  * Resources (Sanity-backed, see /resources) is where deeper written guides
- * will land as they're published - this page links there, it doesn't
+ * will land as they're published — this page links there, it doesn't
  * pretend to already be it.
  */
 const GUIDES: { title: string; body: string; href: string }[] = [
   {
     title: 'Set up your group',
-    body: 'Register, choose what to manage, add members and invite officials - the onboarding flow walks through it step by step.',
+    body: 'Register, choose what to manage, add members and invite officials — the onboarding flow walks through it step by step.',
     href: ROUTES.startGroup,
   },
   {
@@ -36,17 +36,17 @@ const GUIDES: { title: string; body: string; href: string }[] = [
   },
   {
     title: 'What Bookkeeper covers',
-    body: 'Members, contributions, savings, loans, welfare, shares, dividends, investments, accounting, M-Pesa and reports - the full book, explained.',
+    body: 'Members, contributions, savings, loans, welfare, shares, dividends, investments, accounting, M-Pesa and reports — the full book, explained.',
     href: ROUTES.bookkeeper,
   },
   {
     title: 'What Chama Reminder covers',
-    body: 'Meeting, contribution and loan reminders, birthdays and announcements by SMS - no ledger required.',
+    body: 'Meeting, contribution and loan reminders, birthdays and announcements by SMS — no ledger required.',
     href: ROUTES.chamaReminder,
   },
   {
     title: 'Pricing questions',
-    body: 'Plan prices, SMS allowances, switching plans, and moving from Chama Reminder to the full book - answered on the Pricing page.',
+    body: 'Plan prices, SMS allowances, switching plans, and moving from Chama Reminder to the full book — answered on the Pricing page.',
     href: ROUTES.pricing,
   },
   {
@@ -100,7 +100,7 @@ export default function DocsPage() {
           </div>
 
           <p className="mt-14 text-[0.9375rem] leading-relaxed text-finanza-text">
-            Trying to do something specific - set up M-Pesa collections, understand a report, or integrate with the API
+            Trying to do something specific — set up M-Pesa collections, understand a report, or integrate with the API
             as an enterprise partner?{' '}
             <Link href={ROUTES.support} className="font-medium text-brand-700 hover:underline">
               Contact support

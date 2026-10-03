@@ -11,7 +11,7 @@ const assignSchema = z.object({
   accessLevel: z.enum(['read', 'report']).default('read'),
 });
 
-/** POST - assign a group to this organization. */
+/** POST — assign a group to this organization. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;
@@ -24,7 +24,7 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
   });
 }
 
-/** DELETE ?groupId= - revoke a group from this organization. */
+/** DELETE ?groupId= — revoke a group from this organization. */
 export function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;

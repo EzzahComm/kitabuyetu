@@ -19,7 +19,7 @@ const Schema = z
     }
   });
 
-/** POST /api/v1/mpesa/unrouted/[id]/resolve - allocate to a member or dismiss (treasurer+). */
+/** POST /api/v1/mpesa/unrouted/[id]/resolve — allocate to a member or dismiss (treasurer+). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPermission(req, 'payments.request', async (auth) => {
     try {

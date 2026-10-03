@@ -1,9 +1,9 @@
 /**
  * Shared per-member financial snapshot (savings/shares/loan balance/this-
- * period contributions) - extracted from statement-email.service.ts's
+ * period contributions) — extracted from statement-email.service.ts's
  * sendMemberStatements(), which had this exact calculation inlined. Now
  * reused by the (member) portal's own wallet endpoint
- * (member-wallet.service.ts) so the two never drift apart - this codebase
+ * (member-wallet.service.ts) so the two never drift apart — this codebase
  * has a documented history of bugs from duplicated calculation/posting
  * logic (see docs/audits/ACCOUNTING_ARCHITECTURE_AUDIT.md).
  *

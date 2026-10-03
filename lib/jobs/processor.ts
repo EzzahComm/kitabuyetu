@@ -1,5 +1,5 @@
 /**
- * Job processor - orchestrates fetch → lock → execute → status update.
+ * Job processor — orchestrates fetch → lock → execute → status update.
  *
  * Retry / backoff strategy (exponential):
  *   attempt 1 →  2^1 × 60 s =  2 min
@@ -29,7 +29,7 @@ import { handleJob } from './handlers';
 
 /**
  * Ceiling on jobs claimed per tick. Raised from 25 alongside TIME_BUDGET_MS
- * below - 25 was never the binding constraint (the 7-second budget stopped a
+ * below — 25 was never the binding constraint (the 7-second budget stopped a
  * tick long before it), so lifting the budget without lifting this would just
  * move the bottleneck one step along.
  */
@@ -43,8 +43,8 @@ const BATCH_SIZE = 100;
  *
  * Before this existed, claimPendingJobs(10) claimed a whole batch up front
  * (marking all 10 'processing') and then awaited them one at a time with no
- * time check at all. Whenever the batch's total real time - dominated by
- * jobs making outbound HTTP calls, e.g. sms_poll_dlr's provider lookups -
+ * time check at all. Whenever the batch's total real time — dominated by
+ * jobs making outbound HTTP calls, e.g. sms_poll_dlr's provider lookups —
  * exceeded the function's actual ceiling, the platform killed the invocation
  * mid-batch. Whatever hadn't finished sat in 'processing' limbo for a full
  * 6 minutes until resetStuckJobs reclaimed it, then collided with the exact
@@ -58,14 +58,14 @@ const BATCH_SIZE = 100;
  *
  * 7 seconds was starving the queue outright. Measured in production the same
  * day: a tick completed TWO jobs before its budget expired, against ~12
- * distinct pending types - so with round-robin, most types waited several
+ * distinct pending types — so with round-robin, most types waited several
  * ticks for a turn and arrival outpaced throughput continuously. The queue
  * had reached 11,505 pending with the oldest row nine days old, and a
  * single-job type (one scheduled campaign) sat unclaimed behind three email
  * backlogs of ~2,500 each.
  *
- * 50s inside a 60s ceiling keeps the original safety property - a tick still
- * stops itself well before the platform can kill it mid-write - while giving
+ * 50s inside a 60s ceiling keeps the original safety property — a tick still
+ * stops itself well before the platform can kill it mid-write — while giving
  * roughly seven times the work per tick. Cron fires every 5 minutes, so even
  * a full-length tick finishes with 250s to spare.
  */
@@ -76,7 +76,7 @@ const TIME_BUDGET_MS = 50_000;
  *
  * The budget check above is only consulted BEFORE claiming, so on its own a
  * job claimed at 49.9s still runs with ~10s before the platform's 60s ceiling
- * (Vercel Hobby's hard maximum - see lib/jobs/deadline.ts). Refusing to claim
+ * (Vercel Hobby's hard maximum — see lib/jobs/deadline.ts). Refusing to claim
  * inside the last stretch means a job always begins with a usable slice, and
  * the long SMS loops additionally stop themselves as the deadline nears.
  *
@@ -88,12 +88,12 @@ const MIN_JOB_BUDGET_MS = 10_000;
 /**
  * Claim and process pending jobs in round-robin rounds across every distinct
  * pending type, stopping once BATCH_SIZE is reached or TIME_BUDGET_MS has
- * elapsed - never claims a job it may not get to run. Safe to call
- * concurrently - `FOR UPDATE SKIP LOCKED` on each single-row claim prevents
+ * elapsed — never claims a job it may not get to run. Safe to call
+ * concurrently — `FOR UPDATE SKIP LOCKED` on each single-row claim prevents
  * double processing.
  *
  * A first attempt at fairness capped how many jobs of the SAME type could be
- * claimed per tick, still claiming by strict `priority DESC` otherwise -
+ * claimed per tick, still claiming by strict `priority DESC` otherwise —
  * confirmed NOT enough in prod: several types share the same priority tier
  * (sms_process_schedules + 3 email_campaign_* types + payment_requests_expire
  * are all priority 5), so that tier alone, each type capped or not, still
@@ -105,15 +105,15 @@ const MIN_JOB_BUDGET_MS = 10_000;
  * types at once. sms_poll_dlr and sms_release_stale_reservations still
  * showed zero progress even after that shipped, because reaching them in a
  * priority-ordered round means getting through every higher-priority type's
- * real job first (several make outbound HTTP calls - email/SMS provider
+ * real job first (several make outbound HTTP calls — email/SMS provider
  * APIs), and that alone can exceed the whole time budget before their turn
- * ever comes, tick after tick, forever - priority order never changes which
+ * ever comes, tick after tick, forever — priority order never changes which
  * types sit at the back.
  *
  * ROTATE_STARTING_TYPE fixes that: which type goes first is derived from
  * the current 5-minute tick number, so a different type leads each tick.
  * Every distinct type gets to go first roughly once every
- * (types.length × 5 minutes), and - critically - "roughly" here bounds a
+ * (types.length × 5 minutes), and — critically — "roughly" here bounds a
  * PERIOD, not "never": no type can be permanently stuck at the back the way
  * static priority ordering left it.
  */
@@ -161,7 +161,7 @@ export async function processJobBatch(): Promise<ProcessResult> {
         }
 
         const [job] = await claimPendingJobs(1, type);
-        if (!job) continue; // this type ran dry mid-tick - skip it for the rest of this round
+        if (!job) continue; // this type ran dry mid-tick — skip it for the rest of this round
 
         claimedAnyThisRound = true;
         result.processed++;
@@ -178,7 +178,7 @@ export async function processJobBatch(): Promise<ProcessResult> {
 }
 
 /**
- * A type whose oldest due job is older than this is not merely busy - it is
+ * A type whose oldest due job is older than this is not merely busy — it is
  * not getting a turn. The tick cadence is 5 minutes, so anything beyond an
  * hour has been passed over at least a dozen times.
  *
@@ -190,9 +190,9 @@ const STARVATION_MINS = 60;
 
 /**
  * Log this tick's queue depth and oldest-pending age (SMS-AUDIT-v3 T3-4)
- * from a snapshot the caller already fetched (getJobQueueSnapshot) - this no
+ * from a snapshot the caller already fetched (getJobQueueSnapshot) — this no
  * longer runs its own query. Escalates to logger.error only when a type is
- * genuinely starving, so the line is a signal rather than hourly noise - the
+ * genuinely starving, so the line is a signal rather than hourly noise — the
  * whole reason the previous starvation went unnoticed is that nothing
  * distinguished "deep queue, draining fine" from "stuck". Wrapped so a bug
  * in the summary/logging path itself can never fail the tick it's reporting
@@ -210,7 +210,7 @@ function emitQueueDepth(depth: JobQueueSnapshot): void {
     };
 
     if (starving.length > 0) {
-      logger.error('[jobs] queue STARVATION - job types not getting a turn', {
+      logger.error('[jobs] queue STARVATION — job types not getting a turn', {
         ...summary,
         starving,
       });
@@ -229,7 +229,7 @@ const TICK_INTERVAL_MS = 5 * 60 * 1000; // matches enqueueTimeBasedJobs' pg_cron
 /**
  * Rotates `types` so a different type leads each 5-minute tick, instead of
  * always starting from priority order. See processJobBatch's header for why
- * this - not just round-robining within a tick - is what guarantees no type
+ * this — not just round-robining within a tick — is what guarantees no type
  * is starved forever.
  */
 function rotateStartingType(types: JobType[], now: number): JobType[] {
@@ -242,7 +242,7 @@ function rotateStartingType(types: JobType[], now: number): JobType[] {
 async function processSingleJob(job: Job, result: ProcessResult): Promise<void> {
   const startedAt = Date.now();
 
-  // Skip the 'started' row on a job's very first attempt - it carried no
+  // Skip the 'started' row on a job's very first attempt — it carried no
   // content beyond "a job started" (job_logs was 451,892 inserts, 52% of
   // them this exact message, and zero application readers by id;
   // docs/audits/optimization-2026-09). Kept for attempts > 0 deliberately:

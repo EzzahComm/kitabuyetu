@@ -1,13 +1,13 @@
 /**
  * Admin-composed marketing emails to newsletter_subscribers (migration 209)
- * - aimed at growing signups and revenue, not promoting individual Changi$ha
+ * — aimed at growing signups and revenue, not promoting individual Changi$ha
  * fundraisers (that's a different, tenant-scoped concept entirely; see
- * campaigns.service.ts). Platform-level - no tenant, no group_id - and
+ * campaigns.service.ts). Platform-level — no tenant, no group_id — and
  * deliberately NOT built on email_campaigns/email_campaign_recipients
  * (campaign.service.ts), which are group-tenant-scoped and have no audience
  * model for "every newsletter subscriber". Preview-before-fire: a draft is
  * composed from a starter template, the admin edits it, then explicitly
- * sends - sendDigest() is a separate, deliberate action from createDraft().
+ * sends — sendDigest() is a separate, deliberate action from createDraft().
  */
 import { withAdminDb } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -57,7 +57,7 @@ function ctaButton(text: string, url: string): string {
 }
 
 /**
- * Starter content for a marketing send - a deliberate, admin-editable
+ * Starter content for a marketing send — a deliberate, admin-editable
  * starting point, not auto-generated from live data (there's no "this
  * week's" dataset to pull for a growth email the way there is for the
  * fundraiser digest this replaced). Each pitches a different reason to sign
@@ -92,7 +92,7 @@ const MARKETING_TEMPLATES: Record<
         Changi$ha is Kitabu Yetu's fundraising tool for harambees and community causes: donors give straight to an M-Pesa paybill, every contribution shows on a public page as it arrives, and funds are only released after review.
       </p>
       <p style="margin:0 0 20px;font-size:14px;color:#4b5563;line-height:1.6;">
-        No monthly fee to start a campaign - just a standard platform fee, and the M-Pesa charge, only when you withdraw.
+        No monthly fee to start a campaign — just a standard platform fee, and the M-Pesa charge, only when you withdraw.
       </p>
       <p style="margin:0 0 24px;">${ctaButton('Start a campaign', `${officialAppUrl}/start-campaign`)}</p>
     `,
@@ -103,7 +103,7 @@ const MARKETING_TEMPLATES: Record<
     subject: 'What it costs to put your group on Kitabu Yetu',
     htmlBody: `
       <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
-        Simple, per-group pricing - no hidden fees, no setup cost. See what it costs to move your group's records onto Kitabu Yetu, and sign up when you're ready.
+        Simple, per-group pricing — no hidden fees, no setup cost. See what it costs to move your group's records onto Kitabu Yetu, and sign up when you're ready.
       </p>
       <p style="margin:0 0 24px;">${ctaButton('See pricing & sign up', `${officialAppUrl}/pricing`)}</p>
     `,
@@ -160,7 +160,7 @@ export async function listDigests(): Promise<NewsletterDigest[]> {
   });
 }
 
-/** Only while still a draft - a sent/sending digest's content is locked (recipients may already have it). */
+/** Only while still a draft — a sent/sending digest's content is locked (recipients may already have it). */
 export async function updateDraft(id: string, input: { subject: string; htmlBody: string }): Promise<NewsletterDigest> {
   return withAdminDb(async (db) => {
     const { rows } = await db.query<NewsletterDigest>(
@@ -177,7 +177,7 @@ export async function updateDraft(id: string, input: { subject: string; htmlBody
 
 /**
  * Snapshots every currently-active subscriber as a recipient row and flips
- * the digest to 'sending' - mirrors campaign.service.ts's launchCampaign().
+ * the digest to 'sending' — mirrors campaign.service.ts's launchCampaign().
  * The actual sends happen in drainDigestRecipients(), picked up by the next
  * 5-min cron tick (lib/jobs/index.ts's hasPendingDigestRecipients() gate),
  * the same launch/drain split and wait as the existing group-level
@@ -252,7 +252,7 @@ export interface DigestDrainResult {
 }
 
 /**
- * Claims a bounded batch of pending recipient rows and sends each - mirrors
+ * Claims a bounded batch of pending recipient rows and sends each — mirrors
  * campaign.service.ts's drainCampaignRecipients() FOR UPDATE SKIP LOCKED
  * idiom so concurrent ticks never double-send the same recipient.
  */

@@ -2,8 +2,8 @@
  * Self-service forgot-password (§8 item 6 of the UX audit follow-up).
  * Reuses the exact SMS-OTP crypto pattern proven twice already
  * (group-verification.service.ts, organization-members.service.ts's invite
- * flow) rather than inventing a new one. Public/unauthenticated by design -
- * a visitor who forgot their password has no session - so every query goes
+ * flow) rather than inventing a new one. Public/unauthenticated by design —
+ * a visitor who forgot their password has no session — so every query goes
  * through withAdminDb, same as those two flows.
  *
  * Enumeration-safe: startPasswordReset() never reveals whether a phone
@@ -28,7 +28,7 @@ const GENERIC_ERROR = 'Invalid or expired code';
 // floor keeps both branches indistinguishable by timing, not just by payload.
 const RESET_START_MIN_MS = 1500;
 
-/** Always resolves without error, whether or not the phone is registered - never reveals account existence, by timing or otherwise. */
+/** Always resolves without error, whether or not the phone is registered — never reveals account existence, by timing or otherwise. */
 export async function startPasswordReset(phone: string): Promise<void> {
   await enforceMinDuration(RESET_START_MIN_MS, () => doStartPasswordReset(phone));
 }
@@ -69,12 +69,12 @@ async function doStartPasswordReset(phone: string): Promise<void> {
     return rows[0];
   });
 
-  if (!member) return; // no account for this phone - stay silent
+  if (!member) return; // no account for this phone — stay silent
 
   // sendServiceSms, not sendSingleSms: it writes a platform-funded ledger row
   // (so the cost is visible) and never throws. The previous unguarded provider
-  // call was reachable only for phone numbers that DO exist - line 48 returns
-  // early otherwise - so a provider outage threw only for real accounts,
+  // call was reachable only for phone numbers that DO exist — line 48 returns
+  // early otherwise — so a provider outage threw only for real accounts,
   // contradicting this function's own "always resolves without error" contract
   // and leaking account existence.
   await sendServiceSms({

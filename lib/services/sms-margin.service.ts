@@ -7,13 +7,13 @@ import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
  *
  * §15: "Do not expose internal provider costs to customers." Everything in this
  * module is cost-bearing, so it must only ever be reached through a backoffice
- * route guarded by a platform role - never from a tenant surface. The
+ * route guarded by a platform role — never from a tenant surface. The
  * customer-facing equivalent is sms-analytics.service.ts, which deliberately
  * contains no cost at all.
  *
  * MARGIN IS COMPUTED PER LOT, against the provider cost that applied ON THE DAY
  * THAT LOT WAS SOLD. A single "current cost" would silently restate every past
- * month's margin the moment the provider changed price - the same mistake §4
+ * month's margin the moment the provider changed price — the same mistake §4
  * forbids on the revenue side, and the reason sms_provider_costs carries
  * validity dates rather than being a column.
  */
@@ -27,7 +27,7 @@ export interface MarginSummary {
   /**
    * Credits sold in periods with no recorded provider cost. Their revenue is
    * still counted; their cost is not, so margin is UNDERSTATED by whatever
-   * those cost. Surfaced rather than hidden - a margin number that quietly
+   * those cost. Surfaced rather than hidden — a margin number that quietly
    * omits part of its cost base is worse than one that says so.
    */
   creditsWithoutCost: number;
@@ -62,7 +62,7 @@ export interface TierViability {
  * still contribute its revenue. Dropping it would overstate margin percentage
  * by shrinking the denominator, which is the more dangerous direction.
  */
-// DEFAULT_SMS_PROVIDER is a trusted compile-time constant, not caller input -
+// DEFAULT_SMS_PROVIDER is a trusted compile-time constant, not caller input —
 // string interpolation here is fine (no bound param needed for a value the
 // query text itself hardcodes).
 const COST_AT_SALE = `
@@ -80,11 +80,11 @@ const COST_AT_SALE = `
 /**
  * Query logic factored out of getMarginSummary so GET /api/admin/sms-margin
  * can share ONE withAdminDb connection across all four reads below instead
- * of each opening its own - that route's Promise.all of 4 independent
+ * of each opening its own — that route's Promise.all of 4 independent
  * withAdminDb calls self-queued against DB_POOL_MAX=3, confirmed live: a 4th
  * concurrent admin request blocked ~2.5s waiting for a connection
  * (docs/audits/optimization-2026-09). getMarginSummary itself is
- * unchanged - still self-contained for its own callers (tests, any future
+ * unchanged — still self-contained for its own callers (tests, any future
  * standalone use).
  */
 async function queryMarginSummary(db: PoolClient, from?: string, to?: string): Promise<MarginSummary> {
@@ -131,7 +131,7 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
  *
  * It grouped sms_credits by package_id and read as a revenue breakdown across
  * the package catalogue. It could never be one. NOTHING in this codebase has
- * ever written sms_credits.package_id - the column has no writer at all - so
+ * ever written sms_credits.package_id — the column has no writer at all — so
  * every purchase fell into the single NULL bucket and the report's own comment
  * ("says how much of the business bypasses the catalogue") described an
  * artifact of that, not a fact about the business. An operator reading it
@@ -142,7 +142,7 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
  * offered a package to choose. This is the "built the artifact, never wired
  * the consumer" pattern the v3 audit named as recurring here.
  *
- * The audit offered two ways out - thread package_id through top-ups, or
+ * The audit offered two ways out — thread package_id through top-ups, or
  * retire the report. Threading it is not a fix, it is a product feature: a
  * purchase flow would first have to let someone PICK a package. Until that
  * exists, a report over a column with no writer is worse than no report.
@@ -154,13 +154,13 @@ export async function getMarginSummary(from?: string, to?: string): Promise<Marg
  */
 
 /**
- * Every group's SMS revenue and consumption, highest revenue first - §15's
+ * Every group's SMS revenue and consumption, highest revenue first — §15's
  * "high-volume customers", widened into the full per-group tracking view.
  *
  * LEFT JOIN sms_credits, not INNER: a group that has only ever sent on its
  * plan's bundled allowance (never bought a top-up) has zero rows in
  * sms_credits and would silently vanish from an INNER JOIN version of this
- * query - visible consumption, invisible from the revenue report. The
+ * query — visible consumption, invisible from the revenue report. The
  * original version of this function did exactly that.
  *
  * `limit` defaults high enough to be "all groups" at the platform's current
@@ -211,12 +211,12 @@ export interface OrganizationUsage {
   organizationName: string;
   /** Message credits actually charged against this org's own wallet (payer_type='organization'). */
   creditsConsumed: number;
-  /** organization_billing_accounts.sms_credits - the pooled balance sends are gated on. */
+  /** organization_billing_accounts.sms_credits — the pooled balance sends are gated on. */
   currentBalance: number;
   /**
-   * Real KES revenue from `organization_sms_credits` - the org-side mirror of
+   * Real KES revenue from `organization_sms_credits` — the org-side mirror of
    * `sms_credits` (same shape: amount_paid, credits_added, rate_applied,
-   * payment_id - migration 051). Included for when a purchase flow exists -
+   * payment_id — migration 051). Included for when a purchase flow exists —
    * as of this writing there is NO code path anywhere in the app, or in any
    * migration's own seed data, that ever inserts into that table. Only
    * groups can self-serve top up via M-Pesa today; an org's current balance,
@@ -228,12 +228,12 @@ export interface OrganizationUsage {
 }
 
 /**
- * Per-organization SMS usage - the payer_organization_id axis
+ * Per-organization SMS usage — the payer_organization_id axis
  * (`sms_usage_logs`, migration 051) that exists structurally alongside the
  * per-group one, for an organization that pays for a group's messages
  * centrally rather than the group paying for itself.
  *
- * Every organization is listed, not just ones with activity - an org that
+ * Every organization is listed, not just ones with activity — an org that
  * has never touched SMS is itself information (no accidental "it's not
  * showing so I assume it's fine" reading).
  */
@@ -273,7 +273,7 @@ export async function getOrganizationUsage(): Promise<OrganizationUsage[]> {
 }
 
 /**
- * Which price bands still clear the provider's cost - §15's "loss-making
+ * Which price bands still clear the provider's cost — §15's "loss-making
  * pricing tiers", and the check §19 asks for before trusting the bottom tier.
  *
  * Evaluates INACTIVE bands too: the point is to know whether a proposed band
@@ -306,7 +306,7 @@ async function queryTierViability(db: PoolClient): Promise<TierViability[]> {
       providerCost: cost,
       margin,
       marginPct: margin === null || price <= 0 ? null : (margin / price) * 100,
-      // Unknown cost is not "safe" - but it is not a proven loss either, so
+      // Unknown cost is not "safe" — but it is not a proven loss either, so
       // this stays false and marginPct stays null to say "cannot tell".
       lossMaking: margin !== null && margin <= 0,
     };
@@ -318,7 +318,7 @@ export async function getTierViability(): Promise<TierViability[]> {
 }
 
 /**
- * The full sms-margin report in ONE withAdminDb connection - see
+ * The full sms-margin report in ONE withAdminDb connection — see
  * queryMarginSummary's header comment for why. The one live caller,
  * GET /api/admin/sms-margin, used to Promise.all the four public getters
  * above, each opening its own pool connection.

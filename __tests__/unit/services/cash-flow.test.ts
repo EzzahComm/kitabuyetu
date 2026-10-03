@@ -1,5 +1,5 @@
 /**
- * Cash Flow Statement + Statement of Changes in Equity (audit §12 - the two
+ * Cash Flow Statement + Statement of Changes in Equity (audit §12 — the two
  * financial statements the platform lacked entirely). Covers the IAS 7
  * section classification (member lending = operating) and the
  * opening + netChange = closing reconciliation flag.
@@ -14,7 +14,7 @@ jest.mock('@/lib/db', () => ({
 }));
 
 // getCashFlowStatement/getEquityChanges are now wrapped in cached()
-// (docs/audits/optimization-2026-09) - passthrough so these tests keep
+// (docs/audits/optimization-2026-09) — passthrough so these tests keep
 // exercising the real query-building logic without needing a live Redis
 // connection, matching organization-finance-donor-report.test.ts's
 // established pattern.

@@ -13,7 +13,7 @@ const Schema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
-/** POST /api/v1/organization-invitations/complete - public, final step: sets the password and creates the account. */
+/** POST /api/v1/organization-invitations/complete — public, final step: sets the password and creates the account. */
 export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { token, password } = Schema.parse(await req.json());

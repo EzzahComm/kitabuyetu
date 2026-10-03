@@ -5,7 +5,7 @@
  * engine re-invokes send() with the same phones on its own backoff
  * (retryOrFail), while the first attempt's failures also wrote sms_failures
  * rows that the sms_retry_failed cron re-sends five minutes later. send() had
- * no dedup of its own - unlike sendBulkCampaign, which has had one since H3 -
+ * no dedup of its own — unlike sendBulkCampaign, which has had one since H3 —
  * so a transient provider outage produced duplicate DELIVERED messages and
  * duplicate charges, not merely duplicate attempts.
  */
@@ -102,7 +102,7 @@ describe('send() retry dedup (G7)', () => {
     // trigger-engine decides retry-vs-terminal with
     // `!logs.some(l => l.status !== 'failed')`. Against stale rows that can
     // never be true, so an execution was marked 'sent' even when the provider
-    // rejected everyone - the exact defect PR #124 meant to fix, on an
+    // rejected everyone — the exact defect PR #124 meant to fix, on an
     // append-only table where it cannot be undone.
     await resetDatabase();
     const { groupId, officerId } = await createTestGroup('treasurer');
@@ -155,7 +155,7 @@ describe('send() retry dedup (G7)', () => {
 
   it('does NOT dedup a manual send, which carries no correlation key', async () => {
     // Sending the same message twice by hand is legitimate and must stay
-    // possible - only event-driven sends carry a referenceId.
+    // possible — only event-driven sends carry a referenceId.
     await resetDatabase();
     const { groupId, officerId } = await createTestGroup('treasurer');
     await provisionBilling(groupId, 100);

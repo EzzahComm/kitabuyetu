@@ -1,12 +1,12 @@
 /**
  * The STK callback must survive a payload whose phone is unusable.
  *
- * PREVENTIVE, not a live incident - but not speculative either. The direct
+ * PREVENTIVE, not a live incident — but not speculative either. The direct
  * PayBill path carried the identical construct
  * (`normalizePhone(<field from Safaricom>)` on the way in) and it silently
  * discarded every C2B payment for ~11 weeks, losing KES 15,631, because
  * Safaricom sends a HASHED MSISDN (64-char SHA-256) on this org's C2B
- * confirmations. Same provider, same shortcode, same shape - and STK is the
+ * confirmations. Same provider, same shortcode, same shape — and STK is the
  * PRIMARY payment path, so if it ever fires here the blast radius is larger.
  * See PR #77 and lib/utils/phone.ts's safeNormalizePhone.
  *
@@ -35,7 +35,7 @@ function stkSuccess(checkoutRequestId: string, receipt: string, amount: number, 
     { Name: 'MpesaReceiptNumber', Value: receipt },
     { Name: 'TransactionDate', Value: 20260815120000 },
   ];
-  // Omit the item entirely when phone is null - the "metadata present but
+  // Omit the item entirely when phone is null — the "metadata present but
   // PhoneNumber missing" shape.
   if (phone !== null) items.push({ Name: 'PhoneNumber', Value: phone });
 
@@ -149,7 +149,7 @@ describe('STK callback with an unusable payer phone', () => {
     await seedStkRequest(groupId, checkoutRequestId, 'CONTRIB', 100, phone);
 
     const malformed = stkSuccess(checkoutRequestId, 'PLACEHOLDER', 100, phone);
-    // Strip the receipt item - a success code with no MpesaReceiptNumber.
+    // Strip the receipt item — a success code with no MpesaReceiptNumber.
     malformed.Body.stkCallback.CallbackMetadata!.Item = malformed.Body.stkCallback.CallbackMetadata!.Item.filter(
       (i) => i.Name !== 'MpesaReceiptNumber',
     );

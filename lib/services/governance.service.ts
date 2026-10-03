@@ -2,7 +2,7 @@
  * Governance/health-scoring engine (SUPER_ADMIN_PLATFORM_AUDIT.md §2.10,
  * Phase 2). Populates governance_snapshots/governance_health_scores/
  * governance_alerts from the 19 metrics + threshold bands already seeded
- * in governance_metrics/governance_thresholds (migrations 069/071/072) -
+ * in governance_metrics/governance_thresholds (migrations 069/071/072) —
  * this file is the missing computation half; the schema and bands were
  * already fully designed, just never wired to anything.
  *
@@ -15,15 +15,15 @@
  *   historical "as of" notion (unlike accounts.balance, which is
  *   ledger-derived from journal_lines), so period-over-period loan growth
  *   reads account 1101 (Loans Receivable)'s ledger balance as-of both
- *   dates instead - the only way to get a genuinely historical figure.
+ *   dates instead — the only way to get a genuinely historical figure.
  * - par30/npl/concentration/car/provision_coverage are inherently
  *   point-in-time operational reads (current loan.status, not
  *   retroactively derivable without a loan-status-history table, which
- *   doesn't exist) - always computed "as of now" regardless of the
+ *   doesn't exist) — always computed "as of now" regardless of the
  *   snapshot's nominal as_of date. Fine in practice since this job runs
  *   close to period-end.
  * - group_health is deliberately scoped to metrics with a real, verified
- *   data source (liquidity/credit/profitability/growth) - the seeded
+ *   data source (liquidity/credit/profitability/growth) — the seeded
  *   description also mentions "attendance" and "governance", for which no
  *   clean group-level aggregate exists yet; a documented gap, not silently
  *   dropped.
@@ -85,7 +85,7 @@ export function resolveRag(value: number | null, t: ThresholdRow | undefined): R
 }
 
 // Maps a RAG band to a 0-100 contribution for the composite health score.
-// 'na' contributes nothing (excluded from the average, not scored as 0 -
+// 'na' contributes nothing (excluded from the average, not scored as 0 —
 // a metric with no data shouldn't drag the score down).
 const RAG_SCORE: Record<Rag, number | null> = { green: 100, amber: 55, red: 15, na: null };
 
@@ -115,7 +115,7 @@ async function getAccountBalanceAsOf(
   return rows[0] ? parseFloat(rows[0].balance) : 0;
 }
 
-/** Sum of ALL asset-type account ledger balances as-of a date - mirrors getBalanceSheet's own `assets` total exactly. */
+/** Sum of ALL asset-type account ledger balances as-of a date — mirrors getBalanceSheet's own `assets` total exactly. */
 async function getTotalAssetBalanceAsOf(client: PoolClient, groupId: string, asOf: string): Promise<number> {
   const { rows } = await client.query<{ total: string }>(
     `SELECT COALESCE(SUM(jl.debit - jl.credit) FILTER (WHERE je.status = 'posted' AND je.entry_date <= $2), 0)::text AS total
@@ -126,7 +126,7 @@ async function getTotalAssetBalanceAsOf(client: PoolClient, groupId: string, asO
      GROUP BY a.id`,
     [groupId, asOf],
   );
-  // One row per account (GROUP BY a.id) - sum them in JS.
+  // One row per account (GROUP BY a.id) — sum them in JS.
   return rows.reduce((sum, r) => sum + parseFloat(r.total), 0);
 }
 
@@ -183,7 +183,7 @@ async function getActiveMembers(client: PoolClient, groupId: string, asOf: strin
   return parseInt(rows[0].count, 10);
 }
 
-/** Current (not as-of) gross loan portfolio - matches member-balances.service.ts's own convention. */
+/** Current (not as-of) gross loan portfolio — matches member-balances.service.ts's own convention. */
 async function getGrossLoansNow(client: PoolClient, groupId: string): Promise<number> {
   const { rows } = await client.query<{ total: string }>(
     `SELECT COALESCE(SUM(outstanding_balance), 0)::text AS total FROM loans
@@ -348,7 +348,7 @@ export async function computeGroupGovernanceSnapshot(
 
   // memberSavingsAccount (2101, a liability) already comes back as a
   // positive human-readable balance from getAccountBalanceAsOf's own
-  // sign convention (liabilities negated internally) - use it directly,
+  // sign convention (liabilities negated internally) — use it directly,
   // do not re-negate it.
   const metrics: ComputedMetric[] = [
     { code: 'liquidity_ratio', value: pct(cash + bank, memberSavingsAccount) },
@@ -412,7 +412,7 @@ export async function computeGroupGovernanceSnapshot(
       [groupId, asOf, m.code, m.value, m.numerator ?? null, m.denominator ?? null, rag, prior, trend],
     );
 
-    // Record audit log for governance snapshot - system-triggered
+    // Record audit log for governance snapshot — system-triggered
     await client.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -448,7 +448,7 @@ export async function computeGroupGovernanceSnapshot(
       );
       alertsRaised += rowCount ?? 0;
 
-      // Record audit log for governance alerts - system-triggered
+      // Record audit log for governance alerts — system-triggered
       if (rowCount) {
         await client.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
@@ -482,7 +482,7 @@ export async function computeGroupGovernanceSnapshot(
       [groupId, asOf, healthScore, healthRag],
     );
 
-    // Record audit log for governance health score - system-triggered
+    // Record audit log for governance health score — system-triggered
     await client.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -516,7 +516,7 @@ export async function computeGroupGovernanceSnapshot(
 /**
  * Iterates every active group, computing and persisting its governance
  * snapshot for `asOf`. Each group runs in its OWN withAdminDb transaction
- * (not one shared transaction for the whole platform loop) - a genuine
+ * (not one shared transaction for the whole platform loop) — a genuine
  * SQL-level error inside one group's computation would otherwise poison a
  * single shared Postgres transaction, cascading failures to every group
  * after it despite the per-group try/catch, defeating the whole point of
@@ -548,7 +548,7 @@ export async function computeGovernanceForAllGroups(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Alert workflow - mirrors updateTicketStatus's exact shape (admin.service.ts),
+// Alert workflow — mirrors updateTicketStatus's exact shape (admin.service.ts),
 // the closest existing ack/resolve-style precedent in this codebase.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -630,7 +630,7 @@ export async function acknowledgeAlert(alertId: string, adminId: string) {
     );
 
     if (rowCount) {
-      // Record audit log for alert acknowledgement - admin-triggered
+      // Record audit log for alert acknowledgement — admin-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -675,7 +675,7 @@ export async function resolveAlert(alertId: string, adminId: string) {
     );
 
     if (rowCount) {
-      // Record audit log for alert resolution - admin-triggered
+      // Record audit log for alert resolution — admin-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -696,7 +696,7 @@ export async function resolveAlert(alertId: string, adminId: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Snapshot reads - power the group detail health card and the Risk Center
+// Snapshot reads — power the group detail health card and the Risk Center
 // heatmap. Read-only, no computation; purely reshapes what
 // computeGroupGovernanceSnapshot already persisted.
 // ─────────────────────────────────────────────────────────────────────────────

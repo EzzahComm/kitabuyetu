@@ -1,5 +1,5 @@
 /**
- * SMS scheduler - fires due sms_schedules rows and due scheduled sms_campaigns.
+ * SMS scheduler — fires due sms_schedules rows and due scheduled sms_campaigns.
  *
  * Driven by the sms_process_schedules cron job (every 5 min). Both paths
  * resolve recipients at *run time* (so membership changes since scheduling are
@@ -7,7 +7,7 @@
  * owns billing, opt-out filtering, dispatch and retries.
  *
  * Recurring/one-time schedule types handled: one_time, daily, weekly, monthly.
- * The 'birthday' and 'loan_due' types are intentionally NOT processed here -
+ * The 'birthday' and 'loan_due' types are intentionally NOT processed here —
  * they need recipient-rule logic (birthdays today / loans due in N days) rather
  * than a fixed next_run_at cadence, and loan_due overlaps the existing
  * notify_loan_due_alerts job. They are left for a dedicated follow-up.
@@ -53,7 +53,7 @@ interface CampaignRow {
  * Deliberately does NOT strip what it can't resolve: per-recipient variables
  * ({{first_name}} and friends) are rendered later, in lib/jobs/handlers.ts's
  * handleSmsBulkSend, against the phone→member map resolveRecipientVars()
- * builds - stripping them here would destroy them before that step ever sees
+ * builds — stripping them here would destroy them before that step ever sees
  * them. Anything still unresolved after that per-recipient pass is stripped
  * there, so nothing reaches a handset as literal "{{...}}" text either way.
  */
@@ -62,18 +62,18 @@ function renderScheduledMessage(message: string, groupName: string): string {
 }
 
 /**
- * Process due sms_schedules - exactly one send per occurrence.
+ * Process due sms_schedules — exactly one send per occurrence.
  *
  * Each due schedule is handled in its own transaction that (1) *claims* the
- * occurrence - advancing next_run_at (or deactivating a one_time) under a
- * FOR UPDATE SKIP LOCKED row lock - and (2) enqueues the send on that same
+ * occurrence — advancing next_run_at (or deactivating a one_time) under a
+ * FOR UPDATE SKIP LOCKED row lock — and (2) enqueues the send on that same
  * transaction. Both commit together, which is what makes a reminder fire once:
  *
  *   - Concurrent ticks / a resetStuckJobs re-run can't double-send: the claim
  *     advances next_run_at, so any other runner's re-check (next_run_at <= NOW)
  *     misses the row and enqueues nothing.
  *   - A crash mid-way rolls back both the advance and the enqueue, so the next
- *     tick re-selects the still-due schedule and sends it - never lost, never
+ *     tick re-selects the still-due schedule and sends it — never lost, never
  *     duplicated.
  *
  * The dedup_key (schedule id + the exact claimed occurrence) is belt-and-braces
@@ -168,7 +168,7 @@ async function claimOccurrence(client: PoolClient, id: string): Promise<string |
     // very next tick and fired again, and again, until it caught up: a member
     // received five identical reminders in a few minutes because the worker
     // had been down five days. A periodic reminder is a notification, not a
-    // queue to drain - the missed ones have no value once late, and sending
+    // queue to drain — the missed ones have no value once late, and sending
     // them is worse than skipping them.
     //
     // `missed` is how many whole periods elapsed; +1 lands on the next one
@@ -287,7 +287,7 @@ export async function processDueScheduledCampaigns(): Promise<{ processed: numbe
 
     // Enqueue first (idempotent via dedup_key), then flip out of 'scheduled'.
     // If the flip fails, a later tick re-runs this and the dedup_key prevents a
-    // duplicate job - self-healing rather than orphaning the campaign.
+    // duplicate job — self-healing rather than orphaning the campaign.
     await enqueueJob(
       'sms_bulk_send',
       {

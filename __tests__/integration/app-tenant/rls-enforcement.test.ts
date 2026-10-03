@@ -1,8 +1,8 @@
 /**
  * ADR-001 Phase 1 proof (docs/adr/001-bypassrls-two-role-split.md): with
  * `app_tenant` provisioned (NOSUPERUSER NOBYPASSRLS) and TENANT_DATABASE_URL
- * pointed at it, Postgres's own RLS policy - not any service-layer
- * `WHERE group_id = ...` clause - is what filters cross-tenant rows.
+ * pointed at it, Postgres's own RLS policy — not any service-layer
+ * `WHERE group_id = ...` clause — is what filters cross-tenant rows.
  *
  * Runs only under jest.integration.app-tenant.config.ts
  * (`npm run test:integration:app-tenant`), never under the default
@@ -44,7 +44,7 @@ describe('app_tenant RLS enforcement (real Postgres, no service-layer WHERE clau
     await resetDatabase();
   });
 
-  it('is actually connected as app_tenant (no BYPASSRLS, no superuser) - not the admin pool', async () => {
+  it('is actually connected as app_tenant (no BYPASSRLS, no superuser) — not the admin pool', async () => {
     const ctx: TenantContext = { userId: officerAId, groupId: groupAId, role: 'chairperson' };
     const [role] = await withDb(ctx, async (client) => {
       const { rows } = await client.query<{

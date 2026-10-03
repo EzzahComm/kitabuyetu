@@ -12,10 +12,10 @@ type Step = 'form' | 'sent' | 'error';
 /**
  * The one public, unauthenticated form on this platform that triggers a real
  * M-Pesa payment. Deliberately does NOT poll for completion the way the
- * authenticated billing flow does (hooks/use-stk-checkout.ts) - that relies
+ * authenticated billing flow does (hooks/use-stk-checkout.ts) — that relies
  * on tenant-scoped, authenticated status routes a public donor has no
  * session for. Instead: submit, tell the donor to check their phone, and let
- * them refresh once they've paid - router.refresh() re-fetches the server
+ * them refresh once they've paid — router.refresh() re-fetches the server
  * component's live amount_raised.
  */
 export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
@@ -69,7 +69,7 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
           onClick={() => router.refresh()}
           className="mt-5 inline-flex items-center justify-center rounded-md bg-brand-500 px-5 py-3 text-sm font-semibold text-white hover:bg-brand-400"
         >
-          I&apos;ve paid - refresh this page
+          I&apos;ve paid — refresh this page
         </button>
         <button
           type="button"

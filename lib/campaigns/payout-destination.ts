@@ -1,6 +1,6 @@
 /**
  * Where a Changi$ha campaign's withdrawals are paid: an M-Pesa phone (Daraja
- * B2C), or a business paybill/till (Daraja B2B) - e.g. a hospital, school or
+ * B2C), or a business paybill/till (Daraja B2B) — e.g. a hospital, school or
  * funeral home paid directly instead of through a person's phone.
  *
  * Pure and dependency-free on purpose: the service layer and the dashboard

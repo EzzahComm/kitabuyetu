@@ -13,7 +13,7 @@ interface ExpandableTextProps {
 /**
  * Long free-text in a dense table cell (a failure reason, remarks, an SMS
  * body). Previously these were `truncate` + `title=`, which is a desktop-only
- * affordance - a `title` tooltip needs hover, so on a phone or tablet the
+ * affordance — a `title` tooltip needs hover, so on a phone or tablet the
  * hidden half of the text was simply unreachable
  * (UX_UI_OPTIMIZATION_AUDIT_2026-08.md M7).
  *

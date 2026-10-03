@@ -1,25 +1,25 @@
 /**
- * Async report export (PDF/Excel/CSV) + scheduled reports - organization
- * axis, Phase 5 gap analysis items 1-2 (everything else on that axis - the
+ * Async report export (PDF/Excel/CSV) + scheduled reports — organization
+ * axis, Phase 5 gap analysis items 1-2 (everything else on that axis — the
  * KPI dashboard, portfolio health, audit-on-read, member/programme
- * drill-down - already ships).
+ * drill-down — already ships).
  *
  * Heavy report generation stays off the request path (product principle
  * §1.3): a request only ever inserts a row and enqueues a job; the actual
  * render + upload happens inside the existing lib/jobs queue, off any HTTP
- * request/response cycle. A signed download URL is never stored - it is
+ * request/response cycle. A signed download URL is never stored — it is
  * minted fresh, bounded by a short TTL, every time a caller asks for one
  * (getExportStatus below, and emailScheduledReport for the mailed link).
  *
  * Reused, not rebuilt:
  *   - organizationFinanceService.programBudgetReport/donorSpendReport are the
- *     report DATA - called unchanged, signatures untouched.
+ *     report DATA — called unchanged, signatures untouched.
  *   - components/pdf/organization-report.tsx renders the PDF format, in the
  *     same react-pdf idiom as components/pdf/contribution-receipt.tsx (the
- *     only existing precedent - report-email.service.ts does NOT itself
+ *     only existing precedent — report-email.service.ts does NOT itself
  *     render PDFs, it only emails pre-built attachments, so there was no
  *     "PDF service" to extend here).
- *   - lib/jobs/* is the SAME job queue every other background task uses -
+ *   - lib/jobs/* is the SAME job queue every other background task uses —
  *     organization_report_export and organization_report_schedules_process
  *     are new job TYPES in it, not a second queue.
  *   - email.service.ts's sendTemplatedEmail is the existing send path used
@@ -125,7 +125,7 @@ export const reportExportService = {
       const id = rows[0]!.id;
 
       // Write-path audit: same transaction as the state change, mirroring
-      // organization.service.ts's setBranding - a write's audit row belongs
+      // organization.service.ts's setBranding — a write's audit row belongs
       // beside the change it describes, unlike a read's (see audit.service.ts).
       await db.query(
         `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, new_values)
@@ -160,7 +160,7 @@ export const reportExportService = {
   },
 
   /**
-   * GET /api/admin/organization/reports/export/:id - the signed URL is
+   * GET /api/admin/organization/reports/export/:id — the signed URL is
    * generated fresh on every call (never persisted), so it can never outlive
    * REPORT_SIGNED_URL_TTL_SECONDS from the moment this is read.
    */
@@ -343,7 +343,7 @@ export const reportExportService = {
   },
 };
 
-// ── Job-processing internals - called from lib/jobs/handlers.ts ──────────
+// ── Job-processing internals — called from lib/jobs/handlers.ts ──────────
 
 async function getOrganizationName(organizationId: string): Promise<string> {
   const { rows } = await pool.query<{ name: string }>(`SELECT name FROM organizations WHERE id = $1`, [organizationId]);
@@ -394,7 +394,7 @@ function renderDonorSpendSheets(workbook: ExcelJS.Workbook, lines: DonorSpendLin
     for (const p of d.programs) bySource.addRow([d.fundingSource, p.name, p.budget, p.disbursed]);
   }
 
-  // A second sheet only makes sense for xlsx - CSV is a single flat file, so
+  // A second sheet only makes sense for xlsx — CSV is a single flat file, so
   // the per-recipient-group breakdown is intentionally left out of the CSV
   // export; the PDF and XLSX formats both carry it in full.
   if (includeGroupSheet) {
@@ -416,7 +416,7 @@ async function renderReportArtifact(
   // generating an organization's OWN report on its behalf is exactly what
   // 'organization_coordinator' + that organization's id represents,
   // regardless of who originally triggered the job (an ad-hoc request or the
-  // schedule sweep) - so this is deliberately fixed rather than threading
+  // schedule sweep) — so this is deliberately fixed rather than threading
   // the original requester's role through the job payload and trusting it.
   const ctx: TenantContext = { userId: 'system', groupId: '', role: 'organization_coordinator', organizationId };
   const organizationName = await getOrganizationName(organizationId);
@@ -447,7 +447,7 @@ async function renderReportArtifact(
 
 /**
  * Email a finished scheduled report's signed link via the existing
- * templated-send path (email.service.ts). Best-effort per recipient - one
+ * templated-send path (email.service.ts). Best-effort per recipient — one
  * bad address must not block the others.
  */
 async function emailScheduledReport(
@@ -467,7 +467,7 @@ async function emailScheduledReport(
   const recipients = new Set<string>(schedule.recipient_emails ?? []);
   if (schedule.notify_coordinator) {
     // Same shape as email.service's other organization-lead lookups
-    // (organization_members.status = 'active', org_role = 'lead' -
+    // (organization_members.status = 'active', org_role = 'lead' —
     // organization-members.service.ts is the schema authority for this join).
     const { rows: leads } = await pool.query<{ email: string }>(
       `SELECT m.email FROM organization_members om JOIN members m ON m.id = om.member_id
@@ -498,7 +498,7 @@ async function emailScheduledReport(
 }
 
 /**
- * Process one organization_report_export job - called by
+ * Process one organization_report_export job — called by
  * lib/jobs/handlers.ts's handleOrganizationReportExport.
  *
  * `isFinalAttempt` decides whether a failure is recorded as a terminal
@@ -559,7 +559,7 @@ export async function processReportExport(exportId: string, opts: { isFinalAttem
 }
 
 /**
- * Self-idempotent 5-minute sweep - same idiom as sms_process_schedules
+ * Self-idempotent 5-minute sweep — same idiom as sms_process_schedules
  * (lib/jobs/index.ts / sms-scheduler.service.ts): atomically claim every due,
  * active schedule (advancing next_run_at in the same UPDATE, so a slow tick
  * can never reclaim a row it already fired), then enqueue one

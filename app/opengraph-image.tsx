@@ -14,7 +14,7 @@ import { finanzaDark } from '@/lib/ui/finanza-palette';
  * the kit's dark-ground colourway.
  */
 export const runtime = 'edge';
-export const alt = 'Kitabu Yetu - Simple books. Stronger groups.';
+export const alt = 'Kitabu Yetu — Simple books. Stronger groups.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
 
@@ -75,7 +75,7 @@ export default function Image() {
           maxWidth: 860,
         }}
       >
-        Savings, loans, members and money - for chamas, SACCOs, VSLAs and welfare groups.
+        Savings, loans, members and money — for chamas, SACCOs, VSLAs and welfare groups.
       </span>
     </div>,
     { ...size },

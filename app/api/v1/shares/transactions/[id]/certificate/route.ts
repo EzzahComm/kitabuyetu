@@ -83,7 +83,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
       }
       if (!data.certificate_serial) {
         throw new ValidationError(
-          'This transaction has no certificate serial - likely a pre-E4 record. Contact admin to backfill.',
+          'This transaction has no certificate serial — likely a pre-E4 record. Contact admin to backfill.',
         );
       }
 
@@ -117,7 +117,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
 
       // Filename: clean serial for the download filename.
       const filename = `share-cert-${data.certificate_serial}.pdf`;
-      // Wrap in Blob - Buffer/Uint8Array trip the strict BodyInit checks in
+      // Wrap in Blob — Buffer/Uint8Array trip the strict BodyInit checks in
       // this codebase's TS lib set; Blob is unambiguously BodyInit.
       // Inline disposition so clicking opens the PDF in a new tab; the user
       // can still save it from the browser's viewer.
@@ -132,7 +132,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
       });
     } catch (err) {
       // withAuth's normal handleError chain doesn't run because we're outside
-      // the wrapper's promise chain - call it manually.
+      // the wrapper's promise chain — call it manually.
       if (err instanceof ValidationError || err instanceof NotFoundError) {
         return handleError(err);
       }

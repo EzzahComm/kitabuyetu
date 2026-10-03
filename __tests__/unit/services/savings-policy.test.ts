@@ -1,5 +1,5 @@
 /**
- * SavingsPolicy 'limits' - a new Configuration Service domain
+ * SavingsPolicy 'limits' — a new Configuration Service domain
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.5/§33.5), with no prior hardcoded
  * constant to migrate (§22 found min/max contribution and grace period
  * simply didn't exist). Advisory only: nothing here enforces contributions,

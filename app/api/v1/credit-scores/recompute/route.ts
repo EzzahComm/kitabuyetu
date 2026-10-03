@@ -5,7 +5,7 @@ import { creditScoresService } from '@/lib/services/credit-scores.service';
 import { ok } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/credit-scores/recompute - sweep all active members and write
+ * POST /api/v1/credit-scores/recompute — sweep all active members and write
  * a fresh score snapshot per member. Restricted to chairperson: this is a
  * potentially expensive batch operation and changes scoring for everyone.
  */

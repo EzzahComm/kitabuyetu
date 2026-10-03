@@ -11,7 +11,7 @@ const fieldClass =
   'mt-2 w-full rounded-lg border border-brand-100 bg-white px-4 py-3 font-normal text-finanza-dark outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
 /**
- * Filters client-side rather than via searchParams round-trips - careers
+ * Filters client-side rather than via searchParams round-trips — careers
  * listings are small (a handful of roles at most), so instant filtering
  * reads better here than a page navigation per keystroke/select change.
  */

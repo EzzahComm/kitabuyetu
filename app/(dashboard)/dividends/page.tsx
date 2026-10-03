@@ -180,7 +180,7 @@ export default function DividendsPage() {
             key: 'members',
             header: 'Members',
             className: 'text-right',
-            render: (d) => <span className="font-mono">{d.total_eligible_members || '-'}</span>,
+            render: (d) => <span className="font-mono">{d.total_eligible_members || '—'}</span>,
           },
           {
             key: 'allocated',
@@ -254,7 +254,7 @@ export default function DividendsPage() {
                 </select>
               </div>
               <div className="space-y-1">
-                <Label htmlFor="withholdingTaxRate">Withholding tax (0-0.9999)</Label>
+                <Label htmlFor="withholdingTaxRate">Withholding tax (0–0.9999)</Label>
                 <Input
                   id="withholdingTaxRate"
                   type="number"
@@ -278,7 +278,7 @@ export default function DividendsPage() {
                 ))}
                 {(classesQ.data?.items ?? []).length === 0 && (
                   <p className="text-xs text-muted-foreground italic">
-                    No active classes - create one in /shares/classes first.
+                    No active classes — create one in /shares/classes first.
                   </p>
                 )}
               </div>

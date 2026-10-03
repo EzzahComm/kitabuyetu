@@ -1,7 +1,7 @@
 /**
  * RBAC permission activation, Batch 2 (SIMPLIFICATION_AND_RBAC_AUDIT.md
  * Workstream 4). Meetings/Welfare/Investments had ZERO role check anywhere
- * (route or service level) before this batch - any authenticated member
+ * (route or service level) before this batch — any authenticated member
  * could create meetings, review/disburse welfare, or record investment
  * returns. This proves the new withPermission() gates against real Postgres,
  * using each role's actual seeded roles.permissions array (not a hardcoded
@@ -30,7 +30,7 @@ describe('Meetings/Welfare/Investments permission gates (net-new)', () => {
 
   beforeAll(async () => {
     await resetDatabase();
-    // register_group() founders are always officers - a genuine plain
+    // register_group() founders are always officers — a genuine plain
     // 'member' needs a second, explicitly-added membership.
     const { groupId: gId, officerId: founderId } = await createTestGroup('treasurer');
     groupId = gId;

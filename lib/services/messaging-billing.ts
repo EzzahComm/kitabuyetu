@@ -1,5 +1,5 @@
 /**
- * SMS credit reservation - the single place credits are earmarked, charged or
+ * SMS credit reservation — the single place credits are earmarked, charged or
  * returned.
  *
  * Phase 2a of docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md. Before this,
@@ -12,7 +12,7 @@
  * `reminder_dispatch_log` deliberately treats a `failed` reminder as
  * non-terminal and retries it on the next cron tick. Under debit-on-attempt
  * that charges the group again every cycle. With a reservation, a failed send
- * *releases*, so only a successful send ever consumes - retries become safe by
+ * *releases*, so only a successful send ever consumes — retries become safe by
  * construction rather than by remembering to refund.
  *
  * ── Why this never throws ──
@@ -20,7 +20,7 @@
  * (`/sms/send` maps InsufficientSmsCreditsError to a 402, and the trigger
  * engine catches to drive its retry), while `notifyMember` must never throw
  * (three call sites, including reminder.service, sit between a claim and a
- * settle in separate transactions - an escaping error strands the claim).
+ * settle in separate transactions — an escaping error strands the claim).
  * So this module returns a discriminated union and each caller adapts it.
  * All SQLSTATE mapping lives here, in one place.
  */
@@ -58,11 +58,11 @@ export type ReserveFailure =
  * There was previously no way to stop SMS during an incident short of a
  * redeploy or revoking the provider credentials. This is a `feature_flags`
  * row rather than an env var precisely so it can be flipped without a
- * deploy - an incident switch that needs a deploy is not an incident switch.
+ * deploy — an incident switch that needs a deploy is not an incident switch.
  *
  * Semantics come free from isFeatureEnabled's fail-open-on-unknown-key rule:
  * with no row present the flag reads enabled, so shipping this changes
- * nothing. Halting is an explicit act - insert the row with enabled=false.
+ * nothing. Halting is an explicit act — insert the row with enabled=false.
  */
 export const SMS_DISPATCH_FLAG = 'sms_dispatch';
 
@@ -72,10 +72,10 @@ export type ReserveResult =
       rate: number;
       total: number;
       remaining: number;
-      // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) - the
+      // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md) — the
       // bundled-allowance/paid split. fromAllowance/fromPaid are money
       // values; fromAllowanceCount/fromPaidCount are message counts. Always
-      // fromAllowance=0/fromAllowanceCount=0 for an organization payer -
+      // fromAllowance=0/fromAllowanceCount=0 for an organization payer —
       // organizations get no allowance, see migration 124.
       fromAllowance: number;
       fromPaid: number;
@@ -84,7 +84,7 @@ export type ReserveResult =
     }
   | { ok: false; reason: ReserveFailure; detail: string };
 
-/** A `platform`-funded send is free by schema invariant - nothing to reserve. */
+/** A `platform`-funded send is free by schema invariant — nothing to reserve. */
 export const PLATFORM_RATE_ZERO = {
   ok: true as const,
   rate: 0,
@@ -100,7 +100,7 @@ export const PLATFORM_RATE_ZERO = {
  * Earmark credits for `count` messages without debiting them.
  *
  * Runs on the caller's client so the reservation commits (or rolls back) with
- * whatever else that caller is doing - the same reasoning migration 051 gives
+ * whatever else that caller is doing — the same reasoning migration 051 gives
  * for `debit_organization_sms_credits` running in the caller's transaction.
  */
 export async function reserveCredits(
@@ -109,24 +109,24 @@ export async function reserveCredits(
   count: number,
 ): Promise<ReserveResult> {
   // Platform-funded sends (OTP, password reset, verification) bail out here,
-  // BEFORE the kill switch below - deliberately. Those are the messages that
+  // BEFORE the kill switch below — deliberately. Those are the messages that
   // let people back into their accounts, and halting them would lock every
   // user out during precisely the incident the switch exists to contain. It
   // is the same reasoning migration 123 encodes as a CHECK so a billing
   // regression can never brick password reset. To stop absolutely everything,
-  // including auth, rotate the provider credential - that is faster and more
+  // including auth, rotate the provider credential — that is faster and more
   // complete than a flag.
   if (target.payerType === 'platform') return PLATFORM_RATE_ZERO;
   if (count <= 0) return PLATFORM_RATE_ZERO;
 
   // Checked here rather than at the routes because this is the one chokepoint
-  // every billed send passes through - single, bulk, campaign, scheduled,
+  // every billed send passes through — single, bulk, campaign, scheduled,
   // trigger-driven and retry alike. Gating the three HTTP routes instead
   // would leave the automation paths (which spend the same credits) running,
   // the same structural mistake the SMS rate limiter already makes.
   //
   // Wrapped and FAIL-OPEN on purpose. Two reasons:
-  //   1. This module's contract is that it never throws - notifyMember sits
+  //   1. This module's contract is that it never throws — notifyMember sits
   //      between a reminder claim and its settle in separate transactions, so
   //      an escaping error strands the claim. Letting a flag lookup propagate
   //      would break that promise for every caller.
@@ -137,7 +137,7 @@ export async function reserveCredits(
   try {
     dispatchAllowed = await isFeatureEnabled(client as PoolClient, SMS_DISPATCH_FLAG, { groupId: target.groupId });
   } catch (err) {
-    logger.warn('[messaging-billing] kill-switch lookup failed - allowing dispatch', {
+    logger.warn('[messaging-billing] kill-switch lookup failed — allowing dispatch', {
       err: err instanceof Error ? err.message : String(err),
     });
   }
@@ -151,7 +151,7 @@ export async function reserveCredits(
 
   // Per-group daily cap. sms_group_settings.daily_send_limit has existed since
   // migration 013 and was returned to clients by /sms/settings, but no send
-  // path had ever read it - an operator could see the field and reasonably
+  // path had ever read it — an operator could see the field and reasonably
   // believe a cap was in force when none was.
   //
   // The column is `INTEGER NOT NULL DEFAULT 500` (migration 013), so a row
@@ -216,7 +216,7 @@ export async function reserveCredits(
  * returned did not consume the group's allowance, so it must not count
  * against the cap.
  *
- * Fails OPEN on error, for the same two reasons the kill-switch lookup does -
+ * Fails OPEN on error, for the same two reasons the kill-switch lookup does —
  * this module must not throw, and a cost control going dark should not take
  * all messaging down with it.
  */
@@ -244,7 +244,7 @@ async function isOverDailyLimit(
     const used = Number(rows[0].used);
     return used + count > limit ? { limit, used } : null;
   } catch (err) {
-    logger.warn('[messaging-billing] daily-limit lookup failed - allowing dispatch', {
+    logger.warn('[messaging-billing] daily-limit lookup failed — allowing dispatch', {
       err: err instanceof Error ? err.message : String(err),
     });
     return null;
@@ -272,7 +272,7 @@ function classifyReserveError(err: unknown, target: ReservationTarget): ReserveR
   }
 
   // Anything else is a genuine fault (connection loss, a bug). Surface it as a
-  // failure rather than a throw - but log it, because unlike the cases above
+  // failure rather than a throw — but log it, because unlike the cases above
   // it is not an expected outcome.
   logger.error('[messaging-billing] unexpected reserve error', { err: detail, target });
   return { ok: false, reason: 'no_billing_account', detail };
@@ -283,7 +283,7 @@ function classifyReserveError(err: unknown, target: ReservationTarget): ReserveR
  *
  * Idempotent by construction: the RPC only claims rows still in
  * `billing_state='reserved'`, so settling a batch twice is a no-op rather than
- * a double charge. Never throws - this runs after the provider has already
+ * a double charge. Never throws — this runs after the provider has already
  * accepted the message, and an escaping error here would strand the
  * reservation with the SMS already sent.
  */
@@ -306,7 +306,7 @@ export async function settleReservation(
     // (sms_release_stale_reservations) is the backstop: it re-settles anything
     // left in 'reserved', consuming rows the provider accepted and releasing
     // the rest. Losing this write is recoverable; throwing is not.
-    logger.error('[messaging-billing] settle failed - sweeper will recover', {
+    logger.error('[messaging-billing] settle failed — sweeper will recover', {
       err: err instanceof Error ? err.message : String(err),
       outcome,
       count: logIds.length,
@@ -322,7 +322,7 @@ export async function settleReservation(
  * the reservation committed but the log insert did not. That combination is
  * real: notifications.service.ts deliberately lets a failed audit-row write
  * proceed with the send, on the stated belief that "an unsettled reservation
- * is what the sweeper exists to recover". The sweeper scans sms_usage_logs -
+ * is what the sweeper exists to recover". The sweeper scans sms_usage_logs —
  * with no row there is nothing for it to find, so the earmark was permanent.
  *
  * Its effect is invisible and cumulative: available credit is
@@ -386,7 +386,7 @@ export async function releaseUnticketedReservation(
  * INV-26).
  *
  * sms_usage_logs stores message_text and recipient_phone and had no retention
- * of any kind - personal data kept forever, which Kenya's Data Protection Act
+ * of any kind — personal data kept forever, which Kenya's Data Protection Act
  * 2019 does not allow. Twelve months keeps a full billing year answerable
  * ("what did we send this member, and were we right to charge for it") while
  * putting an actual limit on how long the content itself lives.
@@ -396,8 +396,8 @@ const MESSAGE_RETENTION_MONTHS = 12;
 /**
  * Redact message bodies past the retention window, keeping the row.
  *
- * The ROW is the billing and audit record - who was messaged, when, what it
- * cost, whether it was delivered - and deleting it would destroy
+ * The ROW is the billing and audit record — who was messaged, when, what it
+ * cost, whether it was delivered — and deleting it would destroy
  * reconciliation and make a data-subject request unanswerable. It is the
  * CONTENT that has no reason to outlive the window, so only message_text is
  * cleared. The distinction matters: "we deleted your data" and "we can no
@@ -437,18 +437,18 @@ export interface SmsReconciliationResult {
  *
  * vw_sms_credit_reconciliation has existed since migration 141 and computes
  * both `drift` (balance vs ledger) and `lot_drift` (balance vs purchase lots)
- * correctly - it simply had no consumer anywhere in the application. An
+ * correctly — it simply had no consumer anywhere in the application. An
  * instrument nobody reads is not a control, which is why every billing defect
  * this audit series has found was discovered by hand rather than reported.
  *
  * Also checks sms_campaigns' stored counters against the message log. The
  * syncCampaignCompletion fix is correct going forward but has no retroactive
  * counterpart, so a campaign that drifted before it shipped stays wrong
- * forever with nothing to notice - production still carries one reading
+ * forever with nothing to notice — production still carries one reading
  * 0 sent / 8 failed against 8 genuinely sent.
  *
  * REPORTS, never repairs. Both classes of drift mean the books disagree with
- * themselves, and the right response is a human deciding which side is true -
+ * themselves, and the right response is a human deciding which side is true —
  * not an automated write that could just as easily entrench the wrong number.
  */
 export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
@@ -498,7 +498,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
 
   // ── Repair the campaign counters (SMS-REAUDIT-2026-09-02 F4) ────────────
   //
-  // This job's rule is REPORT, NEVER REPAIR - and that rule is about MONEY.
+  // This job's rule is REPORT, NEVER REPAIR — and that rule is about MONEY.
   // Credit drift means a balance and its ledger tell different stories, and
   // deciding which is true is a human's call on somebody's funds.
   //
@@ -506,16 +506,16 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   // data whose source of truth is sms_usage_logs, which the codebase already
   // treats as authoritative ("always verify against sms_usage_logs, never the
   // campaign row"). Recomputing a derived value from its source is not a
-  // judgment call, so leaving it drifted forever - as it was for six days,
+  // judgment call, so leaving it drifted forever — as it was for six days,
   // reported daily, unrepairable because syncCampaignCompletion has no
-  // retroactive counterpart - buys nothing.
+  // retroactive counterpart — buys nothing.
   //
   // Two guards make this safe to automate:
   //   1. Only 'completed' campaigns (the query above). One still sending
   //      legitimately disagrees mid-flight.
   //   2. Only when the log actually HAS rows for that campaign. Without this,
   //      a campaign whose rows were somehow lost would have its real counters
-  //      overwritten with 0/0 - destroying the only remaining record of what
+  //      overwritten with 0/0 — destroying the only remaining record of what
   //      it did. Recomputing from an empty source is not a repair.
   const repairable = badCampaigns.filter((c) => Number(c.real_sent) + Number(c.real_failed) > 0);
   const unrepairable = badCampaigns.filter((c) => Number(c.real_sent) + Number(c.real_failed) === 0);
@@ -539,7 +539,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   }
 
   // A completed campaign that disagrees AND has no messages to recount cannot
-  // be fixed from data - that needs somebody to look.
+  // be fixed from data — that needs somebody to look.
   for (const c of unrepairable) {
     logger.error('[sms-reconciliation] campaign counters disagree and cannot be recomputed (no message rows)', {
       campaignId: c.id,
@@ -556,8 +556,8 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
   // campaign-counter drift sat unread for six days while this job faithfully
   // reported it. Detecting without reporting is not a control.
   //
-  // The alert describes the CONDITION, not each row inside it - one email
-  // saying "1 campaign disagrees", never one per campaign - and staff-alerts
+  // The alert describes the CONDITION, not each row inside it — one email
+  // saying "1 campaign disagrees", never one per campaign — and staff-alerts
   // suppresses a repeat of the same unchanged problem. A drift that CHANGES
   // alerts immediately.
   const alerted = await (async () => {
@@ -575,7 +575,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
       body:
         'The daily SMS money-trail check found records that do not agree with each other. ' +
         'Credit drift means a balance and its ledger tell different stories and a human has to ' +
-        'decide which is true - this job deliberately never repairs money. Any campaign ' +
+        'decide which is true — this job deliberately never repairs money. Any campaign ' +
         'listed here disagrees with the message log AND has no message rows left to recompute ' +
         'from, so it cannot be repaired automatically either.',
       details: {
@@ -613,7 +613,7 @@ export async function reconcileSmsCredits(): Promise<SmsReconciliationResult> {
  *
  * Enqueued rather than sent inline so a slow SMTP call never sits in the SMS
  * path. `low_balance_notified_at` (not the dedup key alone) drives the 24h
- * window, because the top-up path clears it - so the alert re-arms on recovery
+ * window, because the top-up path clears it — so the alert re-arms on recovery
  * instead of going quiet for a fixed period.
  *
  * The alert itself must NEVER be delivered by SMS: a group is alerted exactly
@@ -663,7 +663,7 @@ export async function raiseLowBalanceAlert(target: ReservationTarget): Promise<v
  * Clear the low-balance flag so the alert re-arms. Called by the top-up path.
  *
  * For a long time nothing called this: billing.service.ts's addSmsCredits()
- * - the group top-up path - never invoked it, so a group that ran dry, got
+ * — the group top-up path — never invoked it, so a group that ran dry, got
  * warned, and topped up the same day would run dry a second time in total
  * silence, because raiseLowBalanceAlert() claims by moving
  * low_balance_notified_at and then declines to fire for 24h. Wired up

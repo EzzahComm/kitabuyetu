@@ -4,7 +4,7 @@ export function formatKES(amount: string | number): string {
   return num.toLocaleString('en-KE', { style: 'currency', currency: 'KES' });
 }
 
-/** Round to 2 decimal places and return as string - safe for DB inserts. */
+/** Round to 2 decimal places and return as string — safe for DB inserts. */
 export function toDecimal(amount: number): string {
   return amount.toFixed(2);
 }

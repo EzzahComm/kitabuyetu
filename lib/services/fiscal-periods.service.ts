@@ -18,7 +18,7 @@ export interface FiscalPeriod {
 
 /**
  * Fiscal period locking (ACCOUNTING_ARCHITECTURE_AUDIT.md §13 Critical
- * finding). A period only exists as a row once someone closes it - absence
+ * finding). A period only exists as a row once someone closes it — absence
  * of a row means "open" (the trigger in migration 083 treats no-match as
  * unrestricted), so this service never needs to pre-populate a full
  * calendar; it only records close/reopen events.
@@ -27,7 +27,7 @@ export const fiscalPeriodsService = {
   async list(ctx: TenantContext): Promise<FiscalPeriod[]> {
     return withDb(ctx, async (client) => {
       // A row only exists once a period is closed, so this is naturally
-      // small - the cap is defensive (every other list query on this
+      // small — the cap is defensive (every other list query on this
       // surface has one; this was the one exception, docs/audits/
       // optimization-2026-09), generous enough that no real group closing
       // periods monthly would ever hit it (100 months = 8+ years).
@@ -61,7 +61,7 @@ export const fiscalPeriodsService = {
     });
   },
 
-  /** Reopens a closed period - requires a reason, fully audited. */
+  /** Reopens a closed period — requires a reason, fully audited. */
   async reopen(ctx: TenantContext, id: string, data: ReopenPeriodInput): Promise<FiscalPeriod> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<FiscalPeriod>(

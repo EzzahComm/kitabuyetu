@@ -5,7 +5,7 @@
  * messaging.schedules.view/manage, messaging.send, messaging.manage, and
  * the withAnyPermission composition standing in for email/schedules' old
  * ['chairperson','treasurer','super_admin'] allowlist) against real
- * Postgres - one representative route per string across SMS and Email
+ * Postgres — one representative route per string across SMS and Email
  * rather than every one of the 18 touched files.
  */
 import { GET as smsTemplatesGet, POST as smsTemplatesPost } from '@/app/api/v1/sms/templates/route';

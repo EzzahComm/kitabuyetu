@@ -1,5 +1,5 @@
 /**
- * Ecosystem service layer - partner registry, opportunity marketplace, eligibility matching
+ * Ecosystem service layer — partner registry, opportunity marketplace, eligibility matching
  * All business logic for Phase 8: Ecosystem Growth Opportunities
  */
 
@@ -82,7 +82,7 @@ export interface EligibilityRules {
   rules: EligibilityRule[];
 }
 
-/** What an anonymous visitor may see. Omits eligibility_rules - the internal
+/** What an anonymous visitor may see. Omits eligibility_rules — the internal
  *  partner-set thresholds/whitelists a public list/detail page never renders
  *  but would otherwise still ship whole, since anything passed into a
  *  'use client' component serializes into the page's RSC payload regardless
@@ -101,7 +101,7 @@ export interface EligibilityResult {
 
 /**
  * Backoffice actions here go through withAdminDb (no RLS, no tenant GUCs),
- * so they need only who performed the action - not the full TenantContext
+ * so they need only who performed the action — not the full TenantContext
  * shape (groupId/role) that RLS-scoped tenant calls require.
  */
 export interface AdminActionContext {
@@ -247,7 +247,7 @@ export async function createOpportunity(
 }
 
 /**
- * Generic partial update - didn't exist before this pass; only the
+ * Generic partial update — didn't exist before this pass; only the
  * status-transition-specific publishOpportunity/closeOpportunity did, which
  * meant there was no way to fix a typo, adjust terms, or (the reason this
  * was actually needed) attach eligibility rules to an opportunity after
@@ -329,7 +329,7 @@ export async function getOpportunityById(db: PoolClient, opportunityId: string):
   return result.rows.length ? result.rows[0] : null;
 }
 
-/** Admin management view - every status, not just published. */
+/** Admin management view — every status, not just published. */
 export async function listAllOpportunities(): Promise<Opportunity[]> {
   return withAdminDb(async (db) => {
     const result = await db.query<Opportunity>(`SELECT * FROM ecosystem_opportunities ORDER BY created_at DESC`);
@@ -380,7 +380,7 @@ export interface GroupEligibilityData {
  * Resolves the group-attribute shape evaluateEligibility() needs, from the
  * group's actual record. cash_balance mirrors analytics.service.ts's
  * `financialHealth.netPosition` (completed contributions + share capital -
- * outstanding loan balance) - the same "one-number gut-check" proxy, not a
+ * outstanding loan balance) — the same "one-number gut-check" proxy, not a
  * full balance sheet (welfare pool and investments excluded there too).
  * Deliberately a fresh, lean query rather than importing the executive
  * summary: that function computes a dozen unrelated aggregates and caches
@@ -477,7 +477,7 @@ function evaluateRule(
     case 'financial': {
       if (!rule.field || !rule.operator || rule.value === undefined) return false;
       const fieldValue = getNestedValue(groupData, rule.field);
-      // A non-numeric threshold is a malformed rule, not a pass - fail closed.
+      // A non-numeric threshold is a malformed rule, not a pass — fail closed.
       if (typeof fieldValue !== 'number' || typeof rule.value !== 'number') return false;
 
       switch (rule.operator) {

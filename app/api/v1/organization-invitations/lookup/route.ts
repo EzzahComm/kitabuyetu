@@ -7,7 +7,7 @@ import { ok, handleError } from '@/lib/utils/response';
 const Schema = z.object({ token: z.string().min(32).max(128) });
 
 /**
- * POST /api/v1/organization-invitations/lookup - public, read-only. Lets the
+ * POST /api/v1/organization-invitations/lookup — public, read-only. Lets the
  * accept-invite page display who invited the visitor before any state
  * changes, same pattern as /auth/verify/email's public token-in-body design.
  */

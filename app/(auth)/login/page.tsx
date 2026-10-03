@@ -21,7 +21,7 @@ import { isGroupSelectionNeeded } from '@/types/api.types';
 import type { NeedsGroupSelection } from '@/types/api.types';
 
 // Mirrors LoginSchema in lib/validators/auth.schema.ts. Phone OR email; no
-// group dropdown - the server resolves single-group memberships automatically
+// group dropdown — the server resolves single-group memberships automatically
 // and prompts for selection only when the member is in multiple groups.
 const schema = z.object({
   identifier: z.string().min(1, 'Phone number or email is required'),
@@ -29,7 +29,7 @@ const schema = z.object({
 });
 type FormValues = z.infer<typeof schema>;
 
-// "Remember me" only remembers the identifier field for next time - it does
+// "Remember me" only remembers the identifier field for next time — it does
 // NOT extend the session. Sessions already persist indefinitely in
 // localStorage regardless (lib/auth/context.tsx), so there's no separate
 // "stay signed in" behavior to toggle without touching that shared, security
@@ -80,7 +80,7 @@ export default function LoginPage() {
     }
   }, [setValue]);
 
-  // Shared submit - pass `groupCode` to disambiguate after the user picks a group.
+  // Shared submit — pass `groupCode` to disambiguate after the user picks a group.
   const submitWith = async (values: FormValues, groupCode?: string) => {
     setSubmitting(true);
     try {
@@ -130,7 +130,7 @@ export default function LoginPage() {
             >
               <p className="text-sm font-semibold text-brand-blue-500">{g.groupName}</p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {g.groupCode} - {g.officerRole ?? g.groupRole.replace('_', ' ')}
+                {g.groupCode} · {g.officerRole ?? g.groupRole.replace('_', ' ')}
               </p>
             </button>
           ))}
@@ -220,7 +220,7 @@ export default function LoginPage() {
           <Link href="/enterprise/login" className="text-brand-600 hover:underline font-medium">
             Sign in here
           </Link>{' '}
-          - Kitabu Yetu team?{' '}
+          · Kitabu Yetu team?{' '}
           <Link href="/admin-login" className="text-brand-600 hover:underline font-medium">
             Sign in here
           </Link>

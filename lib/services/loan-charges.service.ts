@@ -1,7 +1,7 @@
 /**
  * Configurable loan charges/fees engine (migration 179). Closes the gap
  * identified against loans.service.ts / loan-policy.service.ts: loans could
- * only carry a manually-typed `penalty_amount` on a repayment - no
+ * only carry a manually-typed `penalty_amount` on a repayment — no
  * configurable fee catalogue (processing fee, insurance fee, …), no automatic
  * late-fee computation, and nothing posted a charge to the GL on its own.
  *
@@ -11,7 +11,7 @@
  *     Organization -> Group with the same specificity rule as
  *     configuration.service.ts's resolvePolicyDetailed (group beats
  *     organization beats platform-wide NULL/NULL), but reimplemented at the
- *     row level here rather than delegated to that resolver - see
+ *     row level here rather than delegated to that resolver — see
  *     20260917010000_174_loan_charges_engine.sql's header for why this is a
  *     sibling table to `policies`, not a new key inside it (loan_charges needs
  *     a stable foreign key to "the configuration that produced this charge",
@@ -22,7 +22,7 @@
  *   - loan_charges: the ledger. applyDisbursementCharges/applyOverdueCharges
  *     are the two hooks loans.service.ts calls, from inside its OWN
  *     transaction, at the exact points a charge should fire (disburse() /
- *     recordRepayment()) - every charge is therefore atomic with the state
+ *     recordRepayment()) — every charge is therefore atomic with the state
  *     change that triggered it. Every application posts to the GL via
  *     posting-templates.service.ts's 'loan_charge' event, never a bespoke
  *     insert, so a tenant can remap which account a fee lands in exactly like
@@ -57,7 +57,7 @@ export interface EffectiveChargeType {
 
 /**
  * Resolves, per distinct charge name, the most specific ACTIVE row visible at
- * this scope - group beats organization beats platform-wide (both NULL),
+ * this scope — group beats organization beats platform-wide (both NULL),
  * mirroring resolvePolicyDetailed's specificity rule applied per-row via
  * DISTINCT ON instead of over one JSONB value. An inactive row never shadows
  * a lower tier's active one: it simply does not participate, and the cascade
@@ -119,12 +119,12 @@ function computeChargeAmount(
   return Math.round(raw * 100) / 100;
 }
 
-// ─── Application (write path - called from loans.service.ts hooks) ──────────
+// ─── Application (write path — called from loans.service.ts hooks) ──────────
 
 /**
  * Applies one resolved charge type to one loan (on-disburse) or one specific
  * overdue instalment (on-overdue), posts the GL entry, and audit-logs it.
- * Internal - never called from a route directly, only from the two
+ * Internal — never called from a route directly, only from the two
  * orchestration hooks below, which loans.service.ts calls from within its own
  * transaction so a charge and the state change that triggered it commit or
  * roll back together.
@@ -180,7 +180,7 @@ async function applyCharge(
     ctx.groupId,
     ctx.userId,
     'loan_charge',
-    `${args.chargeType.name} - loan ${args.loanId}`,
+    `${args.chargeType.name} — loan ${args.loanId}`,
     { amount },
     {
       reference: charge.id,
@@ -213,7 +213,7 @@ async function applyCharge(
 /**
  * Hook for loans.service.ts's disburse(): applies every effective on_disburse
  * charge type (processing fee, insurance fee, …) once, the moment a loan
- * transitions to 'disbursed'. A no-op when the group has none configured -
+ * transitions to 'disbursed'. A no-op when the group has none configured —
  * which is every group today, since nothing seeds a default (see migration
  * 174's header).
  */
@@ -241,7 +241,7 @@ export async function applyDisbursementCharges(
  * recorded is overdue (paid after its due_date), applies every effective
  * on_overdue charge type (late payment fee, …) for THAT instalment. Parallel
  * to, not a replacement for, the existing manual `penalty_amount` field on
- * loan_repayments - an officer can still type a one-off penalty; this adds
+ * loan_repayments — an officer can still type a one-off penalty; this adds
  * the automatic mechanism that never existed.
  */
 export async function applyOverdueCharges(
@@ -252,7 +252,7 @@ export async function applyOverdueCharges(
   asOfDate: string,
 ): Promise<void> {
   const dueDate = toDateString(installment.due_date);
-  if (asOfDate <= dueDate) return; // paid on or before the due date - not overdue
+  if (asOfDate <= dueDate) return; // paid on or before the due date — not overdue
 
   const chargeTypes = await getEffectiveChargeTypes(
     client,
@@ -284,12 +284,12 @@ export const loanChargesService = {
   },
 
   /**
-   * Create or update a GROUP-level charge type (admin-only - gated at the
+   * Create or update a GROUP-level charge type (admin-only — gated at the
    * route via loans.policy.manage, the same chairperson-tier permission that
    * already guards the group's lending-terms override). Supplying `id`
    * updates that row; it must already belong to the caller's group.
    * Platform/organization-tier rows exist in the schema for the cascade but
-   * are not exposed here - no super-admin/organization-coordinator tooling
+   * are not exposed here — no super-admin/organization-coordinator tooling
    * was asked for in this round; the group tier covers the real use case
    * (a group configuring its own fee schedule).
    */
@@ -342,11 +342,11 @@ export const loanChargesService = {
   },
 
   /**
-   * Officer action (loans.approve - same bar as approve/disburse/writeOff):
+   * Officer action (loans.approve — same bar as approve/disburse/writeOff):
    * forgives a still-pending charge. Reverses whichever account the group's
    * 'loan_charge' template resolved to at application time (posting an
    * inverted copy of that same event), so a waived fee never leaves revenue
-   * overstated - only a 'pending' charge can be waived; one already paid or
+   * overstated — only a 'pending' charge can be waived; one already paid or
    * already waived is left alone.
    */
   async waiveCharge(ctx: TenantContext, chargeId: string, reason: string): Promise<LoanCharge> {
@@ -371,7 +371,7 @@ export const loanChargesService = {
           ctx.groupId,
           ctx.userId,
           'loan_charge',
-          `Waived charge reversal - ${chargeId}`,
+          `Waived charge reversal — ${chargeId}`,
           { amount: parseFloat(prev.amount) },
           {
             reference: chargeId,

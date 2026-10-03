@@ -11,7 +11,7 @@ export function hasRole(callerRole: AnyRole, requiredRole: AnyRole): boolean {
 /** Throws ForbiddenError if the caller does not have the required role. */
 export function requireRole(callerRole: AnyRole, requiredRole: AnyRole): void {
   if (!hasRole(callerRole, requiredRole)) {
-    throw new ForbiddenError(`Role '${callerRole}' cannot perform this action - '${requiredRole}' or higher required`);
+    throw new ForbiddenError(`Role '${callerRole}' cannot perform this action — '${requiredRole}' or higher required`);
   }
 }
 

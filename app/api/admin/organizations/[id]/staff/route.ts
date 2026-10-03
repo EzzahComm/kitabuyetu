@@ -13,7 +13,7 @@ const addStaffSchema = z.object({
   orgRole: z.enum(['lead', 'staff']).default('staff'),
 });
 
-/** GET - list this organization's staff. */
+/** GET — list this organization's staff. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;
@@ -22,7 +22,7 @@ export function GET(req: NextRequest, { params }: { params: Promise<{ id: string
   });
 }
 
-/** POST - add a staff member to this organization. */
+/** POST — add a staff member to this organization. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;

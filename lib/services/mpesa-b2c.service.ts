@@ -66,7 +66,7 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
       [params.groupId, phone, amountStr, remarks, res.conversationId, res.originatorConversationId, IS_SANDBOX],
     );
 
-    // Record audit log for B2C transaction initiation - system-triggered (user request routed through system)
+    // Record audit log for B2C transaction initiation — system-triggered (user request routed through system)
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -106,7 +106,7 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
       ],
     );
 
-    // Record audit log for B2C request - system-triggered
+    // Record audit log for B2C request — system-triggered
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -127,7 +127,7 @@ export async function initiateB2C(params: B2CParams): Promise<B2CResult> {
         params.disbursementRequestId,
       ]);
 
-      // Record audit log for disbursement linkage - system-triggered
+      // Record audit log for disbursement linkage — system-triggered
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -170,7 +170,7 @@ export interface B2CResultBody {
 // What to tell the disbursement watchdog once the transaction below commits.
 // Deliberately built inside the transaction and fired AFTER it (see the
 // return-then-notify shape below) rather than calling
-// notifyDisbursementCallback from inside withAdminDb's callback - that
+// notifyDisbursementCallback from inside withAdminDb's callback — that
 // callback runs inside an explicit BEGIN/COMMIT holding this row's FOR
 // UPDATE lock, and a network call to QStash has no business extending how
 // long that lock is held.
@@ -185,7 +185,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
   const rawBody = JSON.stringify(body);
 
   const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
-    // Capture the B2C row early - we need group_id and loan_id later.
+    // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
       id: string;
       group_id: string;
@@ -215,7 +215,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         [rawBody, r.OriginatorConversationID],
       );
 
-      // Record audit log for B2C failure - system-triggered (Daraja callback)
+      // Record audit log for B2C failure — system-triggered (Daraja callback)
       if (groupId) {
         await db.query(
           `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
@@ -245,7 +245,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
          VALUES ($1,'b2c',$2,$3,$4,$5)`,
         [groupId, r.OriginatorConversationID, r.ResultDesc, String(r.ResultCode), rawBody],
       );
-      // Disbursement spine (B2C audit C1/C4): release the reservation - the
+      // Disbursement spine (B2C audit C1/C4): release the reservation — the
       // money never left, so the group's available balance is restored.
       if (b2c?.disbursement_request_id) {
         await releaseDisbursementReservation(db, b2c.disbursement_request_id, {
@@ -269,7 +269,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
       [receipt, rawBody, r.OriginatorConversationID],
     );
 
-    // Record audit log for B2C completion - system-triggered (Daraja callback)
+    // Record audit log for B2C completion — system-triggered (Daraja callback)
     if (groupId) {
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
@@ -311,7 +311,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
           mpesaTransactionId: b2c.mpesa_transaction_id,
         });
 
-        // Disbursement notification (B2C audit F10) - the borrower is told
+        // Disbursement notification (B2C audit F10) — the borrower is told
         // the money left, not just that the loan record changed. Best-effort:
         // emitBusinessEvent never throws and no-ops when no rule matches.
         const { rows: memberRows } = await db.query<{ member_id: string; first_name: string }>(
@@ -349,7 +349,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
         });
       }
 
-      // Disbursement spine (B2C audit C1/C4): the money left for real -
+      // Disbursement spine (B2C audit C1/C4): the money left for real —
       // release the hold (the journal above already reduced the account's
       // actual balance; the reservation's job is done) and mark completed.
       if (b2c.disbursement_request_id) {
@@ -365,7 +365,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
 
   // Fired after the transaction above commits (see WatchdogNotifyInfo's own
   // comment for why this must not happen from inside withAdminDb). Best-
-  // effort and non-throwing - see notifyDisbursementCallback's own contract.
+  // effort and non-throwing — see notifyDisbursementCallback's own contract.
   if (watchdogNotify) {
     await notifyDisbursementCallback('disbursement', watchdogNotify.rowId, watchdogNotify.eventData);
   }
@@ -374,7 +374,7 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
 /**
  * Releases a disbursement_requests reservation on its cash account and
  * settles the row to a terminal state. Idempotent: only rows still holding a
- * reservation (status IN dispatched/approved) transition - a replayed
+ * reservation (status IN dispatched/approved) transition — a replayed
  * callback is a safe no-op.
  */
 async function releaseDisbursementReservation(
@@ -392,7 +392,7 @@ async function releaseDisbursementReservation(
      RETURNING cash_account_id, amount`,
     [args.status, args.mpesaReceiptNumber ?? null, args.failureReason ?? null, id],
   );
-  if (!rows[0]) return; // already settled - replayed callback
+  if (!rows[0]) return; // already settled — replayed callback
   await db.query(`UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`, [
     rows[0].amount,
     rows[0].cash_account_id,
@@ -412,7 +412,7 @@ async function applyLoanDisbursement(
   },
 ): Promise<void> {
   // Flip the loan to disbursed (state-machine guard in mig 028 enforces the
-  // transition: approved → disbursed). Idempotent - re-runs no-op when the
+  // transition: approved → disbursed). Idempotent — re-runs no-op when the
   // loan is already in a later state.
   const { rows: loanRows } = await db.query<{ id: string }>(
     `UPDATE loans
@@ -427,7 +427,7 @@ async function applyLoanDisbursement(
     [args.disbursedBy, args.receipt, args.loanId],
   );
   if (!loanRows[0]) {
-    logger.warn('[mpesa] B2C result loan not flipped - wrong status or already disbursed', {
+    logger.warn('[mpesa] B2C result loan not flipped — wrong status or already disbursed', {
       loanId: args.loanId,
     });
     return;

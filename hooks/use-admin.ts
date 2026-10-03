@@ -86,7 +86,7 @@ import type { C2BUrls, C2BRegistrationResult } from '@/lib/services/mpesa.servic
 
 // Response/request shapes derived directly from the service functions that
 // back each route (`Awaited<ReturnType<typeof fn>>` / `Parameters<typeof fn>`)
-// rather than hand-duplicated interfaces - stays in sync automatically if the
+// rather than hand-duplicated interfaces — stays in sync automatically if the
 // service's return shape changes.
 type PlatformStats = Awaited<ReturnType<typeof getPlatformStats>>;
 type RevenueTrend = Awaited<ReturnType<typeof getRevenueTrend>>;
@@ -98,11 +98,11 @@ type AdminMemberDetail = Awaited<ReturnType<typeof getAdminMemberDetail>>;
 type AdminOrgList = Awaited<ReturnType<typeof listOrganizations>>;
 type AdminOrgDetail = Awaited<ReturnType<typeof getOrganizationDetail>>;
 // The route's request body is WIDER than createOrganization()'s own service
-// signature - it also requires a plan (organization-plan.service.ts's own
+// signature — it also requires a plan (organization-plan.service.ts's own
 // assignOrganizationPlan is a deliberately separate call the route makes
 // second). Deriving only from createOrganization here would silently drop
 // the plan fields from the type and let the client build a body the route
-// rejects - exactly the drift CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md exists
+// rejects — exactly the drift CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md exists
 // to catch, so this is composed from both real signatures instead of one.
 type CreateOrgInput = Parameters<typeof createOrganization>[0] & {
   planType: OrganizationPlanType;
@@ -118,7 +118,7 @@ type RevokeGroupFromOrgResult = Awaited<ReturnType<typeof revokeGroupFromOrganiz
 type OrgComparisonList = Awaited<ReturnType<typeof compareOrganizations>>;
 type OrgStaffList = Awaited<ReturnType<typeof listOrgStaff>>;
 // `invitedBy` is injected server-side from the caller's own auth context
-// (see app/api/admin/organizations/[id]/staff/route.ts) - the client never
+// (see app/api/admin/organizations/[id]/staff/route.ts) — the client never
 // supplies it.
 type AddOrgStaffInput = Omit<Parameters<typeof addOrgStaff>[1], 'invitedBy'>;
 type AddOrgStaffResult = Awaited<ReturnType<typeof addOrgStaff>>;
@@ -129,7 +129,7 @@ type OrgInvitationList = Awaited<ReturnType<typeof listOrgInvitations>>;
 type ResendInvitationResult = Awaited<ReturnType<typeof resendOrgInvitation>>;
 
 // No service layer backs these two (mirrors GET /api/v1/auth/memberships'
-// own inline-query shape on the tenant side) - plain interfaces instead of
+// own inline-query shape on the tenant side) — plain interfaces instead of
 // the Awaited<ReturnType<...>> derivation used everywhere else in this file.
 export interface MyOrganizationSummary {
   organizationId: string;
@@ -137,7 +137,7 @@ export interface MyOrganizationSummary {
   organizationType: string;
   orgRole: 'lead' | 'staff';
 }
-// Same response shape admin-login itself returns - switching orgs mints a
+// Same response shape admin-login itself returns — switching orgs mints a
 // full replacement session, so loginAdmin() can consume it directly.
 export type SwitchOrgResult = AdminLoginResponse;
 type AdminUserList = Awaited<ReturnType<typeof listPlatformUsers>>;
@@ -262,7 +262,7 @@ export function useAdminGroups(
 }
 
 /**
- * id + name only, for filter dropdowns/pickers - see listGroupOptions.
+ * id + name only, for filter dropdowns/pickers — see listGroupOptions.
  * Long staleTime: this list changes only when a group is created, far
  * slower than any poll interval a picker needs.
  */
@@ -312,7 +312,7 @@ export function useUpdateGroupStatus() {
 }
 
 /**
- * Correct a group's profile - the typo path, distinct from the status
+ * Correct a group's profile — the typo path, distinct from the status
  * transitions above. The route branches on whether the body carries `action`,
  * so these must never be merged into one mutation.
  *
@@ -346,7 +346,7 @@ export function useUpdateGroupProfile() {
  * Correct a member's name or email.
  *
  * PHONE IS NOT EDITABLE and is not in this type. It is the login identity and
- * UNIQUE platform-wide, so changing it changes who can sign in - a different
+ * UNIQUE platform-wide, so changing it changes who can sign in — a different
  * operation from fixing a typo. The route's schema is strict(), so sending it
  * would 400 rather than be silently dropped.
  */
@@ -369,7 +369,7 @@ export function useUpdateMemberProfile() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Organizations (federating bodies - banks, SACCOs, foundations)
+// Organizations (federating bodies — banks, SACCOs, foundations)
 // ─────────────────────────────────────────────────────────────────────────────
 export function useAdminOrganizations(
   params: {
@@ -449,7 +449,7 @@ export function useOrganizationPlan(organizationId: string | undefined) {
   });
 }
 
-/** super_admin assigns or changes an organization's plan - never self-serve. */
+/** super_admin assigns or changes an organization's plan — never self-serve. */
 export function useAssignOrganizationPlan() {
   const qc = useQueryClient();
   return useMutation({
@@ -515,7 +515,7 @@ export function useRevokeGroupFromOrg() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Backoffice org-switching (migration 101, WorkspaceSwitcher) - for staff
+// Backoffice org-switching (migration 101, WorkspaceSwitcher) — for staff
 // active at more than one organization. Mirrors GET /api/v1/auth/memberships
 // + POST /api/v1/auth/switch-group's role on the tenant side.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -750,7 +750,7 @@ export function useUpdateTicket() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Unrouted M-Pesa payments - see the note on listUnroutedPayments/
+// Unrouted M-Pesa payments — see the note on listUnroutedPayments/
 // resolveUnroutedPayment in admin.service.ts for why this exists alongside
 // the treasurer-facing use-mpesa hooks: those can't reach a row with no
 // candidate_group_id, which is most of this queue.
@@ -789,7 +789,7 @@ export function useResolveUnroutedPayment() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// C2B (PayBill) URL registration - see the note on registerC2BUrls in
+// C2B (PayBill) URL registration — see the note on registerC2BUrls in
 // daraja.service.ts: Safaricom exposes no "what's currently registered" read,
 // so this pairs a cheap preview (what THIS deployment would register) with an
 // explicit on-demand register action, surfaced on /admin/settings.
@@ -959,7 +959,7 @@ export function useGroupGovernanceSnapshot(groupId: string) {
 // (`api.get('/admin/sms-pricing')`), which prefixes every path with `/api/v1`.
 // That sent a BACKOFFICE-audience token at a TENANT-audience URL, so proxy.ts
 // rejected all three calls with "This route requires a tenant session. Sign in
-// at /login." before Next could even report that no such route exists - a
+// at /login." before Next could even report that no such route exists — a
 // super_admin who was correctly signed in saw a sign-in error on a screen that
 // had never once loaded. adminFetch is the only client that speaks to
 // /api/admin/*; going through it is what makes the URL right by construction.
@@ -999,9 +999,9 @@ export function useSetSmsProviderCost() {
 
 /**
  * SMS revenue, margin, and per-group/per-organization usage (spec §15,
- * INTERNAL - super_admin only). Backs the "Revenue & Usage" tab on the SMS
+ * INTERNAL — super_admin only). Backs the "Revenue & Usage" tab on the SMS
  * Pricing page. `byOrganization`'s revenue is real once an organization has
- * a top-up recorded (useAdminTopUpOrganizationSmsCredits below) - before
+ * a top-up recorded (useAdminTopUpOrganizationSmsCredits below) — before
  * that it's a genuine zero, not a placeholder (see sms-margin.service.ts).
  */
 export function useSmsMargin(from?: string, to?: string) {
@@ -1017,7 +1017,7 @@ export function useSmsMargin(from?: string, to?: string) {
 }
 
 /**
- * super_admin corrects/grants an organization's SMS balance - previously
+ * super_admin corrects/grants an organization's SMS balance — previously
  * impossible; there was no admin tool to touch this at all. Same underlying
  * function as an organization_coordinator's own self-serve top-up, just
  * addressed by org id instead of the caller's own auth context.
@@ -1034,7 +1034,7 @@ export function useAdminTopUpOrganizationSmsCredits() {
   });
 }
 
-/** super_admin sets an organization's negotiated per-SMS rate - never writable before this. */
+/** super_admin sets an organization's negotiated per-SMS rate — never writable before this. */
 export function useSetOrganizationSmsRate() {
   const qc = useQueryClient();
   return useMutation({
@@ -1061,7 +1061,7 @@ export function useAdminSearch(query: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Newsletter (Phase 10 - public marketing-site subscribers)
+// Newsletter (Phase 10 — public marketing-site subscribers)
 // ─────────────────────────────────────────────────────────────────────────────
 export function useNewsletterSubscribers() {
   return useQuery({
@@ -1116,7 +1116,7 @@ export function useSendNewsletterDigest() {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// HR (Phase 11 - employee records)
+// HR (Phase 11 — employee records)
 // ─────────────────────────────────────────────────────────────────────────────
 export function useEmployees(filters?: { status?: string; department?: string; search?: string }) {
   const params = new URLSearchParams();
@@ -1167,7 +1167,7 @@ export function useTerminateEmployee(id: string) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Careers (Phase 12 groundwork - job applications)
+// Careers (Phase 12 groundwork — job applications)
 // ─────────────────────────────────────────────────────────────────────────────
 export function useApplications(filters?: { jobSlug?: string; stage?: string }) {
   const params = new URLSearchParams();

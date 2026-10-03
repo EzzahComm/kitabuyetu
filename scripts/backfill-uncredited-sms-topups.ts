@@ -4,7 +4,7 @@
  * The bug (found 2026-08-12): processFulfillment() in
  * app/api/v1/mpesa/callback/route.ts gated the whole SMS-crediting block
  * behind `if (payment.invoice_id)`, but the billing page never sends an
- * invoiceId for a top-up and generateInvoice() has no callers - so
+ * invoiceId for a top-up and generateInvoice() has no callers — so
  * payment.invoice_id was always NULL and addSmsCredits() never ran. The user
  * was charged by Safaricom, shown a "Credits added" toast, and got nothing.
  *
@@ -18,8 +18,8 @@
  * ledger row already references it, which is the same row addSmsCredits()
  * writes. Running twice credits nothing the second time.
  *
- * This calls billingService.addSmsCredits() - the exact function the callback
- * should have called - rather than reimplementing the rate/credit maths, so a
+ * This calls billingService.addSmsCredits() — the exact function the callback
+ * should have called — rather than reimplementing the rate/credit maths, so a
  * backfilled row is indistinguishable from one credited normally.
  */
 import { withAdminDb } from '../lib/db';
@@ -57,7 +57,7 @@ async function main() {
 
   const pending = await findUncredited();
   if (pending.length === 0) {
-    console.log('No uncredited SMS top-ups found - nothing to do.');
+    console.log('No uncredited SMS top-ups found — nothing to do.');
     return;
   }
 
@@ -70,7 +70,7 @@ async function main() {
   }
 
   if (!apply) {
-    console.log('\nDry run - re-run with --apply to credit these.');
+    console.log('\nDry run — re-run with --apply to credit these.');
     return;
   }
 

@@ -16,12 +16,12 @@ export const dynamic = 'force-dynamic';
 
 /**
  * STK Push callback from Safaricom.
- * Must return HTTP 200 immediately - Safaricom retries on any other response.
+ * Must return HTTP 200 immediately — Safaricom retries on any other response.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const callerIp = getCallerIp(req);
 
-  // Origin check is advisory only - behind Vercel's edge + custom domains the
+  // Origin check is advisory only — behind Vercel's edge + custom domains the
   // forwarded client IP is not a reliable Safaricom IP, so hard-blocking here
   // drops legitimate callbacks (every payment silently stays pending).
   // Integrity instead comes from: the append-only mpesa_callbacks audit, the
@@ -29,17 +29,17 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // app itself initiated, and reconciliation/STK-Query as source of truth.
   // We log the caller IP so the allow-list can be re-tightened with real values.
   if (!isSafaricomIp(callerIp)) {
-    logger.warn('[mpesa/callback] caller IP not in Safaricom allow-list - processing anyway', { callerIp });
+    logger.warn('[mpesa/callback] caller IP not in Safaricom allow-list — processing anyway', { callerIp });
   }
 
-  // Callback authenticity (Phase 4 - same mechanism as B2C/B2B): the
+  // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): the
   // CallBackURL Daraja was given at STK-push time (initiateStkPush,
   // daraja.service.ts) carries `?token=`. A forged/replayed POST that
   // doesn't know the secret is dropped before it can touch any payment
   // state. Acked (not rejected) so a prober learns nothing from the
   // response, and logged so a real misconfiguration is visible.
   if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-    logger.warn('[mpesa/callback] invalid or missing token - dropped', { callerIp });
+    logger.warn('[mpesa/callback] invalid or missing token — dropped', { callerIp });
     return ack();
   }
 
@@ -54,12 +54,12 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
   // Ack-after-durable-audit (ADR-19): the raw callback must be durably
   // persisted BEFORE we return 200. If the audit insert fails (e.g. DB down),
-  // a non-200 makes Safaricom retry - previously we acked unconditionally and
+  // a non-200 makes Safaricom retry — previously we acked unconditionally and
   // a callback arriving during an outage was silently lost. The DLQ replay
   // job recovers processing failures from the audit row.
   const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
   if (!callbackId && DURABLE_ACK) {
-    logger.error('[mpesa/callback] audit write failed - asking Safaricom to retry');
+    logger.error('[mpesa/callback] audit write failed — asking Safaricom to retry');
     return NextResponse.json({ ResultCode: 1, ResultDesc: 'Retry' }, { status: 503 });
   }
 
@@ -97,7 +97,7 @@ async function processFulfillment(paymentId: string, amount: number, _receipt: s
   const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
 
   // Credit SMS balance if this was an SMS top-up payment. The STK request's
-  // purpose enum is authoritative - it's set explicitly at initiation and
+  // purpose enum is authoritative — it's set explicitly at initiation and
   // can't drift the way invoice-item wording can. The description ILIKE match
   // survives only as a fallback for legacy rows initiated without a purpose.
   //
@@ -106,7 +106,7 @@ async function processFulfillment(paymentId: string, amount: number, _receipt: s
   // generateInvoice() has no callers) that gate was always false: every real
   // top-up took the money and credited nothing. Crediting is safe to run
   // unconditionally here because addSmsCredits is exactly-once per payment_id
-  // (migration 137) - required, since this whole function re-runs on every
+  // (migration 137) — required, since this whole function re-runs on every
   // replayed callback.
   const isTopup = await withAdminDb(async (db) => {
     const { rows: stkRows } = await db.query<{ purpose: string | null }>(
@@ -120,7 +120,7 @@ async function processFulfillment(paymentId: string, amount: number, _receipt: s
     const purpose = stkRows[0]?.purpose ?? null;
     if (purpose !== null) return purpose === 'sms_topup';
 
-    // Legacy fallback: no purpose recorded - infer from the invoice line.
+    // Legacy fallback: no purpose recorded — infer from the invoice line.
     // Only reachable for rows predating the purpose column, which are also the
     // only ones that could carry an invoice_id here.
     if (!payment.invoice_id) return false;

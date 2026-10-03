@@ -33,7 +33,7 @@ const customPlanSchema = z.object({
   supportTier: z.enum(['standard', 'priority', 'priority_plus']).optional(),
 });
 
-// A plan is required at creation - no organization exists without one, since
+// A plan is required at creation — no organization exists without one, since
 // only super_admin ever creates one and there's no "sign up unpaid, pay
 // later" path here the way group registration has.
 const createSchema = z
@@ -76,7 +76,7 @@ export function POST(req: NextRequest) {
     });
 
     // Deliberately a second step, not inside createOrganization's own
-    // transaction - the org record and its plan are two different services
+    // transaction — the org record and its plan are two different services
     // (admin-organizations.service.ts / organization-plan.service.ts). A
     // failure here is rare (the schema above already validated premium_plus's
     // required fields) but would leave a planless org; logged loudly rather

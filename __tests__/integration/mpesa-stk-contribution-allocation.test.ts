@@ -5,7 +5,7 @@
  * Written after a real production incident: migration 091 (journal_lines.
  * entry_date) was committed to the repo and the accounting code was updated
  * to assume it existed, but the migration was never actually applied to
- * production - so every INSERT INTO journal_lines (which explicitly lists
+ * production — so every INSERT INTO journal_lines (which explicitly lists
  * entry_date) failed with "column entry_date of relation journal_lines does
  * not exist", rolling back the whole handleSTKCallback transaction. Payments
  * stayed 'pending' forever and no contribution was ever created, silently,
@@ -14,7 +14,7 @@
  *
  * This test can't catch "production's migration state is stale" (a fresh
  * test Postgres always has every migration applied), but it does guard
- * against the pipeline itself regressing - the second `it` proves a
+ * against the pipeline itself regressing — the second `it` proves a
  * replayed callback (Safaricom retries, or the mpesa_replay_callbacks DLQ
  * job re-processing an unprocessed row) never creates a duplicate
  * contribution or a second, unbalanced journal entry.
@@ -25,7 +25,7 @@ import { rawQuery } from './helpers/db';
 import { resetDatabase } from './helpers/cleanup';
 
 // Redis is a real, external Upstash instance in every environment (no local
-// emulator) - mocked the same way any other external dependency is elsewhere
+// emulator) — mocked the same way any other external dependency is elsewhere
 // in this suite (email/SMS in organization-members.test.ts). Without this,
 // handleSTKCallback's cache/lock calls try to reach the env's placeholder
 // Upstash URL for real and fail with a TLS mismatch locally or ENOTFOUND in

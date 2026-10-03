@@ -1,5 +1,5 @@
 /**
- * Read-only client for Sanity (kitabuyetu-studio - see project memory) that
+ * Read-only client for Sanity (kitabuyetu-studio — see project memory) that
  * backs the public Resources hub. Provisioned through Vercel's Marketplace
  * Sanity integration on the kitabuyetu Vercel project, so projectId/dataset
  * arrive as ordinary Vercel env vars rather than anything hand-configured.
@@ -18,7 +18,7 @@ function isValidProjectId(id: string | undefined): id is string {
   return /^[a-z0-9-]+$/.test(id);
 }
 
-/** Revalidate published posts every 5 minutes - content is edited by hand
+/** Revalidate published posts every 5 minutes — content is edited by hand
  *  in Sanity Studio, not on every request. */
 const REVALIDATE_SECONDS = 300;
 
@@ -102,7 +102,7 @@ async function sanityFetch<T>(query: string, params: Record<string, unknown> = {
   try {
     return await client.fetch<T>(query, params, { next: { revalidate: REVALIDATE_SECONDS } });
   } catch {
-    // Studio/API unreachable or misconfigured - pages fall back to an empty
+    // Studio/API unreachable or misconfigured — pages fall back to an empty
     // list rather than crashing the public site over a content-hub outage.
     return null;
   }
@@ -119,7 +119,7 @@ export async function getPostBySlug(slug: string): Promise<Post | null> {
   return sanityFetch<Post | null>(`*[_type == "post" && slug.current == $slug][0] { ${POST_FIELDS} }`, { slug });
 }
 
-/** Titles/excerpts for a post's `relatedSlugs`, in the order given - for the
+/** Titles/excerpts for a post's `relatedSlugs`, in the order given — for the
  *  "related guides" links at the end of an article. Slugs with no matching
  *  published post (not yet written, or a typo) are silently dropped. */
 export async function getRelatedPosts(slugs: string[]): Promise<RelatedPost[]> {

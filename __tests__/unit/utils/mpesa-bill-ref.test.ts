@@ -1,6 +1,6 @@
 import { parseBillRefNumber, isSandboxTestRef } from '@/lib/utils/mpesa-bill-ref';
 
-describe('parseBillRefNumber - contribution prefix', () => {
+describe('parseBillRefNumber — contribution prefix', () => {
   it('parses KYT-CONTR-<group_code>', () => {
     const r = parseBillRefNumber('KYT-CONTR-KY1234567');
     expect(r.kind).toBe('contribution');
@@ -31,7 +31,7 @@ describe('parseBillRefNumber - contribution prefix', () => {
   it('strips a leading/trailing separator left by normalisation, without a quadratic-backtracking regex', () => {
     // '_KYT_CONTR_KY1234567_' normalises separators to dashes first,
     // leaving a leading and trailing dash for normalise() to strip
-    // (CodeQL js/polynomial-redos regression check - see normalise()).
+    // (CodeQL js/polynomial-redos regression check — see normalise()).
     const r = parseBillRefNumber('_KYT_CONTR_KY1234567_');
     expect(r.kind).toBe('contribution');
     expect(r.groupCode).toBe('KY1234567');
@@ -39,7 +39,7 @@ describe('parseBillRefNumber - contribution prefix', () => {
   });
 });
 
-describe('parseBillRefNumber - other prefixes', () => {
+describe('parseBillRefNumber — other prefixes', () => {
   it('parses KYT-LOAN-<short-id>', () => {
     const r = parseBillRefNumber('KYT-LOAN-ABCD12345');
     expect(r.kind).toBe('loan_repayment');

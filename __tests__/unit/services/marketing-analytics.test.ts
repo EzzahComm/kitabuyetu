@@ -1,5 +1,5 @@
 /**
- * Cross-channel marketing analytics (Phase 9.6) - rate math (incl. divide-
+ * Cross-channel marketing analytics (Phase 9.6) — rate math (incl. divide-
  * by-zero guards), the sms/email UNION ALL status rollup, the zero-filled
  * volume time series, and days-parameter clamping.
  */
@@ -45,7 +45,7 @@ function queueAll(
   mockQuery.mockResolvedValueOnce({ rows: [overrides.activities ?? { count: '0' }] });
 }
 
-describe('getMarketingAnalytics - days clamping', () => {
+describe('getMarketingAnalytics — days clamping', () => {
   it('defaults to 30 when days is omitted', async () => {
     queueAll();
     const result = await getMarketingAnalytics(ctx);
@@ -69,7 +69,7 @@ describe('getMarketingAnalytics - days clamping', () => {
   });
 });
 
-describe('getMarketingAnalytics - rate math', () => {
+describe('getMarketingAnalytics — rate math', () => {
   it('computes delivery/open rates and guards against division by zero', async () => {
     queueAll({
       sms: { campaigns: '2', recipients: '100', sent: '90', failed: '10' },
@@ -79,8 +79,8 @@ describe('getMarketingAnalytics - rate math', () => {
     const result = await getMarketingAnalytics(ctx, 30);
 
     expect(result.sms.deliveryRate).toBeCloseTo(0.9);
-    expect(result.email.deliveryRate).toBe(0); // 0 recipients - must not divide by zero
-    expect(result.email.openRate).toBe(0); // 0 sent - must not divide by zero
+    expect(result.email.deliveryRate).toBe(0); // 0 recipients — must not divide by zero
+    expect(result.email.openRate).toBe(0); // 0 sent — must not divide by zero
   });
 
   it('computes email open rate against sent, not recipients', async () => {
@@ -94,7 +94,7 @@ describe('getMarketingAnalytics - rate math', () => {
   });
 });
 
-describe('getMarketingAnalytics - automation status rollup', () => {
+describe('getMarketingAnalytics — automation status rollup', () => {
   it('sums sent/failed/suppressed/pending across both channels', async () => {
     queueAll({
       automation: [
@@ -112,7 +112,7 @@ describe('getMarketingAnalytics - automation status rollup', () => {
   });
 });
 
-describe('getMarketingAnalytics - volume time series', () => {
+describe('getMarketingAnalytics — volume time series', () => {
   it('zero-fills every day in the window, even with no automation activity', async () => {
     queueAll();
     const result = await getMarketingAnalytics(ctx, 7);
@@ -136,7 +136,7 @@ describe('getMarketingAnalytics - volume time series', () => {
   });
 });
 
-describe('getMarketingAnalytics - CRM snapshot', () => {
+describe('getMarketingAnalytics — CRM snapshot', () => {
   it('computes opt-in rate and shapes opportunitiesByStage from the grouped rows', async () => {
     queueAll({
       contacts: { total: '20', opted_in: '5' },

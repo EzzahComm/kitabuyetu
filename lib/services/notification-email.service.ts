@@ -31,7 +31,7 @@ export async function sendContributionConfirmation(opts: {
   const isCash = opts.paymentMethod?.toLowerCase().includes('cash');
   return sendReactEmail({
     to: opts.email,
-    subject: `Receipt - ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)} contribution received`,
+    subject: `Receipt — ${new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 0 }).format(amount)} contribution received`,
     element: createElement(ContributionReceipt, {
       memberName: opts.memberName,
       amount,

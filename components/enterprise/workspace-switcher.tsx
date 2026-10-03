@@ -4,8 +4,8 @@
  * Organization identity card at the top of the enterprise sidebar.
  *
  * For staff active at exactly one organization, this is a plain identity
- * card (unchanged from before). For staff active at more than one - genuinely
- * possible since multi-staff organizations (migration 101) - it expands into
+ * card (unchanged from before). For staff active at more than one — genuinely
+ * possible since multi-staff organizations (migration 101) — it expands into
  * a switcher: selecting another org calls POST /api/admin/auth/switch-org,
  * which mints a NEW backoffice session for that org (no password re-entry,
  * the existing verified token already proves identity), mirroring how
@@ -65,7 +65,7 @@ export function WorkspaceSwitcher() {
     } catch (err) {
       // Surface the real reason (e.g. "You are already in this organization"
       // from switch-org's SAME_ORG guard) instead of a generic message that
-      // hides an actionable error - matches app/(admin)/admin/organizations/
+      // hides an actionable error — matches app/(admin)/admin/organizations/
       // [id]/page.tsx's existing getErrorMessage usage.
       setError(getErrorMessage(err));
     } finally {
@@ -94,7 +94,7 @@ export function WorkspaceSwitcher() {
         <span className="block truncate text-sm font-semibold text-foreground">
           {data?.name ?? 'Your organization'}
         </span>
-        <span className="block truncate text-[11px] text-muted-foreground">{data ? TYPE_LABEL[data.type] : '-'}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">{data ? TYPE_LABEL[data.type] : '—'}</span>
       </span>
       {canSwitch && <ChevronsUpDown size={14} className="shrink-0 text-muted-foreground" />}
     </div>

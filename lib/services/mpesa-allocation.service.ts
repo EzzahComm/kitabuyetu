@@ -1,6 +1,6 @@
 /**
  * Shared product-allocation/dispatch engine (payment architecture §3.5,
- * decision table A1-A9), used by BOTH the STK and C2B fulfilment flows -
+ * decision table A1–A9), used by BOTH the STK and C2B fulfilment flows —
  * `applyLoanRepayment`/`applyLoanWaterfall` are invoked from
  * mpesa-stk.service.ts's fulfilment path and mpesa-c2b.service.ts's
  * dispatch/legacy-grammar paths alike. Split out of mpesa.service.ts
@@ -35,7 +35,7 @@ export interface StkRequestRow {
   /** Set only when purpose = 'subscription' (migration 138). */
   plan_type: string | null;
   product: string | null;
-  /** Migration 155. NULL on any pre-155 row or a client that omitted it -
+  /** Migration 155. NULL on any pre-155 row or a client that omitted it —
    *  the reader treats that as 'monthly', never as an error. */
   billing_cycle: string | null;
   /** Set only when purpose = 'campaign_donation' (migration 182/184). */
@@ -54,7 +54,7 @@ export interface FulfilmentInput {
 
 /**
  * Latch the oldest open exact-amount request for (membership, product) as
- * fulfilled - used by STK fulfilment, where the request was created by the
+ * fulfilled — used by STK fulfilment, where the request was created by the
  * initiation itself. No-op when none matches.
  */
 export async function fulfilMatchingRequest(
@@ -113,7 +113,7 @@ export async function fulfilMatchingRequest(
 export async function applyLoanRepayment(db: PoolClient, stkReq: StkRequestRow, in_: FulfilmentInput): Promise<void> {
   // Partial semantics (ADR-15): the payment flows through the member's loan
   // waterfall with the pre-bound installment first. An amount short of the
-  // installment leaves it 'partially_paid' - never 'completed' short - and
+  // installment leaves it 'partially_paid' — never 'completed' short — and
   // any excess cascades to later installments, then savings.
   const { rows } = await db.query<{ member_id: string }>(`SELECT member_id FROM loan_repayments WHERE id = $1`, [
     stkReq.loan_repayment_id,
@@ -215,7 +215,7 @@ export async function routeToUnrouted(
   await markSpineUnrouted(db, in_.receipt, opts.reason);
 }
 
-// ─── Product allocation (payment architecture §3.5, decision table A1-A9) ───
+// ─── Product allocation (payment architecture §3.5, decision table A1–A9) ───
 
 /**
  * Gathers the allocation-engine inputs for a membership (open requests,
@@ -300,7 +300,7 @@ export interface DispatchArgs {
   requestId: string | null;
   amountVariance: boolean;
   tier: string;
-  /** Suspended/inactive membership - loan waterfall only, no savings leftover. */
+  /** Suspended/inactive membership — loan waterfall only, no savings leftover. */
   obligationsOnly: boolean;
   groupId: string;
   memberId: string;
@@ -311,7 +311,7 @@ export interface DispatchArgs {
 }
 
 /**
- * Dispatch to the owning product table - never a blanket insert into
+ * Dispatch to the owning product table — never a blanket insert into
  * contributions (§3.5 dispatch table; audit H-3).
  */
 export async function dispatchProduct(db: PoolClient, args: DispatchArgs): Promise<void> {
@@ -335,13 +335,13 @@ export async function dispatchProduct(db: PoolClient, args: DispatchArgs): Promi
       break;
 
     case 'share':
-      // Shares need a class + unit price - auto-purchasing would be a guess.
+      // Shares need a class + unit price — auto-purchasing would be a guess.
       // Treasurer confirms via the unrouted queue (documented Phase 2 limit).
       await c2bToUnrouted(db, fulfil, 'other');
       break;
 
     default:
-      // A9: a product with no registered handler is a configuration error -
+      // A9: a product with no registered handler is a configuration error —
       // page loudly, never silently fall back to savings.
       logger.error('[mpesa/allocation] no handler for product (config_error)', {
         product: args.product,
@@ -381,7 +381,7 @@ export async function applyWelfareFromC2B(db: PoolClient, args: DispatchArgs): P
      RETURNING id`,
     [args.groupId, args.memberId, fulfil.amount.toFixed(2), fulfil.receipt, note],
   );
-  if (!rows[0]) return; // replay - already recorded
+  if (!rows[0]) return; // replay — already recorded
 
   // Audit log entry (system-triggered, actor_id=null)
   await db
@@ -496,7 +496,7 @@ export async function applyPartialRepayment(
 
   // This installment's cash may be a partial amount (waterfall segments can
   // split across installments), so the GL split is proportional to this
-  // installment's own scheduled principal:interest ratio - the standard
+  // installment's own scheduled principal:interest ratio — the standard
   // treatment for a partial payment, and the only way the posted entry can
   // balance against the actual cash applied rather than the full schedule.
   const principalComponent = parseFloat(row.principal_component);
@@ -514,7 +514,7 @@ export function round2(n: number): number {
 
 /**
  * Loan-repayment waterfall (§3.5): the amount flows across the member's due
- * installments oldest-first; any excess falls to the next tier (savings) -
+ * installments oldest-first; any excess falls to the next tier (savings) —
  * never a negative receivable. Obligations-only memberships (§4.1) get no
  * savings leftover: the excess parks unrouted instead.
  */
@@ -588,7 +588,7 @@ export async function applyLoanWaterfall(db: PoolClient, args: DispatchArgs): Pr
   let leftoverNote: string | null = null;
   if (remaining >= 0.005) {
     if (args.obligationsOnly) {
-      // Suspended/inactive: savings not permitted - park the excess.
+      // Suspended/inactive: savings not permitted — park the excess.
       leftoverNote = 'excess_unrouted';
       await c2bToUnrouted(db, { ...fulfil, amount: remaining }, 'membership_inactive');
     } else if (segments.length === 0) {
@@ -631,7 +631,7 @@ export async function applyLoanWaterfall(db: PoolClient, args: DispatchArgs): Pr
 /**
  * Insert a completed savings contribution + journal + spine payment_id link.
  * Returns the contribution id, or null on a replay (receipt already recorded).
- * Does NOT flip the spine - callers decide (a loan-waterfall leftover shares
+ * Does NOT flip the spine — callers decide (a loan-waterfall leftover shares
  * one spine transition with its installment segments).
  */
 export async function insertSavingsContribution(
@@ -699,7 +699,7 @@ export async function applyContributionFromC2B(
   db: PoolClient,
   in_: C2BFulfilmentInput & { memberId: string; thirdPartyPhone?: string | null },
 ): Promise<void> {
-  // The routing destination is NEVER changed by the payer phone - third
+  // The routing destination is NEVER changed by the payer phone — third
   // parties are flagged, not re-routed.
   const note =
     `Auto-routed from PayBill ${in_.billRef}` +
@@ -739,12 +739,12 @@ export async function c2bToUnrouted(
   // Second, definitive idempotency guard, right at the point of no return.
   // handleC2BConfirmation's own early check (SELECT ... WHERE
   // mpesa_receipt_number=$1, before any routing) already catches the common
-  // case - but that check and this one can straddle a real race: Safaricom
+  // case — but that check and this one can straddle a real race: Safaricom
   // (or this app's own webhook setup) can deliver an STK success callback and
   // a separate C2B-style notification for the SAME transaction within
   // milliseconds of each other. If the STK callback's payments row commits
   // between the early check and here, this receipt has ALREADY been fully
-  // and correctly handled - there is nothing left to route, and filing a
+  // and correctly handled — there is nothing left to route, and filing a
   // duplicate to mpesa_unrouted just creates toil (found 2026-08-26: 7 rows
   // sitting unresolved, all of them exact-receipt duplicates of payments that
   // had already activated a subscription or posted a contribution via STK,
@@ -754,7 +754,7 @@ export async function c2bToUnrouted(
     [in_.receipt],
   );
   if (dup[0]?.status === 'completed') {
-    logger.info('[mpesa/c2b] duplicate of an already-completed payment - not filing to unrouted', {
+    logger.info('[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted', {
       receipt: in_.receipt,
       paymentId: dup[0].id,
       wouldHaveReason: reason,

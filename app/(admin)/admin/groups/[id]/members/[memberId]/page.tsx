@@ -28,7 +28,7 @@ import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { Tone } from '@/lib/ui/tokens';
 
 // Same tier palette as app/(dashboard)/members/[id]/page.tsx and
-// app/(dashboard)/credit-scores/page.tsx - kept as a small local const here
+// app/(dashboard)/credit-scores/page.tsx — kept as a small local const here
 // too rather than a new shared module, matching how this codebase already
 // tolerates this exact duplication in 3 other files.
 type CreditTier = 'excellent' | 'good' | 'fair' | 'poor' | 'high_risk';
@@ -96,7 +96,7 @@ export default function AdminMemberDetailPage({ params }: { params: Promise<{ id
     <div className="space-y-5">
       <PageHeader
         title={`${profile.first_name} ${profile.last_name}`}
-        description={`${profile.group_name ?? 'No active group'}${profile.member_code ? ` - ${profile.member_code}` : ''}`}
+        description={`${profile.group_name ?? 'No active group'}${profile.member_code ? ` · ${profile.member_code}` : ''}`}
         breadcrumbs={[
           { label: 'Groups', href: '/admin/groups' },
           { label: profile.group_name ?? 'Group', href: `/admin/groups/${groupId}` },
@@ -181,17 +181,17 @@ export default function AdminMemberDetailPage({ params }: { params: Promise<{ id
             <div className="pt-2 border-t border-border grid grid-cols-2 gap-y-2">
               <div>
                 <p className="text-muted-foreground mb-0.5">Organization</p>
-                <p className="font-medium text-foreground">{profile.organization_name ?? '-'}</p>
+                <p className="font-medium text-foreground">{profile.organization_name ?? '—'}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Group role</p>
-                <p className="font-medium text-foreground capitalize">{profile.group_role?.replace('_', ' ') ?? '-'}</p>
+                <p className="font-medium text-foreground capitalize">{profile.group_role?.replace('_', ' ') ?? '—'}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5 flex items-center gap-1">
                   <Calendar size={10} /> Joined
                 </p>
-                <p className="font-medium text-foreground">{profile.joined_at ? formatDate(profile.joined_at) : '-'}</p>
+                <p className="font-medium text-foreground">{profile.joined_at ? formatDate(profile.joined_at) : '—'}</p>
               </div>
               <div>
                 <p className="text-muted-foreground mb-0.5">Last login</p>
@@ -274,7 +274,7 @@ export default function AdminMemberDetailPage({ params }: { params: Promise<{ id
         </CardContent>
       </Card>
 
-      {/* Edit member - names and email only.
+      {/* Edit member — names and email only.
           PHONE IS ABSENT ON PURPOSE. It is the login identity and UNIQUE
           platform-wide, so changing it changes who can sign in to the account
           rather than correcting a typo. The API rejects it outright (strict
@@ -316,7 +316,7 @@ export default function AdminMemberDetailPage({ params }: { params: Promise<{ id
             <div className="rounded-md border bg-muted/40 px-3 py-2 space-y-1">
               <p className="text-xs text-muted-foreground">
                 Renaming this member updates their name in{' '}
-                <span className="font-medium text-foreground">every group they belong to</span> - one person, one
+                <span className="font-medium text-foreground">every group they belong to</span> — one person, one
                 identity.
               </p>
               <p className="text-xs text-muted-foreground">

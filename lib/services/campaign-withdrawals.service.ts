@@ -1,12 +1,12 @@
 /**
- * Changi$ha withdrawals - paying a campaign's raised funds out to its payout
+ * Changi$ha withdrawals — paying a campaign's raised funds out to its payout
  * destination, with the platform taking a fee: an M-Pesa phone via Daraja
  * B2C, or a business paybill/till via Daraja B2B (migration 202;
  * lib/campaigns/payout-destination.ts). The destination is snapshotted onto
  * each withdrawal row at request time.
  *
  * Same spine as vendor-payments.service.ts (the closest existing analog: an
- * external, non-member payee) - reserve group cash -> dual-approve (maker
+ * external, non-member payee) — reserve group cash -> dual-approve (maker
  * != checker) -> dispatch outside the transaction -> settle on the Daraja
  * result callback (settlement-callbacks.service.ts's
  * handleCampaignWithdrawalResult). Two things this flow has that vendor
@@ -14,7 +14,7 @@
  *
  * 1. A campaign-level available-balance check, in addition to the
  *    group-level cash check. 1001 (Cash and M-Pesa) is one pooled float
- *    shared by every group activity - Bookkeeper contributions, other
+ *    shared by every group activity — Bookkeeper contributions, other
  *    campaigns, everything. Without checking this campaign's own undrawn
  *    balance (amount_raised minus what's already been withdrawn or is
  *    mid-flight), a campaign could draw against money it never raised,
@@ -22,14 +22,14 @@
  *    from Bookkeeper finances (migration 185).
  *
  * 2. The M-Pesa charge (B2C tariff for a phone, B2B tariff for a
- *    paybill/till) is computed HERE, at request time - not at settlement
+ *    paybill/till) is computed HERE, at request time — not at settlement
  *    like every other outbound flow in this codebase. Vendor
  *    payments/settlements send their full requested amount to Daraja; the
  *    Safaricom fee is a separate deduction from the group's cash on top,
  *    never shorting the payee. Changi$ha's fee model is the opposite: the
  *    beneficiary receives net_amount (gross minus platform fee minus the
- *    M-Pesa cost), so the M-Pesa cost must be known before net_amount - and
- *    therefore before dispatch - can be computed at all.
+ *    M-Pesa cost), so the M-Pesa cost must be known before net_amount — and
+ *    therefore before dispatch — can be computed at all.
  */
 import { emitWithdrawalEvent, ActivityEventType } from '@/lib/notifications';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
@@ -71,7 +71,7 @@ export interface CampaignWithdrawalRow extends PayoutFields {
   platform_signoff_required: boolean;
 }
 
-/** One row of the Kitabu Yetu release queue - includes the destination, so the reviewer sees where money goes. */
+/** One row of the Kitabu Yetu release queue — includes the destination, so the reviewer sees where money goes. */
 export interface PlatformQueueRow extends PayoutFields {
   id: string;
   campaign_id: string;
@@ -89,7 +89,7 @@ export interface PlatformQueueRow extends PayoutFields {
 const DEFAULT_PLATFORM_FEE_PCT = CHANGISHA_PRICING.platformFeePct;
 const DEFAULT_MIN_WITHDRAWAL = CHANGISHA_PRICING.minWithdrawal;
 
-/** Non-terminal - still counts against the campaign's undrawn balance. */
+/** Non-terminal — still counts against the campaign's undrawn balance. */
 const OPEN_STATUSES = ['pending_approval', 'awaiting_platform', 'approved', 'processing'];
 
 /** Kitabu Yetu signs off every release unless a policy explicitly turns it off (see request()). */
@@ -123,7 +123,7 @@ export const campaignWithdrawalsService = {
       }
       const destination = toPayoutDestination(campaign);
       if (!destination) {
-        // Defense in depth - submitForReview already guarantees this, but a
+        // Defense in depth — submitForReview already guarantees this, but a
         // campaign can have been approved before that guard existed (one live
         // campaign was).
         throw new ValidationError('This campaign has no payout destination set');
@@ -187,7 +187,7 @@ export const campaignWithdrawalsService = {
       const netAmount = Math.round((input.grossAmount - platformFeeAmount - mpesaChargeAmount) * 100) / 100;
       if (netAmount <= 0) {
         throw new ValidationError(
-          'This amount is too small to cover the platform fee and M-Pesa transaction cost - try a larger withdrawal',
+          'This amount is too small to cover the platform fee and M-Pesa transaction cost — try a larger withdrawal',
         );
       }
 
@@ -271,7 +271,7 @@ export const campaignWithdrawalsService = {
       });
 
       // With platform sign-off on, the second officer's approval only moves it to the
-      // platform's queue - nothing is dispatched until a Kitabu Yetu super-admin releases it.
+      // platform's queue — nothing is dispatched until a Kitabu Yetu super-admin releases it.
       const nextStatus = prior.platform_signoff_required ? 'awaiting_platform' : 'approved';
       const { rows: updated } = await db.query<CampaignWithdrawalRow>(
         `UPDATE campaign_withdrawals SET status = $2 WHERE id = $1 RETURNING *`,
@@ -300,7 +300,7 @@ export const campaignWithdrawalsService = {
       // The action-required alert: Kitabu Yetu now has to sign this off.
       await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_PENDING_REVIEW, {
         actorUserId: ctx.userId,
-        stage: 'Approved by group officials - Kitabu Yetu approval required',
+        stage: 'Approved by group officials — Kitabu Yetu approval required',
       });
     } else {
       await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_APPROVED, { actorUserId: ctx.userId });
@@ -383,7 +383,7 @@ export const campaignWithdrawalsService = {
   /**
    * Kitabu Yetu's sign-off: releases an 'awaiting_platform' withdrawal for
    * dispatch. The decision is recorded in settlement_approvals as a
-   * 'backoffice' approver - the same ledger as the officers' decisions.
+   * 'backoffice' approver — the same ledger as the officers' decisions.
    */
   async platformApprove(adminUserId: string, id: string): Promise<CampaignWithdrawalRow> {
     const row = await withAdminDb(async (db) => {
@@ -516,7 +516,7 @@ export async function findStuckCampaignWithdrawals(): Promise<{
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[campaign-withdrawals] stuck payouts - no result callback received', {
+      logger.error('[campaign-withdrawals] stuck payouts — no result callback received', {
         count: samples.length,
         samples: samples.slice(0, 5),
       });
@@ -576,11 +576,11 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
     db.query<{ title: string }>(`SELECT title FROM campaigns WHERE id = $1`, [claimed.campaign_id]),
   );
   const campaignTitle = campaignRows[0]?.title ?? 'Changi$ha campaign';
-  const remarks = `Changi$ha withdrawal - ${campaignTitle}`.slice(0, 100);
+  const remarks = `Changi$ha withdrawal — ${campaignTitle}`.slice(0, 100);
 
   try {
     // The DB CHECK (migration 202) guarantees a complete destination on every
-    // row; this only narrows the type - if it ever fails, the catch below
+    // row; this only narrows the type — if it ever fails, the catch below
     // releases the reservation and marks the row failed.
     const destination = toPayoutDestination(claimed);
     if (!destination) throw new Error('Withdrawal row has an incomplete payout destination');
@@ -599,7 +599,7 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
         : await initiateB2B({
             amount,
             receiverShortcode: destination.shortcode,
-            // '4' = organisation shortcode - Daraja's identifier for both a
+            // '4' = organisation shortcode — Daraja's identifier for both a
             // paybill and a till number (same value vendor payments use).
             receiverIdentifier: '4',
             commandId: destination.method === 'paybill' ? 'BusinessPayBill' : 'BusinessBuyGoods',
@@ -616,7 +616,7 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
         res.originatorConversationId,
       ]),
     );
-    // Best-effort watchdog - never blocks/fails a dispatch that already succeeded.
+    // Best-effort watchdog — never blocks/fails a dispatch that already succeeded.
     await triggerDisbursementWatchdog({ kind: 'campaign_withdrawal', rowId: claimed.id });
   } catch (err) {
     logger.error('[campaign-withdrawals] dispatch failed before Daraja accepted the request', {
@@ -628,7 +628,7 @@ async function dispatchCampaignWithdrawal(id: string): Promise<void> {
         claimed.group_id,
       ]);
       if (acctRows[0]) {
-        // Reservation was for gross_amount, not net_amount - re-fetch it
+        // Reservation was for gross_amount, not net_amount — re-fetch it
         // rather than trusting the outer scope, since claimed only carries
         // net_amount (all dispatch needs).
         const { rows: wRows } = await db.query<{ gross_amount: string }>(

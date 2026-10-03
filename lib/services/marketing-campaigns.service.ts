@@ -1,11 +1,11 @@
 /**
- * Marketing campaign service - audiences + cross-channel campaign
+ * Marketing campaign service — audiences + cross-channel campaign
  * orchestration (Phase 9.2 SMS, Phase 9.3 email).
  *
  * Deliberately thin: the SMS leg reuses smsService.sendBulkCampaign
  * unchanged; the email leg reuses email_campaigns/email_campaign_recipients
  * and their existing drainCampaignRecipients job (lib/services/
- * campaign.service.ts, migration 012) unchanged too - this service only owns
+ * campaign.service.ts, migration 012) unchanged too — this service only owns
  * audience resolution, the approval workflow, and marketing_campaigns' own
  * status machine for SMS (email status is read live from email_campaigns,
  * which already tracks its own send progress correctly).
@@ -107,7 +107,7 @@ export async function listAudiences(ctx: TenantContext): Promise<Audience[]> {
 
 /**
  * Resolve an audience to a recipient list for the given channel, at
- * whatever moment it's called (approval time - the caller freezes the
+ * whatever moment it's called (approval time — the caller freezes the
  * result, this function never does).
  *
  * Consent/suppression are enforced HERE, at resolution, not at send time:
@@ -148,7 +148,7 @@ async function resolveAudience(
       ...(channel === 'sms' ? { phone: r.phone! } : { email: r.email! }),
     }));
   } else {
-    // org_group_officers - chairperson/treasurer/secretary across every
+    // org_group_officers — chairperson/treasurer/secretary across every
     // group the organization currently has active access to.
     if (!scope.organizationId) throw new ValidationError('org_group_officers requires an organization-scoped campaign');
     const { rows } = await db.query<{ member_id: string; phone: string | null; email: string | null; name: string }>(
@@ -299,12 +299,12 @@ function assertCanApprove(ctx: TenantContext, campaign: Campaign): void {
 /**
  * Approve + launch, atomically: resolves the audience into a frozen
  * recipient snapshot, marks the campaign sending, and hands off to whichever
- * channel's existing send machinery owns dispatch from here - all in one
+ * channel's existing send machinery owns dispatch from here — all in one
  * transaction, so a campaign never sits "approved" with no send in flight.
  *
  * Maker-checker: ctx.userId must not be the campaign's own creator, and must
  * hold the approving role for the campaign's scope (chairperson for a group
- * campaign, organization_coordinator for an org one) - mirrors
+ * campaign, organization_coordinator for an org one) — mirrors
  * disbursements.service.ts's approver-!=-initiator pattern. The DB CHECK
  * (migration 193) is the real backstop for creator!=approver; the role
  * check has no DB-level twin since roles aren't stored per-row here.
@@ -333,7 +333,7 @@ export async function approveCampaign(ctx: TenantContext, campaignId: string): P
     const scope = { groupId: campaign.group_id, organizationId: campaign.organization_id };
     const recipients = await resolveAudience(db, scope, audience, campaign.channel);
     if (!recipients.length) {
-      throw new ValidationError('This audience currently resolves to zero recipients - nothing to send');
+      throw new ValidationError('This audience currently resolves to zero recipients — nothing to send');
     }
 
     if (campaign.channel === 'sms') {
@@ -368,7 +368,7 @@ export async function approveCampaign(ctx: TenantContext, campaignId: string): P
     }
 
     // Email: hand off to the existing email_campaigns/email_campaign_recipients
-    // machinery (lib/services/campaign.service.ts, migration 012) - its
+    // machinery (lib/services/campaign.service.ts, migration 012) — its
     // drainCampaignRecipients job (already scheduled) picks up any 'pending'
     // row for a 'sending' campaign, so no new job type is needed here.
     const { rows: ecRows } = await db.query<{ id: string }>(
@@ -450,7 +450,7 @@ export async function rejectCampaign(ctx: TenantContext, campaignId: string, rea
  * Called by lib/jobs/handlers.ts's handleMarketingCampaignSmsSend once
  * smsService.sendBulkCampaign returns. No TenantContext available (the job
  * runs on the admin pool, like every other cron/job callback in this
- * codebase) - withAdminDb is correct here, not a gap. Email campaigns have
+ * codebase) — withAdminDb is correct here, not a gap. Email campaigns have
  * no equivalent call: email_campaigns tracks its own completion already
  * (processCampaignJob in campaign.service.ts), read live by getCampaignById.
  */

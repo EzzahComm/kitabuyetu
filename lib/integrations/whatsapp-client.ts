@@ -84,7 +84,7 @@ export async function sendText(opts: SendTextOptions): Promise<SendTextResult> {
       body,
     });
 
-    // Parse once - Meta returns JSON for both success and error responses.
+    // Parse once — Meta returns JSON for both success and error responses.
     const json = (await res.json()) as MetaSendResponse & MetaErrorResponse;
 
     if (!res.ok || json.error) {

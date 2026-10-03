@@ -30,7 +30,7 @@ const changePlanSchema = z
     }
   });
 
-/** GET current plan + usage vs. caps. POST changes the plan. Both super_admin only - organizations never self-serve a plan. */
+/** GET current plan + usage vs. caps. POST changes the plan. Both super_admin only — organizations never self-serve a plan. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;

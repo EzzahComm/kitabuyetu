@@ -6,8 +6,8 @@ import { InviteGroupToProgramSchema } from '@/lib/validators/organization.schema
 import { ok, created } from '@/lib/utils/response';
 
 /**
- * GET  /api/admin/organization/group-programs/:id/invitations - every invitation for this program
- * POST /api/admin/organization/group-programs/:id/invitations - invite a group by its group code
+ * GET  /api/admin/organization/group-programs/:id/invitations — every invitation for this program
+ * POST /api/admin/organization/group-programs/:id/invitations — invite a group by its group code
  */
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {

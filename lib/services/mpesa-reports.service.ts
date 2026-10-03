@@ -1,7 +1,7 @@
 /**
  * Daily M-Pesa reconciliation report.
  *
- * Fired by the cron (~23:00 EAT) - for each active group it aggregates the
+ * Fired by the cron (~23:00 EAT) — for each active group it aggregates the
  * day's M-Pesa activity and emails the treasurer + group admins a summary so
  * they can eyeball collections vs disbursements vs failures before close of
  * business. Day boundaries are computed in Africa/Nairobi (EAT) regardless of
@@ -71,7 +71,7 @@ export async function sendDailyMpesaReconReports(): Promise<{ groups: number; em
     const outboundCount = Number(stats?.outbound_count ?? 0);
     const failedCount = Number(stats?.failed_count ?? 0);
 
-    // Skip groups with no activity AND nothing to action - avoids inbox noise.
+    // Skip groups with no activity AND nothing to action — avoids inbox noise.
     if (inboundCount === 0 && outboundCount === 0 && failedCount === 0 && unrouted === 0) {
       continue;
     }
@@ -104,7 +104,7 @@ export async function sendDailyMpesaReconReports(): Promise<{ groups: number; em
     for (const email of officers) {
       const res = await sendFinancialReport({
         to: email,
-        subject: `M-Pesa daily summary - ${group.name} - ${dayLabel}`,
+        subject: `M-Pesa daily summary — ${group.name} — ${dayLabel}`,
         html,
         groupId: group.id,
         userId: 'system',
@@ -143,10 +143,10 @@ function buildReportHtml(d: {
 
   return `
     <h2 style="margin:0 0 4px;">M-Pesa daily summary</h2>
-    <p style="color:#777;margin:0 0 16px;">${d.groupName} - ${d.dayLabel}</p>
+    <p style="color:#777;margin:0 0 16px;">${d.groupName} · ${d.dayLabel}</p>
     <table style="width:100%;border-collapse:collapse;font-size:14px;">
-      ${row('Money in (completed)', `${d.inboundCount} - ${kes(d.inboundTotal)}`)}
-      ${row('Money out (completed)', `${d.outboundCount} - ${kes(d.outboundTotal)}`)}
+      ${row('Money in (completed)', `${d.inboundCount} · ${kes(d.inboundTotal)}`)}
+      ${row('Money out (completed)', `${d.outboundCount} · ${kes(d.outboundTotal)}`)}
       ${row('Net movement', kes(net), true)}
       ${row('Failed transactions', String(d.failedCount))}
       ${row('Unrouted receipts', String(d.unroutedCount))}

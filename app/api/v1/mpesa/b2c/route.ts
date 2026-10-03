@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // state. Acked (not rejected) so a prober learns nothing from the
     // response, and logged so a real misconfiguration is visible.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[b2c callback] invalid or missing token - dropped', { type, callerIp });
+      logger.warn('[b2c callback] invalid or missing token — dropped', { type, callerIp });
       return ack();
     }
 
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     // A vendor payment on the 'b2c' channel lands here rather than on the
-    // B2B route - same OriginatorConversationID correlation, different
+    // B2B route — same OriginatorConversationID correlation, different
     // Daraja product. handleVendorPaymentResult is a safe no-op when the id
     // isn't a vendor payment, so it can run unconditionally alongside the
     // disbursement handler.
@@ -84,18 +84,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     // extended the shared-secret mechanism to Account Balance (see the
     // callback-authenticity note in daraja.service.ts) but this branch never
     // got the check, so an anonymous POST here reached handleBalanceResult's
-    // UPDATE on mpesa_transactions - which matches on conversation id alone,
+    // UPDATE on mpesa_transactions — which matches on conversation id alone,
     // with no transaction_type restriction, and flips status to 'completed'.
     // assertSafaricomIp downstream is advisory-only by design and logs rather
     // than throws, so it was not a boundary.
     //
     // Live balance queries have pointed at /api/v1/mpesa/balance (which does
-    // validate the token) since Phase 4 - queryAccountBalance builds both its
-    // ResultURL and QueueTimeOutURL there via withCallbackToken - so this
+    // validate the token) since Phase 4 — queryAccountBalance builds both its
+    // ResultURL and QueueTimeOutURL there via withCallbackToken — so this
     // branch is the superseded path and nothing legitimate reaches it
     // untokenised.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[b2c balance callback] invalid or missing token - dropped', { type, callerIp });
+      logger.warn('[b2c balance callback] invalid or missing token — dropped', { type, callerIp });
       return ack();
     }
 
@@ -148,7 +148,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         status: result.status,
         needsApproval: result.needsApproval,
         message: result.needsApproval
-          ? "Disbursement submitted - awaiting a second officer's approval."
+          ? "Disbursement submitted — awaiting a second officer's approval."
           : 'Disbursement initiated. Monitor the result callback.',
       });
     } catch (err) {

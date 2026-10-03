@@ -2,7 +2,7 @@
  * Static guard against code↔schema drift on columns that do not exist.
  *
  * Motivation (docs/audits/PRODUCTION_SCHEMA_DRIFT_AUDIT.md, findings H1/H2):
- * `members` has no `full_name` column - it has first_name/last_name - and
+ * `members` has no `full_name` column — it has first_name/last_name — and
  * `loan_repayments` has no `amount` column, only `amount_paid`. Six SQL call
  * sites across four services selected those nonexistent columns. In
  * production this meant `email_birthday` failed 96 consecutive times,
@@ -36,7 +36,7 @@ function read(file: string): string {
 
 /**
  * Only the SQL matters here. Reading `m.full_name` off a *result row* in
- * TypeScript is correct and expected - the queries alias the concatenation
+ * TypeScript is correct and expected — the queries alias the concatenation
  * back to `full_name`, so `row.full_name` / `m.full_name` in JS is the
  * intended shape (statement-email.service.ts:89 does exactly this). It is
  * only `m.full_name` appearing inside the SQL sent to Postgres that is a

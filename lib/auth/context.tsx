@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState, useCallback } from 'rea
 import type { LoginResponse, AdminLoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
-// Tenant (consumer) user shape - group context required.
+// Tenant (consumer) user shape — group context required.
 interface TenantUser {
   id: string;
   firstName: string;
@@ -15,24 +15,24 @@ interface TenantUser {
   groupRole: MemberRole;
   groupId: string;
   groupName: string;
-  // Phase A additions - optional so legacy localStorage payloads still parse.
+  // Phase A additions — optional so legacy localStorage payloads still parse.
   groupCode?: string;
   memberCode?: string;
-  /** The Membership Number (e.g. BG102534) - the only public payment identifier. */
+  /** The Membership Number (e.g. BG102534) — the only public payment identifier. */
   membershipNo?: string;
   personId?: string;
   officerRole?: string;
-  // Phase D Part 2: group lifecycle - 'pending_verification' | 'active' | …
+  // Phase D Part 2: group lifecycle — 'pending_verification' | 'active' | …
   groupStatus?: string;
   // RBAC permission activation frontend rollout (UX_UI_OPTIMIZATION_AUDIT_2026-08.md
-  // Phase 1) - same claim already embedded in the access token, surfaced here
+  // Phase 1) — same claim already embedded in the access token, surfaced here
   // so client components can gate UI via lib/auth/permissions.ts's
   // hasPermission without decoding the JWT. Optional so pre-rollout
   // localStorage payloads still parse.
   permissions?: string[];
 }
 
-// Backoffice (platform staff) user shape - no group context.
+// Backoffice (platform staff) user shape — no group context.
 interface BackofficeUser {
   id: string;
   firstName: string;
@@ -62,7 +62,7 @@ interface AuthContextValue extends AuthState {
   login: (data: LoginResponse) => void;
   loginAdmin: (data: AdminLoginResponse) => void;
   logout: () => void;
-  /** Store a renewed access token - and, when the server rotated it (§15.3),
+  /** Store a renewed access token — and, when the server rotated it (§15.3),
    *  the successor refresh token. The old refresh token is consumed
    *  server-side; reusing it revokes the whole session lineage. */
   setAccessToken: (token: string, rotatedRefreshToken?: string) => void;

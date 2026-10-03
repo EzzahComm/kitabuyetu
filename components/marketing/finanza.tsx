@@ -66,7 +66,7 @@ interface FinanzaHeadingProps {
   className?: string;
 }
 
-/** Pill + `.display-5` heading (+ optional lede) - the opening of nearly every Finanza section. */
+/** Pill + `.display-5` heading (+ optional lede) — the opening of nearly every Finanza section. */
 export function FinanzaHeading({ pill, title, lede, align = 'left', as = 'h2', id, className }: FinanzaHeadingProps) {
   const Heading = as;
   return (
@@ -109,7 +109,7 @@ export interface Crumb {
 
 /**
  * Finanza's inner-page masthead (`.page-header`): a title and breadcrumb on
- * lavender waves. Deliberately compact - just clear of the fixed header, so
+ * lavender waves. Deliberately compact — just clear of the fixed header, so
  * the page's own content starts above the fold. The template's version is a photo of two models; this
  * draws the same waves in SVG and keeps its decorative pattern, so no stock
  * people stand in for Kitabu Yetu's team.
@@ -252,7 +252,7 @@ export function FeatureBox({ icon: Icon, title, children, href, linkText = 'Read
   );
 }
 
-/** A primary circle holding an icon - the About block's "No Hidden Cost / Dedicated Team" items. */
+/** A primary circle holding an icon — the About block's "No Hidden Cost / Dedicated Team" items. */
 export function IconBadge({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
   return (
     <span className={cn('flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-500', className)}>

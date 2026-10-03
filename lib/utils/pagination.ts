@@ -2,7 +2,7 @@
  * Clamp page/limit query params to safe bounds.
  *
  * Every tenant-facing `/api/v1/*` list route already clamps page/limit
- * inline; none of the 12 `/api/admin/**` list routes did - an unclamped
+ * inline; none of the 12 `/api/admin/**` list routes did — an unclamped
  * `limit` let a client request an arbitrarily large page, and `page=0`
  * produced a negative SQL OFFSET, which Postgres rejects with a 500
  * (`ERROR: 2201X: OFFSET must not be negative`), confirmed live

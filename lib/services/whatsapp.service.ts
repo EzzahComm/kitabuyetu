@@ -73,7 +73,7 @@ export const whatsappService = {
         throw new ValidationError('Either memberId or toPhone is required');
       }
 
-      // Hit Meta first - we want the provider's verdict before deciding the
+      // Hit Meta first — we want the provider's verdict before deciding the
       // row status. Failures still get logged (status='failed') so users can
       // see what happened.
       const result = await sendText({ to: toPhone, body: input.body });

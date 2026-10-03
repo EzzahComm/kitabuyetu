@@ -2,13 +2,13 @@
  * Regression pin for the 2026-09-14 fix to members.service.ts's stripSecrets:
  * GET /members (list) and /members/:id (getById) were leaking
  * reset_otp_hash (an unsalted SHA-256 of a 6-digit OTP), reset_otp_expires_at,
- * reset_otp_attempts and session_version to ANY authenticated group member -
+ * reset_otp_attempts and session_version to ANY authenticated group member —
  * only password_hash was ever stripped. See project memory
  * "project_kitabu_yetu_member_otp_leak" for the full trace.
  *
  * Both queries SELECT m.* deliberately, so this test exercises the real
  * service against a real row carrying all five sensitive fields set to
- * non-null values - a check that can't tell "stripped" from "was never
+ * non-null values — a check that can't tell "stripped" from "was never
  * there" proves nothing.
  */
 import { membersService } from '@/lib/services/members.service';
@@ -26,12 +26,12 @@ const SENSITIVE_FIELDS = [
   'session_version',
 ];
 
-describe('members.service - sensitive fields never leave the service', () => {
+describe('members.service — sensitive fields never leave the service', () => {
   let groupId: string, officerId: string;
-  // An ordinary member's context - the attacker's own role in the finding.
+  // An ordinary member's context — the attacker's own role in the finding.
   // Sensitive-field stripping is unconditional in stripSecrets, unlike
   // applyMemberMask's phone/email/PII masking, so this must hold for every
-  // role, not just 'member' - but 'member' is the one that matters most,
+  // role, not just 'member' — but 'member' is the one that matters most,
   // since it's the role with the least reason to trust. Assigned in
   // beforeAll, once groupId/officerId exist.
   let attackerCtx: TenantContext;
@@ -42,7 +42,7 @@ describe('members.service - sensitive fields never leave the service', () => {
     attackerCtx = { userId: officerId, groupId, role: 'member' };
 
     // Simulate an in-flight password reset + a bumped session epoch, so the
-    // row genuinely carries every sensitive field non-null - the exact state
+    // row genuinely carries every sensitive field non-null — the exact state
     // an attacker would be polling for.
     await rawQuery(
       `UPDATE members
@@ -65,7 +65,7 @@ describe('members.service - sensitive fields never leave the service', () => {
     for (const field of SENSITIVE_FIELDS) {
       expect(member).not.toHaveProperty(field);
     }
-    // Positive control - a check that can't fail proves nothing: confirm we
+    // Positive control — a check that can't fail proves nothing: confirm we
     // actually got the row back, not an empty/failed result.
     expect(member.id).toBe(officerId);
     expect(member.first_name).toBeTruthy();

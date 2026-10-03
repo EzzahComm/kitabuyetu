@@ -8,7 +8,7 @@ import { ok, handleError } from '@/lib/utils/response';
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * POST /api/v1/organization/disbursements/:id - approve or reject a pending
+ * POST /api/v1/organization/disbursements/:id — approve or reject a pending
  * org -> group disbursement (organization_coordinator). Maker-checker: the
  * service rejects approval by the same coordinator who created it.
  */

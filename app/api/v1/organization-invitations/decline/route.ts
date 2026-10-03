@@ -7,7 +7,7 @@ import { ok, handleError } from '@/lib/utils/response';
 const Schema = z.object({ token: z.string().min(32).max(128) });
 
 /**
- * POST /api/v1/organization-invitations/decline - public. Lets the invitee
+ * POST /api/v1/organization-invitations/decline — public. Lets the invitee
  * decline their own invitation (typo'd email, changed mind, "not me") at
  * any point before it's completed.
  */

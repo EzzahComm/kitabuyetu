@@ -49,7 +49,7 @@ const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
     header: 'Status',
     render: (h) => <StatusPill status={h.status} size="sm" />,
   },
-  { key: 'channel', header: 'Channel', hideBelow: 'sm', render: (h) => h.channel ?? '-' },
+  { key: 'channel', header: 'Channel', hideBelow: 'sm', render: (h) => h.channel ?? '—' },
   {
     key: 'sent',
     header: 'Sent',
@@ -60,7 +60,7 @@ const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
     key: 'reason',
     header: 'Detail',
     hideBelow: 'lg',
-    render: (h) => h.reason ?? '-',
+    render: (h) => h.reason ?? '—',
   },
 ];
 
@@ -70,7 +70,7 @@ const historyColumns: PaginatedTableColumn<BirthdayDispatch>[] = [
  *
  * The sending itself shipped in Phase 1 as a platform-wide job. Until now there
  * was no way to turn it on except direct SQL, and no way at all to see whether
- * a message had gone out - so a fully-built feature was invisible from inside
+ * a message had gone out — so a fully-built feature was invisible from inside
  * the product.
  */
 export default function ReminderBirthdaysPage() {

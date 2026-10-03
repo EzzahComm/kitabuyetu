@@ -1,10 +1,10 @@
 /**
- * Registrant verification (§4A, migration 046) - the piece that was missing
+ * Registrant verification (§4A, migration 046) — the piece that was missing
  * between register_group() landing new groups at status='pending_verification'
  * and the DB-side RPCs (start_registrant_verification /
  * complete_registrant_verification / complete_email_verification) that were
  * built to move them to 'active'. Nothing in app/api ever called those RPCs,
- * so every group created since migration 046 shipped was permanently stuck -
+ * so every group created since migration 046 shipped was permanently stuck —
  * proxy.ts blocks every feature route for a pending_verification group, and
  * there was no route or page that could clear the status.
  */
@@ -39,7 +39,7 @@ export function generateOtp(): string {
 
 /**
  * Runs `fn` and, if it settles sooner than `minMs`, waits out the remainder
- * before resolving - so an enumeration-safe flow's fast "no such account"
+ * before resolving — so an enumeration-safe flow's fast "no such account"
  * branch and its slow "sent a real SMS/email" branch take the same
  * wall-clock time as observed by the caller. Without this, awaiting the
  * provider call only on the branch that found an account turns "the response
@@ -64,7 +64,7 @@ function verifyUrlFor(token: string): string {
  * Starts a verification attempt: writes the hashed secret via the
  * start_registrant_verification RPC (which also invalidates any prior open
  * attempt for this group), then dispatches the plaintext secret AFTER that
- * commits - a transient email/SMS provider outage never destroys the DB
+ * commits — a transient email/SMS provider outage never destroys the DB
  * state; the registrant can just request another send.
  */
 export async function startGroupVerification(
@@ -91,7 +91,7 @@ export async function startGroupVerification(
     // referenceType/referenceId identify this specific verification attempt
     // (start_registrant_verification's own row id) so the Resend adapter's
     // application-level dedup (lib/email/adapters/resend.ts) and idempotency
-    // key actually engage for this template - previously both were null
+    // key actually engage for this template — previously both were null
     // here, so a retried send for this exact attempt was indistinguishable
     // from a brand-new one (docs/audits/optimization-2026-09).
     await sendTemplatedEmail({
@@ -108,7 +108,7 @@ export async function startGroupVerification(
       referenceId: attemptId,
     });
   } else {
-    // sendServiceSms NEVER throws and NEVER returns void - it reports the
+    // sendServiceSms NEVER throws and NEVER returns void — it reports the
     // provider's verdict in `sent` (see its own doc comment). Ignoring that
     // return is what let /verify/start answer "code sent" on a total provider
     // failure: the registrant then sat waiting for an SMS that was never
@@ -132,7 +132,7 @@ export async function startGroupVerification(
   return { expiresAt };
 }
 
-/** Authenticated SMS-OTP completion path. Throws the RPC's raw PG error on failure (OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS) - callers map these to user-facing copy. */
+/** Authenticated SMS-OTP completion path. Throws the RPC's raw PG error on failure (OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS) — callers map these to user-facing copy. */
 export async function completeGroupVerificationAuthed(groupId: string, code: string): Promise<void> {
   const secretHash = hashSecret(code);
   await withAdminDb(async (client) => {
@@ -140,7 +140,7 @@ export async function completeGroupVerificationAuthed(groupId: string, code: str
   });
 }
 
-/** Public email-link completion path - the token itself is the proof, no auth required. Throws LINK_INVALID / LINK_EXPIRED on failure. */
+/** Public email-link completion path — the token itself is the proof, no auth required. Throws LINK_INVALID / LINK_EXPIRED on failure. */
 export async function completeGroupVerificationByToken(token: string): Promise<{ groupId: string }> {
   const secretHash = hashSecret(token);
   return withAdminDb(async (client) => {

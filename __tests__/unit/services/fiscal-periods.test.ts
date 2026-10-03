@@ -1,6 +1,6 @@
 /**
  * Tests for fiscalPeriodsService (ACCOUNTING_ARCHITECTURE_AUDIT.md §13
- * Critical finding - no period-locking mechanism existed at all). The
+ * Critical finding — no period-locking mechanism existed at all). The
  * blocking behavior itself lives in a DB trigger (migration 083) that isn't
  * exercised by mocked-query unit tests; these cover the service-layer
  * guards: reopen requires an existing closed period, and can't reopen an

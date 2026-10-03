@@ -3,7 +3,7 @@
  *
  * Every rule asserted here mirrors a CHECK constraint on funding_programs. The
  * DB is the real enforcement; these exist so a bad payload returns a clean 400
- * instead of a raw 23514 from Postgres - and so the two can never drift apart
+ * instead of a raw 23514 from Postgres — and so the two can never drift apart
  * silently, which is the failure mode CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md
  * was written about.
  *
@@ -36,7 +36,7 @@ const seedCapital = {
   repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] as const },
 };
 
-describe('CreateProgramSchema - non-repayable products (grants)', () => {
+describe('CreateProgramSchema — non-repayable products (grants)', () => {
   it('accepts a plain grant with no product terms at all', () => {
     expect(CreateProgramSchema.safeParse(grant).success).toBe(true);
   });
@@ -56,7 +56,7 @@ describe('CreateProgramSchema - non-repayable products (grants)', () => {
   });
 });
 
-describe('CreateProgramSchema - repayable products', () => {
+describe('CreateProgramSchema — repayable products', () => {
   it('accepts the reference Seed Capital product', () => {
     const result = CreateProgramSchema.safeParse(seedCapital);
     expect(result.success).toBe(true);
@@ -77,7 +77,7 @@ describe('CreateProgramSchema - repayable products', () => {
     expect(CreateProgramSchema.safeParse({ ...seedCapital, repaymentFrequency: 'none' }).success).toBe(false);
   });
 
-  it("rejects the source spec's 'declining_balance' - the codebase spells it 'reducing_balance'", () => {
+  it("rejects the source spec's 'declining_balance' — the codebase spells it 'reducing_balance'", () => {
     // A second spelling of the same accrual method is precisely what the
     // spec's own D3 forbids; loans_interest_method_check only allows these two.
     expect(CreateProgramSchema.safeParse({ ...seedCapital, interestMethod: 'declining_balance' }).success).toBe(false);
@@ -87,14 +87,14 @@ describe('CreateProgramSchema - repayable products', () => {
   it('treats interestRateAnnual as a percentage, not a 0-1 ratio', () => {
     // 12.5 means 12.5%. A ratio-shaped 0.125 is still a valid number here (it
     // just means 0.125%), so the guard that matters is that a realistic
-    // percentage above 1 is accepted - under the spec's numeric(5,4) ratio
+    // percentage above 1 is accepted — under the spec's numeric(5,4) ratio
     // this would have been impossible.
     expect(CreateProgramSchema.safeParse({ ...seedCapital, interestRateAnnual: 12.5 }).success).toBe(true);
     expect(CreateProgramSchema.safeParse({ ...seedCapital, interestRateAnnual: 36 }).success).toBe(true);
   });
 });
 
-describe('CreateProgramSchema - reserved but unimplemented options', () => {
+describe('CreateProgramSchema — reserved but unimplemented options', () => {
   it.each([
     ['capitalModel pass_through', { capitalModel: 'pass_through' as const }],
     ['lossBearer organization', { lossBearer: 'organization' as const, sharedLossRatio: undefined }],
@@ -117,7 +117,7 @@ describe('CreateProgramSchema - reserved but unimplemented options', () => {
   });
 });
 
-describe('CreateProgramSchema - shared ratios', () => {
+describe('CreateProgramSchema — shared ratios', () => {
   it("requires revenueShareRatio when revenueOwner is 'shared'", () => {
     expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'shared' }).success).toBe(false);
     expect(CreateProgramSchema.safeParse({ ...grant, revenueOwner: 'shared', revenueShareRatio: 0.3 }).success).toBe(

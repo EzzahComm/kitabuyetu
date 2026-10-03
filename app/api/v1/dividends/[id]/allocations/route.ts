@@ -8,7 +8,7 @@ interface RouteParams {
   params: Promise<{ id: string }>;
 }
 
-/** GET /api/v1/dividends/[id]/allocations - persisted (post-approval) allocations. */
+/** GET /api/v1/dividends/[id]/allocations — persisted (post-approval) allocations. */
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {

@@ -1,10 +1,10 @@
 /**
- * HR employee records (Phase 11 foundation). Platform-level - "Kitabu Yetu
+ * HR employee records (Phase 11 foundation). Platform-level — "Kitabu Yetu
  * manages its own people" (roadmap), not a tenant/group concern, so this
  * runs entirely on the admin pool with no TenantContext.
  *
  * hr_employees owns its own name/email/phone rather than requiring a
- * `members` row first (mirrors crm_contacts, Phase 9.1) - an HR record is
+ * `members` row first (mirrors crm_contacts, Phase 9.1) — an HR record is
  * created at hiring time, which routinely precedes or never reaches
  * platform-account creation. `member_id` is a nullable bridge, set only
  * once/if the employee is also given login access.
@@ -72,7 +72,7 @@ async function assertManagerExists(db: PoolClient, managerId: string, excludeId?
 
 /**
  * Transaction-agnostic core, taking an already-open client rather than
- * opening its own - so a caller that needs employee creation atomic with
+ * opening its own — so a caller that needs employee creation atomic with
  * something else (careers.service.ts's hireApplicant, which must not leave
  * an hr_employees row committed if linking it back to the application then
  * fails) can run both in one transaction. createEmployee() below is the
@@ -114,7 +114,7 @@ export async function createEmployee(actorId: string, data: CreateEmployeeInput)
   return withAdminDb((db) => createEmployeeWith(db, actorId, data));
 }
 
-/** Exported for careers.service.ts's hireApplicant - see createEmployeeWith's doc comment. */
+/** Exported for careers.service.ts's hireApplicant — see createEmployeeWith's doc comment. */
 export { createEmployeeWith };
 
 export async function listEmployees(filters?: {
@@ -203,7 +203,7 @@ export async function terminateEmployee(actorId: string, id: string, data: Termi
     }
 
     // Reports of a terminated manager lose that link rather than pointing
-    // at a former employee - same reasoning as the FK's ON DELETE SET NULL,
+    // at a former employee — same reasoning as the FK's ON DELETE SET NULL,
     // applied here since termination doesn't delete the row.
     await db.query(`UPDATE hr_employees SET manager_id = NULL WHERE manager_id = $1`, [id]);
 

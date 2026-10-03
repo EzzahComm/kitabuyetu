@@ -7,8 +7,8 @@ import { ok } from '@/lib/utils/response';
 import { parsePagination } from '@/lib/utils/pagination';
 
 /**
- * GET  /api/v1/organization/wallet             - wallet position + recent ledger
- * POST /api/v1/organization/wallet             - record a deposit (capital in)
+ * GET  /api/v1/organization/wallet             — wallet position + recent ledger
+ * POST /api/v1/organization/wallet             — record a deposit (capital in)
  *
  * organization_coordinator only (asserted in the service; RLS backs it up).
  */

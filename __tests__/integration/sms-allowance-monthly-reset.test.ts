@@ -104,7 +104,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_used).toBe(0);
   });
 
-  it('leaves usage alone mid-cycle - the job now runs every day', async () => {
+  it('leaves usage alone mid-cycle — the job now runs every day', async () => {
     // The regression that matters most after migration 151. Before it, this
     // job ran monthly and reset unconditionally; running that behaviour daily
     // would give every group a fresh allowance every night.
@@ -117,7 +117,7 @@ describe('sms_allowance_monthly_reset', () => {
     expect(s.sms_allowance_used).toBe(12);
   });
 
-  it('is idempotent within a cycle - a second run changes nothing', async () => {
+  it('is idempotent within a cycle — a second run changes nothing', async () => {
     await simulateCycleRollover(groupId);
     await setAllowanceState(groupId, 9, 0);
 
@@ -146,7 +146,7 @@ describe('sms_allowance_monthly_reset', () => {
     );
   });
 
-  it("leaves sms_allowance_reserved untouched - an in-flight reservation is not this job's job", async () => {
+  it("leaves sms_allowance_reserved untouched — an in-flight reservation is not this job's job", async () => {
     await setAllowanceState(groupId, 10, 4);
     await simulateCycleRollover(groupId);
 
@@ -166,7 +166,7 @@ describe('sms_allowance_monthly_reset', () => {
     await handleJob(RESET_JOB);
 
     const s = await allowanceStateOf(cancelled);
-    expect(s.sms_allowance_used).toBe(22); // untouched - no active subscription
+    expect(s.sms_allowance_used).toBe(22); // untouched — no active subscription
   });
 
   it('runs cleanly when nothing is due (idempotent, no error on an empty run)', async () => {

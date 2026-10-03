@@ -16,13 +16,13 @@ type Ctx = { params: Promise<{ id: string }> };
  *
  * Transitions a member's group_members.status with audit columns populated.
  * Reasons are mandatory for punitive transitions (suspend / reject /
- * blacklist / exit) - enforced in membersService.transitionStatus.
+ * blacklist / exit) — enforced in membersService.transitionStatus.
  */
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {
     requirePermission(auth, 'members.manage');
-    // Sensitive op (§2.5): governance actions re-check epochs - a demoted
+    // Sensitive op (§2.5): governance actions re-check epochs — a demoted
     // admin cannot suspend/blacklist members on a stale token. Re-verify
     // against the LIVE roles.permissions too, not just the token's claim.
     const freshPermissions = await assertAuthFresh(auth);

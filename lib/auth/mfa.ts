@@ -2,13 +2,13 @@
  * TOTP + recovery-code primitives for backoffice MFA.
  *
  * - TOTP via `otplib` v13's functional API (HMAC-SHA1, 30-second period,
- *   6 digits - RFC 6238 defaults that every authenticator app honours).
+ *   6 digits — RFC 6238 defaults that every authenticator app honours).
  * - Secret-at-rest encryption via AES-256-GCM keyed by ENCRYPTION_KEY.
  * - Recovery codes are bcrypt-hashed before storage; we never store the
  *   plaintext after the user has seen them at enrollment.
  *
  * Threat model bounds:
- *   - DB read alone is insufficient to bypass MFA - the attacker also
+ *   - DB read alone is insufficient to bypass MFA — the attacker also
  *     needs ENCRYPTION_KEY to decrypt the secret.
  *   - Recovery codes are single-use; consumed codes are removed from the
  *     array so a leaked enrollment screenshot is useful at most 10 times.
@@ -30,7 +30,7 @@ const IV_BYTES = 12;
 function getEncryptionKey(): Buffer {
   // The env validator guarantees >= 32 chars. We hash to exactly 32 bytes
   // so any string length input becomes a valid AES-256 key. If the user
-  // rotates ENCRYPTION_KEY, existing rows become undecryptable - that's
+  // rotates ENCRYPTION_KEY, existing rows become undecryptable — that's
   // by design (forces a re-enrollment).
   return crypto.createHash('sha256').update(env.ENCRYPTION_KEY).digest();
 }
@@ -92,7 +92,7 @@ export function verifyTotp(code: string, encryptedSecret: string): boolean {
   try {
     secret = decryptSecret(encryptedSecret);
   } catch {
-    return false; // corrupt blob or wrong key - treat as auth failure
+    return false; // corrupt blob or wrong key — treat as auth failure
   }
   return verifyTotpRaw(code, secret);
 }

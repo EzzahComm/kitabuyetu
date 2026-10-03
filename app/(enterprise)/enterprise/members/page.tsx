@@ -3,7 +3,7 @@
 /**
  * Customer members across every branch linked to this organization
  * (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4). New backend
- * (organization.service.ts's listMembers) - distinct from organization
+ * (organization.service.ts's listMembers) — distinct from organization
  * staff, which already had its own list (organization-members.service.ts).
  */
 import { useState } from 'react';

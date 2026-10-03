@@ -1,5 +1,5 @@
 /**
- * Ecosystem marketplace (Phase 13) - the eligibility matching engine
+ * Ecosystem marketplace (Phase 13) — the eligibility matching engine
  * (evaluateEligibility/evaluateRule existed since Phase 8 but were never
  * exercised by a test, since nothing called them until this pass wired
  * them up), the real group-data resolver that feeds it, and the generic
@@ -33,7 +33,7 @@ function opportunityWithRules(rules: unknown[]): Opportunity {
   return { eligibility_rules: { rules } } as unknown as Opportunity;
 }
 
-describe('evaluateEligibility - rule types', () => {
+describe('evaluateEligibility — rule types', () => {
   it('range: before_or_equal passes when the group is old enough', async () => {
     const opp = opportunityWithRules([
       {

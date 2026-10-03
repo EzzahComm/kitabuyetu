@@ -14,12 +14,12 @@ interface RouteParams {
  * Undoes a committed import. Rollback semantics differ by kind:
  *  - members:       hard DELETE created members; fall back to removing the
  *                   group membership if the member has downstream rows.
- *  - contributions: soft-cancel (UPDATE status='cancelled') - preserves
+ *  - contributions: soft-cancel (UPDATE status='cancelled') — preserves
  *                   audit trail per the financial integrity rule.
  *  - loans:         hard DELETE; blocked per-id if the loan has any
  *                   completed repayments.
  *
- * Body: { reason?: string }. Restricted to chairperson - rollback is a
+ * Body: { reason?: string }. Restricted to chairperson — rollback is a
  * destructive bulk operation and shouldn't be available to secretaries.
  */
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {

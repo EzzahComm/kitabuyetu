@@ -1,5 +1,5 @@
 /**
- * ApprovalPolicy - the first Configuration Service domain wired end-to-end
+ * ApprovalPolicy — the first Configuration Service domain wired end-to-end
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.5 names AccountingPolicy/LoanPolicy
  * as the two domains to build first; ApprovalPolicy is the accounting-side
  * proof). Unifies three flat, independent columns §25's Policy Inheritance &
@@ -11,7 +11,7 @@
  *
  * `journal_threshold` is the one key with a DB-level enforcement backstop
  * (migration 081's assert_journal_maker_checker trigger, reading
- * groups.journal_approval_threshold directly) - deliberately left
+ * groups.journal_approval_threshold directly) — deliberately left
  * untouched, since it is the authoritative, already-proven guard against a
  * bypassed application check. Rather than teach that trigger to resolve a
  * cascade itself, every write here keeps the flat column in sync as a
@@ -47,7 +47,7 @@ export interface EffectiveThreshold {
   source: PolicySource;
 }
 
-/** Used inline by accounting/disbursement services - no route/role concerns, just a read. */
+/** Used inline by accounting/disbursement services — no route/role concerns, just a read. */
 export async function getEffectiveThreshold(
   client: PoolClient,
   key: ApprovalPolicyKey,
@@ -62,7 +62,7 @@ export async function getEffectiveThreshold(
  * read) in sync with whatever the resolver now says is effective, for every
  * group actually affected by the scope that just changed. Deliberately
  * simple (one query to find affected groups, then a loop) rather than a
- * single set-based UPDATE - correct and easy to verify at today's scale;
+ * single set-based UPDATE — correct and easy to verify at today's scale;
  * revisit if the platform reaches enough tenants for this to matter.
  */
 async function syncJournalThresholdColumn(
@@ -118,7 +118,7 @@ async function syncJournalThresholdColumn(
       groupId,
     ]);
 
-    // Record audit log for journal threshold sync - system-triggered
+    // Record audit log for journal threshold sync — system-triggered
     await client.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -158,7 +158,7 @@ export const approvalPolicyService = {
   /**
    * Sets a group-level override. Access is gated at the route (withRole(req,
    * 'treasurer', ...)), same as every other accounting-settings endpoint
-   * (fiscal periods, journals, accounts) - not re-checked here.
+   * (fiscal periods, journals, accounts) — not re-checked here.
    */
   async setGroupOverride(ctx: TenantContext, key: ApprovalPolicyKey, threshold: number): Promise<void> {
     if (key === 'org_disbursement_threshold') {
@@ -199,7 +199,7 @@ export const approvalPolicyService = {
   },
 
   /**
-   * Sets an organization-level override - either the organization's own
+   * Sets an organization-level override — either the organization's own
    * disbursement threshold, or a default the organization imposes on every
    * group it oversees (which any of those groups can still override
    * locally, per the cascade).
@@ -216,7 +216,7 @@ export const approvalPolicyService = {
     });
   },
 
-  /** Platform-wide defaults - super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide defaults — super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformPolicies(client: PoolClient): Promise<EffectiveThreshold[]> {
     const keys: ApprovalPolicyKey[] = [
       'journal_threshold',
@@ -237,7 +237,7 @@ export const approvalPolicyService = {
     return results;
   },
 
-  /** Platform-wide default - super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
   async setPlatformDefault(
     userId: string,
     client: PoolClient,

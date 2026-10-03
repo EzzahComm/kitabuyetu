@@ -1,6 +1,6 @@
 /**
  * Group registration + contribution plan under the real `app_tenant` role, so
- * Postgres's own RLS decides - not a service-layer WHERE clause.
+ * Postgres's own RLS decides — not a service-layer WHERE clause.
  *
  * What this pins, because production's policies say so (migration-era
  * `groups_update` / `policies_insert`):
@@ -43,7 +43,7 @@ describe('group registration + contribution plan (real Postgres, app_tenant RLS)
     await resetDatabase();
   });
 
-  it('is actually connected as app_tenant (no BYPASSRLS, no superuser) - not the admin pool', async () => {
+  it('is actually connected as app_tenant (no BYPASSRLS, no superuser) — not the admin pool', async () => {
     const [role] = await withDb(chair(), async (client) => {
       const { rows } = await client.query<{ rolname: string; rolbypassrls: boolean; rolsuper: boolean }>(
         'SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user',
@@ -73,7 +73,7 @@ describe('group registration + contribution plan (real Postgres, app_tenant RLS)
     });
   });
 
-  it('refuses a treasurer - the groups_update policy filters the UPDATE out - and changes nothing', async () => {
+  it('refuses a treasurer — the groups_update policy filters the UPDATE out — and changes nothing', async () => {
     await expect(
       groupRegistrationService.setStatus(treasurer(), { isGovernmentRegistered: false, registrationNumber: null }),
     ).rejects.toThrow('Group not found');

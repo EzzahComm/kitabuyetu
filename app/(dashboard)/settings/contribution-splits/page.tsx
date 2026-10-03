@@ -30,7 +30,7 @@ interface ServerSplit {
 const ACCOUNT_SUGGESTIONS: { code: string; name: string }[] = [
   { code: '2101', name: 'Member Savings' },
   { code: '4001', name: 'Member Contributions' },
-  { code: '4002', name: 'Interest Income - Loans' },
+  { code: '4002', name: 'Interest Income — Loans' },
   { code: '4003', name: 'Registration Fees' },
   { code: '4004', name: 'Other Income' },
 ];
@@ -88,7 +88,7 @@ export default function ContributionSplitsPage() {
       }
     }
     if (pctTotal > 100.01) {
-      toast({ variant: 'destructive', title: `Percentages total ${pctTotal.toFixed(2)}% - must be ≤ 100` });
+      toast({ variant: 'destructive', title: `Percentages total ${pctTotal.toFixed(2)}% — must be ≤ 100` });
       return;
     }
 
@@ -145,7 +145,7 @@ export default function ContributionSplitsPage() {
         <div className="space-y-3">
           {rows.length === 0 && (
             <p className="text-sm text-muted-foreground">
-              No splits configured - 100% goes to {DEFAULT_CODE} (Member Contributions).
+              No splits configured — 100% goes to {DEFAULT_CODE} (Member Contributions).
             </p>
           )}
           {rows.map((row, i) => (
@@ -204,7 +204,7 @@ export default function ContributionSplitsPage() {
           <datalist id="account-codes">
             {ACCOUNT_SUGGESTIONS.map((a) => (
               <option key={a.code} value={a.code}>
-                {a.code} - {a.name}
+                {a.code} — {a.name}
               </option>
             ))}
           </datalist>

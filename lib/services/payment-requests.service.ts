@@ -1,5 +1,5 @@
 /**
- * Payment requests (payment architecture §3.6) - purpose linkage for STK and
+ * Payment requests (payment architecture §3.6) — purpose linkage for STK and
  * PayBill allocation. Requests are an OPTIMIZATION, never a dependency:
  * incoming payments always allocate even with no request (tiers A7/A8).
  *
@@ -158,7 +158,7 @@ export const paymentRequestsService = {
 // ─── Allocation-engine + job plumbing (admin context) ───────────────────────
 
 /**
- * Open, unexpired requests for a membership - the A2/A4/A5 inputs.
+ * Open, unexpired requests for a membership — the A2/A4/A5 inputs.
  * Expiry filtering here implements A6 even between expiry-job runs.
  */
 export async function findOpenRequests(db: PoolClient, membershipId: string): Promise<OpenPaymentRequest[]> {
@@ -196,7 +196,7 @@ export async function fulfilRequest(db: PoolClient, requestId: string, paymentId
   );
 }
 
-/** Expiry sweep (job: payment_requests_expire) - feeds decision rule A6. */
+/** Expiry sweep (job: payment_requests_expire) — feeds decision rule A6. */
 export async function expireDueRequests(): Promise<{ expired: number }> {
   return withAdminDb(async (db) => {
     const { rowCount } = await db.query(

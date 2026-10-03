@@ -1,14 +1,14 @@
 /**
  * Self-service forgot-password for backoffice staff (super_admin / support /
- * organization_coordinator) - closes the gap flagged in
+ * organization_coordinator) — closes the gap flagged in
  * docs/audits/ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md §4/§10 Phase 1:
  * password-reset.service.ts's SMS-OTP flow only ever looked up `members` by
  * `phone`, so a staff account (email/password, per AdminLoginSchema's own
- * comment - "staff identities are issued + recovered via email, never
+ * comment — "staff identities are issued + recovered via email, never
  * phone") had no self-service recovery path at all.
  *
  * Reuses `members.reset_otp_hash/reset_otp_expires_at/reset_otp_attempts`
- * (migration 104) rather than adding new columns - those columns are
+ * (migration 104) rather than adding new columns — those columns are
  * generic "one in-flight reset attempt per member" storage, not
  * phone-specific, and staff rows live in the same `members` table (see
  * app/api/v1/auth/admin/login/route.ts). The secret itself is an emailed
@@ -34,7 +34,7 @@ const GENERIC_ERROR = 'Invalid or expired reset link';
 
 const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'];
 
-// See password-reset.service.ts's RESET_START_MIN_MS - same rationale: the
+// See password-reset.service.ts's RESET_START_MIN_MS — same rationale: the
 // email-send branch is awaited only when a matching staff account exists.
 const RESET_START_MIN_MS = 1500;
 
@@ -43,7 +43,7 @@ function buildResetUrl(token: string): string {
   return `${base}/admin-login/reset-password?token=${token}`;
 }
 
-/** Always resolves without error, whether or not the email belongs to a staff account - by timing or otherwise. */
+/** Always resolves without error, whether or not the email belongs to a staff account — by timing or otherwise. */
 export async function startAdminPasswordReset(email: string): Promise<void> {
   await enforceMinDuration(RESET_START_MIN_MS, () => doStartAdminPasswordReset(email));
 }
@@ -85,7 +85,7 @@ async function doStartAdminPasswordReset(email: string): Promise<void> {
     return rows[0];
   });
 
-  if (!staff) return; // no staff account for this email - stay silent
+  if (!staff) return; // no staff account for this email — stay silent
 
   await sendPasswordResetEmail({
     email: normalized,

@@ -1,5 +1,5 @@
 /**
- * Super-admin management of ORGANIZATIONS - the federating bodies (banks,
+ * Super-admin management of ORGANIZATIONS — the federating bodies (banks,
  * SACCOs, foundations) that oversee many groups via organization_group_access.
  *
  * Distinct from admin.service.ts, which manages GROUPS (the platform tenants).
@@ -96,13 +96,13 @@ export async function listOrganizations(params: OrgListParams) {
 }
 
 /**
- * Side-by-side comparison rollup across every active organization -
+ * Side-by-side comparison rollup across every active organization —
  * SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3. Reuses listOrganizations' own
  * group_count/member_reach/wallet SQL shape and adds each org's average
  * governance health score (governance_health_scores, Phase 2), averaged
  * across the groups it oversees via organization_group_access. Unpaginated
  * (organizations are a small federating-body count, not a tenant-scale
- * list) - capped defensively rather than exposed as a page param.
+ * list) — capped defensively rather than exposed as a page param.
  */
 export async function compareOrganizations() {
   return withAdminDb(async (db: PoolClient) => {
@@ -145,7 +145,7 @@ export async function compareOrganizations() {
 /**
  * One organization with its summary, the groups it oversees (each with a
  * member/contribution rollup), and the pool of active groups not yet assigned
- * - everything the detail + assignment UI needs in a single call.
+ * — everything the detail + assignment UI needs in a single call.
  */
 export async function getOrganizationDetail(orgId: string) {
   return withAdminDb(async (db: PoolClient) => {
@@ -166,7 +166,7 @@ export async function getOrganizationDetail(orgId: string) {
         -- LATERAL per child table, not a flat multi-table LEFT JOIN: a plain
         -- join of group_members alongside contributions fans every
         -- contribution row out across every member row before SUM runs,
-        -- inflating total_contributions by (active member count) - same bug
+        -- inflating total_contributions by (active member count) — same bug
         -- class as admin.service.ts's getGroupById/listGroups, proven live
         -- there (99x on a real group).
         SELECT
@@ -365,7 +365,7 @@ export async function assignGroupToOrganization(
         grantedBy,
         isNew ? 'organization_group_access.create' : 'organization_group_access.update',
         'organization_group_access',
-        // resource_id is UUID - organization_group_access has no natural
+        // resource_id is UUID — organization_group_access has no natural
         // single-id key on insert (it's a composite orgId+groupId row), so
         // this is null rather than the invalid "orgId:groupId" string this
         // used to fall back to.

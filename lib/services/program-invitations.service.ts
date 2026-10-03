@@ -2,12 +2,12 @@
  * Organization-initiated invitations for a group to join a program. Mirrors
  * organization-group-links.service.ts's request/respond shape, but the
  * initiating side is reversed: the organization invites, the group's
- * chairperson accepts or declines. No platform-admin gate - the spec is
+ * chairperson accepts or declines. No platform-admin gate — the spec is
  * explicit that routine program membership doesn't need Kitabu Yetu
  * approval, only the two parties involved.
  *
  * Acceptance activates a program_memberships row via
- * activateProgramMembership - see programs.service.ts.
+ * activateProgramMembership — see programs.service.ts.
  */
 import { DatabaseError, type PoolClient } from 'pg';
 import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
@@ -155,7 +155,7 @@ export const programInvitationsService = {
     });
   },
 
-  /** Group chairperson accepts - idempotent, activates a program_memberships row. */
+  /** Group chairperson accepts — idempotent, activates a program_memberships row. */
   async acceptInvitation(
     ctx: TenantContext,
     id: string,

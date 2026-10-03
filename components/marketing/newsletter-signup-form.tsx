@@ -7,7 +7,7 @@ import { useSubscribeNewsletter } from '@/hooks/use-newsletter';
 import { getErrorMessage } from '@/lib/utils';
 
 interface NewsletterSignupFormProps {
-  /** Where this form is mounted - lets the admin subscriber list distinguish footer vs. in-article signups. */
+  /** Where this form is mounted — lets the admin subscriber list distinguish footer vs. in-article signups. */
   source: string;
   className?: string;
   /** `inset` puts the button inside a full-width field, as the Finanza footer does. */

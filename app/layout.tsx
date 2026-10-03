@@ -9,13 +9,13 @@ import { finanzaDark } from '@/lib/ui/finanza-palette';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
-// The marketing display face (Jost) is NOT loaded here - it lives in
+// The marketing display face (Jost) is NOT loaded here — it lives in
 // components/marketing/display-font.ts, applied only at marketing entry
 // points. It used to load in this root layout and apply to every route via
 // <body>, so all 80 authenticated routes (which never render it) preload-
 // hinted 117.9KB of a font they don't use (docs/audits/optimization-2026-09).
 
-// Monospace for figures, account references, and receipt numbers - the ledger
+// Monospace for figures, account references, and receipt numbers — the ledger
 // detail that makes financial data feel precise.
 const dmMono = DM_Mono({
   subsets: ['latin'],
@@ -33,17 +33,17 @@ export const viewport: Viewport = {
 };
 
 const TAGLINE = BRAND_TAGLINE;
-const LONG_DESCRIPTION = `Kitabu Yetu - ${BRAND_TAGLINE}. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.`;
+const LONG_DESCRIPTION = `Kitabu Yetu — ${BRAND_TAGLINE}. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.`;
 
 export const metadata: Metadata = {
   // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is
-  // unset. The previous fallback was 'https://kitabuyetu.com' - a domain this
-  // platform does not own (the site is kitabuyetu.vercel.app) - so a missing env
+  // unset. The previous fallback was 'https://kitabuyetu.com' — a domain this
+  // platform does not own (the site is kitabuyetu.vercel.app) — so a missing env
   // var would have silently pointed every canonical link and OG image at
   // somebody else's domain. Next resolves relative URLs and warns instead,
   // which is a visible degradation rather than a confident wrong answer.
   metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
-  title: { default: `Kitabu Yetu - ${TAGLINE}`, template: '%s | Kitabu Yetu' },
+  title: { default: `Kitabu Yetu — ${TAGLINE}`, template: '%s | Kitabu Yetu' },
   description: LONG_DESCRIPTION,
   applicationName: 'Kitabu Yetu',
   keywords: [

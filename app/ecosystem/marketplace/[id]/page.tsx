@@ -32,7 +32,7 @@ export async function generateMetadata({ params }: OpportunityDetailPageProps): 
 
   return marketingMetadata({
     path: `/ecosystem/marketplace/${id}`,
-    title: `${opportunity.title} - Marketplace`,
+    title: `${opportunity.title} — Marketplace`,
     description: opportunity.description,
   });
 }
@@ -47,7 +47,7 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
 
   const amountDisplay =
     opportunity.amount_min && opportunity.amount_max
-      ? `${opportunity.currency} ${opportunity.amount_min.toLocaleString()} - ${opportunity.amount_max.toLocaleString()}`
+      ? `${opportunity.currency} ${opportunity.amount_min.toLocaleString()} – ${opportunity.amount_max.toLocaleString()}`
       : opportunity.amount_min
         ? `From ${opportunity.currency} ${opportunity.amount_min.toLocaleString()}`
         : 'Variable amount';
@@ -55,7 +55,7 @@ async function OpportunityDetailPage({ params }: OpportunityDetailPageProps) {
   return (
     <PageShell
       title={opportunity.title}
-      description={`${TYPE_LABELS[opportunity.opportunity_type] || opportunity.opportunity_type}${partner ? ` - Offered by ${partner.name}` : ''}`}
+      description={`${TYPE_LABELS[opportunity.opportunity_type] || opportunity.opportunity_type}${partner ? ` · Offered by ${partner.name}` : ''}`}
     >
       <div className="not-prose grid grid-cols-1 gap-8 lg:grid-cols-3">
         <div className="lg:col-span-2 space-y-6">

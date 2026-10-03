@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Heart, Building2, ShoppingBag, ListChecks, BarChart3, Users, DollarSign, Globe } from 'lucide-react';
+import { Banknote, Building2, BarChart3, Globe, Heart, ListChecks, ShoppingBag, Users } from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -17,11 +17,11 @@ export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem',
   title: 'The Ecosystem',
   description:
-    'Donors, multigroup organizations, the marketplace and funded programs - the people and institutions that work with groups on Kitabu Yetu.',
+    'Donors, multigroup organizations, the marketplace and funded programs — the people and institutions that work with groups on Kitabu Yetu.',
 });
 
 /**
- * The Kitabu Yetu Ecosystem - four pillars beyond the core products.
+ * The Kitabu Yetu Ecosystem — four pillars beyond the core products.
  *
  * Expanded from the live data-driven pillar grid to include full Benefits
  * sections for each pillar, ported from the template. This shows the vision
@@ -69,7 +69,7 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-finanza-dark">Bookkeeper</h3>
               <p className="mt-2 text-sm text-finanza-text">
-                The core ledger - contributions, loans, welfare and shares on one double-entry book.
+                The core ledger — contributions, loans, welfare and shares on one double-entry book.
               </p>
             </Link>
             <Link
@@ -78,7 +78,7 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-finanza-dark">Chama Reminder / Kumbusha</h3>
               <p className="mt-2 text-sm text-finanza-text">
-                Member management and messaging - reminders, announcements and engagement, standalone or with
+                Member management and messaging — reminders, announcements and engagement, standalone or with
                 Bookkeeper.
               </p>
             </Link>
@@ -88,7 +88,7 @@ export default function EcosystemPage() {
             >
               <h3 className="font-semibold text-finanza-dark">Fundraise</h3>
               <p className="mt-2 text-sm text-finanza-text">
-                M-Pesa campaigns for causes, projects and community fundraising - reviewed before they go live.
+                M-Pesa campaigns for causes, projects and community fundraising — reviewed before they go live.
               </p>
             </Link>
           </div>
@@ -120,7 +120,7 @@ const donors = {
     {
       title: 'The group keeps its own book',
       desc: "Funding is one part of a group's record, not a separate system the treasurer has to keep in step.",
-      icon: <DollarSign size={24} />,
+      icon: <Banknote size={24} />,
     },
   ],
 };
@@ -151,7 +151,7 @@ const multigroup = {
 
 const marketplace = {
   title: 'Marketplace',
-  desc: "Groups already buy things together - inputs, stock, services, insurance. The marketplace is where those offers meet the groups, matched against a group's own record.",
+  desc: "Groups already buy things together — inputs, stock, services, insurance. The marketplace is where those offers meet the groups, matched against a group's own record.",
   image: PHOTOS.memberPhone.src,
   imageAlt: PHOTOS.memberPhone.alt,
   bullets: [
@@ -163,11 +163,11 @@ const marketplace = {
     {
       title: "Paid for from the group's account",
       desc: "A purchase the group makes is a transaction in the group's book like any other.",
-      icon: <DollarSign size={24} />,
+      icon: <Banknote size={24} />,
     },
     {
       title: 'Matched to what a group can show',
-      desc: 'Each offer can set its own criteria - how long a group has run, its type, its county, its balance - so a group sees where it stands before it applies.',
+      desc: 'Each offer can set its own criteria — how long a group has run, its type, its county, its balance — so a group sees where it stands before it applies.',
       icon: <ListChecks size={24} />,
     },
   ],
@@ -186,8 +186,8 @@ const programs = {
     },
     {
       title: 'Disbursements that leave a trail',
-      desc: 'What went out, to which group, and what it was for - recorded when it happens rather than reconstructed later.',
-      icon: <DollarSign size={24} />,
+      desc: 'What went out, to which group, and what it was for — recorded when it happens rather than reconstructed later.',
+      icon: <Banknote size={24} />,
     },
     {
       title: 'Reports the funder can check',

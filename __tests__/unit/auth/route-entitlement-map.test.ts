@@ -9,7 +9,7 @@
  *
  * The default is CLOSED (kitabu_yetu), so a correct new Kitabu Yetu route needs
  * no map edit at all. That means the only edits that ever reach the map are the
- * ones worth reviewing - which is exactly what test C surfaces.
+ * ones worth reviewing — which is exactly what test C surfaces.
  */
 import * as fs from 'fs';
 import * as path from 'path';
@@ -42,7 +42,7 @@ describe('route entitlement map', () => {
   describe('resolution', () => {
     const cases: Array<[string, RouteEntitlement]> = [
       // The collision trio. '/api/v1/me' is a listed prefix, and bare
-      // startsWith matching made it swallow BOTH of the others - which is how
+      // startsWith matching made it swallow BOTH of the others — which is how
       // /members and /meetings stayed open to unpaid groups after migration 139
       // shipped the lock. Segment-aware matching is what separates them.
       ['/api/v1/me/wallet', 'open'],
@@ -62,7 +62,7 @@ describe('route entitlement map', () => {
       ['/api/v1/webhooks/textsms', 'open'],
       ['/api/v1/daraja/b2c/result', 'open'],
 
-      // The shared surface - this is the Chama Reminder product.
+      // The shared surface — this is the Chama Reminder product.
       ['/api/v1/sms', 'any'],
       ['/api/v1/sms/campaign', 'any'],
       ['/api/v1/sms/birthdays', 'any'],
@@ -123,7 +123,7 @@ describe('route entitlement map', () => {
   //
   // Checked in as explicit lists, not counts: a PR that accidentally relaxes
   // /api/v1/loans should show the reviewer the exact path in the diff rather
-  // than a number going up by one. Both lists are deliberately narrow - the
+  // than a number going up by one. Both lists are deliberately narrow — the
   // ~94 kitabu_yetu routes are the default and need no enumeration.
 
   it('exactly these real routes make up the shared, both-products surface', () => {
@@ -132,7 +132,7 @@ describe('route entitlement map', () => {
       .sort();
 
     // This IS the Chama Reminder product surface. Adding to it means deciding
-    // that a communication-only group - which has no chart of accounts - may
+    // that a communication-only group — which has no chart of accounts — may
     // reach that route. Nothing financial belongs here.
     expect(shared).toEqual([
       '/api/v1/members',
@@ -144,7 +144,7 @@ describe('route entitlement map', () => {
       '/api/v1/sms/balance',
       '/api/v1/sms/birthdays',
       '/api/v1/sms/bulk',
-      // The preview for the send directly above it - same audience, same
+      // The preview for the send directly above it — same audience, same
       // pricing, no write. If /sms/bulk is reachable, so must be the thing
       // that tells you what it will cost.
       '/api/v1/sms/bulk/preview',
@@ -165,7 +165,7 @@ describe('route entitlement map', () => {
       '/api/v1/sms/opt-outs',
       '/api/v1/sms/preferences',
       // Same reasoning as opt-outs, and arguably stronger: reminder history IS
-      // the Chama Reminder product - a communication-only group needs to see
+      // the Chama Reminder product — a communication-only group needs to see
       // which automations ran for which member, including the suppressed rows
       // that evidence an opt-out was honoured. Reads reminder_dispatch_log
       // only; nothing financial is reachable through it.

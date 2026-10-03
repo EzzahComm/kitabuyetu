@@ -42,7 +42,7 @@ import { TestimonialCarousel, type Testimonial } from './testimonial-carousel';
 /**
  * The template's counters show invented totals ("1234 Happy Clients"). The
  * about page commits to publishing verified usage numbers only once they
- * exist, so these are facts the product can already stand behind - and the
+ * exist, so these are facts the product can already stand behind — and the
  * prices are read from the billing constants, not retyped.
  */
 export const KITABU_FACTS: Fact[] = [
@@ -237,7 +237,7 @@ export function CtaBand({
   id,
   title = 'Walk into your next meeting with the books already balanced.',
   subtitle = 'Set up in minutes. Bring your old records with you.',
-  footnote = 'Month to month - Pay by M-Pesa - Cancel anytime',
+  footnote = 'Month to month · Pay by M-Pesa · Cancel anytime',
   showPlanPrices = true,
   primary,
 }: CtaBandProps) {
@@ -258,8 +258,8 @@ export function CtaBand({
             <p className="mt-3 text-lg text-white/90">{subtitle}</p>
             {showPlanPrices && (
               <p className="mt-4 text-white/90">
-                Bookkeeper from KES {PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month - Chama Reminder from KES{' '}
-                {PLAN_MONTHLY_FEES.chama_reminder.starter}/month -{' '}
+                Bookkeeper from KES {PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Chama Reminder from KES{' '}
+                {PLAN_MONTHLY_FEES.chama_reminder.starter}/month ·{' '}
                 <Link href={ROUTES.pricing} className="font-medium underline underline-offset-4 hover:text-white">
                   View pricing
                 </Link>
@@ -268,7 +268,7 @@ export function CtaBand({
           </div>
           <div className="flex w-full flex-col items-stretch gap-3 sm:w-auto sm:flex-row lg:flex-col xl:flex-row">
             <a href={primary?.href ?? signUpUrl()} className={btnOnPrimary}>
-              {primary?.label ?? `Start your group - from KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}`}
+              {primary?.label ?? `Start your group — from KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}`}
             </a>
             <Link
               href={ROUTES.contact}
@@ -289,7 +289,7 @@ const teamPanel =
 
 /**
  * Finanza's `.team-item`: the photo framed by a bordered panel that floods
- * primary on hover. Only the founder is named - see app/about/team/page.tsx
+ * primary on hover. Only the founder is named — see app/about/team/page.tsx
  * for why no one else is, until they have an approved bio and photo.
  */
 export function FounderCard() {
@@ -356,7 +356,7 @@ export function CustomerPathsSection({ id }: { id?: string }) {
         align="center"
         pill="Who It's For"
         title="Pick your path."
-        lede="One group or a hundred - there's a plan built for you."
+        lede="One group or a hundred — there's a plan built for you."
         className="mb-12"
       />
       <div className="grid gap-6 lg:grid-cols-2">
@@ -395,7 +395,7 @@ export function CustomerPathsSection({ id }: { id?: string }) {
   );
 }
 
-/** What a member sees in their own portal (app/(member)/me) - see MEMBER_BENEFITS. */
+/** What a member sees in their own portal (app/(member)/me) — see MEMBER_BENEFITS. */
 export function MemberBenefitsSection() {
   return (
     <FinanzaSection labelledBy="members-heading">
@@ -404,7 +404,7 @@ export function MemberBenefitsSection() {
           <FinanzaHeading
             id="members-heading"
             pill="For Every Member"
-            title="No more "nisaidie na balance yangu.""
+            title="No more “nisaidie na balance yangu.”"
             lede="Members check their own savings, loans and statements. Fewer questions at meetings. Treasurers get their evenings back."
           />
           <a href={signUpUrl()} className={cn(btnPrimary, 'mt-8')}>
@@ -430,7 +430,7 @@ export function MemberBenefitsSection() {
   );
 }
 
-/** Shipped controls only - see the note on CONTROLS. Dark band so it reads as its own moment. */
+/** Shipped controls only — see the note on CONTROLS. Dark band so it reads as its own moment. */
 export function TrustSection({ id }: { id?: string }) {
   return (
     <section id={id} aria-labelledby="trust-heading" className="scroll-mt-28 bg-finanza-dark py-16 lg:py-24">
@@ -480,7 +480,7 @@ export function FaqSection({ id }: { id?: string }) {
             id="faq-heading"
             pill="FAQ"
             title="Questions groups ask us first."
-            lede="Still unsure? Ask us on WhatsApp - we speak treasurer."
+            lede="Still unsure? Ask us on WhatsApp — we speak treasurer."
           />
           <div className="mt-8 flex flex-wrap gap-4">
             <Link href={ROUTES.support} className={btnPrimary}>
@@ -526,15 +526,15 @@ interface CommunityCard {
 /**
  * Every point is a shipped behaviour already stated elsewhere on the site
  * (support FAQ, MEMBER_BENEFITS, CONTROLS). VSLAs and youth groups register as
- * an ordinary group type - there is no special mode for either, so none is claimed.
+ * an ordinary group type — there is no special mode for either, so none is claimed.
  */
 const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: "Women's savings groups & VSLAs",
-    title: 'The savings, the loans and the social fund - in one book.',
+    title: 'The savings, the loans and the social fund — in one book.',
     body: 'Meet the way you always have. The record lives in one shared book.',
     points: [
-      'Record cash by hand - M-Pesa payments record themselves',
+      'Record cash by hand — M-Pesa payments record themselves',
       'Loans, repayments and welfare tracked member by member',
       'Every member checks her own balance',
     ],
@@ -547,7 +547,7 @@ const COMMUNITIES: CommunityCard[] = [
     points: [
       'An M-Pesa prompt to contribute or repay, straight to the phone',
       'Contribution reminders that go out on their own, by SMS',
-      'Officials manage the group - members see only their own record',
+      'Officials manage the group — members see only their own record',
     ],
     photo: PHOTOS.memberPhone,
   },
@@ -632,7 +632,7 @@ export async function LatestPostsSection({ id }: { id?: string }) {
 }
 
 /**
- * Live Changi$ha campaigns - or, when none are live, the most recent finished
+ * Live Changi$ha campaigns — or, when none are live, the most recent finished
  * ones. The service is imported lazily inside try/catch (as app/sitemap.ts
  * does): it validates DB env on load, and a build or preview without a
  * database must render the page without this section rather than fail.

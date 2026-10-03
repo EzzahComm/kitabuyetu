@@ -1,11 +1,11 @@
 /**
- * Email trigger engine - mirrors SMS trigger infrastructure (lib/sms/trigger-engine.ts)
+ * Email trigger engine — mirrors SMS trigger infrastructure (lib/sms/trigger-engine.ts)
  * but dispatches to email_campaigns instead of smsService.
  *
  * Three key invariants:
- * 1. Emitting never throws - an event failure never rolls back the triggering action
+ * 1. Emitting never throws — an event failure never rolls back the triggering action
  * 2. Exactly-once per (rule, event) via UNIQUE (rule_id, event_id)
- * 3. Terminal rows stay terminal - execution rows transition 'pending' → final state once only
+ * 3. Terminal rows stay terminal — execution rows transition 'pending' → final state once only
  *
  * Reuses:
  * - lib/sms/conditions.ts (condition DSL is channel-agnostic)
@@ -130,7 +130,7 @@ async function recordFrequencyCapExecution(
  * Emit an email trigger event: load matching rules, evaluate conditions, enforce frequency caps,
  * and hand off dispatch to the existing email_campaigns / drainCampaignRecipients machinery.
  *
- * Never throws - failures are caught and logged, never bubbled up.
+ * Never throws — failures are caught and logged, never bubbled up.
  */
 export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<EmailTriggerEmitSummary> {
   const summary: EmailTriggerEmitSummary = {
@@ -200,7 +200,7 @@ export async function emitEmailTriggerEvent(event: BusinessEvent): Promise<Email
 
           // Look up the email_templates row for this key (group override, then
           // platform default), then render {{vars}} into its subject + body.
-          // NOTE: this used to call renderTemplate(rule.template_key, ...) -
+          // NOTE: this used to call renderTemplate(rule.template_key, ...) —
           // substituting into the KEY STRING itself instead of a template body,
           // since renderTemplate() takes template text, not a lookup key (see
           // lib/sms/trigger-engine.ts's loadTemplateBody for the pattern this
@@ -297,7 +297,7 @@ interface EmailTemplateBody {
 /**
  * Group override first, then a platform-wide (group_id IS NULL) template.
  * Mirrors lib/sms/trigger-engine.ts's loadTemplateBody, but email has no
- * compiled-in DEFAULT_TEMPLATES fallback - an unknown key here means the
+ * compiled-in DEFAULT_TEMPLATES fallback — an unknown key here means the
  * rule's author never created the template, so skip loudly (caller logs)
  * rather than mailing something.
  */

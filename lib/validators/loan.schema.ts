@@ -5,7 +5,7 @@ import { z } from 'zod';
  *
  * Spellings are borrowed, not invented: 'weekly'/'monthly'/'quarterly' match
  * REPAYMENT_FREQUENCIES on the organization side, and 'biweekly' matches the
- * meeting_frequency enum. The org list's 'none' and 'bullet' are excluded -
+ * meeting_frequency enum. The org list's 'none' and 'bullet' are excluded —
  * neither yields an amortisation schedule, and every loan must have one.
  *
  * Must stay in sync with loans_repayment_frequency_check.
@@ -33,7 +33,7 @@ export const ApplyLoanSchema = z.object({
    * Borrower. Omit for a self-application; supply it to apply on behalf of
    * another member, which POST /loans gates on `loans.approve`.
    * Added because the loans page has always had a member picker whose value
-   * the server discarded - apply() hardcoded ctx.userId, so an officer filling
+   * the server discarded — apply() hardcoded ctx.userId, so an officer filling
    * the form for someone else would have silently created the loan against
    * themselves (it never got that far: the form also sent `termMonths`, so the
    * request 400'd before reaching the service).
@@ -46,7 +46,7 @@ export const ApplyLoanSchema = z.object({
    *
    * 100 was generous for a monthly rate. Read annually it forbids ordinary
    * chama pricing: migration 148's own text calls 10% per month "the norm for
-   * chama lending in this market", which is 120% a year - rejected with a 400.
+   * chama lending in this market", which is 120% a year — rejected with a 400.
    * The enterprise funding form already labels this field "annual %" and
    * placeholders it at 120, so the two surfaces disagreed about what was even
    * enterable. 300 (25%/month equivalent) stays well clear of real pricing
@@ -54,7 +54,7 @@ export const ApplyLoanSchema = z.object({
    */
   interestRate: z.number().min(0).max(300),
   loanTermMonths: z.number().int().min(1).max(120),
-  /** Omit and the loan repays monthly - the only behaviour that existed before
+  /** Omit and the loan repays monthly — the only behaviour that existed before
    *  migration 149, so every existing caller keeps working unchanged. */
   repaymentFrequency: z.enum(LOAN_REPAYMENT_FREQUENCIES).optional(),
   purpose: z.string().max(500).optional().nullable(),
@@ -72,7 +72,7 @@ export const RejectLoanSchema = z.object({
 /**
  * Which funding source(s) finance this loan, and how much from each
  * (migration 118). Omit it entirely and the loan is funded from the group's own
- * internal savings - the behaviour every existing caller already relies on.
+ * internal savings — the behaviour every existing caller already relies on.
  *
  * Amounts must sum to the loan principal; a deferred constraint trigger
  * enforces the same rule in the database, so this only exists to turn a
@@ -89,7 +89,7 @@ export const LoanFundingPlanSchema = z
   .max(10)
   .refine(
     (plan) => new Set(plan.map((p) => p.fundingSourceId)).size === plan.length,
-    'A funding source can only appear once in a plan - combine the amounts instead',
+    'A funding source can only appear once in a plan — combine the amounts instead',
   );
 
 export const DisburseLoanSchema = z.object({
@@ -129,16 +129,16 @@ export const LoanQuerySchema = z.object({
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
-// LoanPolicy 'terms' - advisory group lending defaults (migration 088).
+// LoanPolicy 'terms' — advisory group lending defaults (migration 088).
 export const SetLoanTermsSchema = z
   .object({
-    /** NOMINAL ANNUAL rate - see the ceiling rationale on CreateLoanSchema. */
+    /** NOMINAL ANNUAL rate — see the ceiling rationale on CreateLoanSchema. */
     interestRate: z.coerce.number().min(0).max(300),
     interestMethod: z.enum(['flat', 'reducing_balance']),
     maxTermMonths: z.coerce.number().int().min(1).max(120),
     loanMultiplier: z.coerce.number().positive(),
     /** The fixed durations offered, e.g. [1, 3, 6, 12]. Omitted means any term
-     *  up to maxTermMonths - the behaviour before term options existed.
+     *  up to maxTermMonths — the behaviour before term options existed.
      *  Sorted here so the form renders them in order whatever was submitted. */
     termOptions: z
       .array(z.coerce.number().int().min(1))
@@ -160,7 +160,7 @@ export const SetLoanTermsSchema = z
     }
   });
 
-// FinePolicy 'schedule' - advisory offence tariff (migration 088).
+// FinePolicy 'schedule' — advisory offence tariff (migration 088).
 export const SetFineScheduleSchema = z.object({
   schedule: z.record(z.string().min(1), z.coerce.number().min(0)),
 });

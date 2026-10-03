@@ -18,7 +18,7 @@ import { getErrorMessage } from '@/lib/utils';
 
 type PayoutMethod = 'phone' | 'paybill' | 'till';
 
-// Mirrors lib/validators/campaign.schema.ts's RegisterCampaignSchema - kept
+// Mirrors lib/validators/campaign.schema.ts's RegisterCampaignSchema — kept
 // in sync manually, same convention as register-organization/page.tsx's own
 // comment about its server-side counterpart.
 const schema = z
@@ -140,7 +140,7 @@ export default function StartCampaignPage() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm">
           <p>
-            Your group code is <span className="font-mono font-semibold">{submitted.groupCode}</span> - keep it safe,
+            Your group code is <span className="font-mono font-semibold">{submitted.groupCode}</span> — keep it safe,
             you&apos;ll need it alongside your phone number and password to sign in later.
           </p>
           <p className="text-muted-foreground">
@@ -160,7 +160,7 @@ export default function StartCampaignPage() {
       <CardHeader>
         <CardTitle>Start a Changi$ha campaign</CardTitle>
         <CardDescription>
-          Raise money for a cause, a project or someone in need - by M-Pesa, in the open. We review every campaign
+          Raise money for a cause, a project or someone in need — by M-Pesa, in the open. We review every campaign
           before it goes live.
         </CardDescription>
       </CardHeader>

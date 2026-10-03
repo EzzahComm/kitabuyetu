@@ -64,7 +64,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
 
         {filtered.length === 0 ? (
           <p className="rounded-lg border border-brand-100 bg-brand-50 px-6 py-10 text-center text-finanza-text">
-            {posts.length === 0 ? 'Nothing published yet - check back soon.' : 'No posts in this category yet.'}
+            {posts.length === 0 ? 'Nothing published yet — check back soon.' : 'No posts in this category yet.'}
           </p>
         ) : (
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -82,7 +82,7 @@ export default async function ResourcesPage({ searchParams }: ResourcesPageProps
           <h2 id="subscribe-heading" className="font-display text-3xl font-bold text-finanza-dark">
             New guides in your inbox
           </h2>
-          <p className="mt-3 text-finanza-text">For treasurers and officials - occasionally, never spam.</p>
+          <p className="mt-3 text-finanza-text">For treasurers and officials — occasionally, never spam.</p>
           <NewsletterSignupForm source="resources" className="mx-auto mt-6 max-w-md" />
         </div>
       </FinanzaSection>

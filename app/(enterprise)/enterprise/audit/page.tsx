@@ -3,7 +3,7 @@
 /**
  * Audit trail scoped to this organization's own branches
  * (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4). New backend
- * (organization.service.ts's listAuditLogs) - audit_logs exists
+ * (organization.service.ts's listAuditLogs) — audit_logs exists
  * platform-wide but has no organization_id column, so this joins through
  * organization_group_access rather than a direct filter.
  */
@@ -32,7 +32,7 @@ export default function AuditTrailPage() {
     <div className="space-y-6">
       <PageHeader
         title="Audit trail"
-        description="Significant actions taken across every branch in your network. Immutable - no entry can be edited or deleted."
+        description="Significant actions taken across every branch in your network. Immutable — no entry can be edited or deleted."
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Audit Trail' }]}
       />
 
@@ -76,12 +76,12 @@ export default function AuditTrailPage() {
           {
             key: 'branch',
             header: 'Branch',
-            render: (r) => <span className="text-muted-foreground">{r.groupName ?? '-'}</span>,
+            render: (r) => <span className="text-muted-foreground">{r.groupName ?? '—'}</span>,
           },
           {
             key: 'actor',
             header: 'Actor',
-            render: (r) => <span className="text-muted-foreground">{r.actorName?.trim() || '-'}</span>,
+            render: (r) => <span className="text-muted-foreground">{r.actorName?.trim() || '—'}</span>,
           },
           {
             key: 'date',

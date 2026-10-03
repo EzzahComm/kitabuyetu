@@ -1,5 +1,5 @@
 /**
- * Marketing campaign service - audience resolution (SMS + email, Phase 9.2 +
+ * Marketing campaign service — audience resolution (SMS + email, Phase 9.2 +
  * 9.3), the mandatory approval workflow (maker-checker: approver != creator,
  * role must match the campaign's scope), dual group/organization scoping,
  * consent/suppression enforcement at resolution time, and the email-channel
@@ -166,7 +166,7 @@ describe('submitForReview', () => {
   });
 });
 
-describe('approveCampaign - maker-checker across group and organization scope', () => {
+describe('approveCampaign — maker-checker across group and organization scope', () => {
   it('throws NotFoundError when the campaign is not pending review', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(approveCampaign(chairCtx, 'c1')).rejects.toBeInstanceOf(NotFoundError);

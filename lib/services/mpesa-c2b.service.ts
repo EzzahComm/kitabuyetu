@@ -56,7 +56,7 @@ export type C2BValidationVerdict =
   | { accept: false; reason: 'bad_account' | 'unknown_account' | 'membership_inactive' };
 
 /**
- * Pre-payment account validation - Safaricom calls this BEFORE completing a
+ * Pre-payment account validation — Safaricom calls this BEFORE completing a
  * C2B transaction, so a rejection here means the member's money never moves.
  *
  * Deterministic and conservative:
@@ -65,7 +65,7 @@ export type C2BValidationVerdict =
  *    instead of becoming unrouted-queue toil.
  *  - Everything else (legacy KYT grammar, invoice numbers, group codes)
  *    is accepted and handled by confirmation-side routing, unchanged.
- *  - Any internal error fails OPEN (accept) - we never lose a payment to our
+ *  - Any internal error fails OPEN (accept) — we never lose a payment to our
  *    own latency; the unrouted queue remains the backstop.
  */
 export async function validateC2BAccount(billRef: string | null | undefined): Promise<C2BValidationVerdict> {
@@ -82,11 +82,11 @@ export async function validateC2BAccount(billRef: string | null | undefined): Pr
     }
     const parsed = parseAccountRef(billRef ?? '');
     if (!looksLikeMembershipNo(parsed.account)) {
-      // Not membership-number shaped - legacy/invoice refs flow to
+      // Not membership-number shaped — legacy/invoice refs flow to
       // confirmation routing as before.
       return { accept: true };
     }
-    // A1: an unknown trailing letter is malformed - reject, never guess.
+    // A1: an unknown trailing letter is malformed — reject, never guess.
     if (parsed.invalidSuffix) {
       return { accept: false, reason: 'bad_account' };
     }
@@ -98,7 +98,7 @@ export async function validateC2BAccount(billRef: string | null | undefined): Pr
       if (!hit) return { accept: false as const, reason: 'unknown_account' as const };
       if (isPaymentEligible(hit)) return { accept: true as const };
       // §4.1 obligations-only: suspended/inactive memberships may still pay
-      // down loans - accept when due installments exist (confirmation forces
+      // down loans — accept when due installments exist (confirmation forces
       // the money to the loan waterfall); otherwise reject before money moves.
       if (
         (hit.membershipStatus === 'suspended' || hit.membershipStatus === 'inactive') &&
@@ -149,7 +149,7 @@ export async function handleC2BConfirmation(
 
   // Safaricom sends a HASHED MSISDN (64-char SHA-256, not a number) on C2B
   // confirmations depending on shortcode configuration. This used to be
-  // `normalizePhone(body.MSISDN)`, which throws - on the first line of the
+  // `normalizePhone(body.MSISDN)`, which throws — on the first line of the
   // handler, so a hashed MSISDN killed the whole crediting path before the
   // idempotency check, before account-number routing, and before the
   // unrouted-queue insert that exists precisely to catch what cannot be
@@ -157,7 +157,7 @@ export async function handleC2BConfirmation(
   // recorded nowhere; 5 real ones (KES 15,631) were lost that way between
   // 2026-05-28 and 2026-07-12 before this was found.
   //
-  // The payer phone is INCIDENTAL here and always was - see the routing
+  // The payer phone is INCIDENTAL here and always was — see the routing
   // comment below: the member is identified by the ACCOUNT NUMBER, never by
   // the paying phone, because third parties may pay. So an unusable MSISDN
   // must degrade the record, never reject the money.
@@ -167,7 +167,7 @@ export async function handleC2BConfirmation(
   const route = parseBillRefNumber(body.BillRefNumber);
 
   await withAdminDb(async (db) => {
-    // 1. Idempotency - duplicate Safaricom retries return early.
+    // 1. Idempotency — duplicate Safaricom retries return early.
     const { rows: existingPay } = await db.query<{ id: string }>(
       'SELECT id FROM payments WHERE mpesa_receipt_number=$1 LIMIT 1',
       [body.TransID],
@@ -238,9 +238,9 @@ export async function handleC2BConfirmation(
       }
     }
 
-    // 2. Registry-first routing (payment architecture §3.3 R1-R4): one
+    // 2. Registry-first routing (payment architecture §3.3 R1–R4): one
     //    indexed lookup resolves membership numbers and legacy member codes
-    //    to a specific membership - the member is identified by the ACCOUNT
+    //    to a specific membership — the member is identified by the ACCOUNT
     //    NUMBER, never by the paying phone (third parties may pay). A product
     //    suffix (BG102534-W) is split off before the lookup (§3.5 A1/A3).
     const parsed = parseAccountRef(body.BillRefNumber);
@@ -258,19 +258,19 @@ export async function handleC2BConfirmation(
         rawBody,
       };
 
-      // A1: an unknown trailing letter is malformed - never "closest guess".
+      // A1: an unknown trailing letter is malformed — never "closest guess".
       if (parsed.invalidSuffix) {
         await c2bToUnrouted(db, fulfil, 'bad_account');
         return;
       }
 
-      // §3.5 A2-A8: resolve the product deterministically.
+      // §3.5 A2–A8: resolve the product deterministically.
       const resolved = await resolveProductForMembership(db, hit, parsed.suffix, amount);
 
       // §4.1 per-state eligibility: active → all products; suspended/inactive
       // → obligations only. When an obligations-only membership has due
       // installments, the money is FORCED to loan repayment regardless of
-      // defaults - a suspended member can always reduce debt, never grow savings.
+      // defaults — a suspended member can always reduce debt, never grow savings.
       const gate = await eligibilityGate(db, hit, resolved.product);
       if (gate === 'reject') {
         await c2bToUnrouted(db, fulfil, 'membership_inactive');
@@ -289,7 +289,7 @@ export async function handleC2BConfirmation(
         fulfil,
         // Only claim a third party paid when we actually know who did. With an
         // unusable MSISDN the honest answer is "unknown payer", not "someone
-        // other than the member" - recording the sentinel here would assert a
+        // other than the member" — recording the sentinel here would assert a
         // third-party payment that was never established.
         thirdPartyPhone: phone !== UNKNOWN_PAYER_PHONE && hit.memberPhone && hit.memberPhone !== phone ? phone : null,
         preferRepaymentId: gate !== 'force_loan' ? resolved.entityId : null,
@@ -297,20 +297,20 @@ export async function handleC2BConfirmation(
       return;
     }
 
-    // 3. Legacy grammar fallback - resolve the group via the parser.
+    // 3. Legacy grammar fallback — resolve the group via the parser.
     const groupId = await resolveC2BGroupId(db, route, body);
 
     // 4. If we couldn't even resolve a group, log to unrouted with a NULL
-    //    candidate group and bail - there's no group_id to write the
+    //    candidate group and bail — there's no group_id to write the
     //    mpesa_transactions row against.
     if (!groupId) {
       if (!isSandboxTestRef(body.BillRefNumber)) {
         // Same race this whole function's step-1 check exists for, just a
         // second, later checkpoint: an STK success callback for this exact
-        // receipt (e.g. account_reference 'SUBSCRIPT'/'CONTRIB'/'REMINDER' -
+        // receipt (e.g. account_reference 'SUBSCRIPT'/'CONTRIB'/'REMINDER' —
         // real values, just STK-only ones no group code can ever match) may
         // have committed its payments row in the window between step 1 and
-        // here. Found 2026-08-26: this exact branch is what filed 7 rows -
+        // here. Found 2026-08-26: this exact branch is what filed 7 rows —
         // every one of them an exact-receipt duplicate of a payment that had
         // already completed and activated a subscription or contribution via
         // STK, seconds earlier. Nothing to route; don't file it.
@@ -319,7 +319,7 @@ export async function handleC2BConfirmation(
           [body.TransID],
         );
         if (dup[0]?.status === 'completed') {
-          logger.info('[mpesa/c2b] duplicate of an already-completed payment - not filing to unrouted', {
+          logger.info('[mpesa/c2b] duplicate of an already-completed payment — not filing to unrouted', {
             receipt: body.TransID,
             paymentId: dup[0].id,
           });
@@ -371,7 +371,7 @@ export async function handleC2BConfirmation(
     });
   });
 
-  // Receipt SMS (§8) - after the money transaction committed. STK-driven
+  // Receipt SMS (§8) — after the money transaction committed. STK-driven
   // payments get theirs from the callback route; direct PayBill deposits
   // land here. No-op unless the payment ended 'allocated'; idempotent per
   // (rule, paymentId) inside the trigger engine, so Safaricom retries
@@ -403,7 +403,7 @@ async function recordC2BInbound(
   );
   const transactionId = txnRows[0]?.id ?? null;
 
-  // Record audit log for C2B inbound transaction - system-triggered (Safaricom callback)
+  // Record audit log for C2B inbound transaction — system-triggered (Safaricom callback)
   if (transactionId) {
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
@@ -439,7 +439,7 @@ async function recordC2BInbound(
   // First arrival appends 'received' + announces on the outbox; a Safaricom
   // retry (conflict → no row) is recorded as 'replayed' instead.
   if (rows[0]) {
-    // Record audit log for payment creation - system-triggered
+    // Record audit log for payment creation — system-triggered
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -510,7 +510,7 @@ async function resolveC2BGroupId(
 
   // 3. Phone-only fallback (only when member is in exactly one group).
   //    A hashed/unusable MSISDN simply cannot match a stored phone, so this
-  //    fallback has nothing to offer - return null and let the caller file the
+  //    fallback has nothing to offer — return null and let the caller file the
   //    payment as unrouted. It must NOT throw: this is the last resolution
   //    step, and throwing here discards a real payment instead of queueing it
   //    for a human.
@@ -531,7 +531,7 @@ async function resolveC2BGroupId(
 async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void> {
   const { route } = in_;
 
-  // Direct invoice payment - flip the invoice to paid
+  // Direct invoice payment — flip the invoice to paid
   if (route.kind === 'invoice' && route.invoiceNumber) {
     await db.query(
       `UPDATE invoices
@@ -546,7 +546,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
   }
 
   // Contribution-style payments (incl. welfare, share). When the legacy
-  // grammar carries a member_code suffix the member is resolved by CODE -
+  // grammar carries a member_code suffix the member is resolved by CODE —
   // never by phone, so third-party payers route correctly (§3.3 R6). Phone
   // resolution survives only for group-only legacy refs.
   if (route.kind === 'contribution' || route.kind === 'welfare' || route.kind === 'share') {
@@ -565,7 +565,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       );
       memberId = rows[0]?.member_id ?? null;
       memberPhone = rows[0]?.phone ?? null;
-      // A member code that doesn't match is never "corrected" via phone -
+      // A member code that doesn't match is never "corrected" via phone —
       // that guess is exactly what mis-posts third-party payments.
       if (!memberId) {
         await c2bToUnrouted(db, in_, 'unknown_member');
@@ -603,7 +603,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
     return;
   }
 
-  // Loan repayment by paybill - match loan by entityId
+  // Loan repayment by paybill — match loan by entityId
   if (route.kind === 'loan_repayment' && route.entityId) {
     // Find the next pending repayment for that loan
     const { rows: rpRows } = await db.query<{ id: string }>(
@@ -627,7 +627,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
       loan_repayment_id: rpRows[0].id,
       account_reference: in_.billRef,
       amount: in_.amount.toFixed(2),
-      // C2B PayBill payments never buy a subscription - this synthetic row
+      // C2B PayBill payments never buy a subscription — this synthetic row
       // exists only to reuse applyLoanRepayment's wiring.
       plan_type: null,
       product: null,
@@ -646,7 +646,7 @@ async function fulfilC2B(db: PoolClient, in_: C2BFulfilmentInput): Promise<void>
     return;
   }
 
-  // Subscription / investment / unknown - leave the payment recorded but
+  // Subscription / investment / unknown — leave the payment recorded but
   // don't side-effect a domain entity. Treasurer resolves via /mpesa/unrouted.
   await c2bToUnrouted(db, in_, route.kind === 'unknown' ? 'unknown_prefix' : 'other');
 }

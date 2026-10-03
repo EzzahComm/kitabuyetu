@@ -1,5 +1,5 @@
 /**
- * Newsletter service (Phase 10) - platform-level, not tenant. Covers the
+ * Newsletter service (Phase 10) — platform-level, not tenant. Covers the
  * subscribe/resubscribe upsert, idempotent unsubscribe-by-token, and the
  * admin list/stats queries.
  */
@@ -50,7 +50,7 @@ describe('unsubscribeFromNewsletter', () => {
     await expect(unsubscribeFromNewsletter('bad-token')).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('is idempotent - preserves the original unsubscribed_at on a repeat call', async () => {
+  it('is idempotent — preserves the original unsubscribed_at on a repeat call', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 's1', unsubscribed_at: '2026-09-01T00:00:00Z' }] });
     const result = await unsubscribeFromNewsletter('tok-1');
     expect(result.id).toBe('s1');

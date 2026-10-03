@@ -1,15 +1,15 @@
 'use client';
 
 /**
- * Organization Billing - plan + SMS credits.
+ * Organization Billing — plan + SMS credits.
  *
  * Deliberately its OWN page, not a card on the Funding Portal. That page is
  * the org's CAPITAL wallet (donor contributions, grants, disbursements to
- * groups) - SMS credits are a separate wallet (organization_billing_accounts
+ * groups) — SMS credits are a separate wallet (organization_billing_accounts
  * .sms_credits) with no GL posting and nothing to do with disbursement
  * capacity. Mirrors the group side, which manages its own SMS credits on a
  * dedicated Billing page too (components/layout/sidebar.tsx), not folded
- * into any "funding" concept. The plan section is read-only - an
+ * into any "funding" concept. The plan section is read-only — an
  * organization never self-serve changes its plan, only Kitabu Yetu staff do.
  */
 
@@ -50,7 +50,7 @@ export default function OrganizationBillingPage() {
     <div className="space-y-6">
       <PageHeader
         title="Billing"
-        description="This organization's plan and SMS credits - separate from the capital wallet on the Funding Portal."
+        description="This organization's plan and SMS credits — separate from the capital wallet on the Funding Portal."
         actions={
           <Button size="sm" className="gap-1.5 h-9" onClick={() => setTopUpOpen(true)}>
             <ArrowDownToLine size={15} /> Top up SMS
@@ -59,27 +59,27 @@ export default function OrganizationBillingPage() {
       />
 
       <div className="space-y-3">
-        <SectionHeader title="Plan" subtitle="Assigned by Kitabu Yetu staff - contact them to change your plan." />
+        <SectionHeader title="Plan" subtitle="Assigned by Kitabu Yetu staff — contact them to change your plan." />
         <Card>
           <CardContent className="flex flex-wrap items-center gap-4 py-4">
             <div className="flex items-center gap-2.5">
               <Sparkles className="text-muted-foreground" size={18} />
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground capitalize">
-                  {planLoading ? '-' : plan ? plan.plan_type.replace('_', '+') : 'No plan assigned'}
+                  {planLoading ? '—' : plan ? plan.plan_type.replace('_', '+') : 'No plan assigned'}
                 </p>
                 <p className="text-lg font-semibold text-foreground">
-                  {planLoading || !plan ? '-' : `${formatKES(plan.monthly_fee)}/mo`}
+                  {planLoading || !plan ? '—' : `${formatKES(plan.monthly_fee)}/mo`}
                 </p>
               </div>
             </div>
             {plan && !planLoading && (
               <p className="text-xs text-muted-foreground">
-                {CAP_LABEL(plan.max_linked_groups)} groups - {CAP_LABEL(plan.max_staff)} staff -{' '}
-                {CAP_LABEL(plan.max_funding_programs)} funding programs -{' '}
-                {Number(plan.sms_allowance_included).toLocaleString()} SMS/mo included -{' '}
+                {CAP_LABEL(plan.max_linked_groups)} groups · {CAP_LABEL(plan.max_staff)} staff ·{' '}
+                {CAP_LABEL(plan.max_funding_programs)} funding programs ·{' '}
+                {Number(plan.sms_allowance_included).toLocaleString()} SMS/mo included ·{' '}
                 <span className="capitalize">{plan.support_tier.replace('_', '+')}</span> support
-                {plan.white_label_branding && ' - White-label'}
+                {plan.white_label_branding && ' · White-label'}
               </p>
             )}
           </CardContent>
@@ -89,13 +89,13 @@ export default function OrganizationBillingPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           title="SMS credit balance"
-          value={isLoading ? '-' : `${(data?.balance ?? 0).toLocaleString()} credits`}
+          value={isLoading ? '—' : `${(data?.balance ?? 0).toLocaleString()} credits`}
           icon={MessageSquare}
         />
         <StatCard
           title="Rate per SMS"
-          value={isLoading || data?.rate == null ? '-' : `KES ${data.rate.toFixed(4)}`}
-          description="Negotiated rate - set by Kitabu Yetu staff"
+          value={isLoading || data?.rate == null ? '—' : `KES ${data.rate.toFixed(4)}`}
+          description="Negotiated rate — set by Kitabu Yetu staff"
         />
       </div>
 
@@ -136,7 +136,7 @@ export default function OrganizationBillingPage() {
                       <td className="px-4 py-3">{Number(r.amount_paid).toLocaleString()}</td>
                       <td className="px-4 py-3">{Number(r.credits_added).toLocaleString()}</td>
                       <td className="px-4 py-3">{Number(r.rate_applied).toFixed(4)}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{r.notes ?? '-'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{r.notes ?? '—'}</td>
                     </tr>
                   ))
                 )}
@@ -167,7 +167,7 @@ function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () =
       qc.invalidateQueries({ queryKey: enterpriseKeys.smsCredits() });
       toast({
         title: 'SMS credits added',
-        description: `${result.creditsAdded.toLocaleString()} credits - new balance ${result.newBalance.toLocaleString()}.`,
+        description: `${result.creditsAdded.toLocaleString()} credits — new balance ${result.newBalance.toLocaleString()}.`,
       });
       setAmount('');
       setReference('');
@@ -210,7 +210,7 @@ function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () =
             />
           </div>
           <p className="text-xs text-muted-foreground">
-            Recorded as a manual top-up - no M-Pesa payment is collected here. Bank/M-Pesa settlement is reconciled
+            Recorded as a manual top-up — no M-Pesa payment is collected here. Bank/M-Pesa settlement is reconciled
             separately.
           </p>
         </div>

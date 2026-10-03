@@ -1,5 +1,5 @@
 /**
- * Public marketing-site newsletter (Phase 10). Platform-level, not tenant -
+ * Public marketing-site newsletter (Phase 10). Platform-level, not tenant —
  * see migration 197 for why this isn't modeled on crm_contacts or the old
  * per-group newsletter_subscribers table it replaces.
  *

@@ -149,7 +149,7 @@ export async function launchCampaign(campaignId: string, createdBy?: string | nu
       ],
     );
 
-    // Insert recipient rows - drained by the email_campaign_drain job on a
+    // Insert recipient rows — drained by the email_campaign_drain job on a
     // schedule (lib/jobs), not enqueued individually here.
     for (const r of recipients) {
       await client.query(
@@ -263,7 +263,7 @@ export interface CampaignDrainResult {
 
 /**
  * Claims a bounded batch of 'pending' email_campaign_recipients rows (for
- * campaigns currently 'sending') and sends each - the replacement for the
+ * campaigns currently 'sending') and sends each — the replacement for the
  * old Redis-based per-recipient fan-out (OPTIMIZATION_CLEANUP_AUDIT.md's
  * lib/queue + lib/jobs merge). One row per recipient stays durable in
  * Postgres (as it always has, via launchCampaign's insert); this just
@@ -273,7 +273,7 @@ export interface CampaignDrainResult {
  *
  * Batch size is kept modest (default 40) to stay well under the Vercel
  * function time budget when every recipient in the batch is an outbound
- * provider call - tune via the `email_campaign_drain` job's caller if
+ * provider call — tune via the `email_campaign_drain` job's caller if
  * job_logs shows this handler running close to the limit.
  */
 export async function drainCampaignRecipients(limit = 40): Promise<CampaignDrainResult> {

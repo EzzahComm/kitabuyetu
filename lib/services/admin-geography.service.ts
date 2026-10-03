@@ -1,17 +1,17 @@
 /**
  * County/ward-level rollup for the platform's existing geographic hierarchy
- * (counties → sub_counties → wards, seeded from the IEBC dataset) -
+ * (counties → sub_counties → wards, seeded from the IEBC dataset) —
  * SUPER_ADMIN_PLATFORM_AUDIT.md Phase 3. `groups.county_id` is the
  * consistently-written FK (used here); `groups.ward_id`/`sub_county_id` are
  * unpopulated dead schema, so ward-level rollup groups on the free-text
  * `groups.ward` column instead, scoped to a county for the drill-down.
- * "Start with a sortable table before an interactive map" - no map yet.
+ * "Start with a sortable table before an interactive map" — no map yet.
  */
 import { withAdminDb } from '@/lib/db';
 import type { PoolClient } from 'pg';
 import { cached, keys } from '@/lib/redis';
 
-/** Every county, including ones with zero groups - a coverage gap is itself signal. */
+/** Every county, including ones with zero groups — a coverage gap is itself signal. */
 export async function getCountyAggregation() {
   return cached(keys.cache('geography-counties', 'platform'), 120, () =>
     withAdminDb(async (db: PoolClient) => {
@@ -22,7 +22,7 @@ export async function getCountyAggregation() {
       -- row out across every member row of the same group before the SUM
       -- runs, then again across every OTHER group in the same county. Proven
       -- live: Bungoma's loan_book read KES 32,100,000 here vs a real
-      -- KES 1,070,000 - a 30x inflation - same bug class as
+      -- KES 1,070,000 — a 30x inflation — same bug class as
       -- admin.service.ts's getGroupById (99x on a single group there).
       WITH group_stats AS (
         SELECT g.id AS group_id, g.county_id,
@@ -56,7 +56,7 @@ export async function getWardAggregation(countyId: string) {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query(
       `
-      -- LATERAL per child table - see getCountyAggregation's comment above
+      -- LATERAL per child table — see getCountyAggregation's comment above
       -- for why a flat join of group_members alongside contributions fans
       -- the contributions SUM out across the member count.
       SELECT

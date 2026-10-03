@@ -2,8 +2,8 @@
  * Consent record and message retention (SMS-AUDIT-v3 G20 / V3-04,
  * INV-23/24/26, pathway T2-5).
  *
- * Opt-outs lived in a text[] that could not say WHEN, HOW or BY WHOM - the
- * three things a data subject or a regulator asks for under Kenya's DPA 2019 -
+ * Opt-outs lived in a text[] that could not say WHEN, HOW or BY WHOM — the
+ * three things a data subject or a regulator asks for under Kenya's DPA 2019 —
  * and message bodies were kept forever with no retention of any kind.
  */
 import { smsService } from '@/lib/services/sms.service';
@@ -15,7 +15,7 @@ import { rawQuery } from './helpers/db';
 const PHONE = '254722123456';
 
 describe('consent record (G20)', () => {
-  it('records when, how and by whom - not just that it happened', async () => {
+  it('records when, how and by whom — not just that it happened', async () => {
     await resetDatabase();
     const { groupId, officerId } = await createTestGroup('treasurer');
 
@@ -114,7 +114,7 @@ describe('message retention (V3-04)', () => {
       [groupId],
     );
 
-    // Content gone, billing evidence intact - deleting the row would destroy
+    // Content gone, billing evidence intact — deleting the row would destroy
     // reconciliation and make a data-subject request unanswerable.
     expect(row.message_text).toBe('[redacted: retention]');
     expect(Number(row.credits_deducted)).toBe(1);
@@ -134,7 +134,7 @@ describe('message retention (V3-04)', () => {
     expect((await redactExpiredMessageBodies()).redacted).toBe(0);
   });
 
-  it('is idempotent - a second run redacts nothing further', async () => {
+  it('is idempotent — a second run redacts nothing further', async () => {
     await resetDatabase();
     const { groupId } = await createTestGroup('treasurer');
     await rawQuery(

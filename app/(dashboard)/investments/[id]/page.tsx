@@ -11,7 +11,7 @@
  * the portfolio summary read as a loss.
  *
  * This page is the missing front end. It writes through the existing
- * PATCH /investments/:id and POST /investments/:id/returns routes - no new
+ * PATCH /investments/:id and POST /investments/:id/returns routes — no new
  * service methods, no schema change.
  */
 
@@ -56,7 +56,7 @@ const typeLabels: Record<string, string> = {
   other: 'Other',
 };
 
-// Mirrors RecordReturnSchema. `coupon` is deliberately absent - it is not a
+// Mirrors RecordReturnSchema. `coupon` is deliberately absent — it is not a
 // member of the public.return_type enum and posting it fails at INSERT.
 const returnSchema = z.object({
   returnType: z.enum(['dividend', 'interest', 'capital_gain', 'rental_income', 'other']),
@@ -253,7 +253,7 @@ export default function InvestmentDetailPage() {
         r.receipt_number ? (
           <span className="text-sm">{r.receipt_number}</span>
         ) : (
-          <span className="text-muted-foreground text-sm">-</span>
+          <span className="text-muted-foreground text-sm">—</span>
         ),
     },
     {
@@ -292,7 +292,7 @@ export default function InvestmentDetailPage() {
         e.receipt_number ? (
           <span className="text-sm">{e.receipt_number}</span>
         ) : (
-          <span className="text-muted-foreground text-sm">-</span>
+          <span className="text-muted-foreground text-sm">—</span>
         ),
     },
     {
@@ -330,7 +330,7 @@ export default function InvestmentDetailPage() {
           <CardContent className="p-4 space-y-1">
             <p className="text-sm text-muted-foreground">{revalued ? 'Current value' : 'Carrying value'}</p>
             <p className="font-bold text-xl">{formatKES(carryingValue)}</p>
-            {!revalued && <p className="text-xs text-muted-foreground">At cost - no revaluation recorded yet</p>}
+            {!revalued && <p className="text-xs text-muted-foreground">At cost — no revaluation recorded yet</p>}
           </CardContent>
         </Card>
 
@@ -368,7 +368,7 @@ export default function InvestmentDetailPage() {
             </p>
             <p className="text-xs text-muted-foreground">
               {formatKES(totalReturns)} earned less {formatKES(totalExpenses)} spent
-              {netReturn < 0 && ' - this activity is running at a loss'}
+              {netReturn < 0 && ' — this activity is running at a loss'}
             </p>
           </CardContent>
         </Card>
@@ -398,7 +398,7 @@ export default function InvestmentDetailPage() {
           <div className="flex items-center gap-2">
             <CalendarClock size={15} className="text-muted-foreground shrink-0" />
             <span className="text-muted-foreground">Matures</span>
-            <span className="ml-auto font-medium">{inv.maturity_date ? formatDate(inv.maturity_date) : '-'}</span>
+            <span className="ml-auto font-medium">{inv.maturity_date ? formatDate(inv.maturity_date) : '—'}</span>
           </div>
           <div className="flex items-center gap-2">
             <Landmark size={15} className="text-muted-foreground shrink-0" />

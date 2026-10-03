@@ -6,11 +6,11 @@ import { RequestOrganizationLinkSchema } from '@/lib/validators/organization.sch
 import { ok, created, handleError } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/groups/organization-link - this group's current link (any
+ * GET /api/v1/groups/organization-link — this group's current link (any
  *   status: none/pending/approved/rejected). Any authenticated member can
  *   read, same convention as /api/v1/settings/registration.
- * POST /api/v1/groups/organization-link - request a link to an organization
- *   by name. Chairperson only - same rationale as settings/registration's
+ * POST /api/v1/groups/organization-link — request a link to an organization
+ *   by name. Chairperson only — same rationale as settings/registration's
  *   PUT: that's who the database lets act on the group's behalf here.
  */
 

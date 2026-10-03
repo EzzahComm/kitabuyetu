@@ -69,7 +69,7 @@ export interface DividendAllocation {
   member_phone?: string;
 }
 
-/** Virtual (pre-approval) allocation row - same shape as what would be persisted. */
+/** Virtual (pre-approval) allocation row — same shape as what would be persisted. */
 export interface AllocationPreview {
   memberId: string;
   firstName: string;
@@ -188,7 +188,7 @@ export const dividendsService = {
     input: UpdateDividendDeclarationInput,
   ): Promise<DividendDeclaration> {
     return withTransaction(ctx, async (client) => {
-      // Edits only allowed while the declaration is still 'draft' - anything
+      // Edits only allowed while the declaration is still 'draft' — anything
       // beyond that is either pending board sign-off or already paid.
       const { rows: existing } = await client.query<{ status: DividendStatus }>(
         `SELECT status FROM dividend_declarations WHERE group_id = $1 AND id = $2 FOR UPDATE`,
@@ -197,7 +197,7 @@ export const dividendsService = {
       if (!existing[0]) throw new NotFoundError('Dividend declaration', declarationId);
       if (existing[0].status !== 'draft') {
         throw new ConflictError(
-          `Cannot edit a declaration in status '${existing[0].status}' - only drafts are editable`,
+          `Cannot edit a declaration in status '${existing[0].status}' — only drafts are editable`,
         );
       }
 
@@ -307,7 +307,7 @@ export const dividendsService = {
       const computed = await computeAllocations(client, decl);
       if (computed.rows.length === 0) {
         throw new ValidationError(
-          'No eligible shareholders for this declaration - at least one member with shares is required',
+          'No eligible shareholders for this declaration — at least one member with shares is required',
         );
       }
 
@@ -369,7 +369,7 @@ export const dividendsService = {
       });
 
       // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: recognizes the liability from
-      // retained earnings at approval time - withholding tax is split into
+      // retained earnings at approval time — withholding tax is split into
       // its own payable here so payAllocation only ever settles the net cash
       // leg. Previously this declaration had zero GL trace.
       const totalGross = Number(computed.totalGross);
@@ -381,7 +381,7 @@ export const dividendsService = {
           ctx.groupId,
           ctx.userId,
           'dividend_declaration',
-          `Dividend declaration approved - ${decl.period_label}`,
+          `Dividend declaration approved — ${decl.period_label}`,
           { gross: totalGross, net: Number(computed.totalNet), tax: Number(computed.totalTax) },
           { reference: declarationId },
         );
@@ -399,7 +399,7 @@ export const dividendsService = {
       }
 
       // If allocations were already persisted (approved+), make sure none
-      // are already paid - once cash has left we can't fold the declaration.
+      // are already paid — once cash has left we can't fold the declaration.
       if (decl.status === 'approved') {
         const { rows } = await client.query<{ count: string }>(
           `SELECT COUNT(*) AS count FROM dividend_allocations
@@ -408,7 +408,7 @@ export const dividendsService = {
         );
         if (parseInt(rows[0].count, 10) > 0) {
           throw new ConflictError(
-            'Some allocations have already been paid out - cancel each unpaid allocation individually instead',
+            'Some allocations have already been paid out — cancel each unpaid allocation individually instead',
           );
         }
         await client.query(
@@ -445,7 +445,7 @@ export const dividendsService = {
     return withTransaction(ctx, async (client) => {
       const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
       if (decl.status !== 'approved') {
-        throw new ConflictError(`Cannot record payments - declaration is in status '${decl.status}'`);
+        throw new ConflictError(`Cannot record payments — declaration is in status '${decl.status}'`);
       }
 
       const { rows: a } = await client.query<DividendAllocation>(
@@ -456,7 +456,7 @@ export const dividendsService = {
       );
       if (!a[0]) throw new NotFoundError('Dividend allocation', allocationId);
       if (a[0].status !== 'pending')
-        throw new ConflictError(`Allocation is in status '${a[0].status}' - only pending allocations can be paid`);
+        throw new ConflictError(`Allocation is in status '${a[0].status}' — only pending allocations can be paid`);
 
       const { rows: updated } = await client.query<DividendAllocation>(
         `UPDATE dividend_allocations SET
@@ -486,7 +486,7 @@ export const dividendsService = {
           ctx.groupId,
           ctx.userId,
           'dividend_payment',
-          `Dividend payment - allocation ${allocationId}`,
+          `Dividend payment — allocation ${allocationId}`,
           { net: netAmount },
           { reference: allocationId, memberId: a[0].member_id },
         );
@@ -504,7 +504,7 @@ export const dividendsService = {
     return withTransaction(ctx, async (client) => {
       const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
       if (decl.status !== 'approved') {
-        throw new ConflictError(`Cannot record payments - declaration is in status '${decl.status}'`);
+        throw new ConflictError(`Cannot record payments — declaration is in status '${decl.status}'`);
       }
 
       const skipped: { id: string; reason: string }[] = [];
@@ -547,7 +547,7 @@ export const dividendsService = {
             ctx.groupId,
             ctx.userId,
             'dividend_payment',
-            `Dividend payment - allocation ${id}`,
+            `Dividend payment — allocation ${id}`,
             { net: netAmount },
             { reference: id, memberId: a[0].member_id },
           );
@@ -574,7 +574,7 @@ export const dividendsService = {
     return withTransaction(ctx, async (client) => {
       const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
       if (decl.status !== 'approved') {
-        throw new ConflictError(`Cannot cancel allocations - declaration is in status '${decl.status}'`);
+        throw new ConflictError(`Cannot cancel allocations — declaration is in status '${decl.status}'`);
       }
 
       const { rows: updated } = await client.query<DividendAllocation>(
@@ -660,13 +660,13 @@ async function rollUpTotals(client: PoolClient, declarationId: string): Promise<
 
 /**
  * Core computation. Pulls eligible holdings, applies the policy, applies
- * withholding tax, and rounds. The result is virtual - callers persist it
+ * withholding tax, and rounds. The result is virtual — callers persist it
  * (in approve) or just preview it.
  */
 async function computeAllocations(client: PoolClient, decl: DividendDeclaration): Promise<AllocationComputation> {
   if (decl.policy_type === 'weighted') {
     throw new ValidationError(
-      "The 'weighted' policy isn't supported yet - coming in E5.2. Use 'proportional_to_shares' or 'flat_per_member'.",
+      "The 'weighted' policy isn't supported yet — coming in E5.2. Use 'proportional_to_shares' or 'flat_per_member'.",
     );
   }
 

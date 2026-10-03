@@ -122,7 +122,7 @@ export default function MeetingsPage() {
     {
       key: 'chaired_by_name',
       header: 'Chair',
-      render: (row: MeetingRow) => <span className="text-sm">{row.chaired_by_name ?? '-'}</span>,
+      render: (row: MeetingRow) => <span className="text-sm">{row.chaired_by_name ?? '—'}</span>,
     },
     {
       key: 'attendees_present',

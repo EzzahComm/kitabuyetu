@@ -25,7 +25,7 @@ import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 // Mirrors RecordRepaymentSchema field-for-field. It used to be
-// {amount, paymentMethod, reference}, none of which the API accepts -
+// {amount, paymentMethod, reference}, none of which the API accepts —
 // installmentNumber/amountPaid/paymentDate are all required there, so every
 // repayment recorded through this dialog 400'd.
 const repaySchema = z.object({
@@ -46,7 +46,7 @@ export default function LoanDetailPage() {
   const [b2cAmount, setB2cAmount] = useState('');
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
   const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
-  // Only 'approve' can go through a bare confirm - RejectLoanSchema needs a
+  // Only 'approve' can go through a bare confirm — RejectLoanSchema needs a
   // reason and DisburseLoanSchema needs a date + payment method, so those two
   // get real dialogs instead (previously all three posted just {action} and
   // reject/disburse 400'd every time).
@@ -189,7 +189,7 @@ export default function LoanDetailPage() {
             <p className="font-semibold">
               {l.interest_rate}% p.a. × {l.loan_term_months} months
             </p>
-            {/* Cadence is only worth a line when it is not the default - a
+            {/* Cadence is only worth a line when it is not the default — a
               weekly loan reads "12 months" above but has 52 instalments. */}
             {l.repayment_frequency && l.repayment_frequency !== 'monthly' && (
               <p className="text-xs text-muted-foreground">
@@ -295,7 +295,7 @@ export default function LoanDetailPage() {
                 {unpaidSchedule.length === 0 && <option value="">No unpaid installments</option>}
                 {unpaidSchedule.map((row) => (
                   <option key={row.installment_number} value={row.installment_number}>
-                    #{row.installment_number} - due {formatDate(row.due_date)} - {formatKES(row.total_due ?? 0)}
+                    #{row.installment_number} · due {formatDate(row.due_date)} · {formatKES(row.total_due ?? 0)}
                   </option>
                 ))}
               </select>
@@ -418,7 +418,7 @@ export default function LoanDetailPage() {
                 loanId: l.id,
               },
               { headers: { 'Idempotency-Key': b2cIdempotencyKey } },
-            ); // gitleaks:allow - header name, not a secret; value is a client-generated crypto.randomUUID()
+            ); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
             toast({
               title: res.needsApproval ? 'Disbursement submitted for approval' : 'Disbursement initiated',
               description: res.needsApproval

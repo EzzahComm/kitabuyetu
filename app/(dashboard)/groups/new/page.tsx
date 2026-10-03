@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Found an additional group under the caller's EXISTING identity - the
+ * Found an additional group under the caller's EXISTING identity — the
  * authenticated counterpart to the public /register form, for a member who
  * already has an account (Kitabu Yetu or Chama Reminder) and hit a dead-end
  * "Phone number already registered" trying to sign up again for the other
@@ -34,18 +34,18 @@ import { postLoginPath } from '@/lib/auth/post-login-path';
 import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
 import type { CreateAdditionalGroupPayload } from '@/lib/validators/auth.schema';
 
-// Mirrors lib/validators/auth.schema.ts's shared groupDetailsFields - kept in
+// Mirrors lib/validators/auth.schema.ts's shared groupDetailsFields — kept in
 // sync manually, same convention app/(auth)/register/page.tsx's own schema
 // comment already documents for this codebase.
-// An unpicked <select> submits "" (its "- Optional -" entry), which a bare
-// z.enum().optional() rejects - silently, since these fields show no error text.
+// An unpicked <select> submits "" (its "— Optional —" entry), which a bare
+// z.enum().optional() rejects — silently, since these fields show no error text.
 const optionalEnum = <const T extends readonly [string, ...string[]]>(values: T) =>
   z.preprocess((v) => (v === '' ? undefined : v), z.enum(values as unknown as [T[number], ...T[number][]]).optional());
 
 const schema = z.object({
   product: z.enum(['kitabu_yetu', 'chama_reminder']).default('kitabu_yetu'),
   groupName: z.string().min(3, 'Group name must be at least 3 characters'),
-  // Must match the group_type Postgres enum EXACTLY - derived from the shared
+  // Must match the group_type Postgres enum EXACTLY — derived from the shared
   // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
   groupType: z.enum(GROUP_TYPES),
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
@@ -97,8 +97,8 @@ const selectCls = 'flex h-10 w-full rounded-md border border-input bg-background
 const sectionTitle = 'text-xs font-semibold uppercase tracking-wider text-muted-foreground pt-2';
 
 const PRODUCT_LABELS: Record<FormValues['product'], string> = {
-  kitabu_yetu: 'Kitabu Yetu - full accounting, contributions, loans',
-  chama_reminder: 'Chama Reminder - SMS reminders only',
+  kitabu_yetu: 'Kitabu Yetu — full accounting, contributions, loans',
+  chama_reminder: 'Chama Reminder — SMS reminders only',
 };
 
 export default function CreateAdditionalGroupPage() {
@@ -167,7 +167,7 @@ export default function CreateAdditionalGroupPage() {
     <div className="space-y-6">
       <PageHeader
         title="Create another group"
-        description="Found a new group under your existing account - no new phone number or password needed."
+        description="Found a new group under your existing account — no new phone number or password needed."
         breadcrumbs={[{ label: 'Groups' }, { label: 'New' }]}
       />
 
@@ -198,7 +198,7 @@ export default function CreateAdditionalGroupPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label>Group type</Label>
-                {/* Second copy of the signup dropdown - see the note in
+                {/* Second copy of the signup dropdown — see the note in
                     app/(auth)/register/page.tsx. Both now render from the same
                     GROUP_TYPE_LABELS map. */}
                 <select aria-label="Group type" className={selectCls} {...register('groupType')}>
@@ -250,7 +250,7 @@ export default function CreateAdditionalGroupPage() {
               </div>
             </div>
 
-            {/* Kitabu Yetu only - Chama Reminder has no ledger to track contributions against. */}
+            {/* Kitabu Yetu only — Chama Reminder has no ledger to track contributions against. */}
             {product === 'kitabu_yetu' && (
               <GroupFinanceFields register={register} errors={errors} titleClassName={sectionTitle} />
             )}

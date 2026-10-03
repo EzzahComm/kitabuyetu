@@ -1,11 +1,11 @@
 /**
- * GET /api/health/deep - Connectivity probe for DB + Redis.
+ * GET /api/health/deep — Connectivity probe for DB + Redis.
  *
  * Protected by WORKER_SECRET (same as cron) so it is not publicly queryable.
  * Used by staging pipelines and on-call runbooks to verify dependencies.
  *
  * Header only, timing-safe compare (OPTIMIZATION_CLEANUP_AUDIT.md High #15)
- * - this used to also accept the secret via a `?secret=` query string
+ * — this used to also accept the secret via a `?secret=` query string
  * (which can leak into access logs/referrers) and compared it with a plain
  * `!==`, unlike every other secret check in this codebase.
  */

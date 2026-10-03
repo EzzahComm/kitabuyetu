@@ -6,10 +6,10 @@ import { FineQuerySchema, IssueFineSchema } from '@/lib/validators/fine.schema';
 import { ok, created } from '@/lib/utils/response';
 
 /**
- * GET  /api/v1/fines - paginated, filterable by member/status.
- * POST /api/v1/fines - issue a fine against a member.
+ * GET  /api/v1/fines — paginated, filterable by member/status.
+ * POST /api/v1/fines — issue a fine against a member.
  *
- * Both gated on 'fines.manage' (migration 112) - the existing chairperson-tier
+ * Both gated on 'fines.manage' (migration 112) — the existing chairperson-tier
  * string already used by /api/v1/fines/policy, kept here rather than a new,
  * unregistered permission (see role-permission-catalog.test.ts).
  */

@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 /**
  * Offline / sync status pill for the member portal.
  *
- * Offline resilience is a core requirement - members in the field lose
+ * Offline resilience is a core requirement — members in the field lose
  * connectivity often, so we always show whether their data is synced. When
  * offline, actions queue locally; this surfaces that state honestly instead of
  * silently failing.
@@ -45,7 +45,7 @@ export function OfflineIndicator({ className }: { className?: string }) {
           className,
         )}
       >
-        <CloudOff size={12} /> Offline - changes saved on device
+        <CloudOff size={12} /> Offline — changes saved on device
       </span>
     );
   }

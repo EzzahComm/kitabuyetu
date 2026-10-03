@@ -1,12 +1,12 @@
 'use client';
 
 /**
- * Funding Portal - the self-service view for an Organization's own coordinator.
+ * Funding Portal — the self-service view for an Organization's own coordinator.
  *
- * An Organization is not a group - it is a funder/monitor (bank, SACCO,
+ * An Organization is not a group — it is a funder/monitor (bank, SACCO,
  * foundation, NGO) that oversees many groups; see `(admin)/admin/organizations`
  * for the platform-side registry of these entities. This page is the same
- * Organization entity's own operational view, not a separate concept - it is
+ * Organization entity's own operational view, not a separate concept — it is
  * labeled "Funding Portal" (rather than "Organization Portal") so it isn't
  * mistaken for the admin registry, or for the unrelated B2B "Workspace"
  * concept in `(enterprise)`. This dashboard gives its coordinators:
@@ -57,7 +57,7 @@ import { INTEREST_METHODS, REPAYMENT_FREQUENCIES } from '@/lib/validators/organi
 // ─── Data hooks ───────────────────────────────────────────────────────────────
 
 interface DashboardPayload {
-  /** null when unreadable - NEVER zero-filled (R10). */
+  /** null when unreadable — NEVER zero-filled (R10). */
   financial: {
     walletBalance: string;
     committedFunds: string;
@@ -65,7 +65,7 @@ interface DashboardPayload {
     totalDisbursed: string;
     totalReturned: string;
   } | null;
-  /** null when unreadable - NEVER zero-filled (R10). */
+  /** null when unreadable — NEVER zero-filled (R10). */
   portfolio: {
     linkedGroups: number;
     activeMembers: number;
@@ -138,8 +138,8 @@ interface DonorSpendLine {
 
 const ORG_POLICY_LABELS: Record<string, string> = {
   org_disbursement_threshold: 'Your own disbursement maker-checker',
-  group_disbursement_threshold: 'Default for linked groups' disbursements',
-  journal_threshold: 'Default for linked groups' manual journals',
+  group_disbursement_threshold: 'Default for linked groups’ disbursements',
+  journal_threshold: 'Default for linked groups’ manual journals',
 };
 
 // Value/label pairs mirrored from lib/validators/organization.schema.ts's
@@ -180,7 +180,7 @@ const REPAYMENT_FREQUENCY_LABELS: Record<(typeof REPAYMENT_FREQUENCIES)[number],
   quarterly: 'Quarterly',
   bullet: 'Bullet (single payment)',
 };
-/** Standard convention, matching this file's own hardcoded choice - see
+/** Standard convention, matching this file's own hardcoded choice — see
  *  ProgramDialog's comment for why the waterfall order isn't a user control. */
 const STANDARD_WATERFALL: { order: ('penalty' | 'interest' | 'principal')[] } = {
   order: ['penalty', 'interest', 'principal'],
@@ -214,7 +214,7 @@ export default function FundingPortalPage() {
   });
   const groups = groupsPage?.items;
 
-  // { limit: 10 } - a small "recent disbursements" preview, not the
+  // { limit: 10 } — a small "recent disbursements" preview, not the
   // Disbursements page's paginated { page, limit: 20 } list; keeping the
   // real params in the key keeps the two from cache-colliding.
   const { data: disb } = useQuery<{ items: Disbursement[] }>({
@@ -278,10 +278,10 @@ export default function FundingPortalPage() {
   const p = dash?.portfolio;
   const h = healthResponse?.health;
 
-  // R10 - never render money we could not actually read. This page is where
+  // R10 — never render money we could not actually read. This page is where
   // disbursements get decided, so a wallet balance falling back to "KES 0"
   // would be the most costly possible place to show a confident wrong number.
-  const NA = '-';
+  const NA = '—';
   const fMoney = (v: string | undefined) => (f && v !== undefined ? formatKES(parseFloat(v)) : NA);
   const pMoney = (v: string | undefined, available: boolean = true) =>
     available && v !== undefined ? formatKES(parseFloat(v)) : NA;
@@ -289,7 +289,7 @@ export default function FundingPortalPage() {
     available && v !== undefined ? v.toLocaleString() : NA;
   const pct = (v: number | null | undefined) => (v !== null && v !== undefined ? `${v}%` : NA);
   // A non-zero risk figure must not render identically to a healthy zero.
-  // Tinted only when a number was actually read - a dash is not a warning.
+  // Tinted only when a number was actually read — a dash is not a warning.
   const riskTone = (v: number | undefined, severe = false) =>
     h && v !== undefined && v > 0
       ? severe
@@ -349,12 +349,12 @@ export default function FundingPortalPage() {
         <StatCard
           title="Loan portfolio"
           value={pMoney(p?.loanPortfolio, !!p)}
-          description={`${pCount(p?.activeLoans, !!p)} active - ${pMoney(p?.loanRepayments, !!p)} repaid`}
+          description={`${pCount(p?.activeLoans, !!p)} active · ${pMoney(p?.loanRepayments, !!p)} repaid`}
           icon={TrendingUp}
         />
       </div>
 
-      {/* Portfolio health - risk indicators */}
+      {/* Portfolio health — risk indicators */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Portfolio health</CardTitle>
@@ -418,7 +418,7 @@ export default function FundingPortalPage() {
           <CardContent>
             {(dash?.programs ?? []).length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-6">
-                No programs yet - create a funding envelope to start disbursing.
+                No programs yet — create a funding envelope to start disbursing.
               </p>
             ) : (
               <div className="space-y-2.5">
@@ -442,7 +442,7 @@ export default function FundingPortalPage() {
                           <p className="text-sm font-medium truncate">{pr.name}</p>
                           <p className="text-xs text-muted-foreground capitalize">
                             {pr.program_type.replace(/_/g, ' ')}
-                            {pr.funding_source ? ` - ${pr.funding_source}` : ''}
+                            {pr.funding_source ? ` · ${pr.funding_source}` : ''}
                           </p>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
@@ -500,7 +500,7 @@ export default function FundingPortalPage() {
                       <p className="font-medium truncate">{d.group_name ?? d.id}</p>
                       <p className="text-xs text-muted-foreground capitalize truncate">
                         {d.disbursement_type.replace(/_/g, ' ')}
-                        {d.program_name ? ` - ${d.program_name}` : ''} - {formatDate(d.created_at)}
+                        {d.program_name ? ` · ${d.program_name}` : ''} · {formatDate(d.created_at)}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -515,12 +515,12 @@ export default function FundingPortalPage() {
         </Card>
       </div>
 
-      {/* Trial balance - the organization's own chart of accounts */}
+      {/* Trial balance — the organization's own chart of accounts */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Trial balance</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Your organization&apos;s own ledger - deposits post to Cash/Donor Contributions, disbursements to
+            Your organization&apos;s own ledger — deposits post to Cash/Donor Contributions, disbursements to
             Cash/Program Disbursements.
           </p>
         </CardHeader>
@@ -557,12 +557,12 @@ export default function FundingPortalPage() {
         </CardContent>
       </Card>
 
-      {/* Budget variance / utilization - per-program deployment report */}
+      {/* Budget variance / utilization — per-program deployment report */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Budget utilization</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Per program: settled disbursements, amounts reserved under pending approval, and - for dated programs -
+            Per program: settled disbursements, amounts reserved under pending approval, and — for dated programs —
             variance against the share of the program window already elapsed.
           </p>
         </CardHeader>
@@ -582,7 +582,7 @@ export default function FundingPortalPage() {
                   <>
                     <p className="font-medium">{line.name}</p>
                     <p className="text-xs text-muted-foreground capitalize">
-                      {line.programType.replace(/_/g, ' ')} - {line.status}
+                      {line.programType.replace(/_/g, ' ')} · {line.status}
                     </p>
                   </>
                 ),
@@ -603,7 +603,7 @@ export default function FundingPortalPage() {
                 key: 'reserved',
                 header: 'Reserved',
                 className: 'text-right tabular-nums',
-                render: (line) => (line.reserved > 0 ? formatKES(line.reserved) : '-'),
+                render: (line) => (line.reserved > 0 ? formatKES(line.reserved) : '—'),
               },
               {
                 key: 'remaining',
@@ -636,7 +636,7 @@ export default function FundingPortalPage() {
         </CardContent>
       </Card>
 
-      {/* Donor/grant spend report - programs rolled up by funding source */}
+      {/* Donor/grant spend report — programs rolled up by funding source */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Donor / grant report</CardTitle>
@@ -683,7 +683,7 @@ export default function FundingPortalPage() {
                       <div className="flex flex-wrap gap-1.5">
                         {d.byGroup.map((g) => (
                           <Badge key={g.groupId} variant="secondary" className="font-normal">
-                            {g.groupName ?? 'Unknown group'} - {formatKES(g.amount)}
+                            {g.groupName ?? 'Unknown group'} · {formatKES(g.amount)}
                           </Badge>
                         ))}
                       </div>
@@ -696,12 +696,12 @@ export default function FundingPortalPage() {
         </CardContent>
       </Card>
 
-      {/* Approval policies - Configuration Service / Policy Resolution Engine */}
+      {/* Approval policies — Configuration Service / Policy Resolution Engine */}
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="text-base">Approval policies</CardTitle>
           <p className="text-xs text-muted-foreground">
-            Your own disbursement threshold, plus the defaults you hand down to linked groups - any group can still set
+            Your own disbursement threshold, plus the defaults you hand down to linked groups — any group can still set
             its own override.
           </p>
         </CardHeader>
@@ -721,7 +721,7 @@ export default function FundingPortalPage() {
                         variant={p.source === 'organization' ? 'success' : 'outline'}
                         className="text-xs capitalize mt-1"
                       >
-                        {p.source === 'organization' ? 'Your override' : `Inherited - ${p.source}`}
+                        {p.source === 'organization' ? 'Your override' : `Inherited — ${p.source}`}
                       </Badge>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
@@ -878,7 +878,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [budget, setBudget] = useState('');
   const [source, setSource] = useState('');
 
-  // Financial-product terms (migration 116) - this dialog is the only place a
+  // Financial-product terms (migration 116) — this dialog is the only place a
   // product gets created, and until now none of these had a form field at
   // all despite existing in the schema/validator since Phase 1.
   const [repayable, setRepayable] = useState(false);
@@ -886,7 +886,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
   const [interestRate, setInterestRate] = useState('');
   const [frequency, setFrequency] = useState<(typeof REPAYMENT_FREQUENCIES)[number]>('monthly');
   const [tenorMonths, setTenorMonths] = useState('');
-  // Processing fee (migration 125) - independent of `repayable`, so its own
+  // Processing fee (migration 125) — independent of `repayable`, so its own
   // field, always visible.
   const [feePct, setFeePct] = useState('');
 
@@ -904,7 +904,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
               interestRateAnnual: parseFloat(interestRate),
               repaymentFrequency: frequency,
               tenorMonths: parseInt(tenorMonths, 10),
-              // Standard order, not exposed as a control - see STANDARD_WATERFALL.
+              // Standard order, not exposed as a control — see STANDARD_WATERFALL.
               repaymentWaterfall: STANDARD_WATERFALL,
             }
           : {}),
@@ -1018,7 +1018,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
                   </select>
                 </div>
                 <div className="space-y-1">
-                  <Label>Interest rate - annual %</Label>
+                  <Label>Interest rate — annual %</Label>
                   <Input
                     type="number"
                     min={0}
@@ -1063,7 +1063,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
           <div className="space-y-1">
             <Label>
-              Processing fee - % of allocated amount <span className="text-muted-foreground text-xs">(optional)</span>
+              Processing fee — % of allocated amount <span className="text-muted-foreground text-xs">(optional)</span>
             </Label>
             <Input
               type="number"
@@ -1075,7 +1075,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
               placeholder="3"
             />
             <p className="text-xs text-muted-foreground">
-              Retained by the organization, deducted from what actually leaves the wallet - the group&apos;s principal
+              Retained by the organization, deducted from what actually leaves the wallet — the group&apos;s principal
               is unaffected. Enter a grossed-up amount at disbursement time if you need a specific net figure to reach
               the group.
             </p>
@@ -1096,7 +1096,7 @@ function ProgramDialog({ open, onClose }: { open: boolean; onClose: () => void }
 
 // ─── Program groups drill-down dialog ──────────────────────────────────────────
 // Programme tier of the portfolio drill-down (Org → Programme → Group →
-// Member) - see organization-finance.service.ts's listProgramGroups.
+// Member) — see organization-finance.service.ts's listProgramGroups.
 
 function ProgramGroupsDialog({ programId, onClose }: { programId: string | null; onClose: () => void }) {
   const { data, isLoading, isError } = useQuery({
@@ -1108,7 +1108,7 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
 
   const program = data?.program;
   const groups: ProgramGroupLine[] = data?.groups ?? [];
-  // R10 - a failed per-group breakdown is reported here, not rendered as "no groups".
+  // R10 — a failed per-group breakdown is reported here, not rendered as "no groups".
   const groupsIncomplete = !!data?.incomplete?.includes('groups');
 
   return (
@@ -1135,14 +1135,14 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
             {program && (
               <p className="text-xs text-muted-foreground capitalize">
                 {program.program_type.replace(/_/g, ' ')}
-                {program.funding_source ? ` - ${program.funding_source}` : ''}
-                {' - '}
+                {program.funding_source ? ` · ${program.funding_source}` : ''}
+                {' · '}
                 {formatKES(parseFloat(program.disbursed_total))} of {formatKES(parseFloat(program.budget))} disbursed
               </p>
             )}
             {groupsIncomplete && (
               <p className="text-xs text-amber-600 dark:text-amber-500">
-                Could not read per-group figures for this program - showing what did load.
+                Could not read per-group figures for this program — showing what did load.
               </p>
             )}
             {groups.length === 0 ? (
@@ -1160,9 +1160,9 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
                       <p className="font-medium truncate">{g.group_name}</p>
                       <p className="text-xs text-muted-foreground">
                         {g.active_members} member{g.active_members === 1 ? '' : 's'}
-                        {' - '}
+                        {' · '}
                         {g.disbursement_count} disbursement{g.disbursement_count === 1 ? '' : 's'}
-                        {g.last_disbursed_at ? ` - last ${formatDate(g.last_disbursed_at)}` : ''}
+                        {g.last_disbursed_at ? ` · last ${formatDate(g.last_disbursed_at)}` : ''}
                       </p>
                     </div>
                     <div className="text-right shrink-0">
@@ -1311,7 +1311,7 @@ function DisburseDialog({
           </div>
           <p className="text-xs text-muted-foreground">
             Debits the organization wallet and posts a balanced journal entry (Cash / External Funding) in the
-            group&apos;s own books - atomically.
+            group&apos;s own books — atomically.
           </p>
         </div>
         <DialogFooter>

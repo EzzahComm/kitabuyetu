@@ -1,7 +1,7 @@
 /**
  * R11 audit-on-read, organization axis (migration 168).
  *
- * The assertion that matters most here is NOT that a row gets written - it is
+ * The assertion that matters most here is NOT that a row gets written — it is
  * that the row is then READABLE by the coordinator it concerns. Before
  * migration 168 an organization-level audit row could not be:
  * `audit_logs_select` allowed only `group_id = app_current_group_id()`, and a
@@ -53,7 +53,7 @@ const readAuditLog = (userId: string, organizationId: string) =>
     }),
   );
 
-describe('R11 - audit on significant organization reads', () => {
+describe('R11 — audit on significant organization reads', () => {
   beforeAll(async () => {
     await resetDatabase();
   });
@@ -90,7 +90,7 @@ describe('R11 - audit on significant organization reads', () => {
     expect(rows).toHaveLength(1);
   });
 
-  it('does NOT audit the plain program list - that is what the UI polls', async () => {
+  it('does NOT audit the plain program list — that is what the UI polls', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
 
     expect((await readPlainList(coordinatorId, organizationId)).status).toBe(200);

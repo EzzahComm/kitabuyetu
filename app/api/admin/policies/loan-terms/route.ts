@@ -7,8 +7,8 @@ import { SetLoanTermsSchema } from '@/lib/validators/loan.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/policies/loan-terms - platform-wide default loan terms.
- * PUT /api/admin/policies/loan-terms - set the platform-wide default (super_admin only).
+ * GET /api/admin/policies/loan-terms — platform-wide default loan terms.
+ * PUT /api/admin/policies/loan-terms — set the platform-wide default (super_admin only).
  */
 
 export async function GET(req: NextRequest): Promise<Response> {

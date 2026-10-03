@@ -29,9 +29,9 @@ export interface InvestmentRow {
   liquidation_value: string | null;
   notes: string | null;
   created_by_name: string;
-  /** Sum of investment_returns for this investment - computed, not a real column. */
+  /** Sum of investment_returns for this investment — computed, not a real column. */
   total_returns: string;
-  /** Sum of investment_expenses - computed, not a real column (migration 156). */
+  /** Sum of investment_expenses — computed, not a real column (migration 156). */
   total_expenses: string;
   created_at: string;
 }
@@ -62,7 +62,7 @@ export interface InvestmentExpenseRow {
   created_at: string;
 }
 
-/** What GET /investments/:id returns - the row plus its children.
+/** What GET /investments/:id returns — the row plus its children.
  * No `shares` field: member_investment_shares had zero writers anywhere in
  * the product (confirmed by grep) and getById's query dropped the dead
  * query entirely rather than keep fetching rows that could never exist
@@ -78,7 +78,7 @@ export type InvestmentSummary = Awaited<ReturnType<typeof investmentsService.get
 
 export const investmentKeys = {
   all: ['investments'] as const,
-  /** Prefix for every list query, whatever its params - use this to invalidate. */
+  /** Prefix for every list query, whatever its params — use this to invalidate. */
   lists: () => [...investmentKeys.all, 'list'] as const,
   list: (p?: Record<string, unknown>) => [...investmentKeys.all, 'list', p] as const,
   detail: (id: string) => [...investmentKeys.all, id] as const,

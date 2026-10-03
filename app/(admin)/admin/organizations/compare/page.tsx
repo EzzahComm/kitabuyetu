@@ -35,7 +35,7 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 // Same derived-band thresholds the governance engine uses to score a metric
-// (green=100/amber=55/red=15) collapsed into ranges - this is a display
+// (green=100/amber=55/red=15) collapsed into ranges — this is a display
 // banding over an already-averaged cross-group score, not a stored RAG value.
 function healthBand(score: number) {
   if (score >= 80) return { label: 'Strong', className: 'text-green-600 bg-green-50' };
@@ -119,7 +119,7 @@ export default function OrganizationsComparePage() {
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="text-muted-foreground">{org.county ?? '-'}</TableCell>
+                      <TableCell className="text-muted-foreground">{org.county ?? '—'}</TableCell>
                       <TableCell className="text-right font-medium">{org.group_count}</TableCell>
                       <TableCell className="text-right font-medium">
                         {Number(org.member_reach).toLocaleString()}

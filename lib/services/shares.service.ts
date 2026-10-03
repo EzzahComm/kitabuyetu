@@ -246,13 +246,13 @@ export const sharesService = {
       );
       if (!cls[0]) throw new NotFoundError('Share class', input.shareClassId);
       if (!cls[0].is_active)
-        throw new ConflictError('Share class is inactive - re-activate it before posting transactions');
+        throw new ConflictError('Share class is inactive — re-activate it before posting transactions');
       if (input.type === 'transfer' && !cls[0].transfer_allowed) {
         throw new ConflictError(`Transfers are disabled for share class '${cls[0].code}'`);
       }
 
       // Lock-period check on outflows. We use the last *acquisition* date
-      // (the most recent inflow), not last_transaction_at - a previous
+      // (the most recent inflow), not last_transaction_at — a previous
       // outflow would otherwise reset the lock clock and let members
       // sidestep the policy with a sacrificial small redemption.
       const isOutflow = input.type === 'redemption' || input.type === 'transfer';
@@ -269,7 +269,7 @@ export const sharesService = {
         }
       }
 
-      // Membership check - keeps the FK error clean.
+      // Membership check — keeps the FK error clean.
       await assertGroupMembership(client, ctx.groupId, input.memberId, 'memberId');
       if (input.counterpartyMemberId) {
         await assertGroupMembership(client, ctx.groupId, input.counterpartyMemberId, 'counterpartyMemberId');
@@ -284,7 +284,7 @@ export const sharesService = {
         const senderBalance = await getMemberBalance(client, ctx.groupId, input.memberId, input.shareClassId);
         if (senderBalance < qtyAbs) {
           throw new ConflictError(
-            `Member only holds ${senderBalance} share(s) of '${cls[0].code}' - cannot ${input.type} ${qtyAbs}`,
+            `Member only holds ${senderBalance} share(s) of '${cls[0].code}' — cannot ${input.type} ${qtyAbs}`,
           );
         }
       }
@@ -415,7 +415,7 @@ export const sharesService = {
             ctx.groupId,
             ctx.userId,
             input.type === 'purchase' ? 'share_purchase' : 'share_redemption',
-            `Share ${input.type} - ${cls[0].code} x${qtyAbs}`,
+            `Share ${input.type} — ${cls[0].code} x${qtyAbs}`,
             { amount: totalAmount },
             { reference: row.id, memberId: input.memberId },
           );
@@ -524,9 +524,9 @@ export const sharesService = {
       const orig = origRows[0];
       if (!orig) throw new NotFoundError('Share transaction', txnId);
       if (orig.status !== 'posted')
-        throw new ConflictError(`Transaction is in status '${orig.status}' - only posted transactions can be reversed`);
+        throw new ConflictError(`Transaction is in status '${orig.status}' — only posted transactions can be reversed`);
       if (orig.reverses_transaction_id)
-        throw new ConflictError(`Transaction is itself a reversal - cannot be reversed again`);
+        throw new ConflictError(`Transaction is itself a reversal — cannot be reversed again`);
 
       // Reversal is an adjustment that subtracts what the original added.
       const reverseRow = await insertTxn(client, {
@@ -561,7 +561,7 @@ export const sharesService = {
         reason,
       });
 
-      // Mirror the GL effect if the original transaction posted one -
+      // Mirror the GL effect if the original transaction posted one —
       // resolved from the same template as the original event, sides
       // inverted, so a reversal always mirrors whatever mapping was in force.
       if ((orig.type === 'purchase' || orig.type === 'redemption') && Number(orig.total_amount) > 0) {
@@ -802,7 +802,7 @@ interface TxnInsertArgs {
 
 async function insertTxn(client: PoolClient, a: TxnInsertArgs): Promise<ShareTransaction> {
   // Attribution (§6a): eligibility is the caller's check; the membership id
-  // is derived here - deterministic under UNIQUE (group_id, member_id) -
+  // is derived here — deterministic under UNIQUE (group_id, member_id) —
   // so every share transaction (incl. transfers/redemptions) carries it.
   const { rows } = await client.query<ShareTransaction>(
     `INSERT INTO share_transactions (

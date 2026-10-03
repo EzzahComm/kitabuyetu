@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * White-label branding - logo + primary color only
+ * White-label branding — logo + primary color only
  * (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4; migration 109). Scope
  * decided via AskUserQuestion, 2026-08-02: no custom domain, no upload
  * pipeline (plain URL field, mirrors group_email_branding's existing
- * pattern) - the smallest real version of "white-label".
+ * pattern) — the smallest real version of "white-label".
  */
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -92,7 +92,7 @@ export default function BrandingPage() {
             <CardTitle className="flex items-center gap-2 text-base">
               <Palette size={16} /> Logo &amp; color
             </CardTitle>
-            <CardDescription>Logo must be a hosted image URL - there&apos;s no upload here yet.</CardDescription>
+            <CardDescription>Logo must be a hosted image URL — there&apos;s no upload here yet.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
             <div className="space-y-1.5">

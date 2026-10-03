@@ -31,6 +31,8 @@ export function DonorLeaderboard({ organizationId, limit = 10 }: DonorLeaderboar
           const { donors } = await response.json();
           setDonors(donors);
         }
+      } catch {
+        // leaderboard stays empty on failure
       } finally {
         setLoading(false);
       }

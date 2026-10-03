@@ -15,7 +15,7 @@
  *      c. lib/certs/{sandbox,production}.cer based on MPESA_ENV
  *
  * If none of the above resolves and MPESA_ENV=production, throws at first
- * use. In sandbox we tolerate a missing credential - Safaricom sandbox B2C
+ * use. In sandbox we tolerate a missing credential — Safaricom sandbox B2C
  * accepts an empty SecurityCredential for the well-known test initiator.
  *
  * The encrypted blob is cached in module scope for the lifetime of the
@@ -74,11 +74,11 @@ function looksLikeRealCredential(value: string): boolean {
 }
 
 function resolveCredential(): string {
-  // 1. Operator-supplied pre-encrypted blob - take as-is, but guard against
+  // 1. Operator-supplied pre-encrypted blob — take as-is, but guard against
   //    placeholders. A real Safaricom SecurityCredential is RSA ciphertext
   //    encoded as base64 (~344 chars for RSA-2048, ~684 for RSA-4096). A short
   //    or non-base64 value is almost certainly a dummy like
-  //    "your_security_credential" - fail loudly rather than ship it to
+  //    "your_security_credential" — fail loudly rather than ship it to
   //    Safaricom and get a cryptic InvalidInitiatorInformation at call time.
   const preEncrypted = process.env.MPESA_B2C_SECURITY_CREDENTIAL?.trim();
   if (preEncrypted) {
@@ -109,7 +109,7 @@ function resolveCredential(): string {
 }
 
 function loadCertificate(): string {
-  // a. Raw PEM via env var - preferred for serverless
+  // a. Raw PEM via env var — preferred for serverless
   const inlinePem = process.env.MPESA_PUBLIC_CERT_PEM?.trim();
   if (inlinePem) {
     return normaliseCertPem(inlinePem);
@@ -158,7 +158,7 @@ function normaliseCertPem(input: string): string {
   if (trimmed.includes('-----BEGIN CERTIFICATE-----')) {
     return trimmed.replace(/\r\n/g, '\n');
   }
-  // Bare base64 body - wrap with the standard PEM armor
+  // Bare base64 body — wrap with the standard PEM armor
   const body =
     trimmed
       .replace(/\s+/g, '')

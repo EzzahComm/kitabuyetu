@@ -1,10 +1,10 @@
 /**
- * Bank Accounts / Settlements / Vendor Payments - dual control, fund
+ * Bank Accounts / Settlements / Vendor Payments — dual control, fund
  * reservation, and the per-row expense-account validation.
  *
  * These cover the parts that don't need Daraja: everything up to (and
  * including) approval's own guard. The dispatch call itself is mocked at the
- * module boundary - what's asserted is the state machine around it, which is
+ * module boundary — what's asserted is the state machine around it, which is
  * where the money-safety properties live.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
@@ -68,7 +68,7 @@ describe('groupBankAccountsService', () => {
 describe('settlementsService.initiate', () => {
   const input = { bankAccountId: 'ba-1', amount: 5000, idempotencyKey: 'key-1' };
 
-  it('replays the same row for a repeated idempotency key - never a second sweep', async () => {
+  it('replays the same row for a repeated idempotency key — never a second sweep', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'set-1', status: 'pending_approval' }] });
 
     const res = await settlementsService.initiate(maker, input);

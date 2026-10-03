@@ -37,10 +37,10 @@ const OTP_ERROR_COPY: Record<string, string> = {
 };
 
 /**
- * POST /api/v1/auth/verify/complete - the SMS-OTP completion path (§4A).
+ * POST /api/v1/auth/verify/complete — the SMS-OTP completion path (§4A).
  * The current access token still carries the stale `groupStatus:
- * 'pending_verification'` claim after this succeeds, so - same as
- * switch-group - this mints a fresh token pair rather than relying on the
+ * 'pending_verification'` claim after this succeeds, so — same as
+ * switch-group — this mints a fresh token pair rather than relying on the
  * client to re-login.
  */
 export async function POST(req: NextRequest): Promise<Response> {

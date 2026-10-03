@@ -1,7 +1,7 @@
 /**
  * Optional sign-up data written AFTER register_group()/create_additional_group()
  * has committed: the contribution plan, and the government-registration flag
- * with its number and certificate. All of it is deliberately non-fatal - the
+ * with its number and certificate. All of it is deliberately non-fatal — the
  * group exists either way, registration data is optional, and an officer can
  * supply it later from Settings if a write fails here.
  */

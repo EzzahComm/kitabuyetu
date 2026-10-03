@@ -1,26 +1,26 @@
 /**
- * Multi-staff organizations (Phase 1 of the plan - see
+ * Multi-staff organizations (Phase 1 of the plan — see
  * docs/adr or the session's plan file for full context). organization_members
  * (migration 101) supersedes organizations.coordinator_member_id (kept,
  * legacy/display-only) as the source of truth for who can act on behalf of
  * an organization.
  *
  * Every function here is called from the super_admin backoffice UI
- * (app/(admin)/admin/organizations/[id]/page.tsx), so - mirroring
- * admin-organizations.service.ts's own established convention exactly -
+ * (app/(admin)/admin/organizations/[id]/page.tsx), so — mirroring
+ * admin-organizations.service.ts's own established convention exactly —
  * these use withAdminDb (not a tenant ctx + RLS), take an explicit
  * organizationId, and are gated at the route layer (super_admin only), not
  * here. This is deliberately NOT the same shape as members.service.ts
  * (group-scoped, ctx-based, RLS-enforced): organization staff aren't
  * joining a group, so membersService.create()'s linkMemberToGroup() step
- * doesn't apply - only the "find or create a member by phone" part is
+ * doesn't apply — only the "find or create a member by phone" part is
  * genuinely shared, reused here via members.service.ts's now-exported
  * generateTempPassword()/BCRYPT_ROUNDS rather than duplicated.
  *
  * The RLS policies on organization_members (org_role = 'lead' required for
  * INSERT/UPDATE) exist for defense-in-depth and for a future self-service
  * path (an org's own lead managing their own staff via the tenant-scoped
- * (enterprise) portal) - not exercised by this admin-only Phase 1 UI, which
+ * (enterprise) portal) — not exercised by this admin-only Phase 1 UI, which
  * bypasses them entirely via withAdminDb like every other admin-organizations
  * function already does.
  */
@@ -39,10 +39,10 @@ import { assertStaffCap } from './organization-plan.service';
 /**
  * Finds an existing member by phone, or creates one with a temp/given
  * password. Shared by addOrgStaff() (Phase 1, direct-add) and
- * completeOrgInvitation() (Phase 2, email/OTP invite) - the only genuinely
+ * completeOrgInvitation() (Phase 2, email/OTP invite) — the only genuinely
  * common step between them; nothing else about the two flows overlaps.
  * Never downgrades an existing, different platform_role (e.g.
- * super_admin/support) - only promotes someone who's currently a plain
+ * super_admin/support) — only promotes someone who's currently a plain
  * 'member'.
  */
 async function findOrCreateMemberForOrgStaff(
@@ -139,7 +139,7 @@ export interface AddOrgStaffInput {
  * Finds or creates a member by phone (mirrors membersService.create()'s
  * find-or-create step, minus the group-linking that doesn't apply here),
  * ensures they hold platform_role = 'organization_coordinator' (only if
- * they don't already hold a DIFFERENT platform role - never silently
+ * they don't already hold a DIFFERENT platform role — never silently
  * downgrades an existing super_admin/support assignment), and links them
  * into the organization.
  */
@@ -255,7 +255,7 @@ export async function removeOrgStaff(organizationId: string, memberId: string, r
     );
     if (!target.rows[0]) throw new NotFoundError('Active organization staff member', memberId);
     if (target.rows[0].org_role === 'lead' && parseInt(remaining.rows[0].count, 10) === 0) {
-      throw new ValidationError('Cannot remove the last lead - assign another lead first');
+      throw new ValidationError('Cannot remove the last lead — assign another lead first');
     }
 
     const { rows: staffRow } = await db.query<{ id: string; org_role: OrgRole }>(
@@ -293,11 +293,11 @@ export async function removeOrgStaff(organizationId: string, memberId: string, r
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Phase 2 - real email + phone-OTP invite (migration 102), alongside the
+// Phase 2 — real email + phone-OTP invite (migration 102), alongside the
 // Phase 1 direct-add path above (addOrgStaff() is unchanged and still used
 // for adding someone who's already a known member). Two-channel
 // verification (emailed link, then SMS OTP sent only after the link is
-// clicked) before a real backoffice-privileged account is created - reuses
+// clicked) before a real backoffice-privileged account is created — reuses
 // group-verification.service.ts's crypto primitives and plain-service-
 // function style rather than the DB-RPC style that flow itself happens to
 // use (that's specific to its own dual email/SMS-channel design, not a
@@ -415,7 +415,7 @@ export async function createOrgInvitation(
   return { id: result.id, expiresAt: result.expiresAt };
 }
 
-/** Public. Safe to call from a GET - read-only, no state transition. */
+/** Public. Safe to call from a GET — read-only, no state transition. */
 export async function getOrgInvitation(token: string): Promise<OrgInvitationRow> {
   const tokenHash = hashSecret(token);
   return withAdminDb(async (db: PoolClient) => {
@@ -438,7 +438,7 @@ export async function getOrgInvitation(token: string): Promise<OrgInvitationRow>
 }
 
 /**
- * Public. Marks the email link as used and sends the SMS OTP - the second,
+ * Public. Marks the email link as used and sends the SMS OTP — the second,
  * distinct channel. Returns a masked phone (0712 ••• 678) for the UI's "we
  * sent a code to..." display, not the full number: reaching this function
  * only proves control of the invitation email link, which is a weaker bar
@@ -504,10 +504,10 @@ export async function verifyOrgInvitationOtp(token: string, otp: string): Promis
     if (!inv) throw new NotFoundError('Invitation', token);
     if (inv.status !== 'otp_sent') throw new ValidationError('Request a code before verifying it');
     if (!inv.otp_hash || !inv.otp_expires_at || inv.otp_expires_at < new Date()) {
-      throw new ValidationError('This code has expired - request a new one');
+      throw new ValidationError('This code has expired — request a new one');
     }
     if (inv.otp_attempts >= MAX_OTP_ATTEMPTS) {
-      throw new ValidationError('Too many attempts - request a new code');
+      throw new ValidationError('Too many attempts — request a new code');
     }
     if (inv.otp_hash !== otpHash) {
       await db.query(`UPDATE public.organization_invitations SET otp_attempts = otp_attempts + 1 WHERE id = $1`, [
@@ -561,7 +561,7 @@ const TERMINAL_INVITATION_STATUSES = ['completed', 'cancelled'] as const;
 
 function mapInvitationListRow(r: InvitationListQueryRow): OrgInvitationListItem {
   // 'expired' isn't written anywhere by the accept flow itself (getOrgInvitation
-  // just rejects a stale token at read-time) - surface it here instead, since
+  // just rejects a stale token at read-time) — surface it here instead, since
   // this is the one place an admin actually needs to see it.
   const status =
     !TERMINAL_INVITATION_STATUSES.includes(r.status as never) && r.expires_at < new Date() ? 'expired' : r.status;
@@ -577,7 +577,7 @@ function mapInvitationListRow(r: InvitationListQueryRow): OrgInvitationListItem 
   };
 }
 
-/** Lead/super_admin-only. Every invitation ever sent for this org, newest first - completed/cancelled included so the history is auditable, not just the actionable ones. */
+/** Lead/super_admin-only. Every invitation ever sent for this org, newest first — completed/cancelled included so the history is auditable, not just the actionable ones. */
 export async function listOrgInvitations(organizationId: string): Promise<OrgInvitationListItem[]> {
   return withAdminDb(async (db: PoolClient) => {
     const { rows } = await db.query<InvitationListQueryRow>(
@@ -592,7 +592,7 @@ export async function listOrgInvitations(organizationId: string): Promise<OrgInv
 }
 
 /**
- * Lead/super_admin-only. Regenerates the token (and resets the OTP state -
+ * Lead/super_admin-only. Regenerates the token (and resets the OTP state —
  * the old token is dead the moment a new one is issued, so any in-flight
  * OTP tied to it must restart too) and re-sends the invite email. Works
  * from any non-terminal status, including an already-expired one.
@@ -699,7 +699,7 @@ export async function cancelOrgInvitation(id: string): Promise<void> {
 }
 
 /**
- * Public. The invitee declining their own invitation - a typo'd email, a
+ * Public. The invitee declining their own invitation — a typo'd email, a
  * change of mind, or "this isn't me". No auth needed for the same reason
  * every other public step here doesn't: the token itself is the proof of
  * who's acting.
@@ -734,7 +734,7 @@ export async function completeOrgInvitation(token: string, password: string): Pr
       passwordHash,
     });
 
-    // The seat is consumed HERE, at acceptance - not when the invitation was
+    // The seat is consumed HERE, at acceptance — not when the invitation was
     // sent (createOrgInvitation), since a pending, never-accepted invite must
     // not permanently hold a slot the plan caps.
     await assertStaffCap(db, inv.organization_id);

@@ -1,11 +1,11 @@
 'use client';
 
 /**
- * Org-run Programs - groups apply to join, or the organization invites them
+ * Org-run Programs — groups apply to join, or the organization invites them
  * directly. No platform-admin gate here (unlike /enterprise/groups' link
  * requests): the organization and group manage this relationship themselves.
  * Unrelated to the Funding Portal's "programs" (funding_programs, a budget
- * concept) - see feedback_funding_programs_is_money_only.
+ * concept) — see feedback_funding_programs_is_money_only.
  */
 import { useState } from 'react';
 import Link from 'next/link';
@@ -120,7 +120,7 @@ function NewProgramDialog() {
       },
       {
         onSuccess: () => {
-          toast({ title: 'Program created', description: 'It starts as a draft - publish it when ready.' });
+          toast({ title: 'Program created', description: 'It starts as a draft — publish it when ready.' });
           reset();
           setOpen(false);
         },

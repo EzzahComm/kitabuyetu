@@ -1,5 +1,5 @@
 /**
- * Member drill-down on the organization axis -
+ * Member drill-down on the organization axis —
  * GET /api/admin/organization/members/:id?groupId=…
  *
  * Final tier of Org → Group → Member. Two ids arrive from the client, so most of
@@ -65,7 +65,7 @@ describe('Organization member drill-down', () => {
     expect(data.member.memberId).toBe(officerId);
     expect(data.member.groupId).toBe(groupId);
     // The payment account reference (§2.1) lives on the membership, and every
-    // real membership has one - a null here would break payment instructions.
+    // real membership has one — a null here would break payment instructions.
     expect(data.member.membershipNo).toBeTruthy();
     // Present, and zeros here are genuine: the fixture records no money.
     expect(data.member.financials).not.toBeNull();
@@ -93,7 +93,7 @@ describe('Organization member drill-down', () => {
     const { groupId, officerId } = await createTestGroup();
     await assignGroupToOrganization(a.organizationId, groupId, a.coordinatorId, 'read');
 
-    // B never linked this group. Must be 404 - not 403, which would confirm the
+    // B never linked this group. Must be 404 — not 403, which would confirm the
     // group exists, and certainly not the member's data.
     const res = await call(b.coordinatorId, b.organizationId, officerId, groupId);
     expect(res.status).toBe(404);

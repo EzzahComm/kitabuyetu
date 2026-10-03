@@ -26,14 +26,14 @@ interface MembershipRow {
  * Refresh an access token.
  *
  * Active-membership pinning (audit C-1): the refresh token carries the groupId
- * the user chose at login. This route REVALIDATES that exact membership - it
+ * the user chose at login. This route REVALIDATES that exact membership — it
  * must never re-derive a group (the old `ORDER BY gm.joined_at DESC LIMIT 1`
  * silently switched multi-group users to a different group mid-session, which
  * cross-posted transactions).
  *
  * Rotation with reuse detection (§15.3, ADR-25): each refresh CONSUMES the
  * presented token and issues a successor in the same lineage. A consumed
- * token presented again is treated as replay - the entire lineage is revoked,
+ * token presented again is treated as replay — the entire lineage is revoked,
  * so a stolen refresh token dies at the first legitimate refresh after theft.
  *
  * Epoch checks (§2.5): members.session_version is compared against the value
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       );
       if (rows[0]) return { kind: 'ok' as const, ...rows[0] };
 
-      // Not consumable - distinguish replay (consumed/revoked row exists)
+      // Not consumable — distinguish replay (consumed/revoked row exists)
       // from plain unknown/expired.
       const { rows: prior } = await client.query<{ lineage_id: string; consumed_at: Date | null }>(
         `SELECT lineage_id, consumed_at FROM refresh_tokens
@@ -101,7 +101,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     if (consumed.kind === 'replay') {
-      logger.warn('[auth/refresh] consumed refresh token replayed - lineage revoked', {
+      logger.warn('[auth/refresh] consumed refresh token replayed — lineage revoked', {
         memberId: payload.sub,
         lineageId: consumed.lineage_id,
       });
@@ -114,7 +114,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     // Revalidate the pinned membership. gm.status (not the stale is_active
     // boolean) is the single liveness signal (audit C-2), and the group must
-    // still be operational - mirrors the login query exactly.
+    // still be operational — mirrors the login query exactly.
     const memberships = await withAdminDb(async (client) => {
       const { rows } = await client.query<MembershipRow>(
         `SELECT m.id, m.platform_role, m.session_version,
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     let membership: MembershipRow | undefined;
     if (payload.groupId) {
-      // Pinned token: the chosen membership must still be valid - no fallback
+      // Pinned token: the chosen membership must still be valid — no fallback
       // to a different group under any circumstances.
       membership = memberships[0];
     } else if (memberships.length === 1) {

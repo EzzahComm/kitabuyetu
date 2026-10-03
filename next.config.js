@@ -3,7 +3,7 @@ const path = require('path');
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   serverExternalPackages: [
-    // These packages use Node.js native modules / dynamic requires - exclude from bundling.
+    // These packages use Node.js native modules / dynamic requires — exclude from bundling.
     'pg',
     'pg-native',
     'ioredis',
@@ -40,7 +40,7 @@ const nextConfig = {
           { key: 'X-Content-Type-Options', value: 'nosniff' },
           { key: 'X-Permitted-Cross-Domain-Policies', value: 'none' },
           { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
-          // HSTS - only on production (breaks localhost HTTP dev)
+          // HSTS — only on production (breaks localhost HTTP dev)
           ...(isProd
             ? [
                 {
@@ -54,7 +54,7 @@ const nextConfig = {
             value: 'camera=(), microphone=(), geolocation=(), payment=(self), usb=()',
           },
           // CSP: unsafe-eval is required by Next.js dev tooling (HMR/eval-source-maps)
-          // but must NOT appear in production - it opens XSS vectors.
+          // but must NOT appear in production — it opens XSS vectors.
           {
             key: 'Content-Security-Policy',
             value: [

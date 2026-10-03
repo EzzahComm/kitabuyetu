@@ -16,7 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_PLAN_COPY } from '@/types/enums';
 
-// Mirrors lib/validators/auth.schema.ts's RegisterOrganizationSchema -
+// Mirrors lib/validators/auth.schema.ts's RegisterOrganizationSchema —
 // kept in sync manually, same convention as app/(auth)/register/page.tsx's
 // own comment about its server-side counterpart.
 const schema = z
@@ -46,7 +46,7 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-// premium_plus is deliberately excluded - it requires custom hand-negotiated
+// premium_plus is deliberately excluded — it requires custom hand-negotiated
 // terms (organization-plan.service.ts), so it stays a "Talk to us" sales
 // conversation, not a self-serve option.
 const SELF_SERVE_PLANS = ORGANIZATION_PLAN_COPY.filter((p) => p.type !== 'premium_plus');
@@ -109,7 +109,7 @@ export default function RegisterOrganizationPage() {
       <CardHeader>
         <CardTitle>Set up your Enterprise account</CardTitle>
         <CardDescription>
-          For institutions overseeing multiple groups - SACCOs, NGOs, foundations and other organizations. Your account
+          For institutions overseeing multiple groups — SACCOs, NGOs, foundations and other organizations. Your account
           is active immediately.
         </CardDescription>
       </CardHeader>
@@ -130,7 +130,7 @@ export default function RegisterOrganizationPage() {
                 value={organizationType ?? ''}
                 onChange={(e) => setValue('organizationType', e.target.value as FormValues['organizationType'])}
               >
-                <option value="">- Select -</option>
+                <option value="">— Select —</option>
                 {ORGANIZATION_TYPES.map((t) => (
                   <option key={t} value={t}>
                     {ORGANIZATION_TYPE_LABELS[t]}

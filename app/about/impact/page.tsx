@@ -18,14 +18,14 @@ export default function ImpactPage() {
         stops spending the night before every meeting reconciling an M-Pesa statement by hand.
       </p>
       <p>
-        Multiplied across chamas, SACCOs, welfare groups and investment clubs, that adds up to real economic effect -
+        Multiplied across chamas, SACCOs, welfare groups and investment clubs, that adds up to real economic effect —
         money moving faster, records that survive a change of officers, and financial history a member can actually
         point to when they need it, for a loan application or simply their own peace of mind.
       </p>
 
       <h2>The numbers</h2>
       <p>
-        We report real figures here, not estimates - pulled from the same ledger the platform runs on, the moment there
+        We report real figures here, not estimates — pulled from the same ledger the platform runs on, the moment there
         is a track record worth publishing.
       </p>
       <div className="not-prose grid grid-cols-2 gap-4 sm:grid-cols-3">
@@ -37,7 +37,7 @@ export default function ImpactPage() {
         ))}
       </div>
       <p className="text-sm text-finanza-text">
-        Figures shown as - have not been published yet. See <a href="/status">system status</a> for what is running
+        Figures shown as — have not been published yet. See <a href="/status">system status</a> for what is running
         right now.
       </p>
     </PageShell>

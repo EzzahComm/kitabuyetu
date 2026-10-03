@@ -54,11 +54,11 @@ export class PaymentRequiredError extends AppError {
 }
 
 /**
- * The group is paying - just not for the product this route belongs to
+ * The group is paying — just not for the product this route belongs to
  * (migration 140 / lib/auth/subscription-gate.ts).
  *
  * 402 rather than 403 because this is an entitlement condition with the same
- * remedy as PAYMENT_REQUIRED - pay - and 403 would collide with
+ * remedy as PAYMENT_REQUIRED — pay — and 403 would collide with
  * requirePermission's ForbiddenError and read as an RBAC bug in triage. The
  * distinct code is what lets a client route a Chama Reminder user to their own
  * subscribe page instead of Kitabu Yetu's billing page.
@@ -85,7 +85,7 @@ export class MemberCapError extends AppError {
 }
 
 /**
- * Organization plan cap - deliberately NOT MemberCapError's wording reused.
+ * Organization plan cap — deliberately NOT MemberCapError's wording reused.
  * "Upgrade to add more" is wrong here: an organization can never self-serve
  * upgrade (only super_admin assigns/changes an organization's plan), so the
  * remedy has to say so.
@@ -101,7 +101,7 @@ export class OrganizationCapError extends AppError {
   }
 }
 
-/** Same reasoning as OrganizationCapError - mirrors FeatureGatedError with organization-correct remedy wording. */
+/** Same reasoning as OrganizationCapError — mirrors FeatureGatedError with organization-correct remedy wording. */
 export class OrganizationFeatureGatedError extends AppError {
   constructor(feature: string, requiredPlan: string) {
     super(
@@ -141,7 +141,7 @@ export class RateLimitedError extends AppError {
 }
 
 /**
- * A capability is deliberately, temporarily unavailable - an operator halt,
+ * A capability is deliberately, temporarily unavailable — an operator halt,
  * not a fault and not the caller's problem.
  *
  * 503 rather than 402 matters beyond correctness of the status line:

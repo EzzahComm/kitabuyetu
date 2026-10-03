@@ -5,7 +5,7 @@ import { creditScoresService } from '@/lib/services/credit-scores.service';
 import { CreditScoreQuerySchema } from '@/lib/validators/credit-scores.schema';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/v1/credit-scores - list latest score per member. */
+/** GET /api/v1/credit-scores — list latest score per member. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

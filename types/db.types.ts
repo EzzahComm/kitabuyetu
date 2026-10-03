@@ -30,7 +30,7 @@ export interface Group {
   is_active: boolean;
   /**
    * Which product this group registered for (migration 140). Records intent
-   * only - what a group may actually use is decided by its active
+   * only — what a group may actually use is decided by its active
    * subscriptions. Needed because since migration 139 a new group holds no
    * subscription row at all until it pays, so nothing else can answer "what
    * did this group sign up for" for a never-paid group.
@@ -77,7 +77,7 @@ export interface Contribution {
   id: string;
   group_id: string;
   member_id: string;
-  /** Owning membership (group_members.id) - composite-FK bound (§6a). */
+  /** Owning membership (group_members.id) — composite-FK bound (§6a). */
   group_membership_id: string;
   amount: string;
   contribution_date: Date;
@@ -100,7 +100,7 @@ export interface Loan {
   interest_rate: string;
   loan_term_months: number;
   /** How often an instalment falls due (migration 149). NOT NULL, defaults to
-   *  'monthly' - the only cadence that existed before. */
+   *  'monthly' — the only cadence that existed before. */
   repayment_frequency: 'weekly' | 'biweekly' | 'monthly' | 'quarterly';
   interest_method: 'flat' | 'reducing_balance';
   disbursement_date: Date | null;
@@ -251,7 +251,7 @@ export interface Subscription {
   started_at: Date;
   expires_at: Date | null;
   next_billing_date: Date | null;
-  /** Normalized per-month rate - NEVER the total charged for a multi-month
+  /** Normalized per-month rate — NEVER the total charged for a multi-month
    *  cycle. See billing_cycle and migration 155. */
   monthly_fee: string;
   /** Migration 155. What cadence this subscription is actually billed on;
@@ -271,7 +271,7 @@ export interface Subscription {
   /**
    * The payment that activated this row (migration 138). NULL for
    * pre-payment-gating rows and for legacy/manually-activated plans.
-   * UNIQUE - activateSubscriptionForPayment's exactly-once guarantee lives
+   * UNIQUE — activateSubscriptionForPayment's exactly-once guarantee lives
    * partly on this constraint, not just the check-then-act above it.
    */
   payment_id: string | null;
@@ -347,7 +347,7 @@ export interface SmsUsageLog {
   failed_reason: string | null;
   reference_type: string | null;
   reference_id: string | null;
-  /** Who was billed. 'organization' rows always carry payer_organization_id (migration 051). 'platform' rows can never carry a charge - enforced by CHECK. */
+  /** Who was billed. 'organization' rows always carry payer_organization_id (migration 051). 'platform' rows can never carry a charge — enforced by CHECK. */
   payer_type: 'group' | 'organization' | 'platform';
   payer_organization_id: string | null;
   // ─── Attribution + reservation (migration 123) ───

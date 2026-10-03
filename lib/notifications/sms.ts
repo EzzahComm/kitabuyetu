@@ -8,7 +8,7 @@ export interface ChannelResult {
 }
 
 /**
- * Admin alert SMS. Goes straight to the provider - deliberately NOT through
+ * Admin alert SMS. Goes straight to the provider — deliberately NOT through
  * the group-billed SMS path, so alerts never consume a customer's credits and
  * never depend on a group's own SMS settings or kill switches.
  */

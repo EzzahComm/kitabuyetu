@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  DollarSign,
-  Phone,
+  Banknote,
   BookOpen,
-  Users,
-  TrendingUp,
-  FileText,
-  Lock,
-  CheckCircle2,
-  Home,
-  Handshake,
-  Building2,
-  Leaf,
-  ListChecks,
+  CircleCheck,
+  ClipboardList,
   Coins,
+  FileText,
+  HeartHandshake,
+  House,
+  Landmark,
+  Lock,
+  Phone,
+  Sprout,
+  TrendingUp,
+  Users,
 } from 'lucide-react';
 
 import { Container } from '@/components/Container';
@@ -37,7 +37,7 @@ export const metadata: Metadata = marketingMetadata({
 });
 
 /**
- * Kitabu Yetu Bookkeeper - the flagship product page.
+ * Kitabu Yetu Bookkeeper — the flagship product page.
  *
  * Built out from the UI template's layout, but three things in that template
  * are deliberately NOT reproduced here:
@@ -48,7 +48,7 @@ export const metadata: Metadata = marketingMetadata({
  *  2. Its hand-typed pricing table, which invented member caps ("Up to 500
  *     members") and SMS quotas that no plan actually enforces. Prices, SMS
  *     allowances and per-tier bullets are all read from types/enums.ts, the
- *     same table the billing page and the M-Pesa callback price against -
+ *     same table the billing page and the M-Pesa callback price against —
  *     see PLAN_COPY's own note on why that list exists.
  *  3. Its "isolated databases per group" security claim. Tenant isolation here
  *     is Postgres row-level security inside one database, which is a different
@@ -68,7 +68,7 @@ export default function BookkeeperPage() {
               Every shilling. Every member. <em className="not-italic text-brand-500">One book.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
-              Replace the notebook with books that always balance - contributions, loans, welfare and shares, with
+              Replace the notebook with books that always balance — contributions, loans, welfare and shares, with
               M-Pesa recorded for you.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
@@ -89,7 +89,7 @@ export default function BookkeeperPage() {
         </Container>
 
         <SectionTitle preTitle="Features" title="Everything your treasurer needs">
-          Members, money, loans and reports - in one place.
+          Members, money, loans and reports — in one place.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -140,7 +140,7 @@ export default function BookkeeperPage() {
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
-                      <CheckCircle2 size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+                      <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
                   ))}
@@ -192,7 +192,7 @@ export default function BookkeeperPage() {
               <Phone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
               <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
-                M-Pesa is included on every plan. Money in, money out - recorded automatically.
+                M-Pesa is included on every plan. Money in, money out — recorded automatically.
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-3">
                 <div>
@@ -216,7 +216,7 @@ export default function BookkeeperPage() {
           title="Your next meeting, with the books already balanced."
           subtitle="Set up in minutes. Bring your old records with you."
           note="Not sure which plan? We'll recommend one."
-          footnote="Month to month - Pay by M-Pesa - Cancel anytime"
+          footnote="Month to month · Pay by M-Pesa · Cancel anytime"
           primary={{ text: 'Start your group book', href: signUpUrl('kitabu_yetu') }}
           secondary={{ text: 'Talk to us', href: '/contact' }}
         />
@@ -229,22 +229,22 @@ export default function BookkeeperPage() {
 const coreFeatures = [
   {
     title: 'Member register',
-    description: 'Who's in, their role, and what each has paid and owes.',
+    description: 'Who’s in, their role, and what each has paid and owes.',
     icon: <Users size={24} />,
   },
   {
     title: 'Financial tracking',
-    description: 'Savings, loans, welfare, shares, investments and expenses - in books that always balance.',
-    icon: <DollarSign size={24} />,
+    description: 'Savings, loans, welfare, shares, investments and expenses — in books that always balance.',
+    icon: <Banknote size={24} />,
   },
   {
     title: 'M-Pesa integration',
-    description: 'Payments matched to members automatically. Anything unclear waits for an official - never guessed.',
+    description: 'Payments matched to members automatically. Anything unclear waits for an official — never guessed.',
     icon: <Phone size={24} />,
   },
   {
     title: 'Reporting',
-    description: 'Member statements, income and balance sheets - ready in minutes, never retyped.',
+    description: 'Member statements, income and balance sheets — ready in minutes, never retyped.',
     icon: <FileText size={24} />,
   },
   {
@@ -268,7 +268,7 @@ const manageMoney = {
   bullets: [
     {
       title: 'Members and their money',
-      desc: 'Every member's role, contacts and full payment history.',
+      desc: 'Every member’s role, contacts and full payment history.',
       icon: <Users size={24} />,
     },
     {
@@ -278,7 +278,7 @@ const manageMoney = {
     },
     {
       title: 'Close the month in minutes',
-      desc: 'Statements and reports straight from the books - and closed months can't be changed.',
+      desc: 'Statements and reports straight from the books — and closed months can’t be changed.',
       icon: <BookOpen size={24} />,
     },
   ],
@@ -315,26 +315,26 @@ const useCases = [
   {
     name: 'VSLAs',
     description: 'Village savings and loan associations tracking member cycles, share-outs and group funds.',
-    icon: <Home size={32} />,
+    icon: <House size={32} />,
   },
   {
     name: 'Welfare groups',
     description: 'Welfare contributions, claims, beneficiaries and payouts, with a record of who was paid what.',
-    icon: <Handshake size={32} />,
+    icon: <HeartHandshake size={32} />,
   },
   {
     name: 'Cooperatives',
     description: 'Member shares, share capital, dividends and member equity across a growing membership.',
-    icon: <Building2 size={32} />,
+    icon: <Landmark size={32} />,
   },
   {
     name: 'CBOs',
     description: 'Community-based organizations tracking projects, funding received and what it was spent on.',
-    icon: <Leaf size={32} />,
+    icon: <Sprout size={32} />,
   },
   {
     name: 'Associations',
     description: 'Professional and community associations managing member records, dues and group funds.',
-    icon: <ListChecks size={32} />,
+    icon: <ClipboardList size={32} />,
   },
 ];

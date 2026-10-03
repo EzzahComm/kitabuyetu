@@ -4,7 +4,7 @@
  * Reallocation queue (payment architecture §3.4, §15.5; ADR-20).
  *
  * Treasurers correct a payment posted to the wrong member here. Corrections
- * above the group's approval threshold wait for a SECOND officer - the
+ * above the group's approval threshold wait for a SECOND officer — the
  * initiator cannot approve their own correction (server-enforced).
  */
 import { useState } from 'react';
@@ -122,7 +122,7 @@ export default function ReallocationsPage() {
         reason: reason.trim(),
       });
       toast({
-        title: res.needsApproval ? 'Correction submitted - awaiting a second officer' : 'Correction executed',
+        title: res.needsApproval ? 'Correction submitted — awaiting a second officer' : 'Correction executed',
       });
       setCreating(false);
       setContribId('');
@@ -192,7 +192,7 @@ export default function ReallocationsPage() {
         <PageHeader
           className="flex-1"
           title="Payment corrections"
-          description="Move a payment posted to the wrong member. Originals are never edited - corrections post contra entries with a full audit trail."
+          description="Move a payment posted to the wrong member. Originals are never edited — corrections post contra entries with a full audit trail."
           actions={
             <Button size="sm" onClick={() => setCreating(true)}>
               <ArrowRightLeft size={15} className="mr-2" /> New correction
@@ -232,14 +232,14 @@ export default function ReallocationsPage() {
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {row.from_member_name ?? 'Unknown'} → {row.to_member_name ?? 'Unknown'}
-                      {row.mpesa_receipt_number ? ` - Receipt ${row.mpesa_receipt_number}` : ''}
+                      {row.mpesa_receipt_number ? ` · Receipt ${row.mpesa_receipt_number}` : ''}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {row.reason} - by {row.initiated_by_name ?? 'unknown'} - {formatDate(row.created_at)}
+                      {row.reason} · by {row.initiated_by_name ?? 'unknown'} · {formatDate(row.created_at)}
                       {row.status === 'executed' && row.approved_by_name
-                        ? ` - approved by ${row.approved_by_name}`
+                        ? ` · approved by ${row.approved_by_name}`
                         : ''}
-                      {row.status === 'rejected' && row.rejection_reason ? ` - rejected: ${row.rejection_reason}` : ''}
+                      {row.status === 'rejected' && row.rejection_reason ? ` · rejected: ${row.rejection_reason}` : ''}
                     </p>
                   </div>
                   {row.status === 'pending_approval' && (
@@ -284,7 +284,7 @@ export default function ReallocationsPage() {
                 <option value="">Select contribution…</option>
                 {correctable.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.member_name} - KES {Number(c.amount).toLocaleString()} - {c.mpesa_receipt_number}
+                    {c.member_name} — KES {Number(c.amount).toLocaleString()} · {c.mpesa_receipt_number}
                   </option>
                 ))}
               </select>
@@ -301,7 +301,7 @@ export default function ReallocationsPage() {
                   .filter((m) => m.id !== chosen?.member_id)
                   .map((m) => (
                     <option key={m.id} value={m.id}>
-                      {m.first_name} {m.last_name} - {m.phone}
+                      {m.first_name} {m.last_name} — {m.phone}
                     </option>
                   ))}
               </select>
@@ -326,7 +326,7 @@ export default function ReallocationsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Approve - executes the money move immediately, so confirm with full details */}
+      {/* Approve — executes the money move immediately, so confirm with full details */}
       {approving && (
         <MoneyActionDialog
           open={!!approving}
@@ -334,13 +334,13 @@ export default function ReallocationsPage() {
           title="Approve this correction?"
           amount={parseFloat(approving.amount)}
           details={[
-            { label: 'From', value: approving.from_member_name ?? '-' },
-            { label: 'To', value: approving.to_member_name ?? '-' },
+            { label: 'From', value: approving.from_member_name ?? '—' },
+            { label: 'To', value: approving.to_member_name ?? '—' },
             ...(approving.mpesa_receipt_number ? [{ label: 'Receipt', value: approving.mpesa_receipt_number }] : []),
-            { label: 'Initiated by', value: approving.initiated_by_name ?? '-' },
+            { label: 'Initiated by', value: approving.initiated_by_name ?? '—' },
             { label: 'Reason', value: approving.reason },
           ]}
-          warning="Approving executes the reallocation immediately - the contribution moves between members and both sets of books update."
+          warning="Approving executes the reallocation immediately — the contribution moves between members and both sets of books update."
           confirmLabel="Approve & execute"
           onConfirm={() => approve(approving)}
         />

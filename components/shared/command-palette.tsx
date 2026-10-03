@@ -20,14 +20,14 @@ export interface CommandPaletteGroup {
 }
 
 /**
- * Builds a portal-specific ⌘K command palette instance - the keyboard-nav/
+ * Builds a portal-specific ⌘K command palette instance — the keyboard-nav/
  * filter/scroll-into-view Dialog shell shared by the admin and dashboard
  * palettes, parameterized only by the command set (via `useGroups`, a hook
  * so each portal can pull its own router/auth context) and the window event
  * name used to open it. Event names are kept distinct per portal so one
  * portal's topbar search box never cross-triggers the other's palette.
  *
- * Every command here closes the palette before running - callers don't need
+ * Every command here closes the palette before running — callers don't need
  * to manage that themselves.
  */
 export function createCommandPalette(openEventName: string, useGroups: (query: string) => CommandPaletteGroup[]) {
@@ -39,7 +39,7 @@ export function createCommandPalette(openEventName: string, useGroups: (query: s
     const listRef = React.useRef<HTMLDivElement>(null);
 
     // Single entry point for open/close so we can reset query + selection on
-    // the open transition - avoids a setState-in-effect (cascading render).
+    // the open transition — avoids a setState-in-effect (cascading render).
     const setPaletteOpen = React.useCallback((next: boolean) => {
       if (next) {
         setQuery('');
@@ -74,11 +74,11 @@ export function createCommandPalette(openEventName: string, useGroups: (query: s
     const flat = React.useMemo(() => filtered.flatMap((g) => g.commands), [filtered]);
 
     // Derive (don't store) the clamped selection so a shrinking list can
-    // never point past the end - no clamp effect needed.
+    // never point past the end — no clamp effect needed.
     const activeIndex = flat.length ? Math.min(active, flat.length - 1) : 0;
 
     // Global shortcut + external open event. Re-binds when `open` changes so
-    // the ⌘K toggle always reads the current state - no ref needed.
+    // the ⌘K toggle always reads the current state — no ref needed.
     React.useEffect(() => {
       const onKey = (e: KeyboardEvent) => {
         if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
@@ -109,7 +109,7 @@ export function createCommandPalette(openEventName: string, useGroups: (query: s
       }
     };
 
-    // Keep the active row scrolled into view (DOM sync - no setState).
+    // Keep the active row scrolled into view (DOM sync — no setState).
     React.useEffect(() => {
       listRef.current
         ?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)
@@ -140,7 +140,7 @@ export function createCommandPalette(openEventName: string, useGroups: (query: s
 
           <div ref={listRef} className="max-h-[min(60vh,420px)] overflow-y-auto p-2" onKeyDown={onListKeyDown}>
             {flat.length === 0 ? (
-              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No results for "{query}".</p>
+              <p className="px-3 py-8 text-center text-sm text-muted-foreground">No results for “{query}”.</p>
             ) : (
               filtered.map((group) => (
                 <div key={group.heading} className="mb-1">

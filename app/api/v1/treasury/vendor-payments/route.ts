@@ -7,7 +7,7 @@ import { requirePermission } from '@/lib/auth/permissions';
 import { CreateVendorPaymentSchema } from '@/lib/validators/vendor-payments.schema';
 import { ok, created, handleError, errorResponse } from '@/lib/utils/response';
 
-/** GET /api/v1/treasury/vendor-payments - list this group's vendor payments. */
+/** GET /api/v1/treasury/vendor-payments — list this group's vendor payments. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'treasury.manage', async (auth) => {
     try {
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 /**
- * POST /api/v1/treasury/vendor-payments - request a payment to an external
+ * POST /api/v1/treasury/vendor-payments — request a payment to an external
  * vendor. Reserves the funds immediately; a second officer must approve
  * before anything reaches Daraja.
  */

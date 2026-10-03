@@ -8,7 +8,7 @@ import { requirePermission } from '@/lib/auth/permissions';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-// GET /api/v1/members/[id]/next-of-kin - list a member's emergency contacts.
+// GET /api/v1/members/[id]/next-of-kin — list a member's emergency contacts.
 // Restricted to group admins + secretaries (same as POST/PATCH/DELETE below):
 // these rows carry unmasked national_id/phone/email/address, and unlike a
 // member's own record (masked via applyMemberMask for non-privileged roles)
@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
   });
 }
 
-// POST /api/v1/members/[id]/next-of-kin - add a new emergency contact.
+// POST /api/v1/members/[id]/next-of-kin — add a new emergency contact.
 // Restricted to group admins + secretaries (RLS also enforces this).
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;

@@ -5,7 +5,7 @@ import { getGroupGovernanceSnapshot } from '@/lib/services/governance.service';
 
 export const dynamic = 'force-dynamic';
 
-/** GET ?groupId=... - latest snapshot + health score for one group (group detail health card). */
+/** GET ?groupId=... — latest snapshot + health score for one group (group detail health card). */
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const groupId = new URL(req.url).searchParams.get('groupId');

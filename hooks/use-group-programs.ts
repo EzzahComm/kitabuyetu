@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * Group (tenant) side of the Programs feature (migration 206) - browse
+ * Group (tenant) side of the Programs feature (migration 206) — browse
  * published programs, apply, and manage invitations from organizations.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';

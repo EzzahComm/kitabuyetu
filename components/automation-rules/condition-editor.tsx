@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 
 /**
- * Authors a single {field, op, value} leaf - the subset of the condition DSL
+ * Authors a single {field, op, value} leaf — the subset of the condition DSL
  * (lib/sms/conditions.ts) automation-rules.service.ts accepts for authoring.
  * `in`/`nin` are left out: they take an array value, which needs a list
  * input this first UI pass doesn't build. No condition at all (the default)
@@ -65,7 +65,7 @@ export function ConditionEditor({ value, onChange }: Props) {
         />
       </div>
       {!value.enabled ? (
-        <p className="text-xs text-muted-foreground">Off - this rule fires on every {'{event}'}, no extra check.</p>
+        <p className="text-xs text-muted-foreground">Off — this rule fires on every {'{event}'}, no extra check.</p>
       ) : (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <Input

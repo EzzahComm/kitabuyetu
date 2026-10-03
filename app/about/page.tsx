@@ -26,7 +26,7 @@ import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about',
-  title: 'About Us - Digital Records for Kenyan Groups',
+  title: 'About Us — Digital Records for Kenyan Groups',
   description:
     'Why Kitabu Yetu exists: to give chamas, welfare groups and SACCOs across Kenya simple, trustworthy digital records, and what that has changed for them.',
 });
@@ -45,7 +45,7 @@ const VALUES = [
   {
     icon: ShieldCheck,
     title: 'Trust',
-    body: 'Your group's money and records are our responsibility.',
+    body: 'Your group’s money and records are our responsibility.',
   },
 ];
 
@@ -56,7 +56,7 @@ const IMPACT = [
 ];
 
 /**
- * About Kitabu Yetu - the Finanza about.html layout (image + Story/Mission/
+ * About Kitabu Yetu — the Finanza about.html layout (image + Story/Mission/
  * Vision tabs, value badges, facts, team) carrying the company's own story,
  * team positioning and impact commitment. The tabs are Story / Team / Impact
  * rather than an invented mission statement.
@@ -99,7 +99,7 @@ export default function AboutPage() {
                   label: 'Our Story',
                   content: (
                     <p>
-                      Kitabu Yetu puts members, money and payments in one place - in books that always balance. The
+                      Kitabu Yetu puts members, money and payments in one place — in books that always balance. The
                       group works the way it always has. The book just stops living in one person&apos;s bag.
                     </p>
                   ),
@@ -109,7 +109,7 @@ export default function AboutPage() {
                   label: 'Our Team',
                   content: (
                     <p>
-                      Engineers, finance people and community workers - building with the groups who use Kitabu Yetu,
+                      Engineers, finance people and community workers — building with the groups who use Kitabu Yetu,
                       not just for them.
                     </p>
                   ),
