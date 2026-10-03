@@ -66,6 +66,7 @@ The SMS reminder system works through this pipeline:
 ### Issue 1: SMS Credits Exhausted (Most Common - 60%)
 
 **Symptoms:**
+
 - Schedule exists but SMS not sent
 - Low balance alert notifications appear
 - `sms_usage_logs.status = 'failed'` with error about credits
@@ -76,6 +77,7 @@ The system reserves credits before sending. If insufficient credits, the entire 
 **Solution:**
 
 Option A - Purchase via M-Pesa (Preferred):
+
 ```
 1. Group officer logs into dashboard
 2. Settings → SMS Credits → "Buy Credits"
@@ -85,19 +87,21 @@ Option A - Purchase via M-Pesa (Preferred):
 ```
 
 Option B - Admin Grant (Testing/Support):
+
 ```sql
 -- Check current balance
 SELECT product, monthly_fee, sms_credits
-FROM subscriptions 
+FROM subscriptions
 WHERE group_id = '550e8400-e29b-41d4-a716-446655440000';
 
 -- Add test credits
-UPDATE subscriptions 
+UPDATE subscriptions
 SET sms_credits = COALESCE(sms_credits, 0) + 1000
 WHERE group_id = '550e8400-e29b-41d4-a716-446655440000';
 ```
 
 **Verify Fix:**
+
 ```sql
 SELECT COUNT(*) as sms_sent
 FROM sms_usage_logs
@@ -111,11 +115,13 @@ WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
 ### Issue 2: Schedule Not Active or Due (20%)
 
 **Symptoms:**
+
 - Schedule created but never fires
 - `next_run_at` is NULL or far in the future
 - No activity in `job_queue` for this schedule
 
 **Cause:**
+
 - Schedule `is_active = false`
 - `next_run_at` is in the future
 - No cron job processor running
@@ -130,8 +136,8 @@ WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
 ORDER BY created_at DESC;
 
 -- Activate schedule and set to run immediately
-UPDATE sms_schedules 
-SET is_active = true, 
+UPDATE sms_schedules
+SET is_active = true,
     next_run_at = NOW()
 WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
   AND is_active = false;
@@ -144,6 +150,7 @@ WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
 ### Issue 3: No Members with Phone Numbers (10%)
 
 **Symptoms:**
+
 - Members exist in group
 - But SMS logs show 0 recipients
 - Diagnostic: "Members with phone: 0"
@@ -178,6 +185,7 @@ LIMIT 5;
 ### Issue 4: Stuck Reservations (Rare - 5%)
 
 **Symptoms:**
+
 - `sms_usage_logs.status = 'reserved'` for hours
 - SMS credits stuck/unavailable
 - Provider timeout or network error
@@ -199,8 +207,8 @@ WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
 
 -- Release stuck credits (safe if no active job)
 BEGIN;
-  UPDATE sms_usage_logs 
-  SET status = 'failed', 
+  UPDATE sms_usage_logs
+  SET status = 'failed',
       failed_reason = 'released_stale_reservation',
       billing_state = 'refunded'
   WHERE group_id = '550e8400-e29b-41d4-a716-446655440000'
@@ -208,9 +216,9 @@ BEGIN;
     AND created_at < NOW() - INTERVAL '1 hour'
     AND NOT EXISTS (
       SELECT 1 FROM job_queue
-      WHERE type = 'sms_bulk_send' 
+      WHERE type = 'sms_bulk_send'
         AND status NOT IN ('completed', 'failed')
-        AND (payload->>'groupId') = 
+        AND (payload->>'groupId') =
             '550e8400-e29b-41d4-a716-446655440000'
     );
 COMMIT;
@@ -221,6 +229,7 @@ COMMIT;
 ### Issue 5: All Members Opted Out (5%)
 
 **Symptoms:**
+
 - Schedule fires but 0 SMS delivered
 - Diagnostic shows all members opted out
 
@@ -262,7 +271,7 @@ chmod +x docs/diagnose-sms-issue.sh
 ```sql
 -- 1. Check subscription status
 SELECT product, status, monthly_fee, sms_credits
-FROM subscriptions 
+FROM subscriptions
 WHERE group_id = '550e8400-e29b-41d4-a716-446655440000';
 
 -- 2. Check active schedules
@@ -344,7 +353,7 @@ GROUP BY DATE(created_at)
 ORDER BY date DESC;
 
 -- Credit burn rate (last 7 days)
-SELECT 
+SELECT
   COUNT(*) as sms_sent,
   SUM(credits_deducted) as total_credits,
   SUM(credits_from_allowance) as from_allowance,
@@ -354,7 +363,7 @@ WHERE created_at > NOW() - INTERVAL '7 days'
   AND status = 'sent';
 
 -- Job execution health
-SELECT type, COUNT(*) as executed, 
+SELECT type, COUNT(*) as executed,
   SUM(CASE WHEN status='completed' THEN 1 ELSE 0 END) as successful,
   SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) as failed
 FROM job_queue
