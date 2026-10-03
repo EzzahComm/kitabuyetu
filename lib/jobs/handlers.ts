@@ -40,6 +40,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'email_campaign_drain':
       return handleEmailCampaignDrain();
 
+    case 'newsletter_digest_drain':
+      return handleNewsletterDigestDrain();
+
     case 'email_birthday':
       return handleEmailBirthday();
 
@@ -239,6 +242,21 @@ async function handleEmailCampaignDrain(): Promise<HandlerResult> {
   const result = await drainCampaignRecipients();
   return {
     message: `Email campaign drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`,
+    ...result,
+  };
+}
+
+/**
+ * Drain a batch of pending newsletter_digest_recipients rows for in-flight
+ * digests — mirrors handleEmailCampaignDrain, but for the platform-level
+ * newsletter audience (lib/services/newsletter-digest.service.ts) instead of
+ * a group's own members.
+ */
+async function handleNewsletterDigestDrain(): Promise<HandlerResult> {
+  const { drainDigestRecipients } = await import('@/lib/services/newsletter-digest.service');
+  const result = await drainDigestRecipients();
+  return {
+    message: `Newsletter digest drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`,
     ...result,
   };
 }

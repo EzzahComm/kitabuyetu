@@ -6,6 +6,7 @@ export type JobType =
   | 'email_retry_failed' // Retry transiently-failed emails (every 5 min)
   | 'email_send' // Ad-hoc: send one templated email (replaces lib/queue's Redis email fan-out)
   | 'email_campaign_drain' // Drain due email_campaign_recipients rows for in-flight campaigns (every 5 min)
+  | 'newsletter_digest_drain' // Drain pending newsletter_digest_recipients rows for in-flight digests (every 5 min)
   | 'email_birthday' // Birthday emails (daily 07:00 UTC)
   | 'email_overdue_invoices' // Overdue invoice reminders (daily 09:00 UTC)
   | 'email_recurring_invoices' // Process recurring invoices (daily 06:00 UTC)

@@ -351,25 +351,12 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     `,
   },
 
-  // ─── Newsletter ───────────────────────────────────────────────────────────────
-  newsletter_confirm: {
-    subject: 'Confirm your subscription to Kitabu Yetu updates',
-    body: `
-      <h2 style="margin:0 0 16px;color:#0B3C88;">Confirm Your Subscription</h2>
-      <p style="margin:0 0 20px;color:#374151;">You recently subscribed to receive updates from Kitabu Yetu. Please confirm your email address by clicking the button below.</p>
-      <a href="{{confirmUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Confirm Subscription</a>
-      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">If you did not subscribe, please ignore this email. This link expires in 24 hours.</p>
-    `,
-  },
-
-  newsletter_welcome: {
-    subject: "You're subscribed to Kitabu Yetu updates",
-    body: `
-      <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome to Kitabu Yetu Updates!</h2>
-      <p style="margin:0 0 20px;color:#374151;">Thank you for confirming your subscription. You will receive updates about new features, community finance tips, and product announcements.</p>
-      <p style="margin:0;font-size:13px;color:#6b7280;">You can unsubscribe at any time by clicking the unsubscribe link in any future email.</p>
-    `,
-  },
+  // Newsletter (Phase 10) is single opt-in with no confirm round trip
+  // (migration 197) — newsletter_confirm/newsletter_welcome were written for
+  // a double opt-in flow that was never built and had zero call sites
+  // (confirmed via audit before the campaign-digest feature was added); the
+  // digest itself composes its HTML directly from live campaign data rather
+  // than through a static DEFAULT_TEMPLATES entry, so neither was reused.
 
   // ─── Contact ─────────────────────────────────────────────────────────────────
   contact_confirmation: {
