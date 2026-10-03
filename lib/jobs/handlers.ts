@@ -11,6 +11,8 @@ import { pool } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
 import type { ContributionStatementRow } from '@/lib/sms/contribution-statement';
 import type { WeeklySavingsUpdateRow } from '@/lib/sms/weekly-savings-update';
+import { tickBudgetExhausted } from './deadline';
+import { toIsoWeekKey } from './week';
 
 export interface HandlerResult {
   message: string;
@@ -1059,12 +1061,38 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
   }
 
   const paybill = platformPaybill();
-  const weekKey = new Date().toISOString().slice(0, 10); // dedup per calendar run date — the job itself only fires Mondays.
+  // ISO week, not calendar date — this must stay IDENTICAL across however
+  // many ticks it takes to drain one week's candidates (the continuation
+  // enqueued below reuses the same stage so sendOnce's own idempotency
+  // still applies; a date-based key here would silently re-arm every
+  // candidate's dedup the moment a run crossed midnight). Nairobi-shifted to
+  // match the week the scheduled trigger itself keyed on (lib/jobs/index.ts).
+  const weekKey = toIsoWeekKey(new Date(Date.now() + 3 * 60 * 60 * 1000));
+
+  // Unbounded loops over outbound SMS calls can exceed the job tick's own
+  // time budget well before the whole candidate list is reached — confirmed
+  // live 2026-10-03: this exact job got killed mid-loop at 22 of ~39
+  // candidates, left stuck in 'processing' until manually recovered. Same
+  // tickBudgetExhausted() guard already used by sms.service.ts's
+  // pollPendingDlrs/retryFailures loops for the identical reason (see
+  // lib/jobs/deadline.ts). Unlike those two — which are scheduled every 5
+  // minutes regardless, so "next tick" already retries whatever's left —
+  // this job only fires once a week, so stopping early must also enqueue
+  // its own continuation or the remaining candidates would silently wait a
+  // full week.
+  const SEND_CALL_BUDGET_MS = 21_000;
+  let stoppedEarly = false;
 
   let sent = 0,
     skipped = 0,
-    failed = 0;
+    failed = 0,
+    attempted = 0;
   for (const r of rows) {
+    if (tickBudgetExhausted(SEND_CALL_BUDGET_MS)) {
+      stoppedEarly = true;
+      break;
+    }
+    attempted++;
     const result = await sendOnce({
       groupId: r.group_id,
       memberId: r.member_id,
@@ -1082,9 +1110,20 @@ async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
     else failed++;
   }
 
+  if (stoppedEarly) {
+    const { insertJob } = await import('./db');
+    // No dedup_key: this is a continuation of the SAME week's batch, not a
+    // second weekly trigger — sendOnce's own (referenceId, reminderStage)
+    // idempotency is what actually prevents re-sending to anyone already
+    // reached, exactly as it does across this job's normal weekly runs.
+    await insertJob('notify_weekly_savings_update', {}, { priority: 5 });
+  }
+
   return {
-    message: `Weekly savings update processed (${rows.length} candidates)`,
-    attempted: rows.length,
+    message:
+      `Weekly savings update processed (${attempted} of ${rows.length} candidates)` +
+      (stoppedEarly ? ' — stopped early: tick budget, continuation enqueued' : ''),
+    attempted,
     sent,
     skipped,
     failed,

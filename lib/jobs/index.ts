@@ -11,6 +11,7 @@ export type { Job, JobType, JobStatus, EnqueueOptions, ProcessResult } from './t
 import { insertJob } from './db';
 import type { JobType } from './types';
 import { withAdminDb } from '@/lib/db';
+import { toIsoWeekKey } from './week';
 
 /**
  * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
@@ -51,7 +52,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   const day = nairobiNow.getUTCDay(); // 0 = Sun … 6 = Sat
   const date = nairobiNow.getUTCDate();
   const dateStr = toDateStr(nairobiNow); // YYYY-MM-DD, Nairobi
-  const weekStr = toWeekStr(nairobiNow); // YYYY-WNN, Nairobi
+  const weekStr = toIsoWeekKey(nairobiNow); // YYYY-WNN, Nairobi
 
   // 5-minute bucket index (0–11 per hour). Unaffected by the shift: the offset
   // is whole hours, so minutes are identical either way.
@@ -669,14 +670,4 @@ async function hasPendingCampaignRecipients(): Promise<boolean> {
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
-function toWeekStr(d: Date): string {
-  // ISO 8601 week number
-  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dayOfWeek = tmp.getUTCDay() || 7;
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayOfWeek);
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-  return `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }
