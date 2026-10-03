@@ -1,13 +1,20 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Shield, LogOut, Mail, User, Smartphone, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
+import { Shield, LogOut, Mail, User, Smartphone, RefreshCw, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, isBackofficeUser } from '@/lib/auth/context';
-import { useC2BUrls, useRegisterC2BUrls } from '@/hooks/use-admin';
+import {
+  useC2BUrls,
+  useRegisterC2BUrls,
+  useWeeklyContributionDefault,
+  useSetWeeklyContributionDefault,
+} from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 
@@ -51,6 +58,7 @@ export default function AdminSettingsPage() {
       </Card>
 
       {staff?.platformRole === 'super_admin' && <C2BRegistrationCard />}
+      {staff?.platformRole === 'super_admin' && <WeeklyContributionDefaultCard />}
 
       {/* Session */}
       <Card>
@@ -137,6 +145,71 @@ function C2BRegistrationCard() {
           <RefreshCw size={15} className={register.isPending ? 'animate-spin' : ''} />
           {register.isPending ? 'Registering…' : 'Register with Safaricom'}
         </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+/**
+ * Platform-wide weekly contribution target (migration 207) — every group
+ * without its own override is measured against this in the weekly
+ * savings-update reminder. Separate from contribution_plan's per-group
+ * monthly amounts, which stay 0/untracked unless a group explicitly sets one.
+ */
+function WeeklyContributionDefaultCard() {
+  const { data, isLoading } = useWeeklyContributionDefault();
+  const setDefault = useSetWeeklyContributionDefault();
+  const { toast } = useToast();
+  // null = untouched by the user — show the loaded value. Once they type,
+  // their own input takes over instead of syncing from `data` via an effect.
+  const [draft, setDraft] = useState<string | null>(null);
+  const value = draft ?? (data ? String(data.weeklyContribution) : '');
+
+  const handleSave = () => {
+    const amount = Number(value);
+    if (!(amount >= 0)) {
+      toast({ variant: 'destructive', title: 'Enter a valid amount' });
+      return;
+    }
+    setDefault.mutate(amount, {
+      onSuccess: () => toast({ title: 'Default updated', description: `New groups now default to KES ${amount}/week` }),
+      onError: (e) => toast({ variant: 'destructive', title: 'Could not update', description: getErrorMessage(e) }),
+    });
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Coins size={16} className="text-muted-foreground" /> Default Weekly Contribution
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3 text-sm">
+        <p className="text-muted-foreground">
+          The baseline every group is measured against in the weekly savings-update reminder, unless it sets its own
+          amount. Applies platform-wide to every group that hasn&apos;t configured one.
+        </p>
+        {isLoading ? (
+          <p className="text-muted-foreground">Loading…</p>
+        ) : (
+          <div className="flex items-end gap-3">
+            <div className="flex-1 space-y-1.5">
+              <label htmlFor="weekly-default" className="text-xs text-muted-foreground">
+                KES per week
+              </label>
+              <Input
+                id="weekly-default"
+                type="number"
+                min={0}
+                value={value}
+                onChange={(e) => setDraft(e.target.value)}
+              />
+            </div>
+            <Button onClick={handleSave} disabled={setDefault.isPending} className="gap-2">
+              {setDefault.isPending ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

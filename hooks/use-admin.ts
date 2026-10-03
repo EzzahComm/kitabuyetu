@@ -809,6 +809,26 @@ export function useRegisterC2BUrls() {
   });
 }
 
+/** The platform-wide weekly contribution target every group is measured against unless it sets its own override. */
+export function useWeeklyContributionDefault() {
+  return useQuery({
+    queryKey: ['admin', 'config', 'weekly-contribution-default'],
+    queryFn: () => adminFetch<{ weeklyContribution: number }>('/api/admin/config/weekly-contribution-default'),
+  });
+}
+
+export function useSetWeeklyContributionDefault() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (weeklyContribution: number) =>
+      adminFetch<{ weeklyContribution: number }>('/api/admin/config/weekly-contribution-default', {
+        method: 'PUT',
+        json: { weeklyContribution },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'config', 'weekly-contribution-default'] }),
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Audit logs
 // ─────────────────────────────────────────────────────────────────────────────
