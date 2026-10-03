@@ -156,7 +156,7 @@ export function useLayoutAuthGuard(options: {
 
 **Impact:** Maintainability only. `kitabu-sections.tsx` is a server module (no `'use client'`) and its interactive parts are already separate client files, so splitting it does not change any client bundle.  
 **Effort:** Medium  
-**Status:** Deferred - low value; do only if the file becomes hard to maintain
+**Status:** Done - split into `components/marketing/sections/*` (products, testimonials, cta, team, audience, trust, live-content); pages import from those modules directly, no barrel file
 
 **Target:** `/components/marketing/kitabu-sections.tsx` (677 lines)
 

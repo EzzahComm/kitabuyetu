@@ -3,7 +3,8 @@ import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { ROUTES } from '@/components/marketing/routes';
-import { CallbackSection, ProductTabsSection } from '@/components/marketing/kitabu-sections';
+import { CallbackSection } from '@/components/marketing/sections/cta';
+import { ProductTabsSection } from '@/components/marketing/sections/products';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/products',
