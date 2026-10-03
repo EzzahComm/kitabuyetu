@@ -1,15 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  IconHeart,
-  IconBuildingCommunity,
-  IconShoppingBag,
-  IconChecklist,
-  IconChartBar,
-  IconUsers,
-  IconCash,
-  IconWorld,
-} from '@tabler/icons-react';
+import { Heart, Building2, ShoppingBag, ListChecks, BarChart3, Users, DollarSign, Globe } from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -119,17 +110,17 @@ const donors = {
     {
       title: 'Follow the money to the group',
       desc: 'Disbursements are recorded against the group that received them, and against the members they reached.',
-      icon: <IconHeart size={24} />,
+      icon: <Heart size={24} />,
     },
     {
       title: 'Reporting off the ledger',
       desc: 'The figures in the report are the figures in the books, so nobody rebuilds them in a spreadsheet at the end of a quarter.',
-      icon: <IconChartBar size={24} />,
+      icon: <BarChart3 size={24} />,
     },
     {
       title: 'The group keeps its own book',
       desc: "Funding is one part of a group's record, not a separate system the treasurer has to keep in step.",
-      icon: <IconCash size={24} />,
+      icon: <DollarSign size={24} />,
     },
   ],
 };
@@ -143,17 +134,17 @@ const multigroup = {
     {
       title: 'Every group in one view',
       desc: 'Linked groups under a single organization account, each keeping its own ledger and its own committee.',
-      icon: <IconBuildingCommunity size={24} />,
+      icon: <Building2 size={24} />,
     },
     {
       title: 'Staff, not shared logins',
       desc: 'Your coordinators get their own accounts and their own access, rather than passing one password around.',
-      icon: <IconUsers size={24} />,
+      icon: <Users size={24} />,
     },
     {
       title: 'A portfolio you can report on',
       desc: 'Reports across the groups you support, built from what each group actually recorded.',
-      icon: <IconWorld size={24} />,
+      icon: <Globe size={24} />,
     },
   ],
 };
@@ -167,17 +158,17 @@ const marketplace = {
     {
       title: 'Offers that reach a group, not an individual',
       desc: "A committee decides together, so an offer has to be visible to the whole group rather than one member's phone.",
-      icon: <IconShoppingBag size={24} />,
+      icon: <ShoppingBag size={24} />,
     },
     {
       title: "Paid for from the group's account",
       desc: "A purchase the group makes is a transaction in the group's book like any other.",
-      icon: <IconCash size={24} />,
+      icon: <DollarSign size={24} />,
     },
     {
       title: 'Matched to what a group can show',
       desc: 'Each offer can set its own criteria — how long a group has run, its type, its county, its balance — so a group sees where it stands before it applies.',
-      icon: <IconChecklist size={24} />,
+      icon: <ListChecks size={24} />,
     },
   ],
 };
@@ -191,17 +182,17 @@ const programs = {
     {
       title: 'One programme, many groups',
       desc: "Run a programme across the groups enrolled in it, with each group's participation recorded in its own book.",
-      icon: <IconChecklist size={24} />,
+      icon: <ListChecks size={24} />,
     },
     {
       title: 'Disbursements that leave a trail',
       desc: 'What went out, to which group, and what it was for — recorded when it happens rather than reconstructed later.',
-      icon: <IconCash size={24} />,
+      icon: <DollarSign size={24} />,
     },
     {
       title: 'Reports the funder can check',
       desc: "Programme reporting built from the groups' ledgers, with the audit trail still attached.",
-      icon: <IconChartBar size={24} />,
+      icon: <BarChart3 size={24} />,
     },
   ],
 };

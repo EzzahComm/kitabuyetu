@@ -1,22 +1,14 @@
-import {
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandLinkedin,
-  IconBrandWhatsapp,
-  IconBrandX,
-  IconBrandYoutube,
-  type Icon,
-} from '@tabler/icons-react';
+import { Facebook, Instagram, Linkedin, MessageCircle, X, Youtube, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { SOCIAL_LINKS, type SocialLink, type SocialPlatform } from './routes';
 
-const ICONS: Record<SocialPlatform, Icon> = {
-  facebook: IconBrandFacebook,
-  x: IconBrandX,
-  linkedin: IconBrandLinkedin,
-  instagram: IconBrandInstagram,
-  youtube: IconBrandYoutube,
-  whatsapp: IconBrandWhatsapp,
+const ICONS: Record<SocialPlatform, LucideIcon> = {
+  facebook: Facebook,
+  x: X,
+  linkedin: Linkedin,
+  instagram: Instagram,
+  youtube: Youtube,
+  whatsapp: MessageCircle,
 };
 
 const VARIANT: Record<'nav' | 'footer' | 'card', string> = {
