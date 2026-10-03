@@ -2,12 +2,12 @@
  * Staff alerting for background controls (SMS-REAUDIT-2026-09-02 F2).
  *
  * The finding this closes: sms_credit_reconciliation detected a real
- * campaign-counter drift, logged "DRIFT — investigate" on every run for six
+ * campaign-counter drift, logged "DRIFT - investigate" on every run for six
  * days, and reached no human, because logger.error has no sink. The control
  * worked; nobody could hear it.
  *
- * The properties that decide whether an alert survives a human inbox — and so
- * the properties worth pinning — are that it does NOT fire once per run for an
+ * The properties that decide whether an alert survives a human inbox - and so
+ * the properties worth pinning - are that it does NOT fire once per run for an
  * unchanged problem, that it DOES fire immediately when the problem changes,
  * and that resolving re-arms it.
  */
@@ -28,7 +28,7 @@ describe('staff alert sink', () => {
     mockQueueEmail.mockClear();
     process.env.EMAIL_ADMIN = 'ops@example.com';
     // staff_alert_state is platform state, not tenant data, so resetDatabase()
-    // does not clear it — and its whole job is remembering across runs.
+    // does not clear it - and its whole job is remembering across runs.
     await rawQuery(`DELETE FROM staff_alert_state WHERE alert_key = $1`, [KEY]);
   });
 
@@ -53,7 +53,7 @@ describe('staff alert sink', () => {
     expect(call[0].templateKey).toBe('staff_operational_alert');
   });
 
-  it('does NOT re-email the same unchanged problem — the six-days-of-noise case', async () => {
+  it('does NOT re-email the same unchanged problem - the six-days-of-noise case', async () => {
     await alert({ drifted: 1 });
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
@@ -80,7 +80,7 @@ describe('staff alert sink', () => {
     await clearStaffAlert(KEY);
 
     // Identical fingerprint to the first alert. Without the re-arm this would
-    // be suppressed as a repeat — the exact defect M1 found in the low-balance
+    // be suppressed as a repeat - the exact defect M1 found in the low-balance
     // alert, which went silent for 24h after a top-up.
     await expect(alert({ drifted: 1 })).resolves.toBe(true);
     expect(mockQueueEmail).toHaveBeenCalledTimes(2);

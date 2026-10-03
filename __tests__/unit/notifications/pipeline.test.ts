@@ -260,7 +260,7 @@ describe('runAdminDigest', () => {
     expect(meta['Events summarised']).toBe(100);
     expect(meta['Organizations affected']).toBe(12);
     expect(meta.Failed).toBe(2);
-    // one digest alert only — not 100
+    // one digest alert only - not 100
     expect(deliveryCalls().length).toBeLessThanOrEqual(2);
   });
 

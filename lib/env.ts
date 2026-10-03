@@ -9,7 +9,7 @@
 import { z } from 'zod';
 
 // Split from the cross-field `envSchema` below (which chains `.superRefine`)
-// so build-time parsing can read `.shape` directly — see `buildTimeEnv()`.
+// so build-time parsing can read `.shape` directly - see `buildTimeEnv()`.
 const envObjectSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
 
@@ -23,7 +23,7 @@ const envObjectSchema = z.object({
   // Connection string for the least-privileged, non-BYPASSRLS `app_tenant` role
   // used by withDb()/withTransaction() (real tenant-context traffic). Optional
   // and falls back to DATABASE_URL when unset, so this is a no-op until the
-  // role actually exists and this is provisioned — unsetting it is also the
+  // role actually exists and this is provisioned - unsetting it is also the
   // instant-revert path back to the single-role/BYPASSRLS pool.
   TENANT_DATABASE_URL: z.string().url('TENANT_DATABASE_URL must be a valid PostgreSQL URI').optional(),
 
@@ -33,7 +33,7 @@ const envObjectSchema = z.object({
 
   // ── JWT ───────────────────────────────────────────────────────────────────
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
-  // Optional dedicated refresh secret — prevents an access token from being
+  // Optional dedicated refresh secret - prevents an access token from being
   // reused as a refresh token if keys are ever shared or leaked separately.
   // Falls back to JWT_SECRET when not set (backwards-compatible).
   JWT_REFRESH_SECRET: z.string().min(32).optional(),
@@ -54,20 +54,20 @@ const envObjectSchema = z.object({
   MPESA_PASSKEY: z.string().min(1, 'MPESA_PASSKEY is required'),
   // Base URL of the deployment (no trailing slash, no path).
   // All callback paths are derived as `${MPESA_CALLBACK_BASE_URL}/api/v1/mpesa/...`
-  // Safaricom rejects http:// for production shortcodes — HTTPS enforced below
+  // Safaricom rejects http:// for production shortcodes - HTTPS enforced below
   // when MPESA_ENV=production.
   MPESA_CALLBACK_BASE_URL: z
     .string()
     .url('MPESA_CALLBACK_BASE_URL must be a valid URL')
     .refine((u) => !u.endsWith('/'), 'MPESA_CALLBACK_BASE_URL must not end with a slash'),
   MPESA_B2C_INITIATOR_NAME: z.string().optional(),
-  // Plaintext initiator password — RSA-encrypted at boot against Safaricom's
+  // Plaintext initiator password - RSA-encrypted at boot against Safaricom's
   // public cert by lib/utils/mpesa-credential.ts. Operators who prefer to
   // pre-encrypt and paste a static SecurityCredential blob can still do so
   // via MPESA_B2C_SECURITY_CREDENTIAL.
   MPESA_B2C_INITIATOR_PASSWORD: z.string().optional(),
   // Sub-account shortcodes (Safaricom Daraja "Organization Accounts").
-  // Used for reconciliation tracing — the API call still uses MPESA_SHORTCODE
+  // Used for reconciliation tracing - the API call still uses MPESA_SHORTCODE
   // as PartyA, but every B2C row records which sub-account funded it.
   MPESA_WORKING_SHORTCODE: z.string().optional(),
   MPESA_UTILITY_SHORTCODE: z.string().optional(),
@@ -75,7 +75,7 @@ const envObjectSchema = z.object({
   MPESA_CHARGES_SHORTCODE: z.string().optional(),
   MPESA_SETTLEMENT_SHORTCODE: z.string().optional(),
   MPESA_AIRTIME_SHORTCODE: z.string().optional(),
-  // Airtime purchase is operator-specific on Daraja — the exact CommandID and
+  // Airtime purchase is operator-specific on Daraja - the exact CommandID and
   // request path are provisioned per shortcode. The wrapper stays inert (throws
   // NotImplementedError) until MPESA_AIRTIME_COMMAND_ID is set. ENDPOINT
   // defaults to the documented path but is overridable.
@@ -85,18 +85,18 @@ const envObjectSchema = z.object({
   // over the runtime RSA encryption of MPESA_B2C_INITIATOR_PASSWORD.
   MPESA_B2C_SECURITY_CREDENTIAL: z.string().optional(),
 
-  // ── SMS (TextSMS Kenya — primary provider) ────────────────────────────────
+  // ── SMS (TextSMS Kenya - primary provider) ────────────────────────────────
   // All three required for production. Service falls back to dry_run when unset.
   //
   // `.trim()` is load-bearing, not tidiness. Pasting a credential into
   // `vercel env add` keeps whatever whitespace came with it, and on
-  // 2026-08-20 TEXTSMS_API_KEY went in with a single trailing space — 33
+  // 2026-08-20 TEXTSMS_API_KEY went in with a single trailing space - 33
   // chars instead of 32. The provider answered `1006 Invalid credentials` to
   // every request, which reads exactly like a wrong or revoked key, so the
   // real cause (one invisible character) survived several rounds of checking
   // the key against the portal. A credential is never meant to carry leading
   // or trailing whitespace, so strip it before it can silently take SMS down.
-  // Note this normalises the value only — a genuinely wrong key still fails.
+  // Note this normalises the value only - a genuinely wrong key still fails.
   TEXTSMS_API_KEY: z.string().trim().min(1, 'TEXTSMS_API_KEY is required'),
   TEXTSMS_SENDER_ID: z.string().trim().default('KITABU YETU'),
   TEXTSMS_PARTNER_ID: z.string().trim().min(1, 'TEXTSMS_PARTNER_ID is required'),
@@ -122,7 +122,7 @@ const envObjectSchema = z.object({
    * Optional by design: with it unset the SDK is never imported and every
    * logger.error behaves exactly as before, so an environment without it is
    * indistinguishable from today. Setting it in Vercel is the only step
-   * needed to start receiving all 107 logger.error sites — no code change,
+   * needed to start receiving all 107 logger.error sites - no code change,
    * no redeploy of anything but the env.
    */
   SENTRY_DSN: z.string().url().optional(),
@@ -150,7 +150,7 @@ const envObjectSchema = z.object({
   // ── Import limits ─────────────────────────────────────────────────────────
   CSV_MAX_ROWS: z.coerce.number().int().positive().default(5000),
 
-  // ── Auth / registration (previously read via raw process.env — SIMPLIFICATION_AND_RBAC_AUDIT.md) ──
+  // ── Auth / registration (previously read via raw process.env - SIMPLIFICATION_AND_RBAC_AUDIT.md) ──
   BCRYPT_ROUNDS: z.coerce.number().int().positive().default(10),
   REGISTRATION_FEE_KES: z.coerce.number().int().nonnegative().default(300),
 
@@ -164,7 +164,7 @@ const envObjectSchema = z.object({
   MPESA_B2C_SHORTCODE: z.string().optional(),
   // Comma-separated IP allowlist for Safaricom callbacks; unset = no restriction.
   MPESA_ALLOWED_IPS: z.string().optional(),
-  // Deliberately NOT read from `env` at its one call site (daraja.service.ts) —
+  // Deliberately NOT read from `env` at its one call site (daraja.service.ts) -
   // that module reads process.env.MPESA_CALLBACK_TOKEN directly so a test can
   // mutate it at runtime via jest.resetModules(); listed here for validation/
   // documentation coverage only.
@@ -180,22 +180,22 @@ const envObjectSchema = z.object({
   REDIS_TOKEN: z.string().optional(),
 
   // ── QStash (Upstash) ─────────────────────────────────────────────────────
-  // Chunked bulk-SMS fan-out — closes SMS_MESSAGING_AUDIT_2026-08.md H3
+  // Chunked bulk-SMS fan-out - closes SMS_MESSAGING_AUDIT_2026-08.md H3
   // (SMS-007/SMS-015: handleSmsBulkSend re-billing a whole campaign on a
   // single function timeout), docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE
   // .md Phase 3 item 10. All optional, same "falls back when unset" pattern
-  // as the other provider blocks above — handleSmsBulkSend keeps dispatching
+  // as the other provider blocks above - handleSmsBulkSend keeps dispatching
   // in-process, unchunked, exactly as it did before this existed (true for
   // every environment except Production as of this writing).
   QSTASH_URL: z.string().url().optional(),
   QSTASH_TOKEN: z.string().optional(),
   // Both signing keys are required together to verify inbound QStash
-  // webhook signatures (current + next cover key-rotation overlap) — see
+  // webhook signatures (current + next cover key-rotation overlap) - see
   // Receiver in lib/queue/qstash.ts.
   QSTASH_CURRENT_SIGNING_KEY: z.string().optional(),
   QSTASH_NEXT_SIGNING_KEY: z.string().optional(),
 
-  // ── Email adapters (provider-specific — only the active EMAIL_PROVIDER's
+  // ── Email adapters (provider-specific - only the active EMAIL_PROVIDER's
   // vars need to actually be set; all optional here for the same reason the
   // existing RESEND_API_KEY entry above is optional) ──────────────────────
   SMTP_HOST: z.string().optional(),
@@ -245,7 +245,7 @@ const envSchema = envObjectSchema.superRefine((data, ctx) => {
   // QStash is all-or-nothing: a partial set (e.g. URL+TOKEN present but a
   // signing key missing) would let publishing succeed while the receiving
   // route can never verify the callback, silently dropping every chunk.
-  // isQstashConfigured() in lib/queue/qstash.ts checks the same four —
+  // isQstashConfigured() in lib/queue/qstash.ts checks the same four -
   // this just fails fast at boot instead of at first dispatch.
   const qstashVars = [
     data.QSTASH_URL,
@@ -280,7 +280,7 @@ function validateEnv(): Env {
 // be present in the build environment, so the full `envSchema` (required
 // fields + cross-field `.superRefine` checks that assume they're present)
 // can't run. But `next build`'s page-data-collection step imports every
-// route module, which evaluates any module-scope `env.X` read immediately —
+// route module, which evaluates any module-scope `env.X` read immediately -
 // so a field with a `.default()` (e.g. TEXTSMS_BASE_URL) still needs to
 // resolve to that default here, or callers reading it unguarded at module
 // scope crash the build the moment the var is unset in the build env.
@@ -298,7 +298,7 @@ function buildTimeEnv(): Env {
   );
   const result = z.object(relaxedShape).safeParse(process.env);
   if (!result.success) {
-    // A malformed (not just missing) var still gets flagged — as a warning,
+    // A malformed (not just missing) var still gets flagged - as a warning,
     // since throwing here would reintroduce the build failure this exists
     // to avoid. Falls back to the pre-fix behavior for that one case.
     const issues = result.error.issues.map((i) => `  • ${i.path.join('.')}: ${i.message}`).join('\n');

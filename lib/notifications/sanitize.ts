@@ -37,9 +37,9 @@ export function sanitizeMetadata(meta: Record<string, unknown> | undefined): Rec
 /** Text safe for SMS: GSM-friendly punctuation, no control characters. */
 export function gsmSafe(text: string): string {
   return text
-    .replace(/[‘’‚′]/g, "'")
-    .replace(/[“”„″]/g, '"')
-    .replace(/[–—−]/g, '-')
+    .replace(/[''‚′]/g, "'")
+    .replace(/[""„″]/g, '"')
+    .replace(/[--−]/g, '-')
     .replace(/…/g, '...')
     .replace(/\u00a0/g, ' ')
     .replace(/[^\x20-\x7E\n£€]/g, '')

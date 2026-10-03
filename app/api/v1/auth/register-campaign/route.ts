@@ -27,18 +27,18 @@ interface RegisterCampaignResult {
 }
 
 /**
- * POST /api/v1/auth/register-campaign — Changi$ha self-serve campaign creation.
+ * POST /api/v1/auth/register-campaign - Changi$ha self-serve campaign creation.
  *
  * Same shape as register-organization's route: campaigns.group_id/created_by
  * are both NOT NULL at the DB level, so a public caller with no existing
  * Kitabu Yetu account needs a group + member created for them in the same
- * breath as the campaign — reached via register_campaign()'s SECURITY
+ * breath as the campaign - reached via register_campaign()'s SECURITY
  * DEFINER RPC (withAdminDb's privileged connection), not a broadened RLS
- * grant. The campaign is created already 'pending_review' — admin approval
+ * grant. The campaign is created already 'pending_review' - admin approval
  * (existing /admin/campaigns flow, unchanged) is still the gate before it is
  * public and donatable.
  *
- * Does NOT issue a session token — same reasoning as register-organization:
+ * Does NOT issue a session token - same reasoning as register-organization:
  * login is a separate flow, and this group starts unsubscribed (migration
  * 139, "every plan is paid"), same as any other new group. The creator can
  * check back once Kitabu Yetu staff review the submission; subscribing is
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       campaignSlug: result.campaign_slug,
       accountCode: result.account_code,
       status: result.status,
-      // No tokens — see header. The creator signs in later, once they're
+      // No tokens - see header. The creator signs in later, once they're
       // ready to pay for a subscription and manage the campaign.
       nextStep: 'awaiting_review',
     });

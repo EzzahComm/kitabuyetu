@@ -6,7 +6,7 @@ import { smsService } from '@/lib/services/sms.service';
 import { ok } from '@/lib/utils/response';
 import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
-// sms_provider_balances is KITABU YETU'S OWN float with TextSMS — the
+// sms_provider_balances is KITABU YETU'S OWN float with TextSMS - the
 // platform's purchasing position, not any tenant's credit. A group's own
 // balance is a different number entirely and lives at GET /sms/credits, which
 // SmsCreditsPanel already shows on both portals.
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-// POST — live query from TextSMS + snapshot
+// POST - live query from TextSMS + snapshot
 export async function POST(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const result = await smsService.getProviderBalance(auth.userId);

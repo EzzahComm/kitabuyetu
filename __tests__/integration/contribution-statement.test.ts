@@ -1,5 +1,5 @@
 /**
- * notify_contribution_reminders — the monthly contribution/welfare statement
+ * notify_contribution_reminders - the monthly contribution/welfare statement
  * (handleContributionReminders in lib/jobs/handlers.ts), against real Postgres.
  *
  * Proves the arrears arithmetic and the guards around it actually hold: only
@@ -304,7 +304,7 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
     const [behind] = memberIds;
     await setPlan(groupId, { monthlyContribution: 1000, welfareAmount: 0 }, 2);
     await setJoined(groupId, 36); // joined 3 years ago, well before the 24-month arrears cap
-    // Two real payments: one inside the arrears-scan window, one 30 months back —
+    // Two real payments: one inside the arrears-scan window, one 30 months back -
     // outside it, so the windowed arrears arithmetic never sees it, but the
     // lifetime paid-to-date figure must still include it.
     await pay(groupId, behind, 600, 1);
@@ -323,7 +323,7 @@ describe('notify_contribution_reminders (monthly arrears statement)', () => {
     const [behind] = memberIds;
     await setPlan(groupId, { monthlyContribution: 100, welfareAmount: 0 }, 1); // 1 closed month
     await setJoined(groupId, 6);
-    await pay(groupId, behind, 60, 1); // owes 40 still — stays a candidate; counts toward group income too
+    await pay(groupId, behind, 60, 1); // owes 40 still - stays a candidate; counts toward group income too
     await setSubscriptionFee(groupId, 1000, 2); // started 2 whole months ago -> 3 months billed = 3000
     // One real SMS usage row: 10 credits deducted, none from the free
     // allowance -> 10 paid credits at the group's 0.90 sms_rate (set by

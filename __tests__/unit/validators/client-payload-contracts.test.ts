@@ -3,7 +3,7 @@
  *
  * Motivation: three separate UI actions shipped payloads their route schema
  * rejects outright, so the button 400'd on every click for every user and
- * nothing caught it — not tsc, not eslint, not the 361-test suite:
+ * nothing caught it - not tsc, not eslint, not the 361-test suite:
  *
  *   1. welfare "Quick review → Approve" sent `amountApproved: 0` against
  *      `.positive()`                                    (audit M3)
@@ -81,7 +81,7 @@ describe('client payload contracts', () => {
       // Migration 138: the M-Pesa callback activates the plan named here.
       // accountReference is the constant 'SUBSCRIPT' and description is 20
       // chars of free text, so without these the callback cannot know what was
-      // bought and the payment strands — which is exactly what used to happen.
+      // bought and the payment strands - which is exactly what used to happen.
       const { planType: _p, product: _pr, ...noPlan } = subscription;
       expect(StkPushSchema.safeParse(noPlan).success).toBe(false);
     });
@@ -143,7 +143,7 @@ describe('client payload contracts', () => {
       expect(ReviewWelfareRequestSchema.safeParse({ action: 'approve' }).success).toBe(true);
     });
 
-    it('rejects amountApproved: 0 — the value the approve button used to send', () => {
+    it('rejects amountApproved: 0 - the value the approve button used to send', () => {
       expect(ReviewWelfareRequestSchema.safeParse({ action: 'approve', amountApproved: 0 }).success).toBe(false);
     });
   });
@@ -182,12 +182,12 @@ describe('client payload contracts', () => {
       ).toBe(true);
     });
 
-    it('rejects a reject with no reason — what the Reject button used to send', () => {
+    it('rejects a reject with no reason - what the Reject button used to send', () => {
       expect(RejectLoanSchema.safeParse({}).success).toBe(false);
       expect(RejectLoanSchema.safeParse({ reason: 'Insufficient savings history' }).success).toBe(true);
     });
 
-    it('rejects a disburse with no date/method — what the Mark disbursed button used to send', () => {
+    it('rejects a disburse with no date/method - what the Mark disbursed button used to send', () => {
       expect(DisburseLoanSchema.safeParse({}).success).toBe(false);
       expect(
         DisburseLoanSchema.safeParse({
@@ -226,7 +226,7 @@ describe('client payload contracts', () => {
     ];
 
     // These are in posting-templates.service.ts's PostingEvent union and in
-    // the list the UI renders, but were missing from this enum — so the UI
+    // the list the UI renders, but were missing from this enum - so the UI
     // offered them and the request 400'd. campaign_withdrawal is the same
     // drift recurring a third time: added to DEFAULT_TEMPLATES for the
     // Changi$ha withdrawal feature but not to this enum until this test
@@ -289,7 +289,7 @@ describe('client payload contracts', () => {
       expect(BulkSmsSchema.safeParse({ phones: ['254712345678'], message }).success).toBe(true);
     });
 
-    it('rejects both at once — the server would have to guess which one wins', () => {
+    it('rejects both at once - the server would have to guess which one wins', () => {
       expect(
         BulkSmsSchema.safeParse({
           phones: ['254712345678'],

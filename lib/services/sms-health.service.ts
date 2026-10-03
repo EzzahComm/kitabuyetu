@@ -6,14 +6,14 @@
  * welcome message to eight members, burned their append-only trigger
  * executions permanently, and was found days later by a human reading the
  * database. `findSpineOrphans()` in outbox.service.ts calls its own
- * `logger.error` "the paging signal" — but no sink consumes logger.error, so
+ * `logger.error` "the paging signal" - but no sink consumes logger.error, so
  * it pages nobody. This module is the first thing here that actually tells a
  * person something is wrong.
  *
  * ── Why the DB and not the circuit breaker ──
  * lib/sms/circuit-breaker.ts holds PER-INSTANCE state and says so in its own
  * header: on serverless, several instances each hold their own view, so it
- * cannot answer "is the provider down for everyone". `sms_usage_logs` can —
+ * cannot answer "is the provider down for everyone". `sms_usage_logs` can -
  * it is the one place every instance's outcome lands. The breaker protects a
  * single invocation from grinding; this protects the humans from silence.
  *
@@ -34,7 +34,7 @@ const SAMPLE_WINDOW = '1 hour';
  * Below this many messages in the window, no verdict is issued at all.
  *
  * A single failed send out of one attempt is a 100% failure rate and means
- * nothing — most groups send in bursts with long idle gaps, so a low-volume
+ * nothing - most groups send in bursts with long idle gaps, so a low-volume
  * window is normal, not evidence. Paging on it would train whoever receives
  * these to ignore them, which is worse than not sending them.
  */
@@ -44,7 +44,7 @@ const MIN_SAMPLE = 10;
  * Failure rate that counts as degraded.
  *
  * Set high on purpose. The failure mode worth waking someone for is the one
- * this system has actually suffered twice — a credential or endpoint fault
+ * this system has actually suffered twice - a credential or endpoint fault
  * where EVERY send fails (the 401 outage: 100%; the DLR misread: 100%). A
  * lower threshold would fire on ordinary invalid-number noise, which is a
  * per-recipient data problem, not an outage.
@@ -78,14 +78,14 @@ export interface HealthSample {
  *
  * Returns rather than throws for every outcome a caller might care about, so
  * the job handler can report it in the run record. Genuinely unexpected
- * errors do propagate — the job queue's retry is the right owner for those.
+ * errors do propagate - the job queue's retry is the right owner for those.
  */
 export async function sampleProviderHealth(provider: string = DEFAULT_SMS_PROVIDER): Promise<HealthSample> {
   const [counts] = await withAdminDb((db) =>
     db
       .query<{ total: string; failed: string }>(
         // Only rows that reached a provider verdict are eligible. 'queued' means
-        // the dispatch has not answered yet and 'suppressed' never went out —
+        // the dispatch has not answered yet and 'suppressed' never went out -
         // counting either would make a busy queue look like an outage.
         `SELECT COUNT(*)::text                                        AS total,
               COUNT(*) FILTER (WHERE status = 'failed')::text       AS failed
@@ -102,8 +102,8 @@ export async function sampleProviderHealth(provider: string = DEFAULT_SMS_PROVID
   const failed = Number(counts?.failed ?? 0);
   const failureRate = total > 0 ? failed / total : 0;
 
-  // Too little traffic to judge. Record that we looked — an operator reading
-  // last_checked_at should be able to tell "healthy" from "nobody checked" —
+  // Too little traffic to judge. Record that we looked - an operator reading
+  // last_checked_at should be able to tell "healthy" from "nobody checked" -
   // but issue no verdict and never alert.
   if (total < MIN_SAMPLE) {
     await touchChecked(provider, total, failed);
@@ -120,7 +120,7 @@ export async function sampleProviderHealth(provider: string = DEFAULT_SMS_PROVID
     return { provider, total, failed, failureRate, state, alerted: false, recovered };
   }
 
-  // Degraded. Claim the right to alert by moving last_alerted_at — only the
+  // Degraded. Claim the right to alert by moving last_alerted_at - only the
   // caller whose UPDATE actually matches a row gets to notify, so two
   // concurrent runs cannot both send.
   const claimed = await claimAlert(provider, total, failed);
@@ -175,7 +175,7 @@ async function markHealthy(provider: string, total: number, failed: number): Pro
   );
 
   if (rowCount === 0) {
-    // Already healthy (or no row yet) — keep the sample fresh either way.
+    // Already healthy (or no row yet) - keep the sample fresh either way.
     await touchChecked(provider, total, failed);
     await withAdminDb((db) =>
       db.query(`UPDATE sms_provider_health_state SET state = 'healthy' WHERE provider = $1`, [provider]),
@@ -213,7 +213,7 @@ async function claimAlert(provider: string, total: number, failed: number): Prom
 async function notifyStaff(provider: string, total: number, failed: number, failureRate: number): Promise<void> {
   const to = process.env.EMAIL_ADMIN;
   if (!to) {
-    logger.error('[sms-health] EMAIL_ADMIN is unset — provider alert has no recipient', { provider });
+    logger.error('[sms-health] EMAIL_ADMIN is unset - provider alert has no recipient', { provider });
     return;
   }
 
@@ -238,7 +238,7 @@ async function notifyStaff(provider: string, total: number, failed: number, fail
 
 /**
  * The last recorded verdict, for surfaces that must not make a live provider
- * call to answer "is SMS working" — see app/status/page.tsx.
+ * call to answer "is SMS working" - see app/status/page.tsx.
  */
 export async function readProviderHealth(
   provider: string = DEFAULT_SMS_PROVIDER,

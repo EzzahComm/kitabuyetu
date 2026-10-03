@@ -24,7 +24,7 @@ export interface DepartmentInfo {
   handles: string;
   /**
    * Platform staff role that works this mailbox today. There are no
-   * dedicated billing/hr/enterprise platform roles yet — until there are,
+   * dedicated billing/hr/enterprise platform roles yet - until there are,
    * those mailboxes are worked by super_admins (see docs/DEPARTMENT_EMAILS.md).
    */
   platformRole: 'super_admin' | 'support' | null;

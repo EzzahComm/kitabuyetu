@@ -23,7 +23,7 @@ export interface PaymentAccountHit {
 /**
  * Single routing lookup: normalise the inbound reference and match it against
  * payment_accounts. Membership numbers and legacy member codes are stored
- * without separators; invoice numbers keep their dashes — so we try both the
+ * without separators; invoice numbers keep their dashes - so we try both the
  * fully-stripped and the dash-normalised forms.
  */
 export async function lookupPaymentAccount(

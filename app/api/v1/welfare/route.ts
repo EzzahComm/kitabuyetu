@@ -15,7 +15,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-// Self-service: any member can request help (funeral/hospital/emergency) —
+// Self-service: any member can request help (funeral/hospital/emergency) -
 // welfare.request stays member-reachable, unlike welfare.manage below.
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'welfare.request', async (auth) => {

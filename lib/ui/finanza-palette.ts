@@ -13,7 +13,7 @@
  * (`[data-marketing-theme]`). Same class names, two surfaces, one switch.
  */
 
-/** Primary — Finanza's `--primary` / `--bs-primary`. Replaces green on the public site. */
+/** Primary - Finanza's `--primary` / `--bs-primary`. Replaces green on the public site. */
 export const finanzaBlue = {
   50: '#F0F3FF',
   100: '#DFE4FD', // template --light: borders, soft panels
@@ -27,7 +27,7 @@ export const finanzaBlue = {
   900: '#1A2D79',
 } as const;
 
-/** Secondary — Finanza's `--secondary`. Used sparingly, as the template does. */
+/** Secondary - Finanza's `--secondary`. Used sparingly, as the template does. */
 export const finanzaOrange = {
   50: '#FDF0EB',
   100: '#FBD8CD', // template table-secondary

@@ -28,7 +28,7 @@ import { rawQuery } from './helpers/db';
  * Restore the pricing tables to exactly what migration 143 seeds.
  *
  * These are CONFIGURATION, not tenant data, so `resetDatabase()` does not
- * truncate them — which means a test that activates a tier or expires a cost
+ * truncate them - which means a test that activates a tier or expires a cost
  * leaks that change into every later test AND into the next run of the suite.
  * (Found the hard way: the first green run left the volume bands active and
  * the second run failed 14 tests.) Configuration state has to be restored
@@ -40,8 +40,8 @@ async function restoreSeededPricing(): Promise<void> {
   // `SET is_active = (name = 'Standard')` fails: exclusion constraints are
   // checked per ROW, so mid-statement both the flat band and the volume bands
   // are active and overlap. (The constraint is DEFERRABLE precisely so a real
-  // admin swap can do this atomically inside one transaction — see migration
-  // 143 — but rawQuery runs each statement on its own connection.)
+  // admin swap can do this atomically inside one transaction - see migration
+  // 143 - but rawQuery runs each statement on its own connection.)
   await rawQuery(`UPDATE sms_pricing_tiers SET is_active = false WHERE is_active`);
   await rawQuery(`UPDATE sms_pricing_tiers SET is_active = true WHERE name = 'Standard'`);
   await rawQuery(`UPDATE sms_packages SET is_active = false, is_recommended = false`);
@@ -60,7 +60,7 @@ describe('SMS pricing engine', () => {
 
   afterAll(restoreSeededPricing);
 
-  describe('seeded state — the "changes nothing" guarantee', () => {
+  describe('seeded state - the "changes nothing" guarantee', () => {
     it('prices every volume at the flat rate charged today', async () => {
       // If any of these ever stops being 0.90, migration 143 has repriced live
       // customers as a side effect of deploying, which §21 forbids.
@@ -96,7 +96,7 @@ describe('SMS pricing engine', () => {
   describe('volume banding, once activated', () => {
     beforeEach(async () => {
       // Flip to the proposed table the way an admin would.
-      // Deactivate before activate — see restoreSeededPricing for why.
+      // Deactivate before activate - see restoreSeededPricing for why.
       await rawQuery(`UPDATE sms_pricing_tiers SET is_active = false WHERE name = 'Standard'`);
       await rawQuery(`UPDATE sms_pricing_tiers SET is_active = true  WHERE name <> 'Standard'`);
     });
@@ -128,7 +128,7 @@ describe('SMS pricing engine', () => {
   describe('the overlap invariant', () => {
     it('rejects a second active band covering the same volume', async () => {
       // Without this, two bands could both match and the price would depend on
-      // row order — the exact ambiguity a hand-rolled CASE ladder has.
+      // row order - the exact ambiguity a hand-rolled CASE ladder has.
       await expect(
         rawQuery(
           `INSERT INTO sms_pricing_tiers (name, min_credits, max_credits, unit_price, is_active)
@@ -160,7 +160,7 @@ describe('SMS pricing engine', () => {
     });
 
     it('still clears margin at the proposed floor price', async () => {
-      // §19 warned not to assume 0.50 is sustainable. At a 0.35 cost it is —
+      // §19 warned not to assume 0.50 is sustainable. At a 0.35 cost it is -
       // 30% gross. Re-check this test if the provider's rate ever moves; the
       // bottom band is the first to go underwater.
       const m = await marginFor(0.5);
@@ -170,7 +170,7 @@ describe('SMS pricing engine', () => {
 
     it('reports unknown rather than inventing a cost', async () => {
       // Retire the cost by moving its whole validity window into the past.
-      // Note effective_to alone cannot be backdated — sms_cost_window_sane
+      // Note effective_to alone cannot be backdated - sms_cost_window_sane
       // requires effective_to >= effective_from, which is the constraint
       // stopping anyone from recording a window that never existed.
       await rawQuery(

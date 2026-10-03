@@ -47,7 +47,7 @@ export function useSetSavingsPolicy() {
   });
 }
 
-/** Dashboard "Remind" action — SMS nudge to this month's non-contributors. */
+/** Dashboard "Remind" action - SMS nudge to this month's non-contributors. */
 export function useRemindNonContributors() {
   return useMutation({
     mutationFn: () => contributionsApi.remindNonContributors(),

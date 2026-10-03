@@ -2,7 +2,7 @@ export type PlanType = 'starter' | 'growth' | 'premium' | 'enterprise';
 /**
  * Which product a subscription entitles a group to (migration 127).
  * A group holds at most one ACTIVE subscription per product, so these are
- * concurrent entitlements rather than mutually exclusive tiers — plan_type is
+ * concurrent entitlements rather than mutually exclusive tiers - plan_type is
  * scoped *within* a product, which is why the three tables below are keyed by
  * (product, plan) rather than by plan alone.
  */
@@ -37,8 +37,8 @@ export type SmsStatus = 'queued' | 'sent' | 'delivered' | 'failed' | 'rejected';
 export type Gender = 'male' | 'female' | 'other' | 'prefer_not_to_say';
 // Must match the group_type Postgres enum EXACTLY (supabase/migrations/
 // 20260101000000_001_init_enums.sql, extended by migration 154). This used to
-// say 'organization_group', which the enum has never contained — the real value
-// is 'ngo_group' — so registering or retyping a group as "Organization" threw a
+// say 'organization_group', which the enum has never contained - the real value
+// is 'ngo_group' - so registering or retyping a group as "Organization" threw a
 // raw Postgres 22P02 (invalid enum input) that surfaced to the user as a 500.
 //
 // GROUP_TYPE_LABELS below is the single source of the user-facing wording; the
@@ -72,14 +72,14 @@ export const GROUP_TYPE_LABELS: Record<GroupType, string> = {
   other: 'Other',
 };
 
-// Insertion order above is the dropdown order — commonest Kenyan forms first,
+// Insertion order above is the dropdown order - commonest Kenyan forms first,
 // 'other' last. Object key order is guaranteed for string keys, so this needs
 // no separate ordering array to stay in sync with.
 export const GROUP_TYPES = Object.keys(GROUP_TYPE_LABELS) as [GroupType, ...GroupType[]];
 export type OrganizationAccessLevel = 'read' | 'report';
 
 // Must match the organization_type Postgres enum exactly (migration 050
-// broadened this from NGO-specific to any institution type — 'ngo' is one
+// broadened this from NGO-specific to any institution type - 'ngo' is one
 // value among these, never the implicit default. See
 // register_organization()'s own validation: organizationType is required,
 // with no fallback).
@@ -154,7 +154,7 @@ const EVERY_PLAN = <T>(value: T): Record<PlanType, T> => ({
 });
 
 /**
- * Keyed by (product, plan) since migration 127 — a Chama Reminder "growth" is
+ * Keyed by (product, plan) since migration 127 - a Chama Reminder "growth" is
  * a different entitlement from a Kitabu Yetu "growth", and a group can hold
  * both at once.
  */
@@ -168,7 +168,7 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
  *
  * It was typed `(volume: number) => number` and read like a volume pricing
  * engine, but it never priced anything: all four call sites passed 0, and the
- * rate actually charged at send time comes from `subscriptions.sms_rate` — a
+ * rate actually charged at send time comes from `subscriptions.sms_rate` - a
  * scalar frozen onto the subscription at purchase, which reserve_sms_credits
  * reads with MIN(). Its tiers (0.60/0.75/0.90) had also drifted from any
  * agreed price list.
@@ -183,11 +183,11 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
  * costs: the /billing/plans API quotes it, and the M-Pesa callback verifies
  * the amount actually paid against it before activating anything. The billing
  * page used to carry its own hardcoded copy (growth 2500, enterprise 8000)
- * that disagreed with this table — customers were charged the client's number
+ * that disagreed with this table - customers were charged the client's number
  * while the server believed a different one. It now reads these values.
  *
  * There is no free tier. Every plan below enterprise is self-serve via STK
- * push; `enterprise` is 0 here because it is NEGOTIATED, not free — it must
+ * push; `enterprise` is 0 here because it is NEGOTIATED, not free - it must
  * never be sold through the self-serve payment path, and the STK validator
  * rejects it for exactly that reason.
  */
@@ -211,13 +211,13 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
     starter: 150,
     growth: 300,
     premium: 500,
-    enterprise: 0, // negotiated — never self-serve
+    enterprise: 0, // negotiated - never self-serve
   },
   chama_reminder: {
     starter: 100,
     growth: 250,
     premium: 400,
-    enterprise: 0, // negotiated — never self-serve
+    enterprise: 0, // negotiated - never self-serve
   },
 };
 
@@ -225,7 +225,7 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
  * Billing cadence a group can pay on (migration 155). `monthly` is the
  * original, unchanged behaviour every existing subscription is on.
  *
- * Deliberately NO discount for the longer cycles — BILLING_CYCLE_MONTHS is a
+ * Deliberately NO discount for the longer cycles - BILLING_CYCLE_MONTHS is a
  * straight multiplier on PLAN_MONTHLY_FEES, not a separate price list. A
  * discounted annual price is a real business decision nobody has made yet;
  * inventing one here would be exactly the kind of unauthorised number this
@@ -257,12 +257,12 @@ export const BILLING_CYCLE_LABELS: Record<BillingCycle, string> = {
  * This is the ONLY source of truth for the allowance. Before it existed,
  * neither of billing.service.ts's two `INSERT INTO subscriptions` statements
  * set `sms_allowance_included` at all, so EVERY plan silently fell through to
- * the column default of 50 from migration 124 — starter and premium alike,
+ * the column default of 50 from migration 124 - starter and premium alike,
  * both products, all 8 live subscriptions. Meanwhile PLAN_COPY advertised
  * "Higher SMS allowance" as a premium feature, which the system did not
  * honour. Set this explicitly at creation; do not rely on the column default.
  *
- * Once exhausted, a group buys top-up credits at its own `sms_rate` — the
+ * Once exhausted, a group buys top-up credits at its own `sms_rate` - the
  * allowance is a floor, not a cap on sending. The pricing page says so.
  *
  * `enterprise` is NEGOTIATED, mirroring PLAN_MONTHLY_FEES. The number below is
@@ -274,13 +274,13 @@ export const PLAN_SMS_ALLOWANCE: Record<SubscriptionProduct, Record<PlanType, nu
     starter: 100,
     growth: 200,
     premium: 300,
-    enterprise: 300, // floor — negotiated per contract
+    enterprise: 300, // floor - negotiated per contract
   },
   chama_reminder: {
     starter: 100,
     growth: 200,
     premium: 300,
-    enterprise: 300, // floor — negotiated per contract
+    enterprise: 300, // floor - negotiated per contract
   },
 };
 
@@ -288,12 +288,12 @@ export const PLAN_SMS_ALLOWANCE: Record<SubscriptionProduct, Record<PlanType, nu
 export const SELF_SERVE_PLANS: readonly PlanType[] = ['starter', 'growth', 'premium'];
 
 /**
- * Display copy only — NO prices. Prices always come from `PLAN_MONTHLY_FEES`
+ * Display copy only - NO prices. Prices always come from `PLAN_MONTHLY_FEES`
  * above (or the live `/billing/plans` API, which reads the same table). This
  * used to be a private const inside `components/billing/plan-purchase.tsx`;
  * moved here so the PUBLIC pricing page and preview can share the exact same
  * per-tier bullets instead of maintaining an independent, driftable copy of
- * their own — which is what produced fictional member-count and SMS-quota
+ * their own - which is what produced fictional member-count and SMS-quota
  * claims on the public pages while this list (real, reviewed, already sold
  * to authenticated customers) sat one import away.
  *
@@ -333,18 +333,18 @@ export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: str
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Organization plans — a DIFFERENT axis from PlanType/PLAN_FEATURES above,
+// Organization plans - a DIFFERENT axis from PlanType/PLAN_FEATURES above,
 // which is entirely group-scoped. Organizations (federating bodies overseeing
-// many groups) had no plan/tier concept at all until this — confirmed by an
+// many groups) had no plan/tier concept at all until this - confirmed by an
 // exhaustive search, the only prior trace was three completely dead,
 // unreferenced columns on `organizations` from a 2026-06 migration.
 //
-// UNLIKE groups, this is real, enforced from day one (chosen deliberately —
+// UNLIKE groups, this is real, enforced from day one (chosen deliberately -
 // the group side's PLAN_FEATURES currently unlocks everything on every tier
 // after an audit found the gating inverted; the team chose to disable it
 // rather than fix it). And UNLIKE groups, there is no self-serve path here at
 // all: only super_admin/Kitabu Yetu staff create organizations, so a plan is
-// always assigned by staff — never purchased, never upgraded by a coordinator.
+// always assigned by staff - never purchased, never upgraded by a coordinator.
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type OrganizationPlanType = 'starter' | 'growth' | 'premium' | 'premium_plus';
@@ -361,11 +361,11 @@ export interface OrganizationPlanFeatures {
 }
 
 /**
- * premium_plus is deliberately absent — "custom, including pricing" was
+ * premium_plus is deliberately absent - "custom, including pricing" was
  * explicit: every field is negotiated per deal and entered by hand at
  * assignment time (organization-plan.service.ts#assignOrganizationPlan),
  * never read from this static map. Mirrors PLAN_MONTHLY_FEES.enterprise's
- * existing "0 = negotiated" convention, just structurally stricter — there is
+ * existing "0 = negotiated" convention, just structurally stricter - there is
  * no fallback numeric here at all for premium_plus to accidentally read.
  */
 export const ORGANIZATION_PLAN_FEATURES: Record<'starter' | 'growth' | 'premium', OrganizationPlanFeatures> = {

@@ -13,7 +13,7 @@ function normalizeTemplatePayload<T extends { variables?: string[] | null; body?
   };
 }
 
-// GET /api/v1/sms/templates â€” list group + system templates
+// GET /api/v1/sms/templates â€" list group + system templates
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
@@ -29,7 +29,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-// POST /api/v1/sms/templates â€” create custom template
+// POST /api/v1/sms/templates â€" create custom template
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
     const body = await req.json();
@@ -51,7 +51,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-// PATCH /api/v1/sms/templates?id=xxx â€” update template
+// PATCH /api/v1/sms/templates?id=xxx â€" update template
 export async function PATCH(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');
@@ -91,7 +91,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   });
 }
 
-// DELETE /api/v1/sms/templates?id=xxx â€” soft delete
+// DELETE /api/v1/sms/templates?id=xxx â€" soft delete
 export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.templates.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');

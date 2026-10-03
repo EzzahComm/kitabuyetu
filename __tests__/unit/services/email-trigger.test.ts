@@ -2,8 +2,8 @@
  * Email trigger engine (Phase 9.4.2, fixed while building Phase 9.4.3's
  * automation rules UI). Regression coverage for the bug this phase found:
  * emitEmailTriggerEvent used to call renderTemplate(rule.template_key, vars)
- * directly — substituting {{vars}} into the KEY STRING itself instead of a
- * template body fetched from email_templates — so every email trigger send
+ * directly - substituting {{vars}} into the KEY STRING itself instead of a
+ * template body fetched from email_templates - so every email trigger send
  * would have mailed the literal template_key. These tests pin the fix: the
  * subject/body actually sent come from the email_templates row, rendered.
  */
@@ -48,7 +48,7 @@ const event = {
   payload: { first_name: 'Alice' },
 };
 
-describe('emitEmailTriggerEvent — template lookup', () => {
+describe('emitEmailTriggerEvent - template lookup', () => {
   it('skips the rule (no email sent) when no email_templates row matches template_key', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [rolesRule] }); // loadMatchingEmailRules
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'mem-1', email: 'a@x.com', name: 'Alice' }] }); // roles recipients

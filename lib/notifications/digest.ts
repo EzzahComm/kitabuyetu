@@ -3,7 +3,7 @@
  *
  * Routine high-volume events (contributions, PayBill payments, STK results…)
  * are recorded individually but NOT alerted individually. Every
- * KITABU_ADMIN_DIGEST_MINUTES (default 60) — or sooner if a burst piles up —
+ * KITABU_ADMIN_DIGEST_MINUTES (default 60) - or sooner if a burst piles up -
  * one ACTIVITY_DIGEST summary is emitted covering everything since the last.
  */
 import { withAdminDb } from '@/lib/db';
@@ -113,7 +113,7 @@ export async function runAdminDigest(): Promise<{ sent: boolean; events: number 
   });
 
   if (!res.recorded) {
-    // Could not record the summary — put the rows back so the next run retries.
+    // Could not record the summary - put the rows back so the next run retries.
     logger.error('[notifications] digest emit failed; releasing claimed rows', { events: claimed.length });
     await withAdminDb((db) =>
       db.query('UPDATE platform_activity_logs SET digest_sent_at = NULL WHERE id = ANY($1::uuid[])', [

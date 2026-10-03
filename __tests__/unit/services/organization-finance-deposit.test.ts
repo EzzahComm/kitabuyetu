@@ -1,5 +1,5 @@
 /**
- * organizationFinanceService.deposit — now also posts DR 1001 Cash and Bank /
+ * organizationFinanceService.deposit - now also posts DR 1001 Cash and Bank /
  * CR 4001 Donor Contributions to the organization's own ledger (migration 085),
  * closing the gap where deposits only ever touched organization_wallets with
  * no GL trace (ACCOUNTING_ARCHITECTURE_AUDIT.md §9).

@@ -1,15 +1,15 @@
 import type { SubscriptionProduct } from '@/types/enums';
 
-/** What a session is entitled to. Both optional — callers that have neither get the old behaviour. */
+/** What a session is entitled to. Both optional - callers that have neither get the old behaviour. */
 export interface PostLoginEntitlements {
   products?: SubscriptionProduct[];
   signupProduct?: SubscriptionProduct;
 }
 
 /**
- * UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1 (C3): a plain 'member' — who
+ * UX_UI_OPTIMIZATION_AUDIT_2026-08.md Phase 1 (C3): a plain 'member' - who
  * holds none of the officer permissions (dashboard.view/meetings.view only)
- * — previously always landed on the full officer dashboard, where nearly
+ * - previously always landed on the full officer dashboard, where nearly
  * every action is a permission dead-end, while the simplified (member)
  * portal built for their access level sat completely unreachable.
  * Chairperson/treasurer/secretary keep landing on /dashboard; they need its
@@ -27,7 +27,7 @@ export interface PostLoginEntitlements {
  * unpaid Kitabu Yetu one until you ask what it signed up for.
  *
  * A group holding BOTH products is a Kitabu Yetu group with an add-on and keeps
- * landing on /dashboard — the reminder portal is reachable from there, and
+ * landing on /dashboard - the reminder portal is reachable from there, and
  * demoting a full customer to the lighter product would be a downgrade.
  */
 export function postLoginPath(groupRole?: string, entitlements?: PostLoginEntitlements): string {
@@ -52,7 +52,7 @@ export function postLoginPath(groupRole?: string, entitlements?: PostLoginEntitl
  * change, where a hook's cached value would be the PREVIOUS session's.
  *
  * Falls back to the plain role-based path if the lookup fails, which is the
- * pre-migration-140 behaviour — a routing helper must not be able to strand
+ * pre-migration-140 behaviour - a routing helper must not be able to strand
  * someone who has just signed in.
  */
 export async function resolvePostLoginPath(groupRole?: string): Promise<string> {

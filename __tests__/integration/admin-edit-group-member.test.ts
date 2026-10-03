@@ -1,7 +1,7 @@
 /**
  * Super-admin corrections to a group's profile and a member's details.
  *
- * Until now a super_admin could change a group's STATUS and nothing else —
+ * Until now a super_admin could change a group's STATUS and nothing else -
  * there was no way anywhere in the product to fix a typo in a group's name or
  * a member's name, which is what this exists for.
  *
@@ -11,7 +11,7 @@
  *    409, not surface a raw constraint violation as a 500.
  *  - A member's name also lives on `person`, the cross-group identity record.
  *    Updating only `members` leaves the same human showing the old name in
- *    every OTHER group they belong to — the correction would look applied and
+ *    every OTHER group they belong to - the correction would look applied and
  *    silently not be.
  *  - PHONE IS NOT EDITABLE. It is the login identity and is UNIQUE
  *    platform-wide, so changing it changes who can sign in. The schema is
@@ -95,7 +95,7 @@ describe('super_admin edits a group profile', () => {
     expect(String(body.error)).toMatch(/already uses that name/i);
   });
 
-  it('still performs a status transition when given { action } — the two branches coexist', async () => {
+  it('still performs a status transition when given { action } - the two branches coexist', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
 
     const res = await groupPatch(
@@ -171,7 +171,7 @@ describe('super_admin edits a member', () => {
     expect(res.status).toBe(409);
   });
 
-  it('REFUSES a phone change outright — phone is the login identity', async () => {
+  it('REFUSES a phone change outright - phone is the login identity', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
     const [{ phone: before }] = await rawQuery<{ phone: string }>(`SELECT phone FROM members WHERE id = $1`, [
       officerId,
@@ -186,7 +186,7 @@ describe('super_admin edits a member', () => {
       { params: Promise.resolve({ id: groupId, memberId: officerId }) },
     );
 
-    // A clean 400 from the strict schema — never a silent partial apply.
+    // A clean 400 from the strict schema - never a silent partial apply.
     expect(res.status).toBe(400);
 
     const [after] = await rawQuery<{ phone: string; first_name: string }>(
@@ -198,7 +198,7 @@ describe('super_admin edits a member', () => {
     expect(after.first_name).not.toBe('Fine');
   });
 
-  it('denies a support-role caller — support is read-only on the admin surface', async () => {
+  it('denies a support-role caller - support is read-only on the admin surface', async () => {
     const { groupId, officerId } = await createTestGroup('chairperson');
 
     const res = await memberPatch(

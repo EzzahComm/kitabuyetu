@@ -8,7 +8,7 @@ interface RouteParams {
   params: Promise<{ memberId: string }>;
 }
 
-/** POST /api/v1/credit-scores/[memberId]/recompute — recompute for one. */
+/** POST /api/v1/credit-scores/[memberId]/recompute - recompute for one. */
 export async function POST(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { memberId } = await params;
   return withPermission(req, 'credit_scores.recompute', async (auth) => {

@@ -1,14 +1,14 @@
 /**
- * Chunked bulk SMS with NO campaignId — the combination that was broken in
+ * Chunked bulk SMS with NO campaignId - the combination that was broken in
  * production and that no existing test covered.
  *
  * sendBulkCampaign resolves its dedup key as `campaignId ?? dispatchBatchId`.
  * sms-bulk-chunk-completion.test.ts passes BOTH, so the campaign id always
  * won and the malformed `${jobId}:chunk:${i}` string was never actually used
  * as the key. sms-bulk-retry-idempotency.test.ts exercises the no-campaign
- * path but passes a plain (valid) jobId. The real production combination —
+ * path but passes a plain (valid) jobId. The real production combination -
  * a chunk key AND no campaign, which is what /api/v1/sms/bulk and every
- * sms_schedules occurrence produce — was therefore untested, and it failed
+ * sms_schedules occurrence produce - was therefore untested, and it failed
  * 100% of the time: the key is bound to sms_usage_logs.correlation_id and
  * .reference_id, both `uuid`, so Postgres rejected it with 22P02 on the
  * first statement. Zero rows written, zero SMS sent, and the caller had
@@ -89,7 +89,7 @@ describe('chunked bulk send without a campaign (G1)', () => {
       sentBy: 'test',
       dispatchBatchId: chunkKey,
       totalRecipientCount: phones.length,
-      // deliberately NO campaignId — this is the production shape
+      // deliberately NO campaignId - this is the production shape
     });
 
     // Before the fix this threw 22P02 and wrote nothing.
@@ -135,7 +135,7 @@ describe('chunked bulk send without a campaign (G1)', () => {
     });
 
     // Every recipient was already logged under this key, so the retry sends
-    // nothing. Note sendBulkCampaign always returns logs: [] — the real
+    // nothing. Note sendBulkCampaign always returns logs: [] - the real
     // observables are the counts, the provider call, and the row count.
     expect(retry.sent).toBe(0);
     // No second dispatch to the provider, and no extra log rows.

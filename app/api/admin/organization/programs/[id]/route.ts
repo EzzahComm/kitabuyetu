@@ -6,11 +6,11 @@ import { ProgramActionSchema, UpdateProgramStatusSchema } from '@/lib/validators
 import { ok } from '@/lib/utils/response';
 
 /**
- * PATCH /api/v1/organization/programs/:id — pause / reactivate / close
- * POST  /api/v1/organization/programs/:id — capitalize / decapitalize
+ * PATCH /api/v1/organization/programs/:id - pause / reactivate / close
+ * POST  /api/v1/organization/programs/:id - capitalize / decapitalize
  *
  * Capital adjustment is a POST rather than another PATCH branch because it is
- * not a state change on the row — it moves the product's spending authority,
+ * not a state change on the row - it moves the product's spending authority,
  * and is separately permissioned (capital.product.manage vs
  * organization.programs.manage).
  */

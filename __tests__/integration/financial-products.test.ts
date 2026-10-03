@@ -1,15 +1,15 @@
 /**
- * Financial products — capital layer Phase 1 (migration 116), real Postgres.
+ * Financial products - capital layer Phase 1 (migration 116), real Postgres.
  *
  * The headline test is the source spec's own §1 reference scenario, reduced to
  * the part Phase 1 can satisfy: EZZAHCOMM's Seed Capital product capitalized to
  * KES 10,000,000 must report available 10,000,000 / allocated 0. (The
- * KES 1,000,000 allocation to The Fionas out of that fund is Phase 2 — there is
+ * KES 1,000,000 allocation to The Fionas out of that fund is Phase 2 - there is
  * no allocation lifecycle yet.)
  *
  * Everything else here pins a DB CHECK constraint. Those are the real
- * enforcement — the Zod layer in organization.schema.ts only exists to turn
- * them into clean 400s — so they are asserted directly against Postgres rather
+ * enforcement - the Zod layer in organization.schema.ts only exists to turn
+ * them into clean 400s - so they are asserted directly against Postgres rather
  * than trusted from the validator's unit tests.
  */
 import type { TenantContext } from '@/lib/db';
@@ -59,7 +59,7 @@ describe('financial products', () => {
     repaymentWaterfall: { order: ['penalty', 'interest', 'principal'] as Array<'penalty' | 'interest' | 'principal'> },
   };
 
-  describe('§1 reference scenario — EZZAHCOMM Seed Capital', () => {
+  describe('§1 reference scenario - EZZAHCOMM Seed Capital', () => {
     it('reports available 10,000,000 / allocated 0 for a product capitalized to 10,000,000', async () => {
       const product = await organizationFinanceService.createProgram(ctxA(), seedCapitalInput);
 
@@ -80,7 +80,7 @@ describe('financial products', () => {
 
       expect(product.is_repayable).toBe(true);
       expect(product.interest_method).toBe('reducing_balance');
-      // 12.5 means 12.5% — stored numeric(5,2), NOT a 0-1 ratio.
+      // 12.5 means 12.5% - stored numeric(5,2), NOT a 0-1 ratio.
       expect(parseFloat(product.interest_rate_annual!)).toBe(12.5);
       expect(product.repayment_frequency).toBe('monthly');
       expect(product.tenor_months).toBe(12);
@@ -136,7 +136,7 @@ describe('financial products', () => {
       expect(ledger[0].direction).toBe('debit');
     });
 
-    it('does NOT move wallet cash — capitalization is a spending authority, not a cash event', async () => {
+    it('does NOT move wallet cash - capitalization is a spending authority, not a cash event', async () => {
       const before = await organizationFinanceService.getWallet(ctxA());
 
       const product = await organizationFinanceService.createProgram(ctxA(), {
@@ -164,7 +164,7 @@ describe('financial products', () => {
     });
 
     it('works for an organization that has never opened a wallet', async () => {
-      // createOrganization() seeds a chart of accounts but NOT a wallet — the
+      // createOrganization() seeds a chart of accounts but NOT a wallet - the
       // wallet is created lazily. Capitalization needs one only to satisfy
       // organization_ledger.wallet_id NOT NULL, since no cash moves, so it must
       // bootstrap rather than fail. Without that, capitalizing a product for

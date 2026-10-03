@@ -7,11 +7,11 @@ import { SetApprovalPolicySchema } from '@/lib/validators/accounting.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/policies — platform-wide ApprovalPolicy defaults.
- * PUT /api/admin/policies — set a platform-wide default (super_admin only).
+ * GET /api/admin/policies - platform-wide ApprovalPolicy defaults.
+ * PUT /api/admin/policies - set a platform-wide default (super_admin only).
  *
  * These are the floor every organization/group inherits from unless they
- * override — see ACCOUNTING_ARCHITECTURE_AUDIT.md §29's Configuration
+ * override - see ACCOUNTING_ARCHITECTURE_AUDIT.md §29's Configuration
  * Service / Policy Resolution Engine.
  */
 

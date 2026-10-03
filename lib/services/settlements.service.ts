@@ -1,13 +1,13 @@
 /**
- * Settlement sweeps — a group moving M-Pesa float to one of its own
+ * Settlement sweeps - a group moving M-Pesa float to one of its own
  * (activated) bank accounts, via Daraja B2B. Structurally mirrors
  * disbursements.service.ts (the codebase's one existing real-Daraja
- * maker-checker spine) — reserve → dual-approve → dispatch outside the
+ * maker-checker spine) - reserve → dual-approve → dispatch outside the
  * transaction → settle on callback. Unlike disbursements, every settlement
- * always needs a second officer (no under-threshold auto-approval) — the
+ * always needs a second officer (no under-threshold auto-approval) - the
  * table's own `status` default is 'pending_approval', not conditional.
  *
- * settlement_requests has no cash_account_id column — the group's '1001'
+ * settlement_requests has no cash_account_id column - the group's '1001'
  * account is re-derived via lock_group_cash_account() at each step instead
  * of being stored once.
  */
@@ -39,7 +39,7 @@ export interface SettlementRow {
   failure_reason: string | null;
   notes: string | null;
   idempotency_key: string | null;
-  /** Reconciliation tag only — see the write site for why. Migration 134. */
+  /** Reconciliation tag only - see the write site for why. Migration 134. */
   source_account: string | null;
   /** Set once ops resolves a 'timed_out' row's true outcome. Migration 135. */
   reconciled_at: Date | null;
@@ -83,7 +83,7 @@ export const settlementsService = {
       await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [acctRows[0].id, input.amount.toFixed(2)]);
 
       // Reconciliation tag only, same pattern as mpesa-b2c.service.ts's own
-      // sub-account tagging — it records which of our own M-Pesa sub-accounts
+      // sub-account tagging - it records which of our own M-Pesa sub-accounts
       // the sweep is understood to have drawn from. It is NOT a Daraja PartyA
       // override.
       //
@@ -135,7 +135,7 @@ export const settlementsService = {
     });
   },
 
-  /** Second-officer approval — approver ≠ requester. Dispatches on success. */
+  /** Second-officer approval - approver ≠ requester. Dispatches on success. */
   async approve(ctx: TenantContext, id: string): Promise<SettlementRow> {
     const row = await withTransaction(ctx, async (db) => {
       const { rows } = await db.query<SettlementRow>(
@@ -266,7 +266,7 @@ export const settlementsService = {
 
 /**
  * Same shape as disbursements.service.ts's findStuckDisbursements, including
- * the same requirement to also surface unreconciled 'timed_out' rows — see
+ * the same requirement to also surface unreconciled 'timed_out' rows - see
  * that function's own comment for why this isn't optional once the watchdog
  * can write that status.
  */
@@ -292,7 +292,7 @@ export async function findStuckSettlements(): Promise<{
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[settlements] stuck B2B sweeps — no result callback received', {
+      logger.error('[settlements] stuck B2B sweeps - no result callback received', {
         count: samples.length,
         samples: samples.slice(0, 5),
       });
@@ -359,7 +359,7 @@ async function dispatchSettlement(id: string): Promise<void> {
         ],
       );
     });
-    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to B2B —
+    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5, extended to B2B -
     // see disbursements.service.ts's dispatchDisbursement for the identical
     // pattern). Never blocks/fails a dispatch that already succeeded.
     await triggerDisbursementWatchdog({ kind: 'settlement', rowId: claimed.id });

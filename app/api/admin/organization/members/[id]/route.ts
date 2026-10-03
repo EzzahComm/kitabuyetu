@@ -6,11 +6,11 @@ import { organizationService } from '@/lib/services/organization.service';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/organization/members/:id?groupId=… — one member's detail,
+ * GET /api/admin/organization/members/:id?groupId=… - one member's detail,
  * the final tier of the portfolio drill-down (Org → Group → Member).
  *
  * groupId is required rather than inferred: a member can belong to several
- * groups (§1.2 — and membership_no lives on the membership, not the member), so
+ * groups (§1.2 - and membership_no lives on the membership, not the member), so
  * "this member" is only well-defined together with the membership being viewed.
  * Both ids are verified server-side against the caller's organization; see
  * organizationService.getMemberDetail.

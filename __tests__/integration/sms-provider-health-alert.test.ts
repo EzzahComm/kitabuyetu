@@ -47,7 +47,7 @@ describe('sms provider health alerting', () => {
     mockQueueEmail.mockClear();
     process.env.EMAIL_ADMIN = 'ops@example.com';
     // sms_provider_health_state is PLATFORM state, not tenant data, so
-    // resetDatabase() deliberately does not truncate it — its whole job is to
+    // resetDatabase() deliberately does not truncate it - its whole job is to
     // remember across runs that staff were already told. Reset it explicitly,
     // or last_alerted_at from one case silently suppresses the alert the next
     // case is asserting on.
@@ -71,7 +71,7 @@ describe('sms provider health alerting', () => {
   });
 
   it('stays healthy on ordinary failure noise', async () => {
-    await seedUsage(groupId, 20, 3); // 15% — invalid numbers, not an outage
+    await seedUsage(groupId, 20, 3); // 15% - invalid numbers, not an outage
 
     const s = await sampleProviderHealth();
 
@@ -89,14 +89,14 @@ describe('sms provider health alerting', () => {
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
 
     // The outage continues and the job runs again an hour later. It must not
-    // send a second time — this is the assertion the closure test names.
+    // send a second time - this is the assertion the closure test names.
     const second = await sampleProviderHealth();
     expect(second.state).toBe('degraded');
     expect(second.alerted).toBe(false);
     expect(mockQueueEmail).toHaveBeenCalledTimes(1);
   });
 
-  it('sends the alert by email only — never over SMS', async () => {
+  it('sends the alert by email only - never over SMS', async () => {
     await seedUsage(groupId, 20, 20);
     const before = await rawQuery<{ n: string }>(`SELECT COUNT(*)::text AS n FROM sms_usage_logs`);
 
@@ -125,7 +125,7 @@ describe('sms provider health alerting', () => {
     expect(recovery.recovered).toBe(true);
 
     // A second incident must alert again rather than sit out the 6-hour
-    // cool-off left over from the first — the exact defect M1 found in the
+    // cool-off left over from the first - the exact defect M1 found in the
     // low-balance alert, which stayed silent for 24h after a top-up.
     await rawQuery(`DELETE FROM sms_usage_logs`);
     await seedUsage(groupId, 20, 20);

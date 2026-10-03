@@ -166,7 +166,7 @@ describe('SMS usage analytics (§8)', () => {
  * Restore the pricing/cost configuration migration 143 seeds.
  *
  * sms_provider_costs and sms_pricing_tiers are CONFIGURATION, so
- * resetDatabase() does not truncate them — which means a test that retires a
+ * resetDatabase() does not truncate them - which means a test that retires a
  * cost or adds a tier leaks that change into every later test, into other
  * suites, and into the next run. The pricing suite learned this the hard way;
  * this file mutates both, so it cleans up after itself explicitly.
@@ -207,7 +207,7 @@ describe('SMS margin reporting (§15)', () => {
   it('prices each lot against the cost in force WHEN IT WAS SOLD', async () => {
     // The whole reason sms_provider_costs carries validity dates. If margin
     // used a single current cost, every provider price change would silently
-    // restate history — the same mistake §4 forbids on the revenue side.
+    // restate history - the same mistake §4 forbids on the revenue side.
     await rawQuery(`UPDATE sms_provider_costs SET effective_to = CURRENT_DATE - 10 WHERE provider = 'textsms'`);
     await rawQuery(
       `INSERT INTO sms_provider_costs (provider, unit_cost, effective_from)
@@ -250,7 +250,7 @@ describe('SMS margin reporting (§15)', () => {
   it('still lists a group that has only ever sent on its bundled allowance, never bought a top-up', async () => {
     // Regression guard for the INNER JOIN bug: a group with zero sms_credits
     // rows used to vanish from this report entirely, even with real
-    // consumption — visible usage, invisible revenue line.
+    // consumption - visible usage, invisible revenue line.
     await consumed(groupId, 5); // no purchase() call at all
 
     const rows = await smsMarginService.getTopCustomers();
@@ -283,7 +283,7 @@ describe('SMS margin reporting (§15)', () => {
     expect(mine!.creditsConsumed).toBe(15);
     expect(mine!.currentBalance).toBe(40);
     // This org has never had a top-up recorded (see the describe block below
-    // for the real-purchase case) — revenue/creditsPurchased must read as a
+    // for the real-purchase case) - revenue/creditsPurchased must read as a
     // genuine zero, not silently omit the field.
     expect(mine!.revenue).toBe(0);
     expect(mine!.creditsPurchased).toBe(0);
@@ -293,8 +293,8 @@ describe('SMS margin reporting (§15)', () => {
     const tiers = await smsMarginService.getTierViability();
     const floor = tiers.find((t) => t.unitPrice === 0.5);
 
-    // §19 warned not to assume 0.50 is sustainable. At a 0.35 cost it is —
-    // 30% gross — so it is viable, not loss-making.
+    // §19 warned not to assume 0.50 is sustainable. At a 0.35 cost it is -
+    // 30% gross - so it is viable, not loss-making.
     expect(floor).toBeDefined();
     expect(floor!.lossMaking).toBe(false);
     expect(floor!.marginPct).toBeCloseTo(30, 1);
@@ -342,7 +342,7 @@ describe('Organization SMS credit top-ups', () => {
   });
 
   it('credits the right amount at the default rate, and writes a real purchase ledger row', async () => {
-    // No prior organization_billing_accounts row — proves the lazy bootstrap.
+    // No prior organization_billing_accounts row - proves the lazy bootstrap.
     const result = await addOrganizationSmsCredits(organizationId, 900, coordinatorId);
 
     // Manual top-up: no paymentId, so the G27 duplicate guard can never
@@ -388,7 +388,7 @@ describe('Organization SMS credit top-ups', () => {
     expect(second.rateApplied).toBeCloseTo(0.5, 4);
     expect(second.creditsAdded).toBeCloseTo(1000, 4); // 500 / 0.50
 
-    // The first lot's OWN rate_applied must still read 0.90 — a rate change
+    // The first lot's OWN rate_applied must still read 0.90 - a rate change
     // must never restate a completed purchase, same rule §4 already enforces
     // for groups (migration 146).
     const lots = await rawQuery<{ rate_applied: string }>(
@@ -473,7 +473,7 @@ describe('Organization SMS credit top-ups', () => {
     expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
   });
 
-  it('a support-role caller is denied on both super_admin SMS-billing routes — support is read-only', async () => {
+  it('a support-role caller is denied on both super_admin SMS-billing routes - support is read-only', async () => {
     const topUp = await adminTopUpPost(
       buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
         method: 'POST',

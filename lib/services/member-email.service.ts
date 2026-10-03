@@ -101,7 +101,7 @@ export async function sendMonthlyStatements(groupId: string, month: string): Pro
        -- with e.g. 3 contributions this month and 2 loans would otherwise
        -- have their contributions SUM doubled (fanned out across the 2 loan
        -- rows) and their loan balance SUM tripled (fanned out across the 3
-       -- contribution rows) — same bug class proven live elsewhere in the
+       -- contribution rows) - same bug class proven live elsewhere in the
        -- admin/organization portals.
        SELECT m.id, m.first_name || ' ' || m.last_name AS full_name, m.email,
               COALESCE(con.total_contributions, 0) AS total_contributions,

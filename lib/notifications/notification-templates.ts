@@ -1,7 +1,7 @@
 /**
  * SMS and email rendering for administrator alerts.
  *
- * SMS: concise, actionable, no secrets, and no metadata dump — only the
+ * SMS: concise, actionable, no secrets, and no metadata dump - only the
  * whitelisted fields below. Email: full detail plus a link to the
  * authenticated admin screen (never a token).
  */

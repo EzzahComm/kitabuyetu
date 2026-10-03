@@ -4,7 +4,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { listActivity } from '@/lib/notifications/activity-query';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/admin/activity — platform activity + admin notification delivery status. Super-admin only. */
+/** GET /api/admin/activity - platform activity + admin notification delivery status. Super-admin only. */
 export function GET(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const sp = new URL(req.url).searchParams;

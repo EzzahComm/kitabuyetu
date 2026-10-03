@@ -15,7 +15,7 @@ import { routeToUnrouted, type StkRequestRow as AllocationStkRequestRow } from '
 import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
 
 export interface ReconciliationResult {
-  /** null when the run short-circuited before opening an audit row — see runReconciliation. */
+  /** null when the run short-circuited before opening an audit row - see runReconciliation. */
   reconciliationId: string | null;
   transactionsChecked: number;
   mismatchesFound: number;
@@ -40,7 +40,7 @@ export interface ReconStkRow {
  * contribution_id guard (under the caller's FOR UPDATE lock) prevents a double
  * create, and a late callback short-circuits on the already-completed payment.
  *
- * The M-Pesa receipt is unavailable here — STK Push Query doesn't return it —
+ * The M-Pesa receipt is unavailable here - STK Push Query doesn't return it -
  * so the contribution is recorded with a NULL receipt and a note explaining the
  * provenance. Unmatched phones still route to the unrouted queue.
  */
@@ -108,7 +108,7 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
       row.group_id,
       memberId,
       amount.toFixed(2),
-      `Reconciled from STK ${row.account_reference} — callback not received; M-Pesa receipt unavailable`,
+      `Reconciled from STK ${row.account_reference} - callback not received; M-Pesa receipt unavailable`,
     ],
   );
   const contributionId = cRows[0].id;
@@ -131,7 +131,7 @@ export async function runReconciliation(
   groupId: string | null,
   initiatedBy: string | null,
 ): Promise<ReconciliationResult> {
-  // Scan for actual work BEFORE opening an audit row — confirmed live,
+  // Scan for actual work BEFORE opening an audit row - confirmed live,
   // 98.4% of runs (34,656 of 35,233) found zero stale STK requests yet each
   // one still opened a 'running' row and two more write transactions on
   // completion. Every 5 minutes, forever, against a platform with 46
@@ -240,10 +240,10 @@ export async function runReconciliation(
 }
 
 /**
- * Paybill sweep reconciliation — detects completed inbound C2B (paybill)
+ * Paybill sweep reconciliation - detects completed inbound C2B (paybill)
  * transactions that were recorded on the money ledger but never produced a
  * domain record (contribution, loan repayment, or invoice payment) and are
- * not already sitting in the unrouted queue. These are "partial updates" —
+ * not already sitting in the unrouted queue. These are "partial updates" -
  * the payment landed but its fulfilment step failed midway.
  *
  * Detected orphans are queued into mpesa_unrouted for treasurer resolution
@@ -405,7 +405,7 @@ export async function reconcileCharges(): Promise<{ examined: number; backfilled
     await withAdminDb(async (db) => {
       const charge = await computeB2CCharge(db, parseFloat(row.amount));
       if (charge <= 0) {
-        // No fee for this tier — record a zero-charge row so we stop re-examining it.
+        // No fee for this tier - record a zero-charge row so we stop re-examining it.
         await insertMpesaCharge(db, {
           groupId: row.group_id,
           mpesaTransactionId: row.id,

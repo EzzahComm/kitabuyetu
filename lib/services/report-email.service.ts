@@ -15,7 +15,7 @@ export async function emailPnlReport(opts: {
 }): Promise<EmailResult> {
   return sendFinancialReport({
     to: opts.requesterEmail,
-    subject: `Profit & Loss Report — ${opts.period}`,
+    subject: `Profit & Loss Report - ${opts.period}`,
     html: opts.htmlReport,
     groupId: opts.groupId,
     userId: opts.requesterId,
@@ -35,7 +35,7 @@ export async function emailBalanceSheet(opts: {
 }): Promise<EmailResult> {
   return sendFinancialReport({
     to: opts.requesterEmail,
-    subject: `Balance Sheet — ${opts.period}`,
+    subject: `Balance Sheet - ${opts.period}`,
     html: opts.htmlReport,
     groupId: opts.groupId,
     userId: opts.requesterId,
@@ -112,7 +112,7 @@ export async function sendWeeklySummaries(): Promise<void> {
       ),
       withAdminDb((db) =>
         db.query(
-          // loan_repayments has no `amount` column — the money column is
+          // loan_repayments has no `amount` column - the money column is
           // `amount_paid` (opening_balance/principal_component/
           // interest_component/total_due/amount_paid). `amount` threw
           // "column does not exist" on every run of this job.

@@ -1,5 +1,5 @@
 /**
- * The (member) portal's own wallet summary — savings/shares/loan balance
+ * The (member) portal's own wallet summary - savings/shares/loan balance
  * reuse the shared computeMemberFinancialSnapshot() (member-balances.service.ts,
  * also used by statement-email.service.ts) rather than recomputing the same
  * SQL a third time. The "next payment due" nudge card needs a second,
@@ -68,7 +68,7 @@ async function loadActiveLoan(client: PoolClient, ctx: TenantContext): Promise<A
     balance: outstanding,
     principal: parseFloat(loan.principal_amount),
     nextAmount: next ? parseFloat(next.total_due) : 0,
-    nextDueLabel: next ? formatDate(next.due_date) : '—',
+    nextDueLabel: next ? formatDate(next.due_date) : '-',
     progress: totalRepayable > 0 ? Math.round((1 - outstanding / totalRepayable) * 100) : 0,
   };
 }

@@ -98,7 +98,7 @@ describe('segment billing (G5)', () => {
     await provision(groupId, 100);
     const ctx = { userId: officerId, groupId, role: 'chairperson' as const };
 
-    // 320 chars — the validator's own cap. Old billing charged 1; the provider
+    // 320 chars - the validator's own cap. Old billing charged 1; the provider
     // bills 3 (320 / 153).
     await smsService.send(ctx, PHONE, 'a'.repeat(320));
 

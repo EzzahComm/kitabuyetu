@@ -8,7 +8,7 @@
  * a failed_payment_logs row on failure.
  *
  * Both handlers are safe no-ops when the OriginatorConversationID doesn't
- * belong to their table — the existing B2B/B2C routes call every handler for
+ * belong to their table - the existing B2B/B2C routes call every handler for
  * each callback rather than dispatching on type, so "not my row" must mean
  * "do nothing", not "error". That's also what makes a replayed callback
  * harmless: the `WHERE status = 'processing'` guard matches nothing the
@@ -29,7 +29,7 @@ import { notifyDisbursementCallback } from '@/lib/queue/qstash';
 import { payoutChannel, type PayoutMethod } from '@/lib/campaigns/payout-destination';
 
 // What to tell the disbursement watchdog once a handler's transaction
-// commits — fired AFTER withAdminDb resolves, never from inside it. Same
+// commits - fired AFTER withAdminDb resolves, never from inside it. Same
 // "don't hold a FOR UPDATE lock open for a network call" reasoning as
 // mpesa-b2c.service.ts's handleB2CResult (see its own WatchdogNotifyInfo
 // comment for the full rationale).
@@ -63,7 +63,7 @@ function parseResult(body: Record<string, unknown>) {
 
 /**
  * Releases the cash reservation held against a group's 1001 account.
- * Uses the same SECURITY DEFINER RPCs the disbursement spine does — a plain
+ * Uses the same SECURITY DEFINER RPCs the disbursement spine does - a plain
  * UPDATE would be blocked by accounts_update's is_system guard.
  */
 async function releaseCashReservation(db: PoolClient, groupId: string, amount: string): Promise<void> {
@@ -102,7 +102,7 @@ export async function handleSettlementB2BResult(body: Record<string, unknown>, c
         [row.id, parsed.desc.slice(0, 500)],
       );
 
-      // Record audit log for settlement failure — system-triggered (Daraja callback)
+      // Record audit log for settlement failure - system-triggered (Daraja callback)
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -140,7 +140,7 @@ export async function handleSettlementB2BResult(body: Record<string, unknown>, c
       createdBy: null,
     });
     if (!jeId) {
-      // The money already moved — a missing chart account is a reconciliation
+      // The money already moved - a missing chart account is a reconciliation
       // gap to surface, never a reason to mark the settlement failed.
       logger.error('[settlements] sweep completed but GL posting was skipped', {
         settlementId: row.id,
@@ -155,7 +155,7 @@ export async function handleSettlementB2BResult(body: Record<string, unknown>, c
       [row.id, fee.toFixed(2)],
     );
 
-    // Record audit log for settlement completion — system-triggered (Daraja callback)
+    // Record audit log for settlement completion - system-triggered (Daraja callback)
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -180,7 +180,7 @@ export async function handleSettlementB2BResult(body: Record<string, unknown>, c
 }
 
 /**
- * Vendor payment result callback — one handler for both channels, called
+ * Vendor payment result callback - one handler for both channels, called
  * from both the B2B and B2C routes (a given payment's
  * originator_conversation_id only ever matches one of them).
  */
@@ -216,7 +216,7 @@ export async function handleVendorPaymentResult(body: Record<string, unknown>, c
         [row.id, parsed.desc.slice(0, 500)],
       );
 
-      // Record audit log for vendor payment failure — system-triggered (Daraja callback)
+      // Record audit log for vendor payment failure - system-triggered (Daraja callback)
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -269,7 +269,7 @@ export async function handleVendorPaymentResult(body: Record<string, unknown>, c
       [row.id, fee.toFixed(2)],
     );
 
-    // Record audit log for vendor payment completion — system-triggered (Daraja callback)
+    // Record audit log for vendor payment completion - system-triggered (Daraja callback)
     await db.query(
       `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
        VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -294,15 +294,15 @@ export async function handleVendorPaymentResult(body: Record<string, unknown>, c
 }
 
 /**
- * Changi$ha withdrawal result callback — for both channels: a phone payout
+ * Changi$ha withdrawal result callback - for both channels: a phone payout
  * reports on the B2C route, a paybill/till payout (migration 202) on the B2B
  * route, and both routes call this. A given withdrawal's
  * originator_conversation_id only ever matches one of them.
  *
  * Unlike handleVendorPaymentResult, the M-Pesa charge is NOT recomputed
  * here: it was already computed and locked in at request time
- * (campaign-withdrawals.service.ts), because net_amount — the figure
- * actually sent to Daraja — depended on knowing it in advance. Recomputing
+ * (campaign-withdrawals.service.ts), because net_amount - the figure
+ * actually sent to Daraja - depended on knowing it in advance. Recomputing
  * it now (a live balance could theoretically differ from the tier-table
  * lookup at request time) would let this journal's numbers drift from what
  * the beneficiary was actually promised on the request screen.
@@ -377,7 +377,7 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
       createdBy: null,
     });
     if (!jeId) {
-      // The money already moved — a missing chart account is a
+      // The money already moved - a missing chart account is a
       // reconciliation gap to surface, never a reason to mark the
       // withdrawal failed.
       logger.error('[campaign-withdrawals] withdrawal completed but GL posting was skipped', {
@@ -393,13 +393,13 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
       [row.id],
     );
 
-    // Platform revenue recognized only once the money actually moved —
+    // Platform revenue recognized only once the money actually moved -
     // matches migration 125's organization_ledger 'fee' row, written at
     // settlement time, not at request time.
     await db.query(
       `INSERT INTO platform_revenue (group_id, kind, amount, reference_type, reference_id, description)
        VALUES ($1, 'transaction_fee', $2, 'campaign_withdrawal', $3, $4)`,
-      [row.group_id, row.platform_fee_amount, row.id, `Changi$ha platform fee — campaign ${row.campaign_id}`],
+      [row.group_id, row.platform_fee_amount, row.id, `Changi$ha platform fee - campaign ${row.campaign_id}`],
     );
 
     await db.query(

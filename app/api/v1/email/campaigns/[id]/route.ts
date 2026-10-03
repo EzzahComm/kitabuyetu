@@ -11,7 +11,7 @@ const ActionSchema = z.object({ action: z.enum(['launch', 'cancel']) });
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 — GET previously had no auth
+ * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 - GET previously had no auth
  * check at all (any caller who knew/guessed a campaign UUID could read its
  * full recipient list, including email addresses), and POST checked auth
  * but never verified the campaign belonged to the caller's own group. Both
@@ -20,11 +20,11 @@ type Ctx = { params: Promise<{ id: string }> };
  * precedent) can see/manage any group's campaigns.
  *
  * Outer gate added (messaging.send, matching SMS campaigns' equivalent GET
- * gate) — the `scoped` ternary below is untouched, it's visibility scope,
+ * gate) - the `scoped` ternary below is untouched, it's visibility scope,
  * not the access gate.
  *
  * Phase 1 Week 1.2: the manual `group_id = $2` clause used to be the ONLY
- * thing standing between a tenant caller and another group's campaign —
+ * thing standing between a tenant caller and another group's campaign -
  * BYPASSRLS meant Postgres RLS provided zero backstop. The `scoped` (normal
  * member) path now also runs through the RLS-enforced tenant pool
  * (withDb/withTransaction + TenantContext), so a bug in the WHERE clause can
@@ -33,7 +33,7 @@ type Ctx = { params: Promise<{ id: string }> };
  * recipients' RLS policy (migration 014) is a flat
  * `group_id = current_setting('app.current_group_id')` match with no
  * super_admin bypass, so routing that branch through withDb would silently
- * turn "any group" into "only my own group" for platform staff — a real
+ * turn "any group" into "only my own group" for platform staff - a real
  * regression, not a hardening. This mirrors analytics/route.ts's existing
  * super_admin-sees-everything precedent for the same tables.
  */
@@ -96,7 +96,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
     if (!owned.length) throw new NotFoundError('Campaign', id);
 
     if (action === 'launch') {
-      // OPTIMIZATION_CLEANUP_AUDIT.md High #6 — hand off to the job queue
+      // OPTIMIZATION_CLEANUP_AUDIT.md High #6 - hand off to the job queue
       // instead of running the per-recipient loop inline in this request.
       await enqueueJob(
         'email_campaign_launch',

@@ -1,7 +1,7 @@
 /**
  * ISmsAdapter implementation for TextSMS Kenya.
  *
- * Deliberately a thin pass-through — textsms.service.ts already owns every
+ * Deliberately a thin pass-through - textsms.service.ts already owns every
  * TextSMS-specific quirk (the response-code/respose-code split, the
  * delivery-status/delivery-description trap, 404-as-a-normal-DLR-answer,
  * chunking). Re-implementing any of that here would just create a second

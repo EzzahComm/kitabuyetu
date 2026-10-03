@@ -21,7 +21,7 @@ interface GroupMemberRow {
 }
 
 /**
- * POST /api/v1/auth/verify/start — begins (or restarts) group verification
+ * POST /api/v1/auth/verify/start - begins (or restarts) group verification
  * for the signed-in member's own group (§4A). Reachable while the group is
  * still pending_verification (proxy.ts's allowedPending list) since that's
  * the whole point of this route.
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // loop: with that loop now excluding group_verification_link entirely
       // (it can never send a correct retry), the hundreds of daily sends to
       // one real recipient turned out to be genuine, successful Resend
-      // deliveries from repeated calls to THIS route, not retries — nothing
+      // deliveries from repeated calls to THIS route, not retries - nothing
       // stopped an authenticated member from re-requesting unlimited
       // verification emails for their own group (docs/audits/
       // optimization-2026-09). 3 per 10 minutes matches OTP_TTL_MINUTES.

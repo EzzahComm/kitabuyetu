@@ -2,7 +2,7 @@
  * Apply a single migration file to the database in DATABASE_URL and record it
  * in supabase_migrations.schema_migrations.
  *
- * Migrations on this project are NOT applied automatically — a green Vercel
+ * Migrations on this project are NOT applied automatically - a green Vercel
  * deploy proves the code shipped, never that the schema moved. Anything that
  * depends on new DDL (a new column, a new constraint an ON CONFLICT names)
  * must be applied here first, or the deploy starts throwing on the live path.
@@ -25,7 +25,7 @@ function parseName(file: string): { version: string; name: string } {
   const base = basename(file).replace(/\.sql$/, '');
   const match = base.match(/^(\d+)_(.+)$/);
   if (!match) {
-    throw new Error(`Migration filename must be <version>_<name>.sql — got "${base}"`);
+    throw new Error(`Migration filename must be <version>_<name>.sql - got "${base}"`);
   }
   return { version: match[1], name: match[2] };
 }
@@ -48,14 +48,14 @@ async function main() {
       [version],
     );
     if (already[0]) {
-      console.log(`Version ${version} (${name}) is already recorded — nothing to do.`);
+      console.log(`Version ${version} (${name}) is already recorded - nothing to do.`);
       return;
     }
 
     if (!apply) {
       console.log(`Would apply version ${version} (${name}):\n`);
       console.log(sql);
-      console.log('\nDry run — re-run with --apply to execute.');
+      console.log('\nDry run - re-run with --apply to execute.');
       return;
     }
 

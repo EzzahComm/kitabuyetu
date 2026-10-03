@@ -7,7 +7,7 @@
  *
  * super_admin bypasses every permission check, mirroring how it already
  * bypasses withRole's numeric ROLE_HIERARCHY ladder (rank 100) and how
- * ROLES.canViewPII already special-cases it inline (lib/auth/rbac.ts) — not
+ * ROLES.canViewPII already special-cases it inline (lib/auth/rbac.ts) - not
  * a literal "has every permission string" array, which would need to be kept
  * in sync with every future permission string ever added.
  */
@@ -31,6 +31,6 @@ export function requirePermission(auth: PermissionCheckable, required: string): 
 
 export function requireAnyPermission(auth: PermissionCheckable, allowed: string[]): void {
   if (!allowed.some((p) => hasPermission(auth, p))) {
-    throw new ForbiddenError(`Missing permission — one of: ${allowed.join(', ')}`);
+    throw new ForbiddenError(`Missing permission - one of: ${allowed.join(', ')}`);
   }
 }

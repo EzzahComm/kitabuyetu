@@ -15,7 +15,7 @@
  * every tick, recording the same error forever. 16 callbacks were affected;
  * 11 were harmless duplicates of an STK payment that the STK path had
  * already credited (STK callbacks carry a real phone), but **5 were direct
- * PayBill payments with no STK counterpart — KES 15,631 received by
+ * PayBill payments with no STK counterpart - KES 15,631 received by
  * Safaricom and recorded nowhere at all**, not even in the unrouted queue.
  *
  * The payer phone is incidental to this path and always was: the handler's
@@ -61,7 +61,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
   });
 
   it('does not throw, and files an unroutable payment to mpesa_unrouted instead of discarding it', async () => {
-    // An account reference that matches no membership — the case that used to
+    // An account reference that matches no membership - the case that used to
     // vanish entirely. Before the fix this threw on line 1 and never reached
     // the unrouted insert; production's mpesa_unrouted table was empty (0
     // rows) while 5 real payments had gone missing.
@@ -100,7 +100,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       }),
     ).resolves.not.toThrow();
 
-    // The money is recorded against the right group — the whole point.
+    // The money is recorded against the right group - the whole point.
     const tx = await rawQuery<{ group_id: string; amount: string; phone_number: string }>(
       `SELECT group_id, amount, phone_number FROM mpesa_transactions WHERE mpesa_receipt_number = $1`,
       [receipt],
@@ -114,7 +114,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
     'never files to unrouted when this exact receipt already has a completed payment ' +
       '(found 2026-08-26: a race between the STK success callback and a separate C2B ' +
       'notification for the same transaction filed 7 real payments to mpesa_unrouted as ' +
-      '"unroutable" even though every one of them had already activated correctly via STK — ' +
+      '"unroutable" even though every one of them had already activated correctly via STK - ' +
       'this asserts the end-to-end outcome; the exact in-transaction race window that produced ' +
       'the duplicates is not reproducible by sequential calls, so this covers the invariant, ' +
       'not the specific line that closes it)',
@@ -123,7 +123,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       const receipt = 'TESTHASH04';
 
       // Simulates the STK callback having already committed its payments row
-      // — 'SUBSCRIPT' is a real STK-only account reference (plan-purchase.tsx's
+      // - 'SUBSCRIPT' is a real STK-only account reference (plan-purchase.tsx's
       // PRODUCT_REFERENCE), never a group-resolvable one, so this exact
       // situation is what actually happened in production.
       await rawQuery(
@@ -142,7 +142,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       const unrouted = await rawQuery(`SELECT id FROM mpesa_unrouted WHERE receipt = $1`, [receipt]);
       expect(unrouted).toHaveLength(0);
 
-      // The original STK-recorded payment must be untouched — this path only
+      // The original STK-recorded payment must be untouched - this path only
       // ever recognises the duplicate and logs it, never mutates the payment.
       const payment = await rawQuery<{ status: string }>(
         `SELECT status FROM payments WHERE mpesa_receipt_number = $1`,
@@ -169,7 +169,7 @@ describe('C2B confirmation with a hashed MSISDN', () => {
       [receipt],
     );
     expect(tx).toHaveLength(1);
-    // Not the sentinel — a usable MSISDN must still be normalised and kept.
+    // Not the sentinel - a usable MSISDN must still be normalised and kept.
     expect(tx[0].phone_number).toBe('254712345678');
   });
 });

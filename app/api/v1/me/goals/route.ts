@@ -5,7 +5,7 @@ import { listMyGoals, createGoal } from '@/lib/services/member-goals.service';
 import { CreateMemberGoalSchema } from '@/lib/validators/member-goal.schema';
 import { ok, created } from '@/lib/utils/response';
 
-/** GET /api/v1/me/goals — the signed-in member's own savings goals. */
+/** GET /api/v1/me/goals - the signed-in member's own savings goals. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
@@ -14,7 +14,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/me/goals — create a new savings goal. */
+/** POST /api/v1/me/goals - create a new savings goal. */
 export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const input = CreateMemberGoalSchema.parse(await req.json());

@@ -24,7 +24,7 @@ jest.mock('@/lib/services/accounting.service', () => ({
 }));
 
 // contributionsService.create() dynamically imports this on the completed-
-// contribution path (Phase 9.4.1 event emission) — mock it like every other
+// contribution path (Phase 9.4.1 event emission) - mock it like every other
 // dependency here so a completed-contribution test exercises this service in
 // isolation, not the real trigger engine.
 jest.mock('@/lib/sms/trigger-engine', () => ({
@@ -59,7 +59,7 @@ describe('contributionsService.create', () => {
 
     await expect(contributionsService.create(ctx, baseContributionInput)).rejects.toBeInstanceOf(ValidationError);
 
-    // Guard query only — no duplicate check, no INSERT
+    // Guard query only - no duplicate check, no INSERT
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 

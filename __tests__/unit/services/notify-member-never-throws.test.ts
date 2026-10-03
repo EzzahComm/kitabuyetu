@@ -5,7 +5,7 @@
  * it between a claim and a settle in SEPARATE transactions, so an escaping
  * error strands the claim row as 'pending' with attempts never incremented.
  *
- * The contract was aspirational before Phase 2a — sendText() sat outside any
+ * The contract was aspirational before Phase 2a - sendText() sat outside any
  * try/catch, so a throwing WhatsApp client escaped. Since a credit reservation
  * now sits downstream of that call, these tests pin the repaired behaviour by
  * making each dependency throw in turn.
@@ -105,7 +105,7 @@ describe('notifyMember never throws', () => {
         const err = Object.assign(new Error('insufficient SMS credits'), { code: '22003' });
         return Promise.reject(err);
       }
-      // The kill-switch lookup must resolve to "no row" — i.e. no operator
+      // The kill-switch lookup must resolve to "no row" - i.e. no operator
       // halt. The catch-all below returns a row shaped like a log insert, and
       // a feature_flags row whose `enabled` is undefined reads as DISABLED,
       // which would halt dispatch and make this assert on the wrong reason.
@@ -135,7 +135,7 @@ describe('notifyMember never throws', () => {
 
     expect(out.channel).toBe('whatsapp');
     const reserved = mockPoolQuery.mock.calls.some((c) => String(c[0]).includes('reserve_sms_credits'));
-    // A WhatsApp-delivered message consumes no SMS credit — this is why the
+    // A WhatsApp-delivered message consumes no SMS credit - this is why the
     // reservation lives in the SMS fallback, not at the top of the function.
     expect(reserved).toBe(false);
     expect(mockSendSms).not.toHaveBeenCalled();

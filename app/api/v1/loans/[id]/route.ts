@@ -28,7 +28,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   const { id } = await params;
   return withPermission(req, 'loans.approve', async (auth) => {
     // Sensitive op (§2.5): loan approval/disbursement must not ride a stale
-    // token — re-check role/session epochs against current truth, and
+    // token - re-check role/session epochs against current truth, and
     // re-verify the permission against the LIVE roles.permissions rather
     // than the token's own (bounded-stale) claim.
     const freshPermissions = await assertAuthFresh(auth);
@@ -59,7 +59,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
       return ok(await loansService.writeOff(ctx, id, input));
     }
     if (action === 'waiveCharge') {
-      // body.chargeId, not the loan `id` in the path — a loan_charges row has
+      // body.chargeId, not the loan `id` in the path - a loan_charges row has
       // its own id (migration 179). Same permission bar as every other
       // officer action on this route.
       const input = WaiveChargeSchema.parse(body);

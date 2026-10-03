@@ -2,14 +2,14 @@
 /**
  * Bill Manager API routes.
  *
- * POST /api/v1/mpesa/bill-manager/optin       â€” Opt-in (super_admin)
- * POST /api/v1/mpesa/bill-manager/invoice     â€” Create single invoice
- * POST /api/v1/mpesa/bill-manager/bulk        â€” Create bulk invoices
- * POST /api/v1/mpesa/bill-manager/cancel      â€” Cancel invoice(s)
- * PUT  /api/v1/mpesa/bill-manager/invoice     â€” Update single invoice
- * PUT  /api/v1/mpesa/bill-manager/bulk        â€” Update bulk invoices
- * GET  /api/v1/mpesa/bill-manager             â€” List group's BM invoices
- * POST /api/v1/mpesa/bill-manager?type=reconciliation â€” Safaricom callback
+ * POST /api/v1/mpesa/bill-manager/optin       â€" Opt-in (super_admin)
+ * POST /api/v1/mpesa/bill-manager/invoice     â€" Create single invoice
+ * POST /api/v1/mpesa/bill-manager/bulk        â€" Create bulk invoices
+ * POST /api/v1/mpesa/bill-manager/cancel      â€" Cancel invoice(s)
+ * PUT  /api/v1/mpesa/bill-manager/invoice     â€" Update single invoice
+ * PUT  /api/v1/mpesa/bill-manager/bulk        â€" Update bulk invoices
+ * GET  /api/v1/mpesa/bill-manager             â€" List group's BM invoices
+ * POST /api/v1/mpesa/bill-manager?type=reconciliation â€" Safaricom callback
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';

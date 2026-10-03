@@ -6,10 +6,10 @@ import { SetGroupRegistrationSchema } from '@/lib/validators/group.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/settings/registration — this group's government-registration
+ * GET /api/v1/settings/registration - this group's government-registration
  *   status (flag, number, certificate signed URL). Any authenticated member
  *   can read.
- * PUT /api/v1/settings/registration — set whether the group is registered and
+ * PUT /api/v1/settings/registration - set whether the group is registered and
  *   its registration number. Chairperson only: that is who the database lets
  *   update the group record (the `groups_update` RLS policy), so allowing
  *   another officer here would only turn a clear 403 into a confusing failure

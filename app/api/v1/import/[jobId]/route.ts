@@ -8,7 +8,7 @@ interface RouteParams {
   params: Promise<{ jobId: string }>;
 }
 
-/** GET /api/v1/import/[jobId] — fetch a single import job (incl. preview rows). */
+/** GET /api/v1/import/[jobId] - fetch a single import job (incl. preview rows). */
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { jobId } = await params;
   return withAuth(req, async (auth) => {
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
   });
 }
 
-/** DELETE /api/v1/import/[jobId] — cancel a 'previewed' job and discard its rows. */
+/** DELETE /api/v1/import/[jobId] - cancel a 'previewed' job and discard its rows. */
 export async function DELETE(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { jobId } = await params;
   return withPermission(req, 'import.cancel', async (auth) => {

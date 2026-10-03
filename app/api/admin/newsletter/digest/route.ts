@@ -5,7 +5,7 @@ import * as newsletterDigestService from '@/lib/services/newsletter-digest.servi
 import { ComposeNewsletterDigestSchema } from '@/lib/validators/newsletter-digest.schema';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/admin/newsletter/digest — recent digests. Super-admin only. */
+/** GET /api/admin/newsletter/digest - recent digests. Super-admin only. */
 export function GET(req: NextRequest): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const digests = await newsletterDigestService.listDigests();
@@ -14,7 +14,7 @@ export function GET(req: NextRequest): Promise<Response> {
 }
 
 /**
- * POST /api/admin/newsletter/digest — compose a new draft from the chosen
+ * POST /api/admin/newsletter/digest - compose a new draft from the chosen
  * starter marketing template and persist it. Does not send anything; the
  * admin reviews/edits the draft and calls .../[id]/send separately.
  */

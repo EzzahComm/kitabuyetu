@@ -63,7 +63,7 @@ export function useSetCampaignPayoutDestination(id: string) {
 }
 
 /** Same "one key per open dialog" idempotency-key pattern as the treasury
- *  page's settlements/vendor-payments tabs — a retried click reuses it, a
+ *  page's settlements/vendor-payments tabs - a retried click reuses it, a
  *  fresh click gets a new one. */
 const newIdempotencyKey = () =>
   globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;

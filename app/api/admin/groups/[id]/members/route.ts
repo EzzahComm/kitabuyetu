@@ -11,7 +11,7 @@ const querySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(25),
 });
 
-/** GET — active members of this group, for the member table on admin/groups/[id]. */
+/** GET - active members of this group, for the member table on admin/groups/[id]. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const { id } = await params;

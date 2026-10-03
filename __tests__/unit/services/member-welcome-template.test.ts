@@ -19,7 +19,7 @@ describe('welcome SMS template', () => {
     membership_no: 'NC000078',
   };
 
-  it('renders every placeholder it declares — none left unresolved', () => {
+  it('renders every placeholder it declares - none left unresolved', () => {
     const declared = extractVars(template);
     const supplied = Object.keys(vars);
 
@@ -33,7 +33,7 @@ describe('welcome SMS template', () => {
     const rendered = renderTemplate(template, vars);
     expect(rendered).toBe(stripUnresolved(rendered));
     expect(rendered).not.toMatch(/\{\{|\}\}/);
-    // No double space — the tell-tale of a placeholder that resolved to ''.
+    // No double space - the tell-tale of a placeholder that resolved to ''.
     expect(rendered).not.toMatch(/ {2}/);
   });
 
@@ -56,13 +56,13 @@ describe('welcome SMS template', () => {
 
   it('fits one 160-character SMS segment with a real long group name', () => {
     // 'Ndengelwa Community Water Project' is 33 characters and is a real
-    // production group — if the fixed copy grows, this is what breaks first.
+    // production group - if the fixed copy grows, this is what breaks first.
     const rendered = renderTemplate(template, vars);
     expect(rendered.length).toBeLessThanOrEqual(160);
   });
 
   it('uses the short membership_no, never the long member_code', () => {
-    // NC000078 vs KY000000300004 — the long platform code would eat 6 more
+    // NC000078 vs KY000000300004 - the long platform code would eat 6 more
     // characters and is not what a member is asked to quote at a meeting.
     expect(template).toContain('{{membership_no}}');
     expect(template).not.toContain('{{member_code}}');

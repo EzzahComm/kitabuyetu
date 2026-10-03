@@ -7,7 +7,7 @@
  *
  * ── Why this exists ──
  * app/api/cron/route.ts pins `maxDuration = 60`, which on Vercel's **Hobby**
- * plan is the hard platform ceiling, not a choice — it cannot be raised.
+ * plan is the hard platform ceiling, not a choice - it cannot be raised.
  * processJobBatch's own TIME_BUDGET_MS is 50s, so once a job is claimed there
  * are ~10s before the platform kills the invocation mid-write.
  *
@@ -16,7 +16,7 @@
  * larger than the whole remaining margin (pollPendingDlrs: up to 15 calls at a
  * 15s timeout; retryFailures: up to 100 sends at 20s). A kill mid-loop leaves
  * the job in 'processing' until resetStuckJobs reclaims it, and for send paths
- * it can mean a message delivered but never recorded — then delivered AGAIN on
+ * it can mean a message delivered but never recorded - then delivered AGAIN on
  * the retry.
  *
  * The batch budget alone cannot fix that, because it is only consulted BEFORE
@@ -33,7 +33,7 @@ export function setTickDeadline(at: number | null): void {
 }
 
 /**
- * Milliseconds left in this tick. `Infinity` when no tick is active — a
+ * Milliseconds left in this tick. `Infinity` when no tick is active - a
  * service called outside the job runner (a route, a test) must never
  * self-limit.
  */

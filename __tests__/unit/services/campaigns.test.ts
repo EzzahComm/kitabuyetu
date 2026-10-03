@@ -1,5 +1,5 @@
 /**
- * Changi$ha campaigns (migration 182) — creation, review lifecycle, and the
+ * Changi$ha campaigns (migration 182) - creation, review lifecycle, and the
  * admin approval gate that makes this the one surface a member of the public
  * can eventually push money into.
  */
@@ -64,8 +64,8 @@ describe('campaignsService.createCampaign', () => {
   });
 
   it('creates a draft campaign with a unique slug', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // slug uniqueness check — free
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // account code uniqueness check — free
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // slug uniqueness check - free
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // account code uniqueness check - free
     mockQuery.mockResolvedValueOnce({
       rows: [{ id: 'camp-1', title: input.title, slug: 'water-for-kianjege', status: 'draft' }],
     });

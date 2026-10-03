@@ -88,7 +88,7 @@ export default function ContributionReceipt({
       )}
 
       <Text style={{ textAlign: 'center', margin: '12px 0 0', fontSize: 12, color: BRAND.colors.textMuted }}>
-        Journal posted · this receipt is your proof of payment.
+        Journal posted - this receipt is your proof of payment.
       </Text>
     </EmailLayout>
   );

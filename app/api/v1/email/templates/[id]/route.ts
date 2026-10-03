@@ -20,10 +20,10 @@ interface TemplateRow {
 }
 
 /**
- * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 — GET previously had no auth
+ * OPTIMIZATION_CLEANUP_AUDIT.md Critical #4 - GET previously had no auth
  * check, and PUT/DELETE never verified the template belonged to the
  * caller's group (or that a platform-wide template, `group_id IS NULL`,
- * was only editable by a super_admin) — any authenticated member of any
+ * was only editable by a super_admin) - any authenticated member of any
  * group could read, edit, or delete any other group's templates, or the
  * shared platform-wide defaults every group falls back to.
  *

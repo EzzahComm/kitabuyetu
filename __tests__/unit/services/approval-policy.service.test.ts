@@ -1,10 +1,10 @@
 /**
- * ApprovalPolicy — first Configuration Service domain wired end-to-end
+ * ApprovalPolicy - first Configuration Service domain wired end-to-end
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.5). Unifies groups.journal_approval_threshold,
  * groups.disbursement_approval_threshold, and organizations.disbursement_approval_threshold
  * into one Platform -> Organization -> Group resolver. `journal_threshold` is
  * the one key with a DB trigger backstop (migration 081), so writes to it
- * also keep groups.journal_approval_threshold in sync — these tests verify
+ * also keep groups.journal_approval_threshold in sync - these tests verify
  * that sync fires only for that key, not the other two.
  */
 import { withDb, withTransaction } from '@/lib/db';
@@ -75,7 +75,7 @@ describe('approvalPolicyService.getGroupPolicies', () => {
 });
 
 describe('approvalPolicyService.setGroupOverride', () => {
-  it('rejects org_disbursement_threshold — it has no group-level scope', async () => {
+  it('rejects org_disbursement_threshold - it has no group-level scope', async () => {
     await expect(
       approvalPolicyService.setGroupOverride(ctx, 'org_disbursement_threshold', 1000),
     ).rejects.toBeInstanceOf(ValidationError);

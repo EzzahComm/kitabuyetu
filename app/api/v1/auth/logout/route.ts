@@ -20,7 +20,7 @@ export async function POST(req: NextRequest): Promise<Response> {
           await client.query('UPDATE refresh_tokens SET revoked_at = NOW() WHERE token_hash = $1', [hash]);
         });
       } catch {
-        // Ignore invalid tokens on logout — client clears storage regardless
+        // Ignore invalid tokens on logout - client clears storage regardless
       }
     }
 

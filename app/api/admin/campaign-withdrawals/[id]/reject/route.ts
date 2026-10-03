@@ -5,7 +5,7 @@ import { campaignWithdrawalsService } from '@/lib/services/campaign-withdrawals.
 import { RejectCampaignSchema } from '@/lib/validators/campaign.schema';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/admin/campaign-withdrawals/[id]/reject — awaiting_platform -> rejected, reserve released. Super-admin only. */
+/** POST /api/admin/campaign-withdrawals/[id]/reject - awaiting_platform -> rejected, reserve released. Super-admin only. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     const { id } = await params;

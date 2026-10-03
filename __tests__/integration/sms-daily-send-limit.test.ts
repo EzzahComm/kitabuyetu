@@ -3,7 +3,7 @@
  *
  * `sms_group_settings.daily_send_limit` has existed since migration 013 and
  * was returned to clients by /sms/settings, but no send path had ever read
- * it — six references in the codebase, all read-or-display. An operator could
+ * it - six references in the codebase, all read-or-display. An operator could
  * see the field and reasonably believe a cap was in force when none was.
  *
  * Enforced in reserveCredits, the chokepoint every billed send passes, so
@@ -39,7 +39,7 @@ async function setLimit(groupId: string, limit: number): Promise<void> {
   );
 }
 
-/** A settings row created without naming a limit — takes the column default. */
+/** A settings row created without naming a limit - takes the column default. */
 async function createSettingsRowWithDefaultLimit(groupId: string): Promise<void> {
   await rawQuery(`INSERT INTO sms_group_settings (group_id) VALUES ($1)`, [groupId]);
 }
@@ -57,7 +57,7 @@ async function seedSentToday(groupId: string, n: number, billingState = 'consume
 }
 
 describe('daily send limit (G25)', () => {
-  it('is unlimited when no settings row exists — every group today', async () => {
+  it('is unlimited when no settings row exists - every group today', async () => {
     await resetDatabase();
     const { groupId } = await createTestGroup('treasurer');
     await provisionBilling(groupId, 500);
@@ -69,7 +69,7 @@ describe('daily send limit (G25)', () => {
 
   it('applies the schema default (500) once a settings row exists', async () => {
     // daily_send_limit is `INTEGER NOT NULL DEFAULT 500` (migration 013), so
-    // there is no "unlimited" value — a row always carries a cap. This is the
+    // there is no "unlimited" value - a row always carries a cap. This is the
     // behaviour change to be aware of: a group that saves ANY messaging
     // setting acquires a 500/day ceiling it did not have before.
     await resetDatabase();
@@ -113,7 +113,7 @@ describe('daily send limit (G25)', () => {
     expect(Number(acct.reserved_sms_credits)).toBe(0);
   });
 
-  it('does not count released rows — a refunded failure did not use the allowance', async () => {
+  it('does not count released rows - a refunded failure did not use the allowance', async () => {
     await resetDatabase();
     const { groupId } = await createTestGroup('treasurer');
     await provisionBilling(groupId, 500);

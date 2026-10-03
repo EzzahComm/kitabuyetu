@@ -5,7 +5,7 @@ import { resendOrgInvitation } from '@/lib/services/organization-members.service
 
 export const dynamic = 'force-dynamic';
 
-/** POST — regenerate the invite token and re-send the email. */
+/** POST - regenerate the invite token and re-send the email. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string; invitationId: string }> }) {
   return withPlatformRole(req, 'super_admin', async () => {
     const { invitationId } = await params;

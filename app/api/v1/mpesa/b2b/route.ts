@@ -1,9 +1,9 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/b2b              â€” Initiate B2B transfer (chairperson+)
- * POST /api/v1/mpesa/b2b?type=result  â€” Safaricom result callback
- * POST /api/v1/mpesa/b2b?type=timeout â€” Safaricom timeout callback
- * GET  /api/v1/mpesa/b2b              â€” List B2B transactions for the group
+ * POST /api/v1/mpesa/b2b              â€" Initiate B2B transfer (chairperson+)
+ * POST /api/v1/mpesa/b2b?type=result  â€" Safaricom result callback
+ * POST /api/v1/mpesa/b2b?type=timeout â€" Safaricom timeout callback
+ * GET  /api/v1/mpesa/b2b              â€" List B2B transactions for the group
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
@@ -42,11 +42,11 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (type === 'result' || type === 'timeout') {
     // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
-    // callbacks carried no authenticity check at all until now — mirrors the
+    // callbacks carried no authenticity check at all until now - mirrors the
     // B2C route's identical guard (daraja.service.ts's CALLBACK_TOKEN
     // comment). Acked (not rejected) so a prober learns nothing.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[b2b callback] invalid or missing token — dropped', { type, ip });
+      logger.warn('[b2b callback] invalid or missing token - dropped', { type, ip });
       return ack();
     }
 
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Changi$ha payout to a paybill/till). Each handler is a safe no-op for a
     // row it doesn't own (its own `WHERE originator_conversation_id` matches
     // nothing), so calling all of them is simpler and less brittle than a
-    // lookup-then-dispatch — and each is independently try/caught so one
+    // lookup-then-dispatch - and each is independently try/caught so one
     // failing can't starve the others.
     after(async () => {
       try {

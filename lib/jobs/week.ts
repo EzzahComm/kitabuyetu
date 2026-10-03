@@ -2,7 +2,7 @@
  * ISO 8601 week key (YYYY-WNN), extracted from lib/jobs/index.ts's own
  * toWeekStr() so both the cron dispatcher (dedup-keying the weekly trigger
  * itself) and a long-running handler (dedup-keying individual sends across
- * however many ticks one week's batch takes to drain) share one algorithm —
+ * however many ticks one week's batch takes to drain) share one algorithm -
  * two independent copies would be a real drift risk for something idempotency
  * depends on. Standalone module, no imports, same reasoning as
  * lib/jobs/deadline.ts: index.ts -> processor.ts -> handlers.ts is already a

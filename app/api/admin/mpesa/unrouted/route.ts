@@ -8,8 +8,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * List unrouted M-Pesa payments, platform-wide. Read-only, so support can see
- * the queue — the same "support is read-only" split as every other admin
- * list — resolving one is super_admin only (see [id]/route.ts).
+ * the queue - the same "support is read-only" split as every other admin
+ * list - resolving one is super_admin only (see [id]/route.ts).
  */
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {

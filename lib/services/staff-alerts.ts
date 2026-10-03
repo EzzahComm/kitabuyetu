@@ -1,7 +1,7 @@
 /**
  * Staff alerting for background controls (SMS-REAUDIT-2026-09-02 F2).
  *
- * The re-audit's headline finding was not a broken control — it was a working
+ * The re-audit's headline finding was not a broken control - it was a working
  * one nobody could hear. `sms_credit_reconciliation` correctly detected that a
  * campaign's counters disagreed with its own message log, said so on every run
  * for six days, and reached no human, because `logger.error` has no sink
@@ -13,7 +13,7 @@
  * that decide whether an alert survives contact with a human inbox:
  *
  *   1. **Not once per occurrence.** Alert on the condition, not on each row
- *      inside it — one email saying "1 campaign disagrees", never one per
+ *      inside it - one email saying "1 campaign disagrees", never one per
  *      campaign.
  *   2. **Not once per run.** A problem that persists for six days must not
  *      produce six days of identical email. It re-reminds on an interval
@@ -116,13 +116,13 @@ export async function clearStaffAlert(key: string): Promise<void> {
  *
  * Best-effort by construction: failing to warn must never fail the job that
  * noticed. Returns whether an email was actually queued, so a caller can say
- * so in its run record — a job that reports "alerted" when it was rate-limited
+ * so in its run record - a job that reports "alerted" when it was rate-limited
  * would be lying in exactly the way this module exists to prevent.
  */
 export async function raiseStaffAlert(alert: StaffAlert): Promise<boolean> {
   const to = process.env.EMAIL_ADMIN;
   if (!to) {
-    logger.error('[staff-alerts] EMAIL_ADMIN is unset — alert has no recipient', {
+    logger.error('[staff-alerts] EMAIL_ADMIN is unset - alert has no recipient', {
       key: alert.key,
       subject: alert.subject,
     });
@@ -134,10 +134,10 @@ export async function raiseStaffAlert(alert: StaffAlert): Promise<boolean> {
     claimed = await claim(alert.key, fingerprintOf(alert.details));
   } catch (err) {
     // A broken bookkeeping table must not silence a real alert, so this fails
-    // OPEN — the opposite of the kill switch's fail-closed rule, because the
+    // OPEN - the opposite of the kill switch's fail-closed rule, because the
     // failure modes are opposite: there, a bad lookup must not halt the
     // platform; here, a bad lookup must not hide a problem.
-    logger.warn('[staff-alerts] claim failed — alerting anyway', {
+    logger.warn('[staff-alerts] claim failed - alerting anyway', {
       key: alert.key,
       err: err instanceof Error ? err.message : String(err),
     });

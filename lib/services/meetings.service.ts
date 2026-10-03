@@ -62,7 +62,7 @@ export const AddResolutionSchema = z.object({
 });
 
 /**
- * Editing a resolution after the meeting — chiefly marking it done.
+ * Editing a resolution after the meeting - chiefly marking it done.
  * `implemented_at` is deliberately absent: it is derived from `implemented`
  * server-side rather than trusted from the client.
  */
@@ -477,7 +477,7 @@ export const meetingsService = {
    *
    * `meeting_resolutions.implemented` / `implemented_at` have existed since
    * migration 023, but nothing in the codebase ever issued an UPDATE against
-   * this table — so the column could never become true and the stats card has
+   * this table - so the column could never become true and the stats card has
    * always read "0 implemented". This is the missing write path.
    *
    * `implemented_at` is derived, never client-supplied: set to now() on the

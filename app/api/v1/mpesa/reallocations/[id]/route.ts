@@ -15,7 +15,7 @@ const ActionSchema = z.discriminatedUnion('action', [
 ]);
 
 /**
- * POST /api/v1/mpesa/reallocations/:id — approve or reject a pending
+ * POST /api/v1/mpesa/reallocations/:id - approve or reject a pending
  * correction (treasurer+). Maker-checker: the service rejects approval by
  * the initiator (ADR-20).
  */

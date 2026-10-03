@@ -2,7 +2,7 @@
  * RBAC permission activation, Batch 8 (SIMPLIFICATION_AND_RBAC_AUDIT.md
  * Workstream 4). Contributions/Shares/Dividends map cleanly onto permission
  * strings already seeded in migrations 077/079 (contributions.record/view,
- * shares.manage/reverse, dividends.manage/approve, treasury.manage) — no new
+ * shares.manage/reverse, dividends.manage/approve, treasury.manage) - no new
  * migration needed for this batch, unlike 6/7. Proves each against real
  * Postgres.
  */

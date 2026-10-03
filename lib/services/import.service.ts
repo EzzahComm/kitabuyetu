@@ -199,7 +199,7 @@ export const importService = {
           if (found) {
             countyId = found;
           } else {
-            warnings.push(`County '${data.county_name}' not recognised — member will be created without a county`);
+            warnings.push(`County '${data.county_name}' not recognised - member will be created without a county`);
           }
         }
 
@@ -269,7 +269,7 @@ export const importService = {
    * INSERTing members + group_memberships and recording the created member
    * IDs on the job so a later rollback can target them precisely.
    *
-   * Per-row constraint failures are caught and recorded as errors — one bad
+   * Per-row constraint failures are caught and recorded as errors - one bad
    * row never aborts the batch.
    */
   async commitMembers(ctx: TenantContext, jobId: string): Promise<ImportJob & { imported: number; skipped: number }> {
@@ -285,7 +285,7 @@ export const importService = {
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.kind !== 'members') throw new ValidationError(`Job ${jobId} is not a members import`);
       if (job.status !== 'previewed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'previewed' jobs can be committed`);
 
       const rowsToInsert = job.preview_rows as PreparedMemberRow[];
       const createdIds: string[] = [];
@@ -431,7 +431,7 @@ export const importService = {
    * Undo a committed import by DELETE-ing the member rows that this job
    * created. Group memberships cascade off members. If a created member is
    * referenced by other data (contributions, loans, ...) the DELETE will
-   * raise an FK violation — we catch it per-member and surface a clear
+   * raise an FK violation - we catch it per-member and surface a clear
    * error rather than partially undoing.
    */
   async rollbackMembers(
@@ -447,7 +447,7 @@ export const importService = {
       const job = jobRows[0];
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.status !== 'committed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'committed' jobs can be rolled back`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'committed' jobs can be rolled back`);
 
       const ids = job.created_member_ids ?? [];
       const blocked: { memberId: string; reason: string }[] = [];
@@ -631,7 +631,7 @@ export const importService = {
           );
           imported++;
         } catch {
-          // Duplicate or constraint violation — skip silently.
+          // Duplicate or constraint violation - skip silently.
         }
       }
       return { imported, errors };
@@ -781,7 +781,7 @@ export const importService = {
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.kind !== 'contributions') throw new ValidationError(`Job ${jobId} is not a contributions import`);
       if (job.status !== 'previewed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'previewed' jobs can be committed`);
 
       const rowsToInsert = job.preview_rows as PreparedContributionRow[];
       const createdIds: string[] = [];
@@ -873,14 +873,14 @@ export const importService = {
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.kind !== 'contributions') throw new ValidationError(`Job ${jobId} is not a contributions import`);
       if (job.status !== 'committed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'committed' jobs can be rolled back`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'committed' jobs can be rolled back`);
 
       const ids = job.created_member_ids ?? [];
       const blocked: { id: string; reason: string }[] = [];
       let cancelled = 0;
 
       // Cancel only rows still 'completed'. If a downstream process already
-      // changed status (e.g. moved to 'cancelled' or 'failed'), skip — the
+      // changed status (e.g. moved to 'cancelled' or 'failed'), skip - the
       // operator was looking at a stale state.
       const { rows: updated } = await client.query<{ id: string; previous_status: string }>(
         `UPDATE contributions
@@ -1038,7 +1038,7 @@ export const importService = {
   },
 
   /**
-   * Commit historical loans. No repayment schedule is generated — historical
+   * Commit historical loans. No repayment schedule is generated - historical
    * loan rows are imported as-is with the supplied status. If the operator
    * wants the per-installment history too, they'll import loan_repayments
    * separately (E7.2).
@@ -1053,7 +1053,7 @@ export const importService = {
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.kind !== 'loans') throw new ValidationError(`Job ${jobId} is not a loans import`);
       if (job.status !== 'previewed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'previewed' jobs can be committed`);
 
       const rowsToInsert = job.preview_rows as PreparedLoanRow[];
 
@@ -1083,7 +1083,7 @@ export const importService = {
           // The loan and its funding split MUST be one statement.
           // trg_assert_loan_attribution_on_status is DEFERRABLE INITIALLY
           // DEFERRED and covers every status this importer can write
-          // ('active' — its default — plus completed/defaulted/written_off),
+          // ('active' - its default - plus completed/defaulted/written_off),
           // so it fires at COMMIT, long after the per-row catch below has gone
           // out of scope. Before this, EVERY loan import aborted the whole
           // transaction with an opaque check_violation and none of the
@@ -1137,16 +1137,16 @@ export const importService = {
             // The JOIN above found no internal_savings source, so no row was
             // written. Fail this row loudly rather than let the deferred
             // constraint blow up the entire import at COMMIT.
-            throw new Error('No internal savings funding source exists for this group — cannot attribute the loan');
+            throw new Error('No internal savings funding source exists for this group - cannot attribute the loan');
           }
 
           // total_repayable, outstanding_balance and next_payment_date are set
           // BY generate_loan_schedule. The importer used to compute
           // total_repayable itself with a TypeScript copy of the interest
-          // formula, which drifted from the SQL when the unit changed — under
+          // formula, which drifted from the SQL when the unit changed - under
           // migration 148 (interest_rate as MONTHLY) that copy understated
           // interest 12x. Migration 167 has since made the field ANNUAL, so the
-          // copy's formula would now be the correct one — which is exactly the
+          // copy's formula would now be the correct one - which is exactly the
           // point: a second implementation is wrong whenever the first moves.
           // One formula, in SQL, is the only way that stays true.
           //
@@ -1213,7 +1213,7 @@ export const importService = {
       if (!job) throw new NotFoundError('Import job', jobId);
       if (job.kind !== 'loans') throw new ValidationError(`Job ${jobId} is not a loans import`);
       if (job.status !== 'committed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'committed' jobs can be rolled back`);
+        throw new ConflictError(`Job ${jobId} is in status '${job.status}' - only 'committed' jobs can be rolled back`);
 
       const ids = job.created_member_ids ?? [];
       const blocked: { id: string; reason: string }[] = [];
@@ -1309,7 +1309,7 @@ function buildHeaderMapFor(kind: ImportKind, rawHeaders: string[]): Record<strin
 // of the interest formula that divided interest_rate by 12. Under migration 148
 // (the field was MONTHLY) that made it wrong, and it silently understated
 // interest 12x on every imported loan. Migration 167 then made the field ANNUAL,
-// which would make that same formula right again — do not read this as a reason
+// which would make that same formula right again - do not read this as a reason
 // to bring it back. The defect was never the arithmetic; it was holding the
 // formula in two places, so one of them is wrong every time the unit moves.
 // generate_loan_schedule writes total_repayable, so there is one formula.

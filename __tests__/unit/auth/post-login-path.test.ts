@@ -3,7 +3,7 @@
  *
  * Migration 140 put a second axis ahead of role: which PRODUCT. A group holding
  * only Chama Reminder is refused every financial route, so routing it to
- * /dashboard renders a page of 402s — and a group that has registered for it
+ * /dashboard renders a page of 402s - and a group that has registered for it
  * but not paid holds no subscription at all, so nothing but signupProduct can
  * tell it apart from an unpaid Kitabu Yetu group.
  */
@@ -73,7 +73,7 @@ describe('postLoginPath', () => {
 
     it('ignores signupProduct once the group actually holds Kitabu Yetu', () => {
       // Signed up for Chama Reminder, then bought Kitabu Yetu. What it PAYS for
-      // outranks what it once registered for — otherwise a converted customer
+      // outranks what it once registered for - otherwise a converted customer
       // would be stuck in the lighter portal forever.
       expect(
         postLoginPath('chairperson', {

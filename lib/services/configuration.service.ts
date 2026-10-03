@@ -1,16 +1,16 @@
 /**
  * Configuration Service / Policy Resolution Engine (ACCOUNTING_ARCHITECTURE_AUDIT.md
- * §29). Generalizes lib/sms/trigger-engine.ts's loadMatchingRules() —
- * group-beats-organization-beats-platform specificity — into one resolver
+ * §29). Generalizes lib/sms/trigger-engine.ts's loadMatchingRules() -
+ * group-beats-organization-beats-platform specificity - into one resolver
  * every policy domain shares, instead of each domain reinventing its own
  * override logic (or, worse, never getting one at all, per §22's finding on
  * the orphaned `group_constitutions` table).
  *
  * No application service should ever know whether an effective value came
- * from the platform, an organization, or a group — it asks for the resolved
+ * from the platform, an organization, or a group - it asks for the resolved
  * value and gets one answer (§29.3). Domain-specific typed wrappers (see
  * approval-policy.service.ts) are how the rest of the codebase should use
- * this — calling resolvePolicy/setPolicy directly is the escape hatch for
+ * this - calling resolvePolicy/setPolicy directly is the escape hatch for
  * building the next domain, not something loan/journal/disbursement code
  * should do inline.
  */
@@ -39,10 +39,10 @@ export interface ResolvedPolicy<T> {
 
 /**
  * Resolves the effective value for (domain, policyKey) at the given scope,
- * along with which tier it came from — the group's own override wins over
+ * along with which tier it came from - the group's own override wins over
  * its organization's, which wins over the platform-wide default
  * (organization_id AND group_id both NULL). Falls back to `fallback` only if
- * no policy row exists at all for this key — every ApprovalPolicy key is
+ * no policy row exists at all for this key - every ApprovalPolicy key is
  * seeded platform-wide by migration 086, so this fallback is a defensive
  * floor for domains that haven't seeded one yet.
  */
@@ -87,9 +87,9 @@ export async function resolvePolicy<T>(
 
 /**
  * Writes a new policy version at the given scope, retiring whatever was
- * previously active there (§29.8 — never overwrite). Scope must be exactly
+ * previously active there (§29.8 - never overwrite). Scope must be exactly
  * one of: platform-wide (both null), organization-wide (organizationId set,
- * groupId null), or group-specific (groupId set) — resolvePolicy's
+ * groupId null), or group-specific (groupId set) - resolvePolicy's
  * cascade only cares about these three shapes.
  */
 export async function setPolicy(
@@ -123,7 +123,7 @@ export async function setPolicy(
     [domain, policyKey, organizationId, groupId, JSON.stringify(value), (existing[0]?.version ?? 0) + 1, createdBy],
   );
 
-  // Record audit log entry — determine scope for audit log
+  // Record audit log entry - determine scope for audit log
   const auditGroupId = groupId;
   const auditOrganizationId = !groupId ? organizationId : null;
 

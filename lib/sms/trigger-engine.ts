@@ -1,5 +1,5 @@
 /**
- * SMS trigger engine — the WHEN/THEN runtime.
+ * SMS trigger engine - the WHEN/THEN runtime.
  *
  * Business code calls `emitBusinessEvent()` and moves on. The engine finds the
  * active rules for that event type, evaluates each rule's conditions against
@@ -57,7 +57,7 @@ export interface EmitSummary {
 /**
  * Rules visible to a group: its own, those of any Organization that oversees it, and
  * platform defaults. Where several rules share a `name`, the most specific
- * scope wins — that is how a group overrides an Organization default without the Organization
+ * scope wins - that is how a group overrides an Organization default without the Organization
  * rule having to be disabled for everyone.
  */
 export async function loadMatchingRules(eventType: string, groupId: string): Promise<RuleRow[]> {
@@ -111,7 +111,7 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
 
       const executionId = await claimExecution(rule, event);
       if (!executionId) {
-        // Already claimed — a duplicate emit of the same business event.
+        // Already claimed - a duplicate emit of the same business event.
         logger.info('[sms-trigger] duplicate event suppressed', {
           rule: rule.name,
           eventId: event.eventId,
@@ -137,7 +137,7 @@ export async function emitBusinessEvent(event: BusinessEvent): Promise<EmitSumma
       }
     }
   } catch (err) {
-    // Deliberately swallowed. See invariant (1) — the caller is mid-payment.
+    // Deliberately swallowed. See invariant (1) - the caller is mid-payment.
     logger.error('[sms-trigger] emit failed', { event: event.eventType, eventId: event.eventId, err });
   }
 
@@ -197,7 +197,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
       .then((r) => r.rows[0]),
   );
 
-  // Absent or already terminal — nothing to do. Not an error: a retried job
+  // Absent or already terminal - nothing to do. Not an error: a retried job
   // whose first attempt succeeded lands here.
   if (!exec) return;
 
@@ -219,7 +219,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
   const message = stripUnresolved(renderTemplate(body, toTemplateVars(exec.event_payload)));
 
   // An organization-scoped rule is the organization's automation, so the
-  // organization funds it. Group and platform-default rules bill the group —
+  // organization funds it. Group and platform-default rules bill the group -
   // a platform default is not anyone's campaign to pay for.
   const payer: SmsPayer = exec.organization_id
     ? { type: 'organization', organizationId: exec.organization_id }
@@ -231,7 +231,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
       // NULLIF(current_setting(...), '')::uuid, so '' becomes a NULL uuid while
       // any non-uuid literal raises 22P02 on the first RLS policy that reads it.
       // A platform-default rule has no created_by, so it would have failed every
-      // dispatch — masked until now by C1 throwing earlier in the same call
+      // dispatch - masked until now by C1 throwing earlier in the same call
       // (SMS_MESSAGING_AUDIT_2026-08.md M1).
       { userId: exec.created_by ?? '', groupId: exec.exec_group_id, role: 'chairperson' },
       phones,
@@ -242,7 +242,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
       payer,
     );
 
-    // send() returns [] ONLY when every recipient is on the opt-out list —
+    // send() returns [] ONLY when every recipient is on the opt-out list -
     // nothing billed, nothing dispatched, a suppression rather than a send.
     //
     // It does NOT return [] for recipients already logged under this event's
@@ -255,7 +255,7 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     // A returned log row is NOT proof the message left. send() catches
     // provider errors, writes the usage row with status='failed' (credits
     // released) and still returns it, so a non-empty array says only "rows
-    // were written" — not "anything was delivered".
+    // were written" - not "anything was delivered".
     //
     // Treating that as success is not merely inaccurate, it is IRREVERSIBLE:
     // sms_trigger_executions is append-only and its immutability trigger
@@ -283,17 +283,17 @@ export async function dispatchExecution(executionId: string): Promise<void> {
     logger.info('[sms-trigger] sent', { rule: exec.name, recipients: logs.length });
   } catch (err) {
     // Billing-configuration failures (insufficient credits, inactive
-    // subscription, no billing account — smsService.send's 402s, all thrown
+    // subscription, no billing account - smsService.send's 402s, all thrown
     // as AppError with statusCode 402) are deterministic: retrying with
     // backoff can't fix "there is no money," it just re-attempts the same
     // failure `max_retries` times before giving up anyway. Fail immediately
-    // instead — [PROVEN-PROD]: the payment.received rule for one group
+    // instead - [PROVEN-PROD]: the payment.received rule for one group
     // burned 4 attempts per event, 5 events in one evening, 100% "Insufficient
     // SMS credits," zero of them ever going to reach a different outcome.
     // Anything else here (provider outage, transient network error) still
     // gets the normal retry/backoff below.
     if (err instanceof AppError && err.statusCode === 402) {
-      logger.warn('[sms-trigger] billing failure — not retrying', { rule: exec.name, reason: err.message });
+      logger.warn('[sms-trigger] billing failure - not retrying', { rule: exec.name, reason: err.message });
       return settle(exec.execution_id, 'failed', err.message);
     }
     await retryOrFail(exec, errText(err));

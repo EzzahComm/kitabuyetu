@@ -15,7 +15,7 @@ const ActionSchema = z.discriminatedUnion('action', [
 ]);
 
 /**
- * POST /api/v1/mpesa/disbursements/:id — approve or reject a pending B2C
+ * POST /api/v1/mpesa/disbursements/:id - approve or reject a pending B2C
  * disbursement (treasurer+). Maker-checker: the service rejects approval by
  * the initiator (B2C audit C3).
  */

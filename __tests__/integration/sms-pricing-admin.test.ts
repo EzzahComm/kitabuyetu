@@ -12,10 +12,10 @@ import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
-/** Back to exactly what migration 143 seeds — these are config tables, which resetDatabase leaves alone. */
+/** Back to exactly what migration 143 seeds - these are config tables, which resetDatabase leaves alone. */
 async function restoreSeededPricing(): Promise<void> {
   await rawQuery(`DELETE FROM sms_pricing_tiers WHERE name NOT IN
-    ('Standard','Volume 1–5k','Volume 5k–10k','Volume 10k–50k','Volume 50k–100k','Volume 100k+')`);
+    ('Standard','Volume 1-5k','Volume 5k-10k','Volume 10k-50k','Volume 50k-100k','Volume 100k+')`);
   await rawQuery(`DELETE FROM sms_packages WHERE name NOT IN
     ('Starter','Growth','Professional','Enterprise','Enterprise+')`);
   await rawQuery(`UPDATE sms_pricing_tiers SET is_active = false WHERE is_active`);
@@ -64,10 +64,10 @@ describe('super-admin SMS pricing controls (§12)', () => {
       expect(await getUnitPrice(20_000)).toBe(0.9); // flat band today
 
       const volumeIds = await tierIdsNamed([
-        'Volume 1–5k',
-        'Volume 5k–10k',
-        'Volume 10k–50k',
-        'Volume 50k–100k',
+        'Volume 1-5k',
+        'Volume 5k-10k',
+        'Volume 10k-50k',
+        'Volume 50k-100k',
         'Volume 100k+',
       ]);
       await smsPricingAdminService.setActiveTiers(actorId, volumeIds);
@@ -79,7 +79,7 @@ describe('super-admin SMS pricing controls (§12)', () => {
     it('leaves the live price list untouched when the requested set overlaps', async () => {
       // A half-applied switch is the worst outcome: some volumes priced, others
       // not. Deferring to COMMIT means an invalid request changes nothing.
-      const overlapping = await tierIdsNamed(['Standard', 'Volume 1–5k']); // both cover 0-5000
+      const overlapping = await tierIdsNamed(['Standard', 'Volume 1-5k']); // both cover 0-5000
 
       await expect(smsPricingAdminService.setActiveTiers(actorId, overlapping)).rejects.toThrow(/exclusion|overlap/i);
 
@@ -92,10 +92,10 @@ describe('super-admin SMS pricing controls (§12)', () => {
 
     it('can switch back', async () => {
       const volumeIds = await tierIdsNamed([
-        'Volume 1–5k',
-        'Volume 5k–10k',
-        'Volume 10k–50k',
-        'Volume 50k–100k',
+        'Volume 1-5k',
+        'Volume 5k-10k',
+        'Volume 10k-50k',
+        'Volume 50k-100k',
         'Volume 100k+',
       ]);
       await smsPricingAdminService.setActiveTiers(actorId, volumeIds);
@@ -138,7 +138,7 @@ describe('super-admin SMS pricing controls (§12)', () => {
         unitPrice: 0.5,
       });
       const updated = await smsPricingAdminService.updateTier(actorId, tier.id, { maxCredits: null });
-      // null is a real value here ("and above"), not an absent one — which is
+      // null is a real value here ("and above"), not an absent one - which is
       // why the update uses an explicit has-property flag rather than COALESCE.
       expect(updated.max_credits).toBeNull();
     });
@@ -178,7 +178,7 @@ describe('super-admin SMS pricing controls (§12)', () => {
 
   describe('auditability (§12)', () => {
     it('records who changed what, for every kind of change', async () => {
-      // "All changes should be auditable" — a price change with no record of
+      // "All changes should be auditable" - a price change with no record of
       // who made it is the one you most want to be able to trace.
       const before = await auditCount('sms_pricing.tier_created');
 

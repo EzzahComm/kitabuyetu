@@ -145,7 +145,7 @@ export function lockupSvg(tone: BrandTone): string {
   const { wordmark, tagline } = BRAND_FONTS;
   const ground = tone === 'onBlue' ? `<rect width="430" height="110" fill="${c.tile}"/>` : '';
   return (
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 110" role="img" aria-label="Kitabu Yetu – ${BRAND_TAGLINE}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 430 110" role="img" aria-label="Kitabu Yetu - ${BRAND_TAGLINE}">` +
     `<style>@import url("https://fonts.googleapis.com/css2?family=Jost:wght@800&amp;family=Open+Sans:wght@600&amp;display=swap");` +
     `.t{font-family:${wordmark.family},sans-serif;font-weight:${wordmark.weight};letter-spacing:${wordmark.letterSpacingPx}px}` +
     `.g{font-family:"${tagline.family}",sans-serif;font-weight:${tagline.weight};letter-spacing:${tagline.letterSpacingPx}px}</style>${ground}\n` +

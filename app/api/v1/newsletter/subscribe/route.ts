@@ -5,7 +5,7 @@ import { NewsletterSubscribeSchema } from '@/lib/validators/newsletter.schema';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/newsletter/subscribe — public. Whitelisted in proxy.ts's
+ * POST /api/v1/newsletter/subscribe - public. Whitelisted in proxy.ts's
  * PUBLIC_AUTH_PATHS (a marketing-site visitor has no session to verify) and
  * IP-rate-limited there like every other anonymous surface.
  */

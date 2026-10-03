@@ -12,7 +12,7 @@ const CreateTemplateSchema = z.object({
   body: z.string().min(1),
 });
 
-// Was withAuth only (any authenticated member) — same gap the SMS templates
+// Was withAuth only (any authenticated member) - same gap the SMS templates
 // route already closed with messaging.templates.view (secretary+).
 // Refactored (2026-09-16) from withAdminDb to withDb for RLS enforcement.
 export async function GET(req: NextRequest): Promise<Response> {

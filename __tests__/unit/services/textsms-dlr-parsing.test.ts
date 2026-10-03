@@ -5,7 +5,7 @@
  * handed it to `classifyDlrStatus`, which matches on WORDS. Live payloads
  * captured from the production TextSMS account on 2026-08-20 (reproduced
  * verbatim as fixtures below) show `delivery-status` is **32 for both a
- * delivered and an undelivered message** — it carries no outcome information
+ * delivered and an undelivered message** - it carries no outcome information
  * at all. The real verdict is `delivery-description`.
  *
  * Consequence: "32" matched neither the failure regex nor the delivered regex,
@@ -25,7 +25,7 @@ jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 /**
- * Real production payloads, 2026-08-20. Note `delivery-status: 32` in BOTH —
+ * Real production payloads, 2026-08-20. Note `delivery-status: 32` in BOTH -
  * that identity is the entire point of this file, so these are kept verbatim
  * rather than reduced to the fields under test.
  */
@@ -140,7 +140,7 @@ describe('TextSMS DLR parsing (C1)', () => {
       // A successful DLR lookup carries response-description:"Success",
       // meaning the API CALL succeeded. If that ever reaches
       // classifyDlrStatus it matches /success/ and marks the message
-      // delivered — worse than the bug this file exists for. Here the
+      // delivered - worse than the bug this file exists for. Here the
       // message is plainly still queued.
       mockedAxios.get.mockResolvedValue({
         data: {
@@ -166,7 +166,7 @@ describe('TextSMS DLR parsing (C1)', () => {
       expect(validateStatus).toBeDefined();
       expect(validateStatus!(200)).toBe(true);
       expect(validateStatus!(404)).toBe(true);
-      // Everything else must still reject — a 500 or 401 is a real fault.
+      // Everything else must still reject - a 500 or 401 is a real fault.
       expect(validateStatus!(500)).toBe(false);
       expect(validateStatus!(401)).toBe(false);
       expect(validateStatus!(403)).toBe(false);
@@ -201,7 +201,7 @@ describe('classifyDlrStatus ordering and vocabulary', () => {
     expect(classifyDlrStatus(undefined as unknown as string)).toBe('pending');
   });
 
-  it('treats "No dlr" as pending — a report that does not exist YET', () => {
+  it('treats "No dlr" as pending - a report that does not exist YET', () => {
     // Must not be 'failed': the message may still be delivered, and marking it
     // failed would refund a message the provider already charged us for.
     expect(classifyDlrStatus('No dlr')).toBe('pending');

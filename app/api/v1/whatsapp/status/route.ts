@@ -5,7 +5,7 @@ import { whatsappService } from '@/lib/services/whatsapp.service';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/whatsapp/status — whether the Meta Cloud API is configured.
+ * GET /api/v1/whatsapp/status - whether the Meta Cloud API is configured.
  * Drives the dry-run banner on the /whatsapp page.
  */
 export async function GET(req: NextRequest): Promise<Response> {

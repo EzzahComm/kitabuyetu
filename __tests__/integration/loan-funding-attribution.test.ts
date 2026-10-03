@@ -1,5 +1,5 @@
 /**
- * Loan funding attribution — capital layer Phase 3 (migration 118). THE KEYSTONE.
+ * Loan funding attribution - capital layer Phase 3 (migration 118). THE KEYSTONE.
  *
  * This is what distinguishes
  *   "the group lent its own savings to a member"
@@ -83,7 +83,7 @@ describe('loan funding attribution', () => {
    * Applies + approves a loan for a fresh member, returning its id.
    *
    * Creates the member through the real membersService (via addGroupOfficer)
-   * rather than hand-inserting into group_members — that table has grown across
+   * rather than hand-inserting into group_members - that table has grown across
    * ~118 migrations and now requires person_id, which a hand-rolled INSERT
    * silently misses. fixtures.ts makes exactly this point; a first draft here
    * ignored it and every test in this file failed on the NOT NULL.
@@ -174,7 +174,7 @@ describe('loan funding attribution', () => {
       const loanId = await approvedLoan(60_000);
       await loansService.disburse(groupCtx(), loanId, disburseArgs as never);
 
-      // Deleting a split from a disbursed loan breaks the sum — the deferred
+      // Deleting a split from a disbursed loan breaks the sum - the deferred
       // constraint trigger must reject it at commit.
       await expect(rawQuery(`DELETE FROM loan_funding_splits WHERE loan_id = $1`, [loanId])).rejects.toThrow();
     });

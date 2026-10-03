@@ -1,5 +1,5 @@
 /**
- * Org -> group disbursement dual control — closes B2B_ENTERPRISE_AUDIT.md
+ * Org -> group disbursement dual control - closes B2B_ENTERPRISE_AUDIT.md
  * Critical Issue #4 (no separation of duties): amounts above the org's
  * threshold reserve funds via committed_balance and park pending_approval;
  * a different coordinator must approve before the group journal posts.
@@ -41,7 +41,7 @@ const input = { groupId: 'grp-1', amount: 5000, disbursementType: 'grant' as con
  * new audit logging has already broken a purely positional
  * mockResolvedValueOnce chain here once. Matching by SQL shape instead of
  * call order means a future audit-log addition anywhere in the chain can't
- * silently desync this test again — only the specific values a test asserts
+ * silently desync this test again - only the specific values a test asserts
  * on need to be named here; every other shape (mostly audit_logs INSERTs)
  * falls through to a safe generic default.
  */
@@ -176,14 +176,14 @@ describe('organizationFinanceService.disburse', () => {
     expect(reserveCall?.[0]).toContain('committed_balance');
   });
 
-  it('parks pending_approval above the org threshold — no group journal posted', async () => {
+  it('parks pending_approval above the org threshold - no group journal posted', async () => {
     mockQuery.mockImplementation(sqlRouter(2000)); // amount 5000 > threshold 2000
 
     const result = await organizationFinanceService.disburse(ctx, input);
 
     expect(result.needsApproval).toBe(true);
     expect(result.status).toBe('pending_approval');
-    // No settlement queries ran — the group-side journal is never posted
+    // No settlement queries ran - the group-side journal is never posted
     // above the threshold.
     expect(mockQuery.mock.calls.some(([sql]: [string]) => /INSERT INTO journal_entries/.test(sql))).toBe(false);
   });

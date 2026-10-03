@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  * super_admin alone, not support: this discloses what Kitabu Yetu pays the
  * provider, which §15 says never reaches a customer and which support staff
  * have no operational need for. It lives under /api/admin/* so the proxy
- * requires a backoffice token before the handler is even reached — a tenant
+ * requires a backoffice token before the handler is even reached - a tenant
  * token cannot arrive here at all.
  */
 export function GET(req: NextRequest) {

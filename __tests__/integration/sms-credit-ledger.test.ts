@@ -2,7 +2,7 @@
  * SMS credit ledger (migration 141) against real Postgres.
  *
  * Phase 1 of docs/audits/SMS_MONETIZATION_AUDIT_2026-08.md. The ledger is
- * deliberately inert — nothing reads it to authorise a send — so its ONLY
+ * deliberately inert - nothing reads it to authorise a send - so its ONLY
  * value is that it agrees with the balance column it shadows. That makes
  * `drift = 0` the entire point of this file, and every other test here exists
  * to protect that one property.
@@ -149,7 +149,7 @@ describe('SMS credit ledger', () => {
   it('does not double-record a replayed top-up callback', async () => {
     // addSmsCredits is exactly-once per payment_id (migration 137). The ledger
     // write sits AFTER that guard, so a replay that credits nothing must also
-    // record nothing — otherwise the ledger claims a movement the balance
+    // record nothing - otherwise the ledger claims a movement the balance
     // never made.
     const [payment] = await rawQuery<{ id: string }>(
       `INSERT INTO payments (group_id, amount, payment_method, status, payment_date)
@@ -186,7 +186,7 @@ describe('SMS credit ledger', () => {
     // The M-Pesa callback runs with no interactive user and passes the
     // sentinel userId 'system'. Writing that straight into the ledger's
     // created_by uuid column throws `invalid input syntax for type uuid` and
-    // takes the whole top-up transaction down with it — i.e. money received
+    // takes the whole top-up transaction down with it - i.e. money received
     // and not credited, the exact failure mode migration 137 was written to
     // fix. Caught first by the existing top-up suite; pinned here at source.
     await billingService.addSmsCredits({ userId: 'system', groupId, role: 'chairperson' }, 90);
@@ -211,7 +211,7 @@ describe('SMS credit ledger', () => {
     );
     // Both were unreachable (no TS caller, no SQL caller) and deduct_sms_credits
     // additionally held EXECUTE for PUBLIC and authenticated on a money-mutating
-    // function — the same PostgREST surface behind migrations 126 and 136.
+    // function - the same PostgREST surface behind migrations 126 and 136.
     expect(dead).toHaveLength(0);
   });
 });

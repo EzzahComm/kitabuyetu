@@ -5,11 +5,11 @@
  * JSONB, so evaluation must never reach for `eval`, `Function`, or a template
  * engine that can run code. This is a closed, data-only grammar:
  *
- *   { all: [ ...Condition ] }          — every child must match
- *   { any: [ ...Condition ] }          — at least one child must match
- *   { not: Condition }                 — negation
- *   { field, op, value }               — leaf comparison against the payload
- *   {}                                 — always matches
+ *   { all: [ ...Condition ] }          - every child must match
+ *   { any: [ ...Condition ] }          - at least one child must match
+ *   { not: Condition }                 - negation
+ *   { field, op, value }               - leaf comparison against the payload
+ *   {}                                 - always matches
  *
  * Amounts arrive from Postgres NUMERIC as strings ('500.00'), so comparisons
  * coerce both sides to numbers when both are unambiguously numeric. That makes
@@ -48,7 +48,7 @@ export function evaluateCondition(condition: unknown, payload: EventPayload): bo
 
     const n = node as Record<string, unknown>;
 
-    // `{}` — unconditional match. Keeps `conditions DEFAULT '{}'` meaningful.
+    // `{}` - unconditional match. Keeps `conditions DEFAULT '{}'` meaningful.
     if (Object.keys(n).length === 0) return true;
 
     if (Array.isArray(n.all)) return n.all.every((c) => walk(c, depth + 1));
@@ -118,7 +118,7 @@ function looseEquals(a: unknown, b: unknown): boolean {
   return String(a) === String(b);
 }
 
-/** Strict numeric coercion — rejects '', whitespace, booleans, null, NaN. */
+/** Strict numeric coercion - rejects '', whitespace, booleans, null, NaN. */
 function toNumber(v: unknown): number | null {
   if (typeof v === 'number') return Number.isFinite(v) ? v : null;
   if (typeof v === 'string') {

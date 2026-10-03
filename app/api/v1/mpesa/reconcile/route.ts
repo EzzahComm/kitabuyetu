@@ -1,7 +1,7 @@
 ﻿/**
- * POST /api/v1/mpesa/reconcile — Trigger reconciliation (chairperson+)
- * POST /api/v1/mpesa/reconcile?type=paybill — Trigger paybill sweep (chairperson+)
- * GET  /api/v1/mpesa/reconcile — List reconciliation run history
+ * POST /api/v1/mpesa/reconcile - Trigger reconciliation (chairperson+)
+ * POST /api/v1/mpesa/reconcile?type=paybill - Trigger paybill sweep (chairperson+)
+ * GET  /api/v1/mpesa/reconcile - List reconciliation run history
  *
  * Reconciliation types:
  *  - stk (default): finds STK Push requests stuck in 'pending' for > 5 min,
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
   }
 
-  // Treasurer+ — matches the rest of the M-Pesa ops surface (the /mpesa
+  // Treasurer+ - matches the rest of the M-Pesa ops surface (the /mpesa
   // dashboard that links here is treasurer-accessible). Reconciliation is
   // idempotent (queries Daraja or sweeps C2B).
   return withPermission(req, 'accounting.manage', async (auth) => {

@@ -3,14 +3,14 @@
  *
  * Regression cover for a live production bug found 2026-08-12: the M-Pesa
  * callback credited SMS balance only inside `if (payment.invoice_id)`, but the
- * billing page never sends an invoiceId for a top-up, so the block was dead —
+ * billing page never sends an invoiceId for a top-up, so the block was dead -
  * Safaricom took the money, the UI reported success, and the balance never
  * moved. One real payment was affected (receipt UH9QZ25LQG, KES 100) and had
  * to be repaired by hand.
  *
  * Integration rather than unit tests on purpose: the exactly-once guarantee is
  * a UNIQUE(payment_id) constraint plus ON CONFLICT DO NOTHING, and a mocked pg
- * client would happily accept both while proving nothing — the same lesson
+ * client would happily accept both while proving nothing - the same lesson
  * recorded in sms-credit-reservation.test.ts.
  */
 import { rawQuery } from './helpers/db';
@@ -80,7 +80,7 @@ describe('SMS top-up crediting', () => {
     expect(await ledgerCount(paymentId)).toBe(1);
   });
 
-  it('is exactly-once per payment — a replayed callback must not double-credit', async () => {
+  it('is exactly-once per payment - a replayed callback must not double-credit', async () => {
     const paymentId = await createPayment(groupId, 100);
 
     await billingService.addSmsCredits(ctx, 100, paymentId);
@@ -88,7 +88,7 @@ describe('SMS top-up crediting', () => {
 
     // The route re-runs processFulfillment on every replayed callback
     // (handleSTKCallback computes `alreadyDone` but never returns it), and the
-    // mpesa_replay_callbacks job replays every 5 minutes — so this is the
+    // mpesa_replay_callbacks job replays every 5 minutes - so this is the
     // normal path, not an exotic one.
     await billingService.addSmsCredits(ctx, 100, paymentId);
     await billingService.addSmsCredits(ctx, 100, paymentId);
@@ -104,7 +104,7 @@ describe('SMS top-up crediting', () => {
     // Both apply: UNIQUE(payment_id) does not constrain NULLs in Postgres.
     //
     // 111.12, not the 111.11 a single KES 100 grant produces: sms_credits is
-    // NUMERIC(15,2), so each grant rounds on the way in — 50/0.90 = 55.5556
+    // NUMERIC(15,2), so each grant rounds on the way in - 50/0.90 = 55.5556
     // banks to 55.56 twice, where 100/0.90 = 111.1111 banks to 111.11 once.
     // Pre-existing behaviour of splitting a top-up, sub-cent and in the
     // group's favour; asserted here so the rounding is deliberate, not a

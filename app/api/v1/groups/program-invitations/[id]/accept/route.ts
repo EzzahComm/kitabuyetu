@@ -4,7 +4,7 @@ import { withOneOf } from '@/lib/auth/middleware';
 import { programInvitationsService } from '@/lib/services/program-invitations.service';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/v1/groups/program-invitations/:id/accept — activates program membership */
+/** POST /api/v1/groups/program-invitations/:id/accept - activates program membership */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOneOf(req, ['chairperson'], async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

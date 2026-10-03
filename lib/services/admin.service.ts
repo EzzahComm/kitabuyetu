@@ -206,7 +206,7 @@ export function buildMonitoringDashboardPayload(input: {
 export async function getPlatformStats() {
   // TTL raised 90s->150s: the client poll interval is 120s (hooks/use-admin.ts
   // useAdminDashboard), so a 90s TTL had already expired before every
-  // scheduled refetch fired — guaranteeing a cache miss on the one request
+  // scheduled refetch fired - guaranteeing a cache miss on the one request
   // this cache exists to absorb (docs/audits/optimization-2026-09).
   return cached(keys.cache('platform-stats', 'platform'), 150, () =>
     withAdminDb(async (db: PoolClient) => {
@@ -307,7 +307,7 @@ export async function getRevenueTrend() {
 }
 
 export async function getRiskDashboardData(): Promise<RiskDashboardPayload> {
-  // TTL raised 60s->150s — same guaranteed-miss shape as getPlatformStats
+  // TTL raised 60s->150s - same guaranteed-miss shape as getPlatformStats
   // above: the client's 120s poll interval outlived the 60s TTL every time
   // (docs/audits/optimization-2026-09).
   return cached(keys.cache('risk-dashboard', 'platform'), 150, () =>
@@ -445,7 +445,7 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         LIMIT 12
       `),
         // Callbacks the DLQ replay (mpesa_replay_callbacks, every 5 min) has had
-        // many chances at and is still failing — a real signal something is
+        // many chances at and is still failing - a real signal something is
         // structurally broken (e.g. a schema/code mismatch), not just transient
         // provider flakiness. This is the "surfaced for administrator action"
         // half of the retry story; replay itself already exists and is
@@ -518,13 +518,13 @@ export async function getMonitoringDashboardData(): Promise<MonitoringDashboardP
         note:
           stuck === 0
             ? 'No callbacks stuck after retry'
-            : `${stuck} callback${stuck === 1 ? '' : 's'} unprocessed after 30+ min of retries — needs investigation`,
+            : `${stuck} callback${stuck === 1 ? '' : 's'} unprocessed after 30+ min of retries - needs investigation`,
       });
 
       const sms = smsUsage.rows[0] ?? {};
       // Real balance from billing_accounts (the table SMS top-ups credit and
       // sends debit). "Total" = what the platform started today with, so the
-      // usage bar reflects today's actual burn — no invented pool size.
+      // usage bar reflects today's actual burn - no invented pool size.
       const creditsRemaining = Math.max(0, Number(sms.credits_remaining ?? 0));
       const sentToday = Number(sms.sent_today ?? 0);
 
@@ -567,10 +567,10 @@ export interface GroupListParams {
 }
 
 // Lists GROUPS (the platform tenants / chamas) for the admin portal. Named
-// after its subject — the separate `organizations` federating bodies (banks,
+// after its subject - the separate `organizations` federating bodies (banks,
 // SACCOs, foundations) are managed in admin-organizations.service.ts.
 /**
- * id + name only, for filter dropdowns/pickers — NOT listGroups(limit: 200).
+ * id + name only, for filter dropdowns/pickers - NOT listGroups(limit: 200).
  * That call carries listGroups' full 5-LATERAL aggregate (member counts,
  * contributions, loans, health score, subscription) per row purely to
  * populate a `<select>`, which only ever reads `.id`/`.name`
@@ -591,7 +591,7 @@ export async function listGroups(params: GroupListParams) {
     const offset = (page - 1) * limit;
     const conditions: string[] = [];
     // $1 is always the product, consumed by the subscription LATERAL below in
-    // BOTH the data and count queries — so it is pushed before any filter and
+    // BOTH the data and count queries - so it is pushed before any filter and
     // filter placeholders start at $2, keeping the two queries' parameter
     // lists identical (they already had to match; the count query reuses
     // `values` verbatim).
@@ -636,7 +636,7 @@ export async function listGroups(params: GroupListParams) {
         FROM public.groups g
         -- LATERAL, not a plain LEFT JOIN: since migration 127 a group can hold
         -- one active subscription per product, and s.plan_type is in the GROUP
-        -- BY below — so a plain join would emit one row PER PRODUCT and list
+        -- BY below - so a plain join would emit one row PER PRODUCT and list
         -- the same group twice, while the count query's COUNT(DISTINCT g.id)
         -- kept counting it once, silently desynchronising the pagination.
         -- Same shape the governance-health join below already uses.
@@ -648,11 +648,11 @@ export async function listGroups(params: GroupListParams) {
         -- LATERAL per child table, not a flat multi-table LEFT JOIN: joining
         -- group_members/contributions/loans together fans every contribution
         -- row out across every loan row (and vice versa) before the SUM runs.
-        -- SUM(DISTINCT c.amount) — the prior attempt to guard against this —
+        -- SUM(DISTINCT c.amount) - the prior attempt to guard against this -
         -- doesn't fix it either: it collapses the sum to one copy of each
         -- DISTINCT amount VALUE, silently under-counting any group where two
         -- real contributions share an amount (e.g. two members both paying
-        -- the standard KES 100 — proven live on a real group, 650 shown vs.
+        -- the standard KES 100 - proven live on a real group, 650 shown vs.
         -- 1,050 actual). See getGroupById's near-identical comment for the
         -- over-counting half of this same bug class.
         LEFT JOIN LATERAL (
@@ -674,7 +674,7 @@ export async function listGroups(params: GroupListParams) {
         ${where}
         -- No GROUP BY: every SELECT value already comes from a LATERAL
         -- (one row per outer g row via LIMIT 1 or its own aggregate), so
-        -- there was nothing left to aggregate — the GROUP BY only forced an
+        -- there was nothing left to aggregate - the GROUP BY only forced an
         -- extra Group+Sort plan node ahead of the real ORDER BY
         -- (docs/audits/optimization-2026-09).
         ORDER BY g.created_at DESC
@@ -714,7 +714,7 @@ export async function getGroupById(groupId: string) {
         -- 'trial' is included for forward-compatibility with the subscription_status
         -- enum, but no code path has created a trial subscription since the
         -- 2026-08-13 paid-only cutover (migration 139 stopped register_group()
-        -- seeding one) — in practice this only ever matches 'active' today.
+        -- seeding one) - in practice this only ever matches 'active' today.
         LEFT JOIN public.subscriptions s ON s.group_id = g.id AND s.status IN ('active','trial')
         LEFT JOIN public.group_members gm ON gm.group_id = g.id AND gm.role = 'chairperson'
         LEFT JOIN public.members m ON m.id = gm.member_id
@@ -819,7 +819,7 @@ export async function updateGroupStatus(
 // ─────────────────────────────────────────────────────────────────────────────
 // Super-admin corrections
 //
-// Until now a super_admin could change a group's STATUS and nothing else —
+// Until now a super_admin could change a group's STATUS and nothing else -
 // there was no way anywhere in the product to fix a typo in a group's name or
 // a member's name. These two functions are that, deliberately scoped:
 //
@@ -827,14 +827,14 @@ export async function updateGroupStatus(
 //   - Member: first/last name and email.
 //   - Member PHONE is NOT editable, by decision. It is the login identity and
 //     is UNIQUE platform-wide, so changing it changes who can sign in to the
-//     account — a different and much riskier operation than fixing a typo.
+//     account - a different and much riskier operation than fixing a typo.
 //
 // Both write an audit_logs row with old AND new values: these edit real
 // member PII across tenant boundaries, so "who changed this, from what, to
 // what" has to survive the change.
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Fields a super_admin may correct on a group. All optional — only what is sent is changed. */
+/** Fields a super_admin may correct on a group. All optional - only what is sent is changed. */
 export interface UpdateGroupProfileInput {
   name?: string;
   type?: string;
@@ -864,7 +864,7 @@ const GROUP_PROFILE_COLUMNS: Record<keyof UpdateGroupProfileInput, string> = {
 /**
  * Postgres enum columns need an explicit cast when fed a text parameter.
  * Without these the UPDATE fails with "column X is of type Y but expression
- * is of type text" — the same class of parameter-typing failure this codebase
+ * is of type text" - the same class of parameter-typing failure this codebase
  * has been bitten by repeatedly.
  */
 const GROUP_PROFILE_CASTS: Partial<Record<keyof UpdateGroupProfileInput, string>> = {
@@ -911,7 +911,7 @@ export async function updateGroupProfile(groupId: string, input: UpdateGroupProf
     } catch (err) {
       // uq_group_name_per_county: (lower(trim(name)), county) must be unique
       // among non-archived groups. A rename into an existing name is a real,
-      // reachable user action — answer it with a readable 409 rather than
+      // reachable user action - answer it with a readable 409 rather than
       // letting a raw constraint violation surface as a 500.
       if (err instanceof DatabaseError && err.code === '23505') {
         throw new ConflictError('Another group in this county already uses that name. Pick a different name.');
@@ -929,7 +929,7 @@ export async function updateGroupProfile(groupId: string, input: UpdateGroupProf
   });
 }
 
-/** Fields a super_admin may correct on a member. Phone is deliberately absent — see above. */
+/** Fields a super_admin may correct on a member. Phone is deliberately absent - see above. */
 export interface UpdateMemberProfileInput {
   firstName?: string;
   lastName?: string;
@@ -991,7 +991,7 @@ export async function updateMemberProfile(
     // A member's name also lives on `person`, the CROSS-GROUP identity record
     // that group_members rows point at. Updating only `members` would leave
     // the same human showing the old name in every other group they belong to
-    // — the correction would look applied and silently not be. Kept in the
+    // - the correction would look applied and silently not be. Kept in the
     // same transaction so the two can never disagree.
     if (wantsName) {
       const fullName = `${after.first_name} ${after.last_name}`.trim();
@@ -1078,12 +1078,12 @@ export async function listPlatformUsers(params: { page: number; limit: number; s
       ),
       // COUNT(*), not COUNT(DISTINCT m.id): the data query above lists one
       // ROW PER ACTIVE MEMBERSHIP (a member in 2 active groups renders twice,
-      // with that membership's own group_name/role/status/joined_at — the
+      // with that membership's own group_name/role/status/joined_at - the
       // multi-group registration feature, 2026-08-15, makes this a real and
       // growing population). COUNT(DISTINCT m.id) counts people instead of
       // rows, so it silently undercounted the true row total, which desyncs
       // totalPages and can push real membership rows past the last page
-      // (docs/audits/optimization-2026-09) — both queries must count the
+      // (docs/audits/optimization-2026-09) - both queries must count the
       // same thing the same way.
       db.query(
         `SELECT COUNT(*) AS total FROM public.members m LEFT JOIN public.group_members gm ON gm.member_id = m.id AND gm.status = 'active' ${where}`,
@@ -1096,14 +1096,14 @@ export async function listPlatformUsers(params: { page: number; limit: number; s
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Member drill-down (SUPER_ADMIN_PLATFORM_AUDIT.md §2.6/§2.7 Phase 1) — a
+// Member drill-down (SUPER_ADMIN_PLATFORM_AUDIT.md §2.6/§2.7 Phase 1) - a
 // real cross-tenant member detail, reachable from both admin/users and a new
 // member table on admin/groups/[id]. Financial snapshot reuses
 // member-balances.service.ts's computeMemberFinancialSnapshot (built for the
 // (member) portal's own wallet) rather than re-deriving the same savings/
 // loan/shares SQL a third time. Credit score is read directly here (not via
 // credit-scores.service.ts's getLatestForMember) because that function is
-// deliberately group_id-scoped for its own tenant-facing use — a cross-
+// deliberately group_id-scoped for its own tenant-facing use - a cross-
 // tenant admin read is a different, simpler query, not a variant worth
 // threading a TenantContext through.
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1141,7 +1141,7 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
  * snapshot, recent activity, credit score.
  *
  * `groupId` disambiguates which membership to show for a member in more than
- * one active group (multi-group registration, 2026-08-15) — without it the
+ * one active group (multi-group registration, 2026-08-15) - without it the
  * query picked an arbitrary one via LIMIT 1, which could 404 or show the
  * wrong group's role/code/org for a member reached from a *different*
  * group's roster (docs/audits/optimization-2026-09). The one live caller
@@ -1465,7 +1465,7 @@ export async function listAuditLogs(params: {
     const [data, count] = await Promise.all([
       // 7 rendered columns, not `al.*`: old_values/new_values/user_agent are
       // never read by the UI (AuditLogRow declares only the 8 fields below)
-      // but made up 81% of every row's bytes — measured live at 811,464
+      // but made up 81% of every row's bytes - measured live at 811,464
       // bytes / 570 rows, 656,902 of it old_values+new_values
       // (docs/audits/optimization-2026-09).
       db.query(
@@ -1535,8 +1535,8 @@ export async function getPlatformAnalytics() {
         -- contribution row out across every loan row (and vice versa)
         -- before the SUM runs. Same bug class already found and fixed in
         -- admin-geography.service.ts's getCountyAggregation (proven live:
-        -- THE FIONA'S read a KES 32.1M loan book here vs a real KES 1.07M —
-        -- a 30x inflation, docs/audits/optimization-2026-09) — this is the
+        -- THE FIONA'S read a KES 32.1M loan book here vs a real KES 1.07M -
+        -- a 30x inflation, docs/audits/optimization-2026-09) - this is the
         -- one surviving instance of that pattern.
         WITH group_stats AS (
           SELECT g.id, g.name, g.type AS group_type,
@@ -1589,7 +1589,7 @@ export async function getPlatformAnalytics() {
 // facing and tenant-scoped: resolveUnrouted requires the caller's group to
 // match the row's candidate_group_id, and the C2B router leaves
 // candidate_group_id NULL whenever it can't even guess a group
-// (reason='unknown_prefix') — which is most of these. No group's treasurer
+// (reason='unknown_prefix') - which is most of these. No group's treasurer
 // session can ever reach those rows through the normal RLS-scoped path, no
 // matter how obvious the right member is from the receipt/name/ref. These
 // two give staff the same "allocate or dismiss" action, but scoped to the
@@ -1641,7 +1641,7 @@ export async function listUnroutedPayments(params: { page: number; limit: number
       ),
       // SUM alongside COUNT in the same scan: the UI's "Total value" tile
       // was reducing only the current 20-row page while the adjacent
-      // "Unresolved" tile counted the whole queue — once the backlog exceeds
+      // "Unresolved" tile counted the whole queue - once the backlog exceeds
       // one page, "Total value" silently understates the true unreconciled
       // amount, the worst failure direction for a reconciliation queue
       // (docs/audits/optimization-2026-09).
@@ -1662,7 +1662,7 @@ export async function listUnroutedPayments(params: { page: number; limit: number
 }
 
 /**
- * Staff-scoped equivalent of mpesa-unrouted.service.ts's resolveUnrouted —
+ * Staff-scoped equivalent of mpesa-unrouted.service.ts's resolveUnrouted -
  * same two actions (allocate / dismiss), same accounting path
  * (postContributionJournal + markSpineAllocated), but callable for ANY
  * unrouted row regardless of candidate_group_id, with the target group
@@ -1670,19 +1670,19 @@ export async function listUnroutedPayments(params: { page: number; limit: number
  *
  * A third action, 'activate_subscription', exists because 'SUBSCRIPT' (the
  * client-side accountReference plan-purchase.tsx sends for every kitabu_yetu
- * STK subscription attempt — see PRODUCT_REFERENCE there; it is not a
+ * STK subscription attempt - see PRODUCT_REFERENCE there; it is not a
  * per-group value, so amount/ref alone cannot identify which group paid) is
  * a real recurring bill_ref in this queue and 'allocate' only knows how to
  * create a member contribution, never a plan activation. These C2B payments
  * never went through recordC2BInbound (the router bails to mpesa_unrouted
  * before that runs when it can't resolve a group), so there is no `payments`
- * row yet to hand billingService.activateSubscriptionForPayment() — this
+ * row yet to hand billingService.activateSubscriptionForPayment() - this
  * creates the mpesa_transactions/payments pair recordC2BInbound would have,
  * then activates through the same real function the STK callback path uses.
  *
  * `createdBy` on the journal is deliberately null, and `adminId` (a
  * platform_users id, not a members id) is recorded only in
- * resolution_notes — mirroring how updateTicketStatus above attributes a
+ * resolution_notes - mirroring how updateTicketStatus above attributes a
  * staff action without assuming a members-table identity for the actor.
  */
 export async function resolveUnroutedPayment(
@@ -1713,13 +1713,13 @@ export async function resolveUnroutedPayment(
     );
     const row = rows[0];
     if (!row) throw new NotFoundError('Unrouted receipt', id);
-    if (row.resolved) return { success: true }; // already handled — idempotent
+    if (row.resolved) return { success: true }; // already handled - idempotent
 
     const amount = parseFloat(row.amount);
 
     // mpesa_unrouted.resolved_by is a real FK to members(id); opts.adminId is
     // a platform_users id, not a member, so it goes in resolution_notes only
-    // (same reasoning as payment_events.actor above) — resolved_by stays NULL
+    // (same reasoning as payment_events.actor above) - resolved_by stays NULL
     // for a staff-initiated resolution, same as recorded_by/createdBy below.
     const notes = opts.notes
       ? `${opts.notes} (staff action, admin ${opts.adminId})`
@@ -1730,7 +1730,7 @@ export async function resolveUnroutedPayment(
       if (!opts.planType || !opts.product)
         throw new ValidationError('planType and product are required to activate a subscription');
 
-      // This receipt never went through recordC2BInbound — the router bailed
+      // This receipt never went through recordC2BInbound - the router bailed
       // to mpesa_unrouted before that runs. Create the same two rows it would
       // have, ON CONFLICT-safe like the original so a retry can't duplicate
       // them if this action is ever run twice for the same receipt.
@@ -1761,12 +1761,12 @@ export async function resolveUnroutedPayment(
       });
 
       // Returns null only when this exact payment already activated a
-      // subscription (idempotent replay) — not an error, just nothing new to do.
+      // subscription (idempotent replay) - not an error, just nothing new to do.
       // billingCycle defaults to 'monthly' inside the function if omitted; if
       // staff picks a cycle the amount doesn't actually cover (e.g. 'annual'
       // on a 150-shilling receipt), activateSubscriptionForPayment's own
       // amountPaid < fee check throws PaymentRequiredError rather than
-      // under-activating — no separate guard needed here.
+      // under-activating - no separate guard needed here.
       await billingService.activateSubscriptionForPayment(db, {
         groupId: opts.groupId,
         planType: opts.planType,
@@ -1850,7 +1850,7 @@ export async function resolveUnroutedPayment(
       );
       await markSpineAllocated(db, row.receipt, {
         // NOT opts.adminId: payment_events.actor is a real FK to members(id),
-        // and a backoffice staff/platform_users id is not a member — passing
+        // and a backoffice staff/platform_users id is not a member - passing
         // it here would either FK-violate or silently misattribute the event
         // to an unrelated member. NULL means "system", same as every other
         // non-member-initiated action in this table. The real staff id is

@@ -13,7 +13,7 @@ function createTransport() {
       pass: process.env.SMTP_PASSWORD,
     },
     // Without these, a dead/unreachable SMTP_HOST falls back to nodemailer's
-    // default 30s greetingTimeout — costing ~32s per attempt inside job ticks
+    // default 30s greetingTimeout - costing ~32s per attempt inside job ticks
     // that have a 50s total budget. See docs/audits/optimization-2026-09.
     connectionTimeout: 5000,
     greetingTimeout: 5000,

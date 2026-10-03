@@ -1,12 +1,12 @@
 /**
- * group_funding_sources (migration 115) — the group-side funding attribution
+ * group_funding_sources (migration 115) - the group-side funding attribution
  * anchor for the Capital & Investment Layer.
  *
  * The invariant under test is the one everything downstream depends on: EVERY
  * group has exactly one internal_savings funding source, from the moment it
  * exists. loan_funding_splits will default to it when a member loan is
  * disbursed without an explicit funding plan, which is what keeps existing loan
- * behaviour unchanged — so if this invariant can be violated, that guarantee
+ * behaviour unchanged - so if this invariant can be violated, that guarantee
  * silently breaks instead of failing loudly.
  */
 import { type TenantContext } from '@/lib/db';
@@ -71,7 +71,7 @@ describe('group_funding_sources', () => {
       // RLS-guarded table, so it silently matched zero rows (fixed in migration
       // 099). If someone recreates this function without SECURITY DEFINER, group
       // creation would stop provisioning sources the moment app_tenant goes live
-      // — with no error anywhere.
+      // - with no error anywhere.
       const rows = await rawQuery<{ prosecdef: boolean }>(
         `SELECT p.prosecdef
          FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
@@ -182,7 +182,7 @@ describe('group_funding_sources', () => {
   });
 
   describe('group deletion', () => {
-    // A group cannot actually be hard-deleted in this schema — accounts.group_id
+    // A group cannot actually be hard-deleted in this schema - accounts.group_id
     // (among others) is a plain FK with no ON DELETE action, so `DELETE FROM
     // groups` raises. Groups are retired via status/archived_at instead. So the
     // ON DELETE CASCADE on our own group_id FK is a safety net for a path that
@@ -190,7 +190,7 @@ describe('group_funding_sources', () => {
     // end; assert it at the schema level, which is what we actually control.
     //
     // (An earlier version of this test did DELETE FROM groups and was caught by
-    // the real-Postgres CI job — worth keeping the reason recorded.)
+    // the real-Postgres CI job - worth keeping the reason recorded.)
     it('declares ON DELETE CASCADE on its group_id foreign key', async () => {
       const rows = await rawQuery<{ delete_rule: string }>(
         `SELECT rc.delete_rule

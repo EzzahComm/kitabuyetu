@@ -165,7 +165,7 @@ describe('applyDisbursementCharges', () => {
       'group-1',
       'user-1',
       'loan_charge',
-      'Processing fee — loan loan-1',
+      'Processing fee - loan loan-1',
       { amount: 1250 },
       { reference: 'lc-1', memberId: 'm-1', groupMembershipId: 'gm-1', entryDate: '2026-09-01' },
     );
@@ -215,7 +215,7 @@ describe('applyOverdueCharges', () => {
       'group-1',
       'user-1',
       'loan_charge',
-      'Late fee — loan loan-1',
+      'Late fee - loan loan-1',
       { amount: 300 },
       expect.objectContaining({ entryDate: '2026-09-11' }),
     );
@@ -249,7 +249,7 @@ describe('loanChargesService.configureChargeType', () => {
     expect(audits()[0][1]).toContain('loan_charge_type.create');
   });
 
-  it('updates only a charge type that belongs to the caller’s group', async () => {
+  it('updates only a charge type that belongs to the caller's group', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] }); // ownership lookup finds nothing
     await expect(
       loanChargesService.configureChargeType(ctx, { ...(input as object), id: 'other-groups' } as never),
@@ -290,7 +290,7 @@ describe('loanChargesService.waiveCharge', () => {
       'group-1',
       'user-1',
       'loan_charge',
-      'Waived charge reversal — lc-1',
+      'Waived charge reversal - lc-1',
       { amount: 1250 },
       { reference: 'lc-1', invert: true, memberId: 'm-1', groupMembershipId: 'gm-1' },
     );
@@ -313,7 +313,7 @@ describe('loanChargesService.waiveCharge', () => {
     expect(postTemplatedJournal).not.toHaveBeenCalled();
   });
 
-  it('is scoped to the caller’s group', async () => {
+  it('is scoped to the caller's group', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(loanChargesService.waiveCharge(ctx, 'foreign', 'x')).rejects.toBeInstanceOf(NotFoundError);
     expect(mockQuery.mock.calls[0][1]).toEqual(['foreign', 'group-1']);
@@ -321,7 +321,7 @@ describe('loanChargesService.waiveCharge', () => {
 });
 
 describe('loanChargesService.listChargesForLoan', () => {
-  it('404s for a loan outside the caller’s group before reading any charges', async () => {
+  it('404s for a loan outside the caller's group before reading any charges', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [] });
     await expect(loanChargesService.listChargesForLoan(ctx, 'foreign-loan')).rejects.toBeInstanceOf(NotFoundError);
     expect(mockQuery).toHaveBeenCalledTimes(1);

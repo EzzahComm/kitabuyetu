@@ -1,7 +1,7 @@
 /**
  * Multi-staff organizations (migration 101). organization-disbursements-
  * tenant-isolation.test.ts already proves the maker-checker RLS/service
- * boundary works correctly given two coordinators for the same org — but it
+ * boundary works correctly given two coordinators for the same org - but it
  * simulates that via directly-forged auth headers (a test-harness privilege),
  * not through the actual mechanism that creates and links real staff. This
  * file proves the mechanism itself: lib/services/organization-members.service.ts
@@ -23,9 +23,9 @@ import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
 // The invite flow's two proof-of-possession channels are a real outbound
-// email (lib/services/email.service.ts — EMAIL_DRY_RUN logs it but doesn't
+// email (lib/services/email.service.ts - EMAIL_DRY_RUN logs it but doesn't
 // expose the rendered link back to the caller) and a real outbound SMS
-// (lib/services/textsms.service.ts — no dry-run flag at all). Both are
+// (lib/services/textsms.service.ts - no dry-run flag at all). Both are
 // mocked here the same way any other genuinely external HTTP dependency
 // would be; everything else (real Postgres, the actual service functions,
 // the invited -> otp_sent -> verified -> completed state machine) runs for
@@ -148,7 +148,7 @@ describe('organization staff (multi-staff organizations)', () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     // createTestOrganization()'s coordinator is a member with platform_role
     // = 'organization_coordinator', but createOrganization() never touches
-    // organization_members (that table is new) — add them as lead explicitly
+    // organization_members (that table is new) - add them as lead explicitly
     // to get two real, distinct staff rows for the same org.
     const first = await addOrgStaff(organizationId, {
       phone: '0712340003',
@@ -165,7 +165,7 @@ describe('organization staff (multi-staff organizations)', () => {
       invitedBy: first.memberId,
     });
 
-    // Two distinct, real organization_members rows for the same org — this
+    // Two distinct, real organization_members rows for the same org - this
     // is exactly the state that used to be structurally impossible to reach
     // (organizations.coordinator_member_id is a single FK). Both now show up
     // for real in organization_members, which is what the login-resolution
@@ -181,7 +181,7 @@ describe('organization staff (multi-staff organizations)', () => {
   it('refuses to remove the last active lead', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     // createTestOrganization's coordinator isn't auto-added as organization_members
-    // staff (that table is new) — add them as the org's lead explicitly first.
+    // staff (that table is new) - add them as the org's lead explicitly first.
     await addOrgStaff(organizationId, {
       phone: '0712340005',
       firstName: 'Lead',
@@ -195,7 +195,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 });
 
-describe('organization staff invitations (Phase 2 — email + phone-OTP)', () => {
+describe('organization staff invitations (Phase 2 - email + phone-OTP)', () => {
   afterEach(async () => {
     jest.clearAllMocks();
     await resetDatabase();

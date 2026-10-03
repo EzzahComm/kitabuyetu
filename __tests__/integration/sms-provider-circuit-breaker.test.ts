@@ -3,7 +3,7 @@
  * SMS provider's circuit is open (SMS-AUDIT-v3 T3-3 closure test).
  *
  * Before this, an outage meant every due sms_failures row burned a real
- * provider call — and its backoff — on an outcome that was never in doubt:
+ * provider call - and its backoff - on an outcome that was never in doubt:
  * the queue did maximum work at maximum latency for guaranteed-zero
  * delivery (see lib/sms/circuit-breaker.ts's own header). Worse, each
  * attempt still counted against retry_count, so a long enough outage could
@@ -11,7 +11,7 @@
  * that had nothing to do with that specific message.
  *
  * The circuit breaker itself is unit-tested in isolation
- * (__tests__/unit/sms/circuit-breaker.test.ts and provider.test.ts) — this
+ * (__tests__/unit/sms/circuit-breaker.test.ts and provider.test.ts) - this
  * file proves the one integration point that matters: retryFailures()
  * actually consults it, against a real row in real Postgres.
  */
@@ -106,7 +106,7 @@ describe('retryFailures + provider circuit breaker', () => {
     expect(before.retry_count).toBe(0);
     expect(before.resolved).toBe(false);
 
-    // Simulate an ongoing outage directly on the real breaker module — the
+    // Simulate an ongoing outage directly on the real breaker module - the
     // same singleton lib/sms/provider.ts's isProviderAvailable() reads.
     for (let i = 0; i < 5; i++) recordFailure('textsms');
     expect(circuitState('textsms').state).toBe('open');
@@ -120,18 +120,18 @@ describe('retryFailures + provider circuit breaker', () => {
     // The whole point: no provider call was attempted at all.
     expect(mockSendSingleSms).not.toHaveBeenCalled();
 
-    // Row is untouched — same eligibility as before this tick, no budget
+    // Row is untouched - same eligibility as before this tick, no budget
     // spent, no backoff imposed for a fault that was never this message's.
     const after = await failureRow(groupId);
     expect(after.retry_count).toBe(0);
     expect(after.resolved).toBe(false);
-    // pg returns timestamptz as a Date object, not a string — toBe's
+    // pg returns timestamptz as a Date object, not a string - toBe's
     // reference equality would fail two distinct Date instances holding the
     // same instant. toEqual compares by value, which is what "untouched"
     // actually means here.
     expect(after.next_retry_at).toEqual(before.next_retry_at);
 
-    // No credits were reserved-then-released either — skipping happens
+    // No credits were reserved-then-released either - skipping happens
     // before any billing work, not after.
     expect(await billingOf(groupId)).toBe(10);
   });
@@ -145,7 +145,7 @@ describe('retryFailures + provider circuit breaker', () => {
     expect(mockSendSingleSms).not.toHaveBeenCalled();
 
     // Recovery: a real operator action or a later successful probe would
-    // close it in production — asserted directly here since that transition
+    // close it in production - asserted directly here since that transition
     // itself is unit-tested in circuit-breaker.test.ts.
     resetCircuit();
     mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
@@ -160,7 +160,7 @@ describe('retryFailures + provider circuit breaker', () => {
     expect(after.resolved).toBe(true);
   });
 
-  it("does not skip when a DIFFERENT provider is open — only the row's own provider gates it", async () => {
+  it("does not skip when a DIFFERENT provider is open - only the row's own provider gates it", async () => {
     for (let i = 0; i < 5; i++) recordFailure('some-other-provider');
     mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
 

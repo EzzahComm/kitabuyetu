@@ -6,7 +6,7 @@ import { BRAND, getBrandLogoUrl } from '@/lib/brand';
  * Shared shell for every Kitabu Yetu React Email template.
  *
  * Email clients (Gmail, Outlook, Apple Mail) strip <style>, ignore most modern
- * CSS, and don't load fonts — so everything here is inline styles with web-safe
+ * CSS, and don't load fonts - so everything here is inline styles with web-safe
  * fallbacks and table-friendly layout (React Email handles the tables). Brand
  * values come from lib/brand.ts so emails stay in lockstep with the app + PDFs.
  */
@@ -77,10 +77,10 @@ export function EmailLayout({ preview, children, footerNote }: EmailLayoutProps)
           <Hr style={{ borderColor: c.border, margin: 0 }} />
           <Section style={footerSection}>
             <Text style={{ margin: '0 0 6px', fontSize: 12, color: c.textMuted, lineHeight: '18px' }}>
-              {footerNote ?? 'You’re receiving this because you’re a member of a group on Kitabu Yetu.'}
+              {footerNote ?? 'You're receiving this because you're a member of a group on Kitabu Yetu.'}
             </Text>
             <Text style={{ margin: 0, fontSize: 12, color: c.textMuted }}>
-              {BRAND.name} · Nairobi, Kenya ·{' '}
+              {BRAND.name} - Nairobi, Kenya -{' '}
               <Link href={`mailto:support@kitabuyetu.co.ke`} style={{ color: c.green }}>
                 support@kitabuyetu.co.ke
               </Link>

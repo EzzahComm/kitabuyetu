@@ -62,7 +62,7 @@ export interface MeetingResolutionRow {
   notes: string | null;
 }
 
-/** What GET /meetings/:id returns — the meeting plus its children. */
+/** What GET /meetings/:id returns - the meeting plus its children. */
 export type MeetingDetail = MeetingRow & {
   agenda: string[] | null;
   minutes: string | null;
@@ -76,7 +76,7 @@ export type MeetingStats = Awaited<ReturnType<typeof meetingsService.getStats>>;
 
 export const meetingKeys = {
   all: ['meetings'] as const,
-  /** Prefix for every list query, whatever its params — use this to invalidate. */
+  /** Prefix for every list query, whatever its params - use this to invalidate. */
   lists: () => [...meetingKeys.all, 'list'] as const,
   list: (p?: Record<string, unknown>) => [...meetingKeys.all, 'list', p] as const,
   detail: (id: string) => [...meetingKeys.all, id] as const,
@@ -128,7 +128,7 @@ export function useUpdateMeeting(id: string) {
   });
 }
 
-// The list and the stats cards both derive from these children —
+// The list and the stats cards both derive from these children -
 // attendees_present and resolution_count are per-row aggregates, and the stats
 // header counts resolutions and implemented resolutions. Invalidating only the
 // detail left both stale.

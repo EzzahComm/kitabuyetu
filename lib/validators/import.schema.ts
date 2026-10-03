@@ -9,7 +9,7 @@ export const ImportQuerySchema = z.object({
   type: z.enum(IMPORT_KINDS),
 });
 
-// ── Contribution import (Phase E7 — two-phase) ────────────────────────────
+// ── Contribution import (Phase E7 - two-phase) ────────────────────────────
 
 export const CONTRIBUTION_CSV_COLUMNS = [
   'member_phone', // required, lookup key
@@ -68,15 +68,15 @@ const blankableString = (max: number) =>
  * value unchanged if it doesn't match a known shape, so downstream
  * `z.string().date()` produces a clear error on truly garbled input.
  *
- * Kenya locale convention is DD/MM/YYYY — disambiguation logic picks
+ * Kenya locale convention is DD/MM/YYYY - disambiguation logic picks
  * DD/MM in ambiguous cases (e.g. 03/04/2026 → 3 April), but switches to
  * MM/DD when the first part is unambiguously > 12.
  *
  * Accepted shapes:
  *   2026-05-26               (already ISO; passthrough)
  *   26/05/2026  26-05-2026   (DD/MM/YYYY with / - or . as separator)
- *   05/26/2026               (MM/DD/YYYY — only when day > 12 disambiguates)
- *   26/05/26                 (DD/MM/YY — 2-digit year; >=70 → 19YY else 20YY)
+ *   05/26/2026               (MM/DD/YYYY - only when day > 12 disambiguates)
+ *   26/05/26                 (DD/MM/YY - 2-digit year; >=70 → 19YY else 20YY)
  *   2026/05/26               (YYYY/MM/DD)
  */
 function normaliseDate(input: unknown): unknown {
@@ -84,7 +84,7 @@ function normaliseDate(input: unknown): unknown {
   const s = input.trim();
   if (s === '') return undefined;
 
-  // Already ISO — let strict validator confirm calendar validity.
+  // Already ISO - let strict validator confirm calendar validity.
   if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
 
   // YYYY/MM/DD (or - .): canonicalise separator.
@@ -117,7 +117,7 @@ function normaliseDate(input: unknown): unknown {
     return `${fullYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
-  // Unknown shape — return as-is so the strict validator produces a clear
+  // Unknown shape - return as-is so the strict validator produces a clear
   // error citing what was actually in the file.
   return s;
 }
@@ -146,7 +146,7 @@ export const ContributionCsvRowSchema = z.object({
 export const LOAN_CSV_COLUMNS = [
   'member_phone', // required
   'principal_amount', // required, positive
-  'interest_rate', // required, MONTHLY % (migration 148 — not annual)
+  'interest_rate', // required, MONTHLY % (migration 148 - not annual)
   'term_months', // required, int
   'disbursement_date', // required, YYYY-MM-DD
   'status', // optional: active|completed|defaulted|written_off (default active)
@@ -226,7 +226,7 @@ export const LoanCsvRowSchema = z.object({
    * been had it been created in the app. It is settable because a historical
    * book can legitimately contain loans written under older terms.
    *
-   * Blank must stay UNDEFINED rather than defaulting here — the default lives
+   * Blank must stay UNDEFINED rather than defaulting here - the default lives
    * in the policy, and hardcoding one in the schema would reintroduce exactly
    * the divergence this column exists to close.
    */
@@ -267,7 +267,7 @@ export function resolveHeaderFor(kind: ImportKind, header: string): string | nul
   }
 }
 
-// ── Member import (Phase E3 — refactored) ─────────────────────────────────
+// ── Member import (Phase E3 - refactored) ─────────────────────────────────
 
 // Canonical CSV column names. These are what the downloadable template ships
 // and what the user-facing validation errors reference. The alias map below

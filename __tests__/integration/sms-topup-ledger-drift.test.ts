@@ -5,7 +5,7 @@
  * sms_credit_ledger.amount is numeric(14,4) while billing_accounts.sms_credits
  * and sms_credits.credits_added are numeric(15,2). addSmsCredits passed an
  * unrounded amountKes/rate to all three, so the balance moved by the
- * column-rounded value while the ledger recorded the exact one — same-sign
+ * column-rounded value while the ledger recorded the exact one - same-sign
  * drift on every purchase, and a ledger entry that disagreed with its own
  * balance_after.
  *
@@ -39,7 +39,7 @@ describe('top-up leaves no ledger drift (G18)', () => {
     const { groupId, officerId } = await createTestGroup('treasurer');
     await provisionAccount(groupId);
 
-    // KES 100 at 0.90 is 111.111... — the non-terminating case that produced
+    // KES 100 at 0.90 is 111.111... - the non-terminating case that produced
     // the drift.
     await billingService.addSmsCredits({ userId: officerId, groupId, role: 'treasurer' }, 100);
 

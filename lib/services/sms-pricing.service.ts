@@ -3,11 +3,11 @@ import { withAdminDb } from '@/lib/db';
 import { DEFAULT_SMS_PROVIDER } from '@/lib/sms/provider';
 
 /**
- * SMS pricing — tiers, packages and provider cost, read from the database
+ * SMS pricing - tiers, packages and provider cost, read from the database
  * rather than from code (migration 143, spec §2/§3/§15).
  *
  * This replaces `SMS_RATES` in types/enums.ts, which LOOKED like a volume
- * pricing engine — typed `(volume: number) => number` — but was not one: all
+ * pricing engine - typed `(volume: number) => number` - but was not one: all
  * four call sites passed 0, and the rate actually charged at send time came
  * from `subscriptions.sms_rate`, a scalar frozen at purchase. The volume
  * argument never priced anything.
@@ -44,7 +44,7 @@ const FALLBACK_UNIT_PRICE = 0.9;
  *
  * Reads the single active band covering that volume. `sms_tier_no_overlap`
  * guarantees at most one active band can match, so this cannot depend on row
- * order — which is exactly the property a hand-rolled CASE ladder would lack.
+ * order - which is exactly the property a hand-rolled CASE ladder would lack.
  */
 export async function getUnitPrice(volume: number, client?: PoolClient): Promise<number> {
   const run = async (c: Pick<PoolClient, 'query'>) => {
@@ -89,8 +89,8 @@ export async function listActiveTiers(): Promise<PricingTier[]> {
 /**
  * Sellable bundles. §3 says prioritise these over custom quantities in the UI.
  *
- * NOTE (SMS-AUDIT-v3 G30): this function has NO CALLERS — no purchase surface
- * has ever offered a package to choose — and `sms_credits.package_id` has no
+ * NOTE (SMS-AUDIT-v3 G30): this function has NO CALLERS - no purchase surface
+ * has ever offered a package to choose - and `sms_credits.package_id` has no
  * writer, so nothing records which package a purchase came from either. The
  * catalogue is unwired at both ends. The revenue-by-package report built over
  * that column was retired for exactly this reason; see the retirement note in
@@ -126,7 +126,7 @@ export async function listActivePackages(): Promise<SmsPackage[]> {
 /**
  * What the provider charges us per message today.
  *
- * INTERNAL ONLY — §15 is explicit that provider cost is never exposed to
+ * INTERNAL ONLY - §15 is explicit that provider cost is never exposed to
  * customers. The table it reads has RLS enabled with no policy at all, so only
  * service_role can see it; this function must never be called from a handler
  * that serialises its result into a tenant-facing response.
@@ -157,7 +157,7 @@ export interface Margin {
 
 /**
  * Gross margin on a sell price. Returns null when no provider cost is on
- * record — reporting "unknown" is correct, and inventing a cost to show a
+ * record - reporting "unknown" is correct, and inventing a cost to show a
  * plausible number would be worse than showing nothing.
  */
 export async function marginFor(sellPrice: number, onDate?: Date): Promise<Margin | null> {

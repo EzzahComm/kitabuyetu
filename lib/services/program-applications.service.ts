@@ -6,7 +6,7 @@
  * is a decision workflow, not a simple insert.
  *
  * Acceptance activates a program_memberships row via
- * activateProgramMembership — see programs.service.ts.
+ * activateProgramMembership - see programs.service.ts.
  */
 import { DatabaseError, type PoolClient } from 'pg';
 import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
@@ -198,7 +198,7 @@ export const programApplicationsService = {
     });
   },
 
-  /** Org coordinator accepts — idempotent, activates (or confirms) a program_memberships row. */
+  /** Org coordinator accepts - idempotent, activates (or confirms) a program_memberships row. */
   async acceptApplication(
     ctx: TenantContext,
     id: string,

@@ -5,7 +5,7 @@ import { withAdminDb } from '@/lib/db';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/auth/my-organizations — every organization the signed-in
+ * GET /api/admin/auth/my-organizations - every organization the signed-in
  * backoffice member is currently active staff at (multi-staff organizations,
  * migration 101), for WorkspaceSwitcher. Mirrors GET /api/v1/auth/memberships'
  * role on the tenant side (the consumer group switcher).

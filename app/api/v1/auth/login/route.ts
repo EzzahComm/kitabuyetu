@@ -18,7 +18,7 @@ import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import type { LoginResponse, NeedsGroupSelection } from '@/types/api.types';
 import type { MemberRole, PlatformRole } from '@/types/enums';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md High #11 — these used to be re-parsed
+// OPTIMIZATION_CLEANUP_AUDIT.md High #11 - these used to be re-parsed
 // locally in 3 separate route files with a '15' fallback that silently
 // disagreed with lib/env.ts's validated schema default of 30. Reading from
 // the central env object removes both the duplication and the mismatch.
@@ -42,7 +42,7 @@ interface MemberRow {
 }
 
 interface GroupMembershipRow {
-  membership_id: string; // group_members.id — anchoring claim (§2.1)
+  membership_id: string; // group_members.id - anchoring claim (§2.1)
   group_id: string;
   member_id: string;
   member_code: string;
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const isEmail = input.identifier.includes('@');
     const lookupKey = isEmail ? input.identifier.trim().toLowerCase() : normalizePhone(input.identifier);
 
-    // Lockout key is the lookup key — pivots automatically if the user switches
+    // Lockout key is the lookup key - pivots automatically if the user switches
     // between phone and email between attempts.
     if (await isAccountLocked(lookupKey)) {
       return errorResponse(
@@ -152,7 +152,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (memberships.length === 0) {
       // Credentials are correct but the member has no usable group context
       // (all memberships rejected/suspended, or all groups suspended/archived).
-      // Tell the user to contact a group admin — don't enumerate which group.
+      // Tell the user to contact a group admin - don't enumerate which group.
       return errorResponse(
         'Your account has no active group memberships. Contact your group admin.',
         'NO_ACTIVE_GROUP',
@@ -175,7 +175,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
       }
     } else {
-      // Multi-group user without a chosen code — credentials are valid, but
+      // Multi-group user without a chosen code - credentials are valid, but
       // we need them to pick. Don't issue tokens yet; the client re-submits
       // the form with `groupCode` populated.
       await clearLoginAttempts(lookupKey); // they DID auth successfully
@@ -194,7 +194,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     await clearLoginAttempts(lookupKey);
 
-    // Update last_login_at (best effort — failure here doesn't block login)
+    // Update last_login_at (best effort - failure here doesn't block login)
     void withAdminDb((client) =>
       client.query('UPDATE members SET last_login_at = NOW() WHERE id = $1', [member.id]),
     ).catch(() => {});
@@ -227,7 +227,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       client.query(
         // make_interval(secs => N) returns INTERVAL 'N seconds'. Cleaner than
         // the previous `$3::interval * INTERVAL '1 second'` which evaluated to
-        // `interval * interval` (an invalid operator in Postgres) — that bug
+        // `interval * interval` (an invalid operator in Postgres) - that bug
         // existed in the original code too but only surfaced after the data
         // wipe forced the first cold login of the session.
         // lineage_id: a fresh login starts a new rotation lineage (§15.3);

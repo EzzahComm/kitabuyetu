@@ -5,7 +5,7 @@
  * the product. Before this the only enforcement anywhere was
  * assertFeatureAccess on the two import routes plus reserve_sms_credits' own
  * check, so an unpaid group kept full access to contributions, loans and
- * accounting — "no free plan" meant nothing in practice.
+ * accounting - "no free plan" meant nothing in practice.
  *
  * THE CARVE-OUTS ARE THE POINT. A lock that also blocks paying is an outage,
  * not a business model: a locked group must still reach sign-in, the plan
@@ -101,7 +101,7 @@ describe('paid-subscription lock', () => {
 
     // Losing entitlement is NOT instant, by design: a positive is cached for
     // up to 60s, so the group keeps working until it lapses. That tradeoff is
-    // deliberate — staleness costs at most a minute of access for a group that
+    // deliberate - staleness costs at most a minute of access for a group that
     // just stopped paying, whereas caching negatives would leave a group that
     // just PAID locked out. Clearing here asserts the post-expiry behaviour
     // rather than waiting out the TTL.
@@ -133,7 +133,7 @@ describe('paid-subscription lock', () => {
     // gate asked "is this group paying for anything", not "is it paying for
     // kitabu_yetu". That was right while Chama Reminder was only ever an add-on
     // to a real Kitabu Yetu group, and became wrong the moment a group could
-    // register for Chama Reminder alone — register_group gives such a group no
+    // register for Chama Reminder alone - register_group gives such a group no
     // chart of accounts, so letting it in here does not grant it a working
     // contributions page, it just moves the failure somewhere deeper and more
     // confusing (a posting template complaining about missing account codes).

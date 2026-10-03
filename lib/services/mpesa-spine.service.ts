@@ -3,7 +3,7 @@
  * every M-Pesa flow (STK, C2B, B2C, unrouted resolution). Every state change
  * on a `payments` row appends a `payment_events` row; money-adjacent side
  * effects are announced via the transactional outbox (written in the SAME
- * transaction, so an event exists iff the change committed — ADR-17).
+ * transaction, so an event exists iff the change committed - ADR-17).
  *
  * Split out of mpesa.service.ts (OPTIMIZATION_CLEANUP_AUDIT.md High #9).
  */
@@ -154,7 +154,7 @@ export async function markSpineUnrouted(db: PoolClient, receipt: string, reason:
 
 /**
  * Emit the member-facing payment receipt event (§8 / audit M-2) for an
- * ALLOCATED payment — the SMS names the group, the Membership Number, the
+ * ALLOCATED payment - the SMS names the group, the Membership Number, the
  * product, and the updated balance, so a multi-group member always knows
  * which membership the money landed on. Product-specific enrichment:
  *
@@ -165,7 +165,7 @@ export async function markSpineUnrouted(db: PoolClient, receipt: string, reason:
  * Non-membership payments (invoices, top-ups) emit with the basic vars and
  * the template engine strips the unresolved placeholders. Must be called
  * AFTER the money transaction committed (emitBusinessEvent does its own DB
- * work and may send inline). Best-effort by design — never throws.
+ * work and may send inline). Best-effort by design - never throws.
  */
 export async function emitPaymentReceiptEvent(paymentId: string, opts?: { requireAllocated?: boolean }): Promise<void> {
   try {
@@ -230,7 +230,7 @@ export async function emitPaymentReceiptEvent(paymentId: string, opts?: { requir
     });
     if (!data) return;
 
-    // No allocation detail means this payment is not member money — a
+    // No allocation detail means this payment is not member money - a
     // subscription, an SMS top-up, an invoice. The receipt template is built
     // for member money and references membership_no / product / balance, and
     // the header above claimed "the template engine strips the unresolved
@@ -241,7 +241,7 @@ export async function emitPaymentReceiptEvent(paymentId: string, opts?: { requir
     //    Balance: KES ."
     //
     // Verified against production: 4 of the 6 payment.received messages ever
-    // sent were this shape — all 3 subscriptions and the 1 SMS top-up. Both
+    // sent were this shape - all 3 subscriptions and the 1 SMS top-up. Both
     // real contributions rendered correctly. So the failure is total for
     // non-member-money payments, not intermittent.
     //

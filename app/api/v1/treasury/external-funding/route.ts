@@ -5,13 +5,13 @@ import { withAdminDb, withDb, type TenantContext } from '@/lib/db';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/treasury/external-funding — disbursements this group has
+ * GET /api/v1/treasury/external-funding - disbursements this group has
  * received from partner organizations (grants, revolving funds, loan
  * capital…). Group-side, read-only view of the org → group money trail;
  * scoped strictly to the caller's group. The organization's wallet and
  * ledger remain invisible to groups by design.
  *
- * The tenant-sensitive read (organization_disbursements — amounts, status,
+ * The tenant-sensitive read (organization_disbursements - amounts, status,
  * references) runs through the RLS-enforced tenant pool: real Postgres
  * policy `organization_disbursements_group_select` restricts it to
  * `group_id = app_current_group_id()`, on top of the explicit WHERE below.
@@ -20,12 +20,12 @@ import { ok } from '@/lib/utils/response';
  * admin pool. This is deliberate, not an oversight: `organizations` and
  * `funding_programs` RLS policies (`organizations_select`,
  * `funding_programs_all`) only permit `is_super_admin()` or that org's own
- * `organization_coordinator` — a group officer's tenant-scoped connection
+ * `organization_coordinator` - a group officer's tenant-scoped connection
  * cannot read either table at all. The original query INNER JOINed
  * `organizations`, so running it verbatim on the tenant pool would silently
  * return zero rows for every real group officer. The lookup below is safe
  * precisely because it is keyed only off IDs already resolved from the
- * RLS-scoped disbursement rows — never off caller-supplied input — so it
+ * RLS-scoped disbursement rows - never off caller-supplied input - so it
  * exposes nothing beyond the name of an organization/program this group's
  * own (already access-checked) disbursement history references.
  */
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       };
     });
 
-    // Enrich with organization/program display names — see note above on
+    // Enrich with organization/program display names - see note above on
     // why this runs on the admin pool, keyed only by already-scoped IDs.
     const orgIds = [...new Set(items.map((r) => r.organization_id))];
     const programIds = [...new Set(items.map((r) => r.funding_program_id).filter((id): id is string => !!id))];

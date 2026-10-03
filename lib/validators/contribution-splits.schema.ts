@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 /**
  * One split rule on the `group_contribution_splits` table. Exactly one of
- * `percentage` / `fixedAmount` must be set — the DB CHECK enforces it too,
+ * `percentage` / `fixedAmount` must be set - the DB CHECK enforces it too,
  * but Zod gives a friendlier error before we hit the wire.
  */
 const baseRuleShape = z.object({

@@ -4,9 +4,9 @@
  * New products add entries here and call emitActivity(); nothing else changes.
  *
  * Routing defaults (overridable per event in admin_notification_preferences):
- *   sms       — send a concise SMS to the admin phone
- *   email     — send a detailed email to the admin address
- *   aggregate — do not alert one-by-one; roll into the periodic digest
+ *   sms       - send a concise SMS to the admin phone
+ *   email     - send a detailed email to the admin address
+ *   aggregate - do not alert one-by-one; roll into the periodic digest
  */
 import type { NotificationSeverity } from './notification-types';
 
@@ -115,7 +115,7 @@ export enum ActivityEventType {
   ORG_GROUP_LINK_REQUESTED = 'ORG_GROUP_LINK_REQUESTED',
   ORG_GROUP_LINK_APPROVED = 'ORG_GROUP_LINK_APPROVED',
   ORG_GROUP_LINK_REJECTED = 'ORG_GROUP_LINK_REJECTED',
-  // Programs (migration 206) — no platform-admin approval step by design, so
+  // Programs (migration 206) - no platform-admin approval step by design, so
   // these are routine visibility, not actionable alerts (see DEFS below).
   PROGRAM_APPLICATION_SUBMITTED = 'PROGRAM_APPLICATION_SUBMITTED',
   PROGRAM_APPLICATION_ACCEPTED = 'PROGRAM_APPLICATION_ACCEPTED',
@@ -312,7 +312,7 @@ const DEFS: Record<ActivityEventType, Def> = {
   [T.ORG_GROUP_LINK_REQUESTED]: ['Group-Organization Link Awaiting Approval', 'HIGH'],
   [T.ORG_GROUP_LINK_APPROVED]: ['Group-Organization Link Approved', 'INFO'],
   [T.ORG_GROUP_LINK_REJECTED]: ['Group-Organization Link Rejected', 'WARNING'],
-  // Routine, high-volume, no admin action needed — same AGG/immediate-email
+  // Routine, high-volume, no admin action needed - same AGG/immediate-email
   // split as LOAN_CREATED/LOAN_REJECTED vs LOAN_APPROVED above: the outcome
   // that actually activates a membership gets an immediate email, the
   // routine create/decline steps fold into the digest.
@@ -387,7 +387,7 @@ const DEFS: Record<ActivityEventType, Def> = {
 export function getEventDefinition(type: string): EventDefinition {
   const def = DEFS[type as ActivityEventType];
   if (!def) {
-    // Unknown types still audit and alert (WARNING) — never silently dropped.
+    // Unknown types still audit and alert (WARNING) - never silently dropped.
     return {
       title: type.replace(/_/g, ' ').toLowerCase(),
       severity: 'WARNING',

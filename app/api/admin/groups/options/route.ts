@@ -5,7 +5,7 @@ import { listGroupOptions } from '@/lib/services/admin.service';
 
 export const dynamic = 'force-dynamic';
 
-/** id + name only, for filter dropdowns/pickers — see listGroupOptions. */
+/** id + name only, for filter dropdowns/pickers - see listGroupOptions. */
 export function GET(req: NextRequest) {
   return withPlatformRole(req, ['super_admin', 'support'], async () => {
     const data = await listGroupOptions();

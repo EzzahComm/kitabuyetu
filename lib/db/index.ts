@@ -3,7 +3,7 @@ import { env } from '@/lib/env';
 import { logger } from '@/lib/logger';
 
 // Module-level singleton pools. Safe in Next.js API routes (Node.js runtime).
-// HMR in dev can create multiple instances — guard with globalThis.
+// HMR in dev can create multiple instances - guard with globalThis.
 const globalWithPool = globalThis as typeof globalThis & {
   _kyPool?: Pool;
   _kyTenantPool?: Pool;
@@ -13,7 +13,7 @@ const globalWithPool = globalThis as typeof globalThis & {
 //   • Use the Supavisor SESSION-mode pooler (aws-0-<region>.pooler.supabase.com:5432).
 //     Direct connections (db.<ref>.supabase.co:5432) are IPv6-only and unreachable
 //     from AWS Lambda's IPv4-only outbound networking.
-//   • Do NOT use transaction-mode pooler (port 6543) — it doesn't preserve
+//   • Do NOT use transaction-mode pooler (port 6543) - it doesn't preserve
 //     SET LOCAL across queries, which our RLS context relies on.
 //   • TLS verification relaxed for Supabase pooler hosts: the pooler cert chain
 //     isn't fully present in Node's default CA bundle on Lambda. The connection
@@ -22,13 +22,13 @@ const globalWithPool = globalThis as typeof globalThis & {
  * True only when the DSN's HOST is supabase.com/supabase.co or a subdomain of
  * one. Deliberately not a substring test: this decides whether to relax TLS
  * certificate verification, so `postgres://…@supabase.com.attacker.net/db` and
- * `…@evilsupabase.com/db` must NOT match — both of which a plain
+ * `…@evilsupabase.com/db` must NOT match - both of which a plain
  * `.includes('supabase.com')` accepted (CodeQL js/incomplete-url-substring-
  * sanitization, high). Real hosts (aws-0-<region>.pooler.supabase.com,
  * db.<ref>.supabase.co) still match.
  *
  * Returns false for an absent or unparseable DSN, which is the normal state
- * during `next build` — see buildPool below.
+ * during `next build` - see buildPool below.
  */
 function isSupabaseHost(dsn: string | undefined): boolean {
   if (!dsn) return false;
@@ -51,7 +51,7 @@ function buildPool(connectionString: string | undefined): Pool {
   // (NEXT_PHASE=phase-production-build) and returns raw process.env, so
   // env.DATABASE_URL is undefined whenever the build environment lacks it.
   // Next.js evaluates every route's module graph while collecting page data,
-  // and this module is imported by almost all of them — so an unguarded
+  // and this module is imported by almost all of them - so an unguarded
   // `.includes()` here threw "Cannot read properties of undefined" and failed
   // the ENTIRE build at whichever route imported lib/db first, regardless of
   // whether that route touches the database.
@@ -86,7 +86,7 @@ if (!globalWithPool._kyPool) {
   globalWithPool._kyPool = buildPool(env.DATABASE_URL);
 }
 
-// Tenant-context pool — used by withDb()/withTransaction() for real tenant
+// Tenant-context pool - used by withDb()/withTransaction() for real tenant
 // traffic. Connects as the least-privileged `app_tenant` role (no BYPASSRLS).
 // CRITICAL: TENANT_DATABASE_URL is REQUIRED in production. Falling back to the
 // admin pool silently disables RLS, creating a security vulnerability.
@@ -96,7 +96,7 @@ if (!globalWithPool._kyTenantPool) {
   // module, evaluating this module scope regardless of whether the build
   // machine holds production secrets (it deliberately doesn't). Throwing
   // here on that basis would kill the whole build at whichever route
-  // imports lib/db first — the same class of bug __tests__/unit/db/
+  // imports lib/db first - the same class of bug __tests__/unit/db/
   // pool-build-time.test.ts guards against for DATABASE_URL. Real
   // enforcement happens at cold-start in the deployed runtime, same as
   // lib/env.ts's validateEnv().
@@ -104,7 +104,7 @@ if (!globalWithPool._kyTenantPool) {
   // Also treats a Jest run as non-production: CI's Quality Gate job sets
   // NODE_ENV=production workflow-wide (so `npm run build` behaves like a
   // real production build), which the earlier `npm run test:ci` step
-  // inherits too — any unit test that imports lib/db transitively (e.g.
+  // inherits too - any unit test that imports lib/db transitively (e.g.
   // through lib/auth/middleware.ts) hit this throw despite never having
   // TENANT_DATABASE_URL configured, since no unit test needs a real
   // Postgres connection. JEST_WORKER_ID is set by Jest itself for every
@@ -126,7 +126,7 @@ if (!globalWithPool._kyTenantPool) {
     }
     // In development (or at build time), allow fallback to admin pool, but log a warning
     logger.warn(
-      '[db] TENANT_DATABASE_URL not set — using admin pool for tenant traffic. ' +
+      '[db] TENANT_DATABASE_URL not set - using admin pool for tenant traffic. ' +
         'RLS enforcement is disabled. Set TENANT_DATABASE_URL to enable RLS in development.',
     );
   }
@@ -137,7 +137,7 @@ export const pool = globalWithPool._kyPool;
 export const tenantPool = globalWithPool._kyTenantPool;
 
 // ------------------------------------------------------------------
-// Tenant context — must be set inside an explicit transaction so that
+// Tenant context - must be set inside an explicit transaction so that
 // SET LOCAL persists across all queries in the same transaction block.
 // ------------------------------------------------------------------
 export interface TenantContext {
@@ -146,7 +146,7 @@ export interface TenantContext {
    * Required, and deliberately kept required: every group-scoped service
    * relies on it being a real id. The ONE caller without a group is the
    * organization axis (withOrganizationAccess), whose coordinator holds a
-   * backoffice token carrying an organization but no group — it passes the
+   * backoffice token carrying an organization but no group - it passes the
    * empty string, which `app_current_group_id()` is already written to read
    * as "no group" (`NULLIF(current_setting(...), '')::uuid`). Organization
    * scoping is `organizationId` + the app.current_organization_id GUC, and
@@ -164,11 +164,11 @@ async function setTenantLocals(client: PoolClient, ctx: TenantContext): Promise<
   //
   // One round trip, not up to four: each set_config call still fires as part
   // of computing this single output row, so all four side effects still
-  // happen — this only removes three extra network trips per tenant
+  // happen - this only removes three extra network trips per tenant
   // transaction (measured live: 6,409 set_config calls / 2,126 BEGINs =
   // ~3 per transaction, docs/audits/optimization-2026-09).
   // organizationId is now always passed ('' when absent) rather than
-  // conditionally skipped — app_current_organization_id() already treats ''
+  // conditionally skipped - app_current_organization_id() already treats ''
   // the same as never-set (NULLIF(current_setting(...), '')::uuid), so this
   // is not a behavior change, just one fewer branch.
   await client.query(
@@ -229,7 +229,7 @@ export async function withAdminDb<T>(fn: (client: PoolClient) => Promise<T>): Pr
 }
 
 // ------------------------------------------------------------------
-// Convenience query helper — wraps a single parameterised query
+// Convenience query helper - wraps a single parameterised query
 // ------------------------------------------------------------------
 export async function query<T extends Record<string, unknown>>(
   ctx: TenantContext,

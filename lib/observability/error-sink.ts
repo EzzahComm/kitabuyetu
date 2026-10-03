@@ -4,7 +4,7 @@
  * There are 107 `logger.error` call sites and, until this, every one of them
  * reached nobody. `outbox.service.ts` calls its own line "the paging signal"
  * while nothing consumed it. A handful of deliberate conditions were wired to
- * staff email in #132/#137, but that is a curated list — this is the general
+ * staff email in #132/#137, but that is a curated list - this is the general
  * answer for the other hundred.
  *
  * ── Inert without a DSN, on purpose ──
@@ -17,7 +17,7 @@
  * All 107 call sites are server-side, and the only edge route in the app is
  * the OG image generator. @sentry/nextjs would add a next.config wrapper (a
  * build-time failure mode), a client bundle on a Hobby plan, and source-map
- * upload needing a second credential — all to cover surface this problem does
+ * upload needing a second credential - all to cover surface this problem does
  * not live on.
  *
  * ── The safety property that matters most ──
@@ -105,7 +105,7 @@ export function reportError(message: string, context: Record<string, unknown>): 
   })();
 }
 
-/** Tests only — the module holds process-lifetime state by design. */
+/** Tests only - the module holds process-lifetime state by design. */
 export function resetErrorSink(): void {
   resolved = null;
   loading = null;

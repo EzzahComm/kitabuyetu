@@ -3,7 +3,7 @@
  *
  * TextSMS returns numeric fields as JSON strings. `success: code === 200` was a
  * strict comparison against a number, so it was false for every accepted
- * message — production accumulated 112 rows marked `failed` whose failed_reason
+ * message - production accumulated 112 rows marked `failed` whose failed_reason
  * was literally "Success" and which carried a real provider message id.
  *
  * The negative cases below (string "200" must be a success) are the evidence
@@ -15,7 +15,7 @@ import { sendSingleSms, sendBulkSms } from '@/lib/services/textsms.service';
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
 
-/** A response row shaped exactly as TextSMS sends it — everything stringified. */
+/** A response row shaped exactly as TextSMS sends it - everything stringified. */
 function providerRow(overrides: Record<string, unknown> = {}) {
   return {
     'respose-code': '200',
@@ -98,7 +98,7 @@ describe('TextSMS response normalization (C2)', () => {
   /**
    * Second live occurrence of the same bug class (2026-08-10): rows were
    * again recorded 'failed' with failed_reason "Success" while carrying real
-   * provider_msg_id/network_id values — this time because only the
+   * provider_msg_id/network_id values - this time because only the
    * misspelled `'respose-code'` key was ever read. A live getdlr/ probe on
    * the same account returned a body keyed `"response-code"` (correctly
    * spelled), so both spellings must resolve. The correctly-spelled cases

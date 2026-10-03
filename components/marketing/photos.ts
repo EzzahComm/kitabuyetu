@@ -39,7 +39,7 @@ export const PHOTOS: Record<
     alt: 'Four young women laughing together around a laptop on a coffee table',
     position: '50% 45%',
   },
-  /** A young member on her phone — reminders, M-Pesa, the member portal. */
+  /** A young member on her phone - reminders, M-Pesa, the member portal. */
   memberPhone: {
     src: heroTwoImg,
     alt: 'A smiling young woman holding a smartphone',

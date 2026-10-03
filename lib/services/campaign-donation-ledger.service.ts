@@ -60,7 +60,7 @@ export async function creditCampaignDonation(db: PoolClient, in_: CampaignDonati
     db,
     in_.groupId,
     null,
-    `Changi$ha donation — ${campaignTitle}`,
+    `Changi$ha donation - ${campaignTitle}`,
     [
       { accountCode: '1001', debit: in_.amount },
       { accountCode: '4006', credit: in_.amount },

@@ -9,7 +9,7 @@
  * the door.
  *
  * The alternative to this gate was auditing every downstream path that assumes
- * a general ledger exists — unbounded, and impossible to keep true. So the
+ * a general ledger exists - unbounded, and impossible to keep true. So the
  * boundary is enforced in one place, and this file is what proves that place
  * actually holds.
  */
@@ -60,7 +60,7 @@ describe('product-scoped entitlement', () => {
 
       // PRODUCT_NOT_ENTITLED, not PAYMENT_REQUIRED. The two must never be
       // confusable: one means "pay us", the other means "you already do, just
-      // not for this" — and the client routes them to different pages.
+      // not for this" - and the client routes them to different pages.
       const body = (await res.json()) as { code: string };
       expect(body.code).toBe('PRODUCT_NOT_ENTITLED');
     });
@@ -89,7 +89,7 @@ describe('product-scoped entitlement', () => {
       const { groupId, officerId } = await createTestGroup('chairperson');
 
       expect((await statusOf.contributions(groupId, officerId)).status).toBe(200);
-      // The shared surface is shared in BOTH directions — scoping SMS to
+      // The shared surface is shared in BOTH directions - scoping SMS to
       // chama_reminder would have taken the SMS Centre away from every
       // existing Kitabu Yetu group.
       expect((await statusOf.smsUsage(groupId, officerId)).status).toBe(200);
@@ -151,7 +151,7 @@ describe('product-scoped entitlement', () => {
   });
 
   describe('the cache', () => {
-    it('never denies on stale state — buying a second product takes effect at once', async () => {
+    it('never denies on stale state - buying a second product takes effect at once', async () => {
       // THE INVARIANT THIS WHOLE DESIGN TURNS ON. The gate caches a group's
       // product SET for 60s. A naive set-cache re-breaks the exact bug the
       // old positives-only boolean cache was written to avoid: a Kitabu Yetu
@@ -161,7 +161,7 @@ describe('product-scoped entitlement', () => {
       //
       // Hence: a cached entry may only ever GRANT. Any decision that would DENY
       // re-reads the database. Note there is deliberately no
-      // __resetSubscriptionCache() below — resetting it would test nothing.
+      // __resetSubscriptionCache() below - resetting it would test nothing.
       const { groupId, officerId } = await createTestGroup('chairperson');
 
       // Warm the cache with the kitabu_yetu-only set.

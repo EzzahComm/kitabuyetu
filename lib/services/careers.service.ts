@@ -1,11 +1,11 @@
 /**
  * Job applications (Phase 12 groundwork). Platform-level, same as
- * hr_employees/newsletter_subscribers — Kitabu Yetu's own hiring pipeline,
+ * hr_employees/newsletter_subscribers - Kitabu Yetu's own hiring pipeline,
  * not a multi-tenant job board.
  *
  * Job POSTING content stays in Sanity (kitabuyetu-studio/); this only
  * tracks candidates who applied. job_slug is a soft reference to a Sanity
- * job document — see migration 199's header for why that can't be a real FK.
+ * job document - see migration 199's header for why that can't be a real FK.
  */
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { PoolClient } from 'pg';
@@ -63,7 +63,7 @@ async function logCareersAudit(
 
 /**
  * A public visitor submitting an application has no `members` row and
- * therefore no actor to attribute the audit entry to — actor_id is NULL,
+ * therefore no actor to attribute the audit entry to - actor_id is NULL,
  * same convention as any other system/anonymous-originated audit row
  * elsewhere in this codebase.
  */
@@ -73,7 +73,7 @@ export async function submitApplication(
 ): Promise<JobApplication> {
   const application = await insertApplication(data, resume);
   // After the application is saved: alerts the HR mailbox (email only; see
-  // lib/departments.ts). Best-effort — never affects the applicant.
+  // lib/departments.ts). Best-effort - never affects the applicant.
   await emitActivity({
     type: ActivityEventType.JOB_APPLICATION_SUBMITTED,
     dedupKey: `job-application:${application.id}`,
@@ -110,7 +110,7 @@ async function insertApplication(
     let application = rows[0];
 
     // Resume upload is best-effort: a Storage misconfiguration or transient
-    // failure must never block the application itself from going through —
+    // failure must never block the application itself from going through -
     // the candidate's contact info and cover note are already saved.
     if (resume) {
       try {
@@ -123,7 +123,7 @@ async function insertApplication(
         );
         application = updated[0];
       } catch {
-        // Swallowed deliberately — see comment above. The application still succeeds.
+        // Swallowed deliberately - see comment above. The application still succeeds.
       }
     }
 
@@ -165,7 +165,7 @@ export async function getApplicationById(id: string): Promise<JobApplication | n
   });
 }
 
-/** A resume's signed URL is minted fresh on every view, never stored — same discipline as report exports. */
+/** A resume's signed URL is minted fresh on every view, never stored - same discipline as report exports. */
 export async function getResumeUrl(id: string): Promise<string | null> {
   const application = await getApplicationById(id);
   if (!application?.resume_path) return null;
@@ -182,7 +182,7 @@ export async function updateApplicationStage(
     if (!existingRows.length) throw new NotFoundError('Application', id);
     const before = existingRows[0];
     if (before.stage === 'hired')
-      throw new ConflictError('This application is already hired — its stage cannot be changed further');
+      throw new ConflictError('This application is already hired - its stage cannot be changed further');
 
     const { rows } = await db.query<JobApplication>(
       `UPDATE job_applications
@@ -212,17 +212,17 @@ export async function hireApplicant(
     const before = existingRows[0];
     if (before.stage === 'hired') throw new ConflictError('This application has already been hired');
     if (before.stage === 'rejected')
-      throw new ValidationError('Cannot hire a rejected application — move it back to a live stage first');
+      throw new ValidationError('Cannot hire a rejected application - move it back to a live stage first');
 
     const [firstName, ...rest] = before.applicant_name.trim().split(/\s+/);
     const lastName = rest.join(' ') || firstName;
 
-    // createEmployeeWith (not createEmployee) — takes this transaction's
+    // createEmployeeWith (not createEmployee) - takes this transaction's
     // own client rather than opening a second, independent one, so the new
     // hr_employees row and the application's hired_employee_id link commit
     // or roll back together. A separate transaction here would let a
     // failure on the UPDATE below leave a hired employee record with no
-    // application ever marked as hired — a real inconsistency, not a
+    // application ever marked as hired - a real inconsistency, not a
     // theoretical one, since this is the one place the two tables meet.
     const employee = await createEmployeeWith(db, actorId, {
       firstName,

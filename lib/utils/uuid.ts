@@ -3,7 +3,7 @@
  *
  * Exists because a dispatch key that is persisted into a `uuid` column must
  * BE a uuid. app/api/v1/workers/sms-dispatch-chunk/route.ts previously built
- * its per-chunk key as `${jobId}:chunk:${i}` — a plain string — and handed it
+ * its per-chunk key as `${jobId}:chunk:${i}` - a plain string - and handed it
  * to sendBulkCampaign, where it lands in sms_usage_logs.correlation_id and
  * .reference_id (both `uuid`, migrations 006 and 123). Postgres rejected it
  * with 22P02 on the very first statement, so every chunked bulk send failed
@@ -31,7 +31,7 @@ export function isUuid(value: string): boolean {
  * Same (namespace, name) always yields the same uuid; different names under
  * one namespace never collide in practice (SHA-1 truncated to 128 bits).
  *
- * @param namespace a canonical UUID string — the natural choice is the id of
+ * @param namespace a canonical UUID string - the natural choice is the id of
  *                  the parent entity (e.g. the job id), which keeps every
  *                  derived key naturally scoped to its parent.
  * @param name      an arbitrary label unique within that namespace.

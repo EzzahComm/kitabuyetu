@@ -2,7 +2,7 @@
 
 /**
  * Shared state machine for both backoffice login surfaces
- * (/admin-login and /enterprise/login) — identical password → MFA →
+ * (/admin-login and /enterprise/login) - identical password → MFA →
  * org-selection flow, differing only in `surface` (which allow-list the
  * server checks, see SURFACE_ALLOWED_ROLES in
  * app/api/v1/auth/admin/login/route.ts) and where each page's own UI

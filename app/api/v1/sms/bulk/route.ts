@@ -17,7 +17,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const input = BulkSmsSchema.parse(body);
 
     // "Everyone in this group" is resolved here, against the group's own rows,
-    // using the same helper the campaign route and the scheduler use — so the
+    // using the same helper the campaign route and the scheduler use - so the
     // three paths cannot disagree about who a group's members are. The client
     // only ever sends phone numbers it was explicitly given by a human.
     const phones = input.recipientType
@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       throw new ValidationError('No recipients matched. This group has no members with a phone number on file.');
     }
 
-    // Enqueue durable dispatch — billing, opt-out filtering, log creation and
+    // Enqueue durable dispatch - billing, opt-out filtering, log creation and
     // provider calls all happen in the sms_bulk_send job. This replaces the
     // previous in-request dispatch so a large fan-out can't time out the
     // request (and can't be lost to serverless instance termination).

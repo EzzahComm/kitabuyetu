@@ -5,7 +5,7 @@ import { listMyPassbook } from '@/lib/services/member-passbook.service';
 import { MemberPassbookQuerySchema } from '@/lib/validators/member-passbook.schema';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/v1/me/passbook — the signed-in member's own paginated transaction history. */
+/** GET /api/v1/me/passbook - the signed-in member's own paginated transaction history. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const params = MemberPassbookQuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));

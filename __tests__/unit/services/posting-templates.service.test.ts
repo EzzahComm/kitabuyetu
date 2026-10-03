@@ -1,5 +1,5 @@
 /**
- * Posting templates (audit §29.9) — line building from named amounts, the
+ * Posting templates (audit §29.9) - line building from named amounts, the
  * structure lock on overrides, and the template-resolution posting path.
  */
 import { withDb, withTransaction } from '@/lib/db';
@@ -167,7 +167,7 @@ describe('postLoanDisbursementJournal', () => {
       mockClient,
       'group-1',
       'user-1',
-      'Loan disbursement — loan-1',
+      'Loan disbursement - loan-1',
       [
         { accountCode: '1101', debit: 50000 },
         { accountCode: '1001', credit: 50000 },
@@ -205,7 +205,7 @@ describe('postLoanDisbursementJournal', () => {
       mockClient,
       'group-1',
       null,
-      'Loan disbursement — loan-2',
+      'Loan disbursement - loan-2',
       [
         { accountCode: '1101', debit: 50000 },
         { accountCode: '1001', credit: 50000 },
@@ -244,7 +244,7 @@ describe('postLoanDisbursementJournal', () => {
       mockClient,
       'group-1',
       'user-1',
-      'Loan disbursement — loan-3',
+      'Loan disbursement - loan-3',
       [
         { accountCode: '1101', debit: 50000 },
         { accountCode: '1001', credit: 50000 },
@@ -267,7 +267,7 @@ describe('postLoanDisbursementJournal', () => {
     });
 
     expect(result).toBeNull();
-    // No UPDATE issued after a null journal — only the member-lookup query ran.
+    // No UPDATE issued after a null journal - only the member-lookup query ran.
     expect(mockQuery).toHaveBeenCalledTimes(1);
   });
 });
@@ -294,7 +294,7 @@ describe('postLoanRepaymentJournal', () => {
       mockClient,
       'group-1',
       'user-1',
-      'Loan repayment — loan-1 #rep-1',
+      'Loan repayment - loan-1 #rep-1',
       [
         { accountCode: '1001', debit: 4000 },
         { accountCode: '1101', credit: 4000 },
@@ -334,7 +334,7 @@ describe('postLoanRepaymentJournal', () => {
       mockClient,
       'group-1',
       null,
-      'Loan repayment — loan-2 #rep-2',
+      'Loan repayment - loan-2 #rep-2',
       [
         { accountCode: '1001', debit: 4500 },
         { accountCode: '1101', credit: 4500 },
@@ -515,7 +515,7 @@ describe('postSettlementSweepJournal', () => {
     });
 
     const lines = (postSystemJournal as jest.Mock).mock.calls[0][4];
-    expect(lines).toHaveLength(2); // principal only — the sweep still posts
+    expect(lines).toHaveLength(2); // principal only - the sweep still posts
     expect(lines).toEqual(
       expect.arrayContaining([
         { accountCode: '1002', debit: 5000 },
@@ -553,13 +553,13 @@ describe('postVendorPaymentJournal', () => {
         { accountCode: '1001', credit: 1000 },
       ]),
     );
-    // The fee line keeps the template's own account — the override is
+    // The fee line keeps the template's own account - the override is
     // scoped to the payment's expense, not the Safaricom charge.
     expect(lines).toEqual(expect.arrayContaining([{ accountCode: '5001', debit: 10 }]));
   });
 
   it('stamps the journal id onto the vendor payment row', async () => {
-    // No fee passed, so no fee-account lookup happens — the UPDATE (and its
+    // No fee passed, so no fee-account lookup happens - the UPDATE (and its
     // trailing audit log) are the only queries.
     mockQuery.mockResolvedValueOnce({ rows: [] }); // UPDATE vendor_payments
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log

@@ -5,7 +5,7 @@ import { withAdminDb } from '@/lib/db';
 import { ok, handleError } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/auth/memberships — the signed-in member's active memberships,
+ * GET /api/v1/auth/memberships - the signed-in member's active memberships,
  * for the group switcher (payment architecture §8): group, role, Membership
  * Number, and a savings-balance snapshot per membership.
  *

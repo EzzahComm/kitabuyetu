@@ -17,7 +17,7 @@ const schema = z.object({
 });
 
 /**
- * Resolve an unrouted M-Pesa payment — allocate to a member's contribution,
+ * Resolve an unrouted M-Pesa payment - allocate to a member's contribution,
  * activate a subscription, or dismiss. super_admin only: every non-dismiss
  * action creates real money movement, the same bar as updateGroupStatus above.
  */

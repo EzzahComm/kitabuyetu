@@ -4,7 +4,7 @@ import { withAuth } from '@/lib/auth/middleware';
 import { programsService } from '@/lib/services/programs.service';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/v1/groups/programs — published programs discoverable by any group, any member role can read */
+/** GET /api/v1/groups/programs - published programs discoverable by any group, any member role can read */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

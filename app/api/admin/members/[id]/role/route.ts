@@ -16,7 +16,7 @@ const schema = z.object({
  * Body: { groupId, roleId }
  *
  * Assign (or change) the member's role within a specific group. Super-admin
- * only — authorization is enforced server-side; the client cannot elevate its
+ * only - authorization is enforced server-side; the client cannot elevate its
  * own scope. The actor, previous/new role, group, org, IP and user-agent are
  * recorded in audit_logs.
  */

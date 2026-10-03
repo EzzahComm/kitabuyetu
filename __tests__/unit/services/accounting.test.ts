@@ -22,7 +22,7 @@ jest.mock('@/lib/db', () => ({
 }));
 
 // getProfitAndLoss (and the other report methods) are now wrapped in
-// cached() (docs/audits/optimization-2026-09) — passthrough so these tests
+// cached() (docs/audits/optimization-2026-09) - passthrough so these tests
 // keep exercising the real query-building logic without needing a live
 // Redis connection, matching organization-finance-donor-report.test.ts's
 // established pattern.
@@ -118,10 +118,10 @@ describe('getProfitAndLoss', () => {
     expect(result.period.to).toBe('2025-06-30');
   });
 
-  // ACCOUNTING_ARCHITECTURE_AUDIT.md §17/§19 — this query used to put its
+  // ACCOUNTING_ARCHITECTURE_AUDIT.md §17/§19 - this query used to put its
   // status/date filter inside the journal_entries LEFT JOIN's ON clause,
   // which does not exclude jl rows from the SUM (only nulls je's own
-  // columns) — silently summing every line ever posted for an account,
+  // columns) - silently summing every line ever posted for an account,
   // any status, any period. Pin both fixes so neither regresses:
   //  1. FILTER (WHERE je.status='posted' AND je.entry_date BETWEEN ...)
   //     actually gates the SUM.
@@ -144,7 +144,7 @@ describe('getProfitAndLoss', () => {
   });
 });
 
-// ACCOUNTING_ARCHITECTURE_AUDIT.md §15 — manual journal maker-checker.
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §15 - manual journal maker-checker.
 // The DB trigger (migration 081) is the authoritative backstop; these tests
 // cover the application-level check that surfaces a clean ForbiddenError
 // instead of a raw constraint violation.
@@ -180,7 +180,7 @@ describe('postJournalEntry maker-checker', () => {
 
     const result = await accountingService.postJournalEntry(ctx, 'je-1');
     expect(result.status).toBe('posted');
-    expect(mockQuery).toHaveBeenCalledTimes(3); // no threshold lookup — different actor, no check needed
+    expect(mockQuery).toHaveBeenCalledTimes(3); // no threshold lookup - different actor, no check needed
   });
 
   it('throws NotFoundError when there is no matching draft entry', async () => {
@@ -214,7 +214,7 @@ describe('voidJournalEntry maker-checker', () => {
   });
 });
 
-// ACCOUNTING_ARCHITECTURE_AUDIT.md §7/§10/§29.9 — the shared posting point
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §7/§10/§29.9 - the shared posting point
 // used to wire Shares/Welfare/Dividends/Subscriptions into the GL, since
 // each call site's correctness hinges entirely on this function.
 describe('postSystemJournal', () => {
@@ -316,15 +316,15 @@ describe('postSystemJournal', () => {
   });
 });
 
-// ACCOUNTING_ARCHITECTURE_AUDIT.md §6/§7 — the unified contribution/loan
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §6/§7 - the unified contribution/loan
 // posting functions that replaced the six independently-written raw-SQL
 // implementations across contributions.service.ts, loans.service.ts, and
 // mpesa.service.ts. Highest-risk change of the audit's implementation, since
-// it touches already-working, live money-movement code — covered in detail.
+// it touches already-working, live money-movement code - covered in detail.
 describe('postContributionJournal', () => {
   it('posts 100% to the default income account when no split rules are configured', async () => {
     mockQuery
-      .mockResolvedValueOnce({ rows: [] }) // loadActiveSplitRules — none configured
+      .mockResolvedValueOnce({ rows: [] }) // loadActiveSplitRules - none configured
       .mockResolvedValueOnce({
         rows: [
           { code: '1001', id: 'acct-cash' },
@@ -409,10 +409,10 @@ describe('postContributionJournal', () => {
 });
 
 // postLoanDisbursementJournal / postLoanRepaymentJournal moved to
-// posting-templates.service.ts (§29.9 second rollout) — their tests moved
+// posting-templates.service.ts (§29.9 second rollout) - their tests moved
 // to posting-templates.service.test.ts alongside them.
 
-// ACCOUNTING_ARCHITECTURE_AUDIT.md §16 — GL-to-real-cash reconciliation.
+// ACCOUNTING_ARCHITECTURE_AUDIT.md §16 - GL-to-real-cash reconciliation.
 describe('reconcileGLCashToMpesaBalance', () => {
   const rawResponse = (working: number, utility: number) => ({
     Result: {

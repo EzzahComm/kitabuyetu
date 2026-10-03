@@ -1,18 +1,18 @@
 /**
  * Multi-chunk campaign completion tracking (closes SMS_MESSAGING_AUDIT_
- * 2026-08.md H3 — docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3
+ * 2026-08.md H3 - docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Phase 3
  * item 10), against real Postgres.
  *
  * QStash-dispatched campaigns (lib/queue/qstash.ts, lib/jobs/handlers.ts's
  * handleSmsBulkSend) call sendBulkCampaign once PER CHUNK, each an
  * independent invocation carrying the campaign's TRUE total via
- * totalRecipientCount — not each chunk's own slice size. Before this,
+ * totalRecipientCount - not each chunk's own slice size. Before this,
  * sendBulkCampaign's per-call `recipient_count`/`status='completed'` writes
  * assumed a single call handled the WHOLE campaign (the only shape that
- * existed pre-chunking — see sms-bulk-retry-idempotency.test.ts's H3
+ * existed pre-chunking - see sms-bulk-retry-idempotency.test.ts's H3
  * coverage of THAT invariant). This file proves the new one: a campaign
  * split across chunks stays 'sending' until every chunk has actually run,
- * and only then flips to 'completed' with the correctly aggregated totals —
+ * and only then flips to 'completed' with the correctly aggregated totals -
  * never early, never stuck.
  */
 import { smsService } from '@/lib/services/sms.service';
@@ -83,7 +83,7 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
       [groupId, officerId],
     );
 
-    // Chunk 0 of 2 — carries the TRUE total, not its own 2-recipient slice.
+    // Chunk 0 of 2 - carries the TRUE total, not its own 2-recipient slice.
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunkA));
     const first = await smsService.sendBulkCampaign({
       groupId,
@@ -100,14 +100,14 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
       `SELECT status, recipient_count, sent_count FROM sms_campaigns WHERE id=$1`,
       [campaignId],
     );
-    // The critical assertion: chunk A alone must NOT complete the campaign —
+    // The critical assertion: chunk A alone must NOT complete the campaign -
     // the pre-chunking code (unconditional status='completed' per call)
     // would have marked this done after only 2 of 3 recipients.
     expect(afterChunkA.status).toBe('sending');
     expect(afterChunkA.recipient_count).toBe(totalRecipientCount);
     expect(afterChunkA.sent_count).toBe(2);
 
-    // Chunk 1 of 2 — its own dispatchBatchId, same campaign, same true total.
+    // Chunk 1 of 2 - its own dispatchBatchId, same campaign, same true total.
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses(chunkB));
     const second = await smsService.sendBulkCampaign({
       groupId,
@@ -163,7 +163,7 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
     );
 
     // QStash retries THIS chunk (e.g. the route timed out after dispatch but
-    // before responding 2xx) — same chunk key, same phones.
+    // before responding 2xx) - same chunk key, same phones.
     const retry = await smsService.sendBulkCampaign({
       groupId,
       phones: chunkPhones,
@@ -183,7 +183,7 @@ describe('sms_bulk_send chunked-dispatch completion tracking (H3)', () => {
     );
     expect(afterRetryCredits.sms_credits).toBe(afterCredits.sms_credits);
 
-    // Still correctly 'sending', not prematurely 'completed' — only 2 of 5
+    // Still correctly 'sending', not prematurely 'completed' - only 2 of 5
     // total recipients have a terminal outcome (the retry deduped away, it
     // didn't count as a THIRD chunk's worth of progress).
     const [campaign] = await rawQuery<{ status: string; sent_count: number }>(

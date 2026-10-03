@@ -1,5 +1,5 @@
 /**
- * POST /api/v1/auth/admin/login — Step 1 of the backoffice login flow.
+ * POST /api/v1/auth/admin/login - Step 1 of the backoffice login flow.
  *
  * Validates email + password + platform role. Then branches on MFA state:
  *
@@ -16,15 +16,15 @@
  *      prompts for the current TOTP code (or a recovery code) and
  *      re-submits to /admin/login/verify.
  *
- * Tokens are never issued from this endpoint — only from /verify after
+ * Tokens are never issued from this endpoint - only from /verify after
  * the MFA step completes.
  *
  * Lockout namespace is `admin:<email>` so consumer attackers can't burn
  * an admin's lockout budget by guessing their phone. Decoy bcrypt
  * compare prevents email enumeration.
  *
- * Shared by two frontend surfaces — /admin-login (platform staff) and
- * /enterprise/login (organization staff) — distinguished by `input.surface`
+ * Shared by two frontend surfaces - /admin-login (platform staff) and
+ * /enterprise/login (organization staff) - distinguished by `input.surface`
  * and enforced via SURFACE_ALLOWED_ROLES. One MFA/token pipeline either way;
  * only the pre-check of which platform_role is allowed on which page differs.
  */
@@ -41,7 +41,7 @@ import { AdminLoginSchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import type { AdminLoginEnrollmentChallenge, AdminLoginMfaChallenge, AdminLoginResult } from '@/types/api.types';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
+// OPTIMIZATION_CLEANUP_AUDIT.md High #11 - see app/api/v1/auth/login/route.ts's
 // identical comment; this used to disagree with the validated schema default.
 const MAX_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
 const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
@@ -52,7 +52,7 @@ const PLATFORM_ROLES = ['super_admin', 'support', 'organization_coordinator'] as
 type AdminPlatformRole = (typeof PLATFORM_ROLES)[number];
 
 // Two login surfaces, one shared MFA/token pipeline (see route doc comment
-// above). super_admin is allowed on both — it's the platform god-role and
+// above). super_admin is allowed on both - it's the platform god-role and
 // needs access to both /admin (backoffice) and /enterprise (as an override).
 // organization_coordinator is /enterprise/login-only; support is
 // /admin-login-only.
@@ -111,12 +111,12 @@ export async function POST(req: NextRequest): Promise<Response> {
         return { kind: 'invalid' as const };
       }
 
-      // Right password, real staff account — just the wrong surface
+      // Right password, real staff account - just the wrong surface
       // (e.g. an organization_coordinator hitting /admin-login). Distinct
       // from 'invalid': the password already proved account ownership, so
       // a clearer message here doesn't create a new enumeration primitive
       // (nothing is revealed without already knowing the password), and
-      // it's the whole point of having two surfaces — send them to the
+      // it's the whole point of having two surfaces - send them to the
       // right one instead of a confusing false "wrong password".
       if (!SURFACE_ALLOWED_ROLES[input.surface].includes(member.platform_role as AdminPlatformRole)) {
         return { kind: 'wrongSurface' as const };
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     if (result.kind === 'wrongSurface') {
-      // Not a guessing attempt — don't burn lockout budget on it.
+      // Not a guessing attempt - don't burn lockout budget on it.
       const otherPage = input.surface === 'organization' ? '/admin-login' : '/enterprise/login';
       return errorResponse(
         `This account isn't valid on this sign-in page. Try signing in at ${otherPage}.`,

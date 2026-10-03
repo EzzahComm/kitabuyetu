@@ -8,7 +8,7 @@ import { env } from '@/lib/env';
 let _adapter: IEmailAdapter | null = null;
 
 // sendgrid/ses/mailgun adapters existed but were never selected in
-// production (EMAIL_PROVIDER has only ever been 'resend' or 'smtp' — see
+// production (EMAIL_PROVIDER has only ever been 'resend' or 'smtp' - see
 // docs/audits/optimization-2026-09/raw/dead-weight-and-structural-
 // duplication-a.json); deleted rather than carried. Restore from git if
 // multi-provider support is wanted again.

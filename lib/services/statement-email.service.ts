@@ -1,7 +1,7 @@
 /**
- * Per-member account statements — closes ACCOUNTING_ARCHITECTURE_AUDIT.md §12
+ * Per-member account statements - closes ACCOUNTING_ARCHITECTURE_AUDIT.md §12
  * ("A React-email template (emails/account-statement.tsx) defines a full
- * statement layout but is referenced nowhere outside its own file — designed,
+ * statement layout but is referenced nowhere outside its own file - designed,
  * never wired"). Renders that template with real savings/shares/loan/activity
  * data and sends it through the existing sendReactEmail pipeline, honoring
  * the same 'monthly_statement' email_preferences category the template's own
@@ -90,7 +90,7 @@ export async function sendMemberStatements(
     };
     const result = await sendReactEmail({
       to: m.email,
-      subject: `Your ${period} statement — ${m.group_name}`,
+      subject: `Your ${period} statement - ${m.group_name}`,
       element: createElement(AccountStatement, {
         memberName: m.full_name,
         groupName: m.group_name,
@@ -117,7 +117,7 @@ export async function sendMemberStatements(
   return { sent, skipped };
 }
 
-/** Fans out `sendMemberStatements` to every active group — the monthly cron entry point. */
+/** Fans out `sendMemberStatements` to every active group - the monthly cron entry point. */
 export async function sendAllGroupMemberStatements(): Promise<{ groups: number; sent: number; skipped: number }> {
   const { rows: groups } = await withAdminDb((db) =>
     db.query<{ id: string }>(`SELECT id FROM groups WHERE is_active = true`, []),

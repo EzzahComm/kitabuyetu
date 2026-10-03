@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
  *
  * super_admin alone: this sets what every customer pays and discloses what the
  * provider charges us, neither of which support staff need. Every mutation
- * writes an audit_logs row — §12 requires the changes be auditable, and a
+ * writes an audit_logs row - §12 requires the changes be auditable, and a
  * price change with no record of who made it is exactly the kind you want
  * traceable.
  */

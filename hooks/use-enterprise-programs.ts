@@ -1,10 +1,10 @@
 'use client';
 
 /**
- * Org-coordinator side of the Programs feature (migration 206) — an
+ * Org-coordinator side of the Programs feature (migration 206) - an
  * organization publishes a program, groups apply or are invited. Distinct
  * from the Funding Portal's `organizationApi` program hooks (funding_programs,
- * a budget/disbursement concept) — see feedback_funding_programs_is_money_only.
+ * a budget/disbursement concept) - see feedback_funding_programs_is_money_only.
  */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/client';

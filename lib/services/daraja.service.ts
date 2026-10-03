@@ -60,7 +60,7 @@ const CALLBACK_BASE = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/,
 /**
  * DO NOT "correct" this spelling to "Kitabu Yetu".
  *
- * This is not brand copy — it is the B2C initiator username REGISTERED WITH
+ * This is not brand copy - it is the B2C initiator username REGISTERED WITH
  * SAFARICOM, and Daraja matches it exactly against the credential the
  * SecurityCredential was issued for. Changing it fails every disbursement
  * with an initiator/credential mismatch.
@@ -70,7 +70,7 @@ const CALLBACK_BASE = (process.env.MPESA_CALLBACK_BASE_URL ?? '').replace(/\/$/,
 const INITIATOR_NAME = process.env.MPESA_B2C_INITIATOR_NAME ?? 'KitabuYetu';
 
 // Safaricom's published production egress IPs for Daraja callbacks.
-// Single source of truth — every callback route validates against this set
+// Single source of truth - every callback route validates against this set
 // via isSafaricomIp(). Override with MPESA_ALLOWED_IPS (comma-separated) when
 // Safaricom rotates the range.
 // Source: https://developer.safaricom.co.ke/docs#ip-addresses (merged with the
@@ -125,7 +125,7 @@ const ALLOWED_IPS = new Set<string>(
 // callbacks from anywhere. Deliberately NOT thrown at module scope: this
 // file is imported by every route that transitively references
 // daraja.service.ts, and Next.js evaluates each route's module graph during
-// the build's page-data collection — a module-scope throw here fails the
+// the build's page-data collection - a module-scope throw here fails the
 // ENTIRE build (every route, not just the M-Pesa ones) whenever
 // MPESA_ENV=production is set with MPESA_ALLOWED_IPS present but empty,
 // rather than just refusing the specific check that would actually be
@@ -154,13 +154,13 @@ interface TokenEntry {
   expiresAt: number;
 }
 
-// In-process memory cache — avoids Redis round-trip for same-instance hits
+// In-process memory cache - avoids Redis round-trip for same-instance hits
 let _memToken: TokenEntry | null = null;
 
 const REDIS_TOKEN_KEY = 'daraja:token'; // actual key: ky:daraja:token (prefix added by ioredis)
 
 export async function getAccessToken(): Promise<string> {
-  // 1. In-memory (fastest — zero network)
+  // 1. In-memory (fastest - zero network)
   if (_memToken && Date.now() < _memToken.expiresAt - 30_000) {
     return _memToken.token;
   }
@@ -238,7 +238,7 @@ export function assertSafaricomIp(ip: string): void {
   // only app-initiated rows, and reconciliation as source of truth. We log the
   // IP so the allow-list can be re-tightened with observed values later.
   if (!isSafaricomIp(ip)) {
-    logger.warn('[daraja] callback IP not in Safaricom allow-list — processing anyway', { ip });
+    logger.warn('[daraja] callback IP not in Safaricom allow-list - processing anyway', { ip });
   }
 }
 
@@ -256,13 +256,13 @@ function originatorId(): string {
 // unmodified, so this survives the round trip.
 //
 // Originally B2C/B2B only. Phase 4 extended the same mechanism to STK Push,
-// Reversal, Account Balance, and Transaction Status — every Daraja product
+// Reversal, Account Balance, and Transaction Status - every Daraja product
 // that takes a ResultURL/QueueTimeOutURL/CallBackURL per request.
 //
 // C2B was initially excluded: its Confirmation/Validation URLs are
 // registered ONCE via registerC2BUrls()'s registerurl call, and Safaricom's
 // registerurl API rejects any URL containing a query string OR the keyword
-// "mpesa" (see the comment on getC2BUrls() below) — there is no query string
+// "mpesa" (see the comment on getC2BUrls() below) - there is no query string
 // for a `?token=` to ride on there. Phase 4 (later pass) closed that gap too:
 // the same token now rides as a PATH SEGMENT instead
 // (`/c2b-confirm/<token>`), which violates neither constraint. See
@@ -272,7 +272,7 @@ const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 // Deliberately NOT thrown at module scope: this file is imported by every
 // route that transitively references daraja.service.ts, and Next.js
 // evaluates each route's module graph during the build's page-data
-// collection — a module-scope throw here fails the ENTIRE build (every
+// collection - a module-scope throw here fails the ENTIRE build (every
 // route, not just the M-Pesa ones) whenever MPESA_ENV=production is set
 // without MPESA_CALLBACK_TOKEN, rather than just refusing the specific
 // operation that would be insecure. Called instead at the top of
@@ -283,7 +283,7 @@ const CALLBACK_TOKEN = process.env.MPESA_CALLBACK_TOKEN ?? '';
 function assertCallbackTokenConfigured(): void {
   if (!IS_SANDBOX && !CALLBACK_TOKEN) {
     throw new Error(
-      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset — B2C/B2B/STK/' +
+      '[daraja] MPESA_ENV=production but MPESA_CALLBACK_TOKEN is unset - B2C/B2B/STK/' +
         'Reversal/Balance/Transaction-Status/C2B Result/Timeout/CallBack/Confirmation/' +
         'Validation URLs would carry no authenticity token.',
     );
@@ -295,16 +295,16 @@ function withCallbackToken(url: string): string {
   if (!CALLBACK_TOKEN) return url; // sandbox without a token configured
   // B2C/B2B ResultURL/QueueTimeOutURL already carry `?type=...`, so `&` was
   // correct there. STK's CallBackURL has no query string at all (single URL,
-  // no result/timeout split), so it needs `?` instead — detect rather than
+  // no result/timeout split), so it needs `?` instead - detect rather than
   // assume, so this one helper stays correct for every caller.
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}token=${encodeURIComponent(CALLBACK_TOKEN)}`;
 }
 
 /**
- * True when `token` (from the callback request's query string, or — for C2B
- * — the `[token]` dynamic path segment) matches the configured secret.
- * Deliberately returns false — not a throw — when production is
+ * True when `token` (from the callback request's query string, or - for C2B
+ * - the `[token]` dynamic path segment) matches the configured secret.
+ * Deliberately returns false - not a throw - when production is
  * misconfigured (no MPESA_CALLBACK_TOKEN): every caller (the
  * b2c/b2b/callback(stk)/reversal/balance/transaction-status/c2b-confirm/
  * c2b-validate route handlers) acks and logs a warning either way, so it
@@ -313,8 +313,8 @@ function withCallbackToken(url: string): string {
  * wasn't set up.
  */
 export function isValidCallbackToken(token: string | null): boolean {
-  if (!IS_SANDBOX && !CALLBACK_TOKEN) return false; // production misconfiguration — never trust
-  if (!CALLBACK_TOKEN) return true; // sandbox only, no token configured — nothing to check
+  if (!IS_SANDBOX && !CALLBACK_TOKEN) return false; // production misconfiguration - never trust
+  if (!CALLBACK_TOKEN) return true; // sandbox only, no token configured - nothing to check
   if (!token) return false;
   // Constant-time: hash both sides first so differing lengths don't short-circuit.
   const a = crypto.createHash('sha256').update(token).digest();
@@ -437,13 +437,13 @@ export interface C2BRegistrationResult extends C2BUrls {
 
 /**
  * The URLs `registerC2BUrls` will submit to Safaricom, computed but NOT sent.
- * Exists so an operator can see what THIS deployment would register — e.g. to
- * catch a callback base pointed at a deployment-protected preview URL —
+ * Exists so an operator can see what THIS deployment would register - e.g. to
+ * catch a callback base pointed at a deployment-protected preview URL -
  * without spending a live Daraja call or waiting on Vercel CLI access to a
  * Secret-typed env var.
  *
  * Phase 4: the callback token now rides as a trailing PATH SEGMENT
- * (`.../c2b-confirm/<token>`), not a `?token=` query string — Safaricom's
+ * (`.../c2b-confirm/<token>`), not a `?token=` query string - Safaricom's
  * registerurl API rejects any Confirmation/Validation URL containing a query
  * string OR the keyword "mpesa", and a bare path segment violates neither
  * (the token value itself is a random secret that will never contain
@@ -455,16 +455,16 @@ export interface C2BRegistrationResult extends C2BUrls {
  *
  * This function is used BOTH to display "what would be registered"
  * (GET /api/admin/mpesa/register-c2b, rendered on the super_admin-only
- * /admin/settings page — see app/(admin)/admin/settings/page.tsx) AND to
+ * /admin/settings page - see app/(admin)/admin/settings/page.tsx) AND to
  * compute the actual URLs registerC2BUrls() submits below. That means
  * displaying it reveals the live callback secret to whoever can view that
- * admin page — consistent with the existing trust model (an admin can
+ * admin page - consistent with the existing trust model (an admin can
  * already see other secrets there), so no additional redaction is added.
  */
 export function getC2BUrls(): C2BUrls {
   assertCallbackTokenConfigured();
   // Empty only in sandbox (assertCallbackTokenConfigured throws in production
-  // otherwise) — fall back to the old no-token path rather than emit an
+  // otherwise) - fall back to the old no-token path rather than emit an
   // empty trailing path segment (`.../c2b-confirm/`).
   const tokenSegment = CALLBACK_TOKEN ? `/${encodeURIComponent(CALLBACK_TOKEN)}` : '';
   return {
@@ -483,7 +483,7 @@ export function getC2BUrls(): C2BUrls {
 /**
  * Register the C2B Confirmation/Validation URLs with Safaricom for `SHORTCODE`.
  *
- * This has no automatic caller anywhere in the app — Safaricom does not expose
+ * This has no automatic caller anywhere in the app - Safaricom does not expose
  * a "what's currently registered" read, and registration can silently drift
  * from what the app expects (env var changed, shortcode changed, or the
  * registration was simply never (re-)done after a config change). Call this
@@ -576,7 +576,7 @@ export interface AirtimeResponse {
 /**
  * Buys airtime for a recipient, funded from the Airtime Purchase sub-account.
  *
- * Daraja's airtime product is provisioned per-shortcode — the CommandID and
+ * Daraja's airtime product is provisioned per-shortcode - the CommandID and
  * request path differ between organisations and aren't part of the standard
  * public sandbox. To avoid shipping a guessed endpoint that fails on the first
  * production call, the wrapper stays inert until the operator supplies
@@ -679,7 +679,7 @@ export async function initiateB2B(input: B2BInput): Promise<B2BResponse> {
     Remarks: input.remarks.slice(0, 100),
     // Bank Accounts / Settlements / Vendor Payments rebuild, Phase 0: B2B
     // callbacks carried no authenticity token at all (unlike B2C, see the
-    // comment above CALLBACK_TOKEN) until now — closed before building
+    // comment above CALLBACK_TOKEN) until now - closed before building
     // settlement sweeps on top of B2B. Pre-deploy check required: confirm
     // zero mpesa_b2b_transactions rows with status='initiated' before this
     // ships, since any B2B call already dispatched before deploy has no
@@ -977,13 +977,13 @@ export async function reconcileBillManagerPayment(input: BillManagerReconcileInp
 // ─── Dynamic QR Code ─────────────────────────────────────────────────────────
 
 /**
- * TrxCode — transaction type the QR encodes.
- *   BG — Buy Goods (Till)
- *   PB — PayBill (account-style)
- *   WA — Withdraw at Agent
- *   SB — Send to Business (paybill, no account)
- *   SM — Send to Mobile (M-Pesa to M-Pesa)
- *   SS — Send to Sortcode (bank-to-M-Pesa)
+ * TrxCode - transaction type the QR encodes.
+ *   BG - Buy Goods (Till)
+ *   PB - PayBill (account-style)
+ *   WA - Withdraw at Agent
+ *   SB - Send to Business (paybill, no account)
+ *   SM - Send to Mobile (M-Pesa to M-Pesa)
+ *   SS - Send to Sortcode (bank-to-M-Pesa)
  */
 export type QrTransactionCode = 'BG' | 'PB' | 'WA' | 'SB' | 'SM' | 'SS';
 

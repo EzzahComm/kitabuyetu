@@ -6,7 +6,7 @@ import { billingService } from '@/lib/services/billing.service';
 import { ok, errorResponse } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/import — list this group's import jobs (most recent first).
+ * GET /api/v1/import - list this group's import jobs (most recent first).
  * Optional ?kind=members and ?limit / ?offset.
  */
 export async function GET(req: NextRequest): Promise<Response> {
@@ -23,7 +23,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 }
 
 /**
- * POST /api/v1/import?type=contributions — legacy single-shot contribution
+ * POST /api/v1/import?type=contributions - legacy single-shot contribution
  * upload. Kept for backward compatibility. New member imports go through
  * /api/v1/import/preview → /[jobId]/commit so the user sees a preview
  * before changes hit the DB.

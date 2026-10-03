@@ -2,12 +2,12 @@
  * Shared dual-control primitive for the Bank Accounts / Settlements / Vendor
  * Payments feature, extended to Changi$ha withdrawals. `settlement_approvals`
  * is one table covering all four subject types (bank_account, settlement,
- * vendor_payment, campaign_withdrawal) — this module is the single place
+ * vendor_payment, campaign_withdrawal) - this module is the single place
  * that writes to it, so the self-approval guard and the decision-recording
  * shape exist once, not four times.
  *
  * MVP dual control is exactly one second-officer decision (maker ≠ checker),
- * not amount-tiered N-of-M — the schema (settlement_approvals allows many
+ * not amount-tiered N-of-M - the schema (settlement_approvals allows many
  * decisions per subject) supports that later without a rewrite; each
  * feature's own approve()/reject() claims the subject row via
  * `WHERE status = 'pending_approval'` in the same transaction as the call
@@ -15,7 +15,7 @@
  * that claim, not here.
  *
  * Self-approval guard copied verbatim from disbursements.service.ts's
- * approve() — the one existing precedent for this exact rule in this
+ * approve() - the one existing precedent for this exact rule in this
  * codebase.
  */
 import type { PoolClient } from 'pg';
@@ -28,7 +28,7 @@ export type SettlementDecision = 'approved' | 'rejected';
 export interface RecordApprovalInput {
   subjectType: SettlementSubjectType;
   subjectId: string;
-  /** The row's own creator/requester — checked against ctx.userId. */
+  /** The row's own creator/requester - checked against ctx.userId. */
   initiatedBy: string;
   decision: SettlementDecision;
   reason?: string;

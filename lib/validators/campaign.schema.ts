@@ -7,11 +7,11 @@ export const CreateCampaignSchema = z
     story: z.string().min(20).max(10_000),
     targetAmount: z.number().positive().max(50_000_000),
     beneficiaryName: z.string().max(120).optional(),
-    // beneficiary_name is published on the campaign's public, indexed page —
+    // beneficiary_name is published on the campaign's public, indexed page -
     // naming a real person needs an explicit confirmation they agreed to
     // that, not a silent default. Required only when a name is actually set.
     beneficiaryConsentConfirmed: z.boolean().optional(),
-    /** Where a withdrawal pays out to — required before submitForReview, not
+    /** Where a withdrawal pays out to - required before submitForReview, not
      *  at creation (a draft campaign legitimately has none yet). */
     payoutPhone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number').optional(),
     coverImageUrl: z.string().url().optional(),
@@ -29,12 +29,12 @@ export const CreateCampaignSchema = z
 
 const SHORTCODE_RE = /^\d{5,7}$/;
 // Paybill account numbers are institution-issued (patient/admission/invoice
-// numbers), so allow the separators they use — but never truncate: a cut-off
+// numbers), so allow the separators they use - but never truncate: a cut-off
 // account reference credits the payment to the wrong account at the business.
 const PAYBILL_ACCOUNT_RE = /^[A-Za-z0-9 ._/#-]+$/;
 const payeeName = z.string().trim().min(2, 'Enter the business name').max(120);
 
-/** Setting/changing the payout destination — kept separate from
+/** Setting/changing the payout destination - kept separate from
  *  CreateCampaignSchema so the campaigns.service.ts guard that locks it once
  *  a campaign leaves 'draft' has one clear call site to gate. Mirrors
  *  lib/campaigns/payout-destination.ts's PayoutDestination and the CHECKs in
@@ -46,7 +46,7 @@ export const SetPayoutDestinationSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     method: z.literal('paybill'),
-    shortcode: z.string().trim().regex(SHORTCODE_RE, 'A paybill number is 5–7 digits'),
+    shortcode: z.string().trim().regex(SHORTCODE_RE, 'A paybill number is 5-7 digits'),
     account: z
       .string()
       .trim()
@@ -57,7 +57,7 @@ export const SetPayoutDestinationSchema = z.discriminatedUnion('method', [
   }),
   z.object({
     method: z.literal('till'),
-    shortcode: z.string().trim().regex(SHORTCODE_RE, 'A till number is 5–7 digits'),
+    shortcode: z.string().trim().regex(SHORTCODE_RE, 'A till number is 5-7 digits'),
     payeeName,
   }),
 ]);
@@ -66,7 +66,7 @@ export const RejectCampaignSchema = z.object({
   reason: z.string().min(3).max(500),
 });
 
-/** Server-side cap regardless of what the client sends — see
+/** Server-side cap regardless of what the client sends - see
  *  app/api/v1/campaigns/[id]/donate/route.ts's own note on why a public,
  *  unauthenticated endpoint that can trigger a real STK push needs one. */
 export const MAX_DONATION_AMOUNT = 250_000;
@@ -80,7 +80,7 @@ export const DonateSchema = z.object({
 });
 
 /**
- * Public, self-serve campaign creation — register_campaign() creates a new
+ * Public, self-serve campaign creation - register_campaign() creates a new
  * group (the caller becomes its sole chairperson) and the campaign together,
  * already submitted for review. Combines CreateCampaignSchema's campaign
  * fields with the creator's own identity (mirrors RegisterOrganizationSchema)

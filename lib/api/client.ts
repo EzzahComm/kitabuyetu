@@ -8,7 +8,7 @@ const STORAGE_KEY = 'ky_auth'; // mirrors lib/auth/context.tsx
 
 // Read the access token directly from localStorage on every request. This
 // avoids a closure/timing race we used to have where pages would call
-// `configureApiClient({ getToken: () => accessToken })` inside a useEffect —
+// `configureApiClient({ getToken: () => accessToken })` inside a useEffect -
 // React runs child effects BEFORE parent effects, so the first API call from
 // a dashboard child fired with the stale `getToken` from the previous (login)
 // page and shipped no Authorization header → 401 → bounce back to /login.
@@ -47,7 +47,7 @@ export function configureApiClient(opts: {
   getToken?: () => string | null;
   onUnauthorized: () => void;
   /**
-   * Called on a 402 — the group cannot reach this route on what it pays for.
+   * Called on a 402 - the group cannot reach this route on what it pays for.
    * Optional so the admin/auth shells, which have no billing page to send
    * anyone to, can skip it and let the error surface normally.
    *
@@ -125,7 +125,7 @@ async function request<T>(
   const json = (await res.json()) as ApiResponse<T>;
 
   if (!json.success) {
-    // 402 — the group cannot reach this on what it pays for, either because it
+    // 402 - the group cannot reach this on what it pays for, either because it
     // has no subscription at all or because this route belongs to a product it
     // did not buy. Send the shell to the right billing page rather than letting
     // every widget render its own failure: the billing routes are deliberately
@@ -197,7 +197,7 @@ export const api = {
  * The organization API tree lives at /api/admin/organization/* because an
  * organization coordinator holds a backoffice token (see
  * withOrganizationAccess). Routed through this shared `request` rather than a
- * bespoke fetch so org calls keep the 401/402 handling — a hand-rolled
+ * bespoke fetch so org calls keep the 401/402 handling - a hand-rolled
  * fetch would silently lose the session-expiry redirect.
  */
 export const adminApi = {

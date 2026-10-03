@@ -4,7 +4,7 @@ import { SITE_URL } from '@/components/marketing/page-metadata';
 /**
  * Keeps crawlers on the marketing surface.
  *
- * The disallow list is every authenticated or operational prefix in the app —
+ * The disallow list is every authenticated or operational prefix in the app -
  * portals, the API, and the backoffice. None of it is reachable without a
  * session anyway, but a crawler burning its budget on redirect chains to
  * /login is wasted, and /admin should not be advertised at all.
@@ -20,7 +20,7 @@ export default function robots(): MetadataRoute.Robots {
         '/admin-login',
         '/dashboard',
         '/me',
-        // Exact path + subtree, not a bare '/enterprise' prefix — that would
+        // Exact path + subtree, not a bare '/enterprise' prefix - that would
         // also match /enterprise-solutions, the public marketing page for
         // this same product, which crawlers should see.
         '/enterprise$',

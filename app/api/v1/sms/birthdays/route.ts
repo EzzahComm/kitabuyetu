@@ -8,14 +8,14 @@ import { ok } from '@/lib/utils/response';
  * Birthday automation, read-only.
  *
  * Sending shipped in Phase 1 as a global daily job (handleSmsBirthdayReminders)
- * with no surface anywhere in the product to see it — a group could have the
+ * with no surface anywhere in the product to see it - a group could have the
  * automation on and never know whether a message went out. This adds the view,
  * and no sending logic whatsoever.
  *
  * Two halves, deliberately from two different sources:
- *   upcoming — who has a birthday soon, from members.date_of_birth. Forward
+ *   upcoming - who has a birthday soon, from members.date_of_birth. Forward
  *              looking; nothing has been sent for these yet.
- *   history  — what was actually dispatched, from reminder_dispatch_log. That
+ *   history  - what was actually dispatched, from reminder_dispatch_log. That
  *              table is the job's own dedup ledger, so it is the truth about
  *              what happened rather than a reconstruction.
  */
@@ -77,7 +77,7 @@ export async function GET(req: NextRequest): Promise<Response> {
           [auth.groupId, UPCOMING_DAYS],
         ),
         db.query(
-          // reference_id is the MEMBERSHIP row (gm.id), not the member — see
+          // reference_id is the MEMBERSHIP row (gm.id), not the member - see
           // handleSmsBirthdayReminders for why. Joining on m.id here would
           // return nothing.
           `SELECT rdl.id,

@@ -6,8 +6,8 @@ import { RequestGroupLinkSchema } from '@/lib/validators/organization.schema';
 import { ok, created, handleError } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/organization/group-links — this organization's own links, every status.
- * POST /api/v1/organization/group-links — request a link to a group by its group code.
+ * GET /api/v1/organization/group-links - this organization's own links, every status.
+ * POST /api/v1/organization/group-links - request a link to a group by its group code.
  */
 
 export async function GET(req: NextRequest): Promise<Response> {

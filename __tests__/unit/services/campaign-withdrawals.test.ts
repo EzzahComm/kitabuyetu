@@ -1,5 +1,5 @@
 /**
- * Changi$ha campaign withdrawals — same money-safety properties as the
+ * Changi$ha campaign withdrawals - same money-safety properties as the
  * settlements/vendor-payments family (__tests__/unit/services/settlements-vendor-payments.test.ts):
  * idempotency replay, reservation-before-approval, and reservation release
  * on rejection. Plus the two checks unique to this flow: the campaign's own
@@ -61,7 +61,7 @@ describe('campaignWithdrawalsService.request', () => {
     expect(mockQuery).not.toHaveBeenCalled();
   });
 
-  it('replays the same row for a repeated idempotency key — never a second reservation', async () => {
+  it('replays the same row for a repeated idempotency key - never a second reservation', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'pending_approval' }] });
 
     const res = await campaignWithdrawalsService.request(ctx, input);
@@ -91,7 +91,7 @@ describe('campaignWithdrawalsService.request', () => {
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(NotFoundError);
   });
 
-  it('rejects when the amount exceeds the campaign’s own undrawn balance', async () => {
+  it('rejects when the amount exceeds the campaign's own undrawn balance', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '1000.00' }] })
@@ -100,7 +100,7 @@ describe('campaignWithdrawalsService.request', () => {
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
 
-    // Must fail before ever touching the group's shared cash account —
+    // Must fail before ever touching the group's shared cash account -
     // this check is campaign-scoped and should short-circuit first.
     const calls = mockQuery.mock.calls.map((c) => String(c[0]));
     expect(calls.some((q) => q.includes('lock_group_cash_account'))).toBe(false);
@@ -123,7 +123,7 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ ...activePhone, amount_raised: '10000.00' }] })
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
-      // resolvePolicy(min_withdrawal_amount) — set above the requested 1000
+      // resolvePolicy(min_withdrawal_amount) - set above the requested 1000
       .mockResolvedValueOnce({ rows: [{ value: 2000 }] });
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
@@ -136,9 +136,9 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
-      .mockResolvedValueOnce({ rows: [{ value: 90 }] }) // platform fee % — 90% of 1000 = 900
+      .mockResolvedValueOnce({ rows: [{ value: 90 }] }) // platform fee % - 90% of 1000 = 900
       .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
-      .mockResolvedValueOnce({ rows: [{ charge: '150.00' }] }); // mpesa charge — 900 + 150 > 1000
+      .mockResolvedValueOnce({ rows: [{ charge: '150.00' }] }); // mpesa charge - 900 + 150 > 1000
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
 
@@ -154,7 +154,7 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
-      .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 4% of 1000 = 40
+      .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % - 4% of 1000 = 40
       .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '33.00' }] }) // mpesa charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
@@ -221,7 +221,7 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ drawn: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
-      .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 40
+      .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % - 40
       .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '22.00' }] }) // B2B charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount

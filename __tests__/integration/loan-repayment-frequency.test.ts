@@ -38,7 +38,7 @@ describe('loan repayment frequency', () => {
 
     // Every group is auto-provisioned an 'internal_savings' funding source.
     // A disbursed loan MUST be fully attributed to one (deferred constraint
-    // trigger, migration 118) — see makeLoan().
+    // trigger, migration 118) - see makeLoan().
     const sources = await rawQuery<{ id: string }>(
       `SELECT id FROM group_funding_sources
        WHERE group_id = $1 AND source_type = 'internal_savings'`,
@@ -58,7 +58,7 @@ describe('loan repayment frequency', () => {
   }) {
     // The loan and its funding split MUST be written in one statement. A
     // disbursed loan has to be fully attributed to a funding source (deferred
-    // constraint trigger, migration 118), and that check runs at COMMIT —
+    // constraint trigger, migration 118), and that check runs at COMMIT -
     // rawQuery gives each call its own connection, so inserting the loan
     // first and the split second would fail at the end of the first call,
     // before the split existed. A data-modifying CTE keeps both in one
@@ -141,7 +141,7 @@ describe('loan repayment frequency', () => {
   });
 
   describe('invariant 2: cadence changes the split, not the price', () => {
-    // Flat interest is principal * (annual rate) * (term_months / 12) — an
+    // Flat interest is principal * (annual rate) * (term_months / 12) - an
     // expression with no frequency term in it at all.
     it.each<[Freq, number]>([
       ['weekly', 52],
@@ -196,7 +196,7 @@ describe('loan repayment frequency', () => {
       // Due dates are accumulated from the PREVIOUS due date, not from the
       // disbursement anchor: v_due_date := v_due_date + v_interval. Postgres
       // clamps 31 Jan + 1 month to 28 Feb, and every later step then adds a
-      // month to the 28th — so the schedule never recovers to month-end.
+      // month to the 28th - so the schedule never recovers to month-end.
       //
       // A loan disbursed on the 31st therefore collects on the 28th for the
       // rest of its life. For a chama that meets on the last day of the month

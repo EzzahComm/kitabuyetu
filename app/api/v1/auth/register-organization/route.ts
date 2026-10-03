@@ -25,11 +25,11 @@ interface RegisterOrganizationResult {
 }
 
 /**
- * POST /api/v1/auth/register-organization — Enterprise self-serve signup.
+ * POST /api/v1/auth/register-organization - Enterprise self-serve signup.
  *
  * True instant self-serve, by deliberate choice: organization_subscriptions'
  * own RLS policy documents "organizations never self-serve a plan... only
- * super_admin creates organizations" — this route reverses that for the
+ * super_admin creates organizations" - this route reverses that for the
  * public signup path specifically, reaching the RLS-protected tables the
  * same way register_group already does for an anonymous registrant
  * (SECURITY DEFINER RPC via withAdminDb's privileged connection, not by
@@ -37,7 +37,7 @@ interface RegisterOrganizationResult {
  *
  * Does NOT issue a session token. Organization-coordinator login is a
  * separate, mandatory-MFA backoffice flow (app/(auth)/enterprise/login) that
- * this route doesn't replicate — first-time MFA enrollment happens there.
+ * this route doesn't replicate - first-time MFA enrollment happens there.
  */
 export async function POST(req: NextRequest): Promise<Response> {
   let stage: Stage = 'validate_input';
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const passwordHash = await bcrypt.hash(input.password, BCRYPT_ROUNDS);
 
     // ── Atomic RPC: organization + coordinator account + organization_members
-    //    link. Plan assignment is deliberately a separate step below — see
+    //    link. Plan assignment is deliberately a separate step below - see
     //    this route's and the RPC's own comments.
     stage = 'call_register_organization_rpc';
     const rpcPayload = {
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       notes: 'Self-serve signup',
     });
 
-    // Administrator alert — ORGANIZATION_CREATED existed but had no real
+    // Administrator alert - ORGANIZATION_CREATED existed but had no real
     // caller yet; this is its first one.
     const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
     await emitActivity({
@@ -111,7 +111,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       organizationId: result.organization_id,
       organizationName: result.organization_name,
       planType: input.planType,
-      // No tokens — client should route the new coordinator to
+      // No tokens - client should route the new coordinator to
       // /enterprise/login to complete MFA enrollment and sign in.
       nextStep: 'enterprise_login',
     });

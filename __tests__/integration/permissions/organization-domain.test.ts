@@ -1,18 +1,18 @@
 /**
  * RBAC permission activation, Batch 7 (SIMPLIFICATION_AND_RBAC_AUDIT.md
- * Workstream 4) — the platform-role axis, now on the BACKOFFICE audience.
+ * Workstream 4) - the platform-role axis, now on the BACKOFFICE audience.
  *
  * The organization tree moved from /api/v1/organization/* to
  * /api/admin/organization/* behind `withOrganizationAccess`. The old guard was
  * built on withAuth/getAuthContext, which demands a TENANT token with a real
- * groupId — something an organization coordinator never holds, since they sign
+ * groupId - something an organization coordinator never holds, since they sign
  * in through the enterprise portal and get a backoffice token carrying an
  * organization and no group. Every organization route answered "Missing
  * authentication context" as a result.
  *
  * This file proves the flat allowlist in lib/auth/organization-permissions.ts
- * still gates the tree identically under the new context, and — the part that
- * was missing before — that a caller with NO group can actually get through.
+ * still gates the tree identically under the new context, and - the part that
+ * was missing before - that a caller with NO group can actually get through.
  */
 import { GET as profileGet } from '@/app/api/admin/organization/profile/route';
 import { GET as groupsGet } from '@/app/api/admin/organization/groups/route';
@@ -42,7 +42,7 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
     expect(res.status).toBe(403);
   });
 
-  it('organization_coordinator with organizationId set CAN reach the profile route — with NO group context at all', async () => {
+  it('organization_coordinator with organizationId set CAN reach the profile route - with NO group context at all', async () => {
     // The whole point: this caller has no groupId, and that is now fine.
     // Previously it threw UnauthorizedError('Missing authentication context').
     const res = await profileGet(
@@ -71,7 +71,7 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
     expect(res.status).toBe(200);
   });
 
-  it('a TENANT token is rejected outright — this tree is not group-scoped', async () => {
+  it('a TENANT token is rejected outright - this tree is not group-scoped', async () => {
     const res = await groupsGet(
       buildRequest('/api/admin/organization/groups', {
         headers: {
@@ -86,7 +86,7 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
     expect(res.status).toBe(403);
   });
 
-  it('group-scoped reads still work for an org caller with no group — org scoping is organizationId, not groupId', async () => {
+  it('group-scoped reads still work for an org caller with no group - org scoping is organizationId, not groupId', async () => {
     // listGroupSummaries JOINs group-scoped tables. With no group in the
     // session, app_current_group_id() resolves to NULL rather than erroring
     // (NULLIF(current_setting(...), '')::uuid), and organization scoping does

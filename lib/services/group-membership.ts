@@ -10,13 +10,13 @@
  * so the person upsert, counter allocation, and group_members insert all
  * commit/rollback atomically. The actual writes happen inside
  * public.link_member_to_group() (migration 098), a SECURITY DEFINER
- * function — person/group_member_counters were deliberately built (mig 030)
+ * function - person/group_member_counters were deliberately built (mig 030)
  * with no INSERT/UPDATE policy for any tenant role ("service-role writes
  * only"; person is genuinely cross-group, so there's no group_id to scope a
  * real policy on), and this helper is called from real tenant-context
  * requests (membersService.create(), CSV bulk import). Running the writes
  * inside a SECURITY DEFINER function keeps that original trust boundary
- * intact regardless of which role the caller's `client` connects as — see
+ * intact regardless of which role the caller's `client` connects as - see
  * docs/adr/001-bypassrls-two-role-split.md.
  */
 import type { PoolClient } from 'pg';
@@ -48,7 +48,7 @@ export interface LinkMemberInput {
 export interface LinkMemberResult {
   groupMembersId: string;
   memberCode: string;
-  /** The Membership Number (BG102534…) — allocated by the DB trigger at INSERT. */
+  /** The Membership Number (BG102534…) - allocated by the DB trigger at INSERT. */
   membershipNo: string;
   personId: string;
 }

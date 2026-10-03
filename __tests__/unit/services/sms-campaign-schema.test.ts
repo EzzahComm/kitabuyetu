@@ -15,7 +15,7 @@ describe('CampaignCreateSchema funding', () => {
     expect(parsed).toMatchObject({ fundedBy: 'organization', organizationId: orgId });
   });
 
-  it('rejects organization funding with no organizationId — the payer would be unresolvable', () => {
+  it('rejects organization funding with no organizationId - the payer would be unresolvable', () => {
     expect(() => CampaignCreateSchema.parse({ ...base, fundedBy: 'organization' })).toThrow();
   });
 

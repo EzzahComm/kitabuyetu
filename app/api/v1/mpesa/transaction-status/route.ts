@@ -1,8 +1,8 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/transaction-status          â€” Query transaction status
- * POST /api/v1/mpesa/transaction-status?type=result  â€” Safaricom callback
- * POST /api/v1/mpesa/transaction-status?type=timeout â€” Safaricom timeout
+ * POST /api/v1/mpesa/transaction-status          â€" Query transaction status
+ * POST /api/v1/mpesa/transaction-status?type=result  â€" Safaricom callback
+ * POST /api/v1/mpesa/transaction-status?type=timeout â€" Safaricom timeout
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { z } from 'zod';
@@ -31,12 +31,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ip = callerIp(req);
 
   if (type === 'result' || type === 'timeout') {
-    // Callback authenticity (Phase 4 — same mechanism as B2C/B2B): a forged
+    // Callback authenticity (Phase 4 - same mechanism as B2C/B2B): a forged
     // callback that doesn't carry the shared secret is dropped before it can
     // touch any money state. Acked (not rejected) so a prober learns nothing
     // from the response, and logged so a real misconfiguration is visible.
     if (!isValidCallbackToken(req.nextUrl.searchParams.get('token'))) {
-      logger.warn('[tx-status callback] invalid or missing token — dropped', { type, ip });
+      logger.warn('[tx-status callback] invalid or missing token - dropped', { type, ip });
       return ack();
     }
 

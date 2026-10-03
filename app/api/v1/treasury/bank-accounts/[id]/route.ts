@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 }
 
 /**
- * POST /api/v1/treasury/bank-accounts/:id — activate/reject/disable
+ * POST /api/v1/treasury/bank-accounts/:id - activate/reject/disable
  * (treasurer+). Activate/reject are maker-checker; disable is single-actor
  * (see group-bank-accounts.service.ts).
  */

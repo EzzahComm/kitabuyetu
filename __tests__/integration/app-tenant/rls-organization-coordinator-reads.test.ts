@@ -1,12 +1,12 @@
 /**
- * Migration 169 proof — an organization coordinator can read the group-scoped
+ * Migration 169 proof - an organization coordinator can read the group-scoped
  * tables their portfolio is built from, and ONLY for groups their organization
  * actively links.
  *
  * Why this suite and not the ordinary integration run: a coordinator holds no
  * group, so `app.current_group_id` is the empty-string sentinel and
  * `app_current_group_id()` returns NULL. Every pre-169 policy on these tables
- * was `group_id = app_current_group_id()`, which is NULL — not false — for every
+ * was `group_id = app_current_group_id()`, which is NULL - not false - for every
  * row, so nothing passed. Against the BYPASSRLS admin pool that filtering never
  * happens and these tests would pass for the wrong reason, which is exactly how
  * the bug reached main: the ordinary suite was 482/482 green while the
@@ -14,7 +14,7 @@
  *
  * The four tables are the ones the organization read surface actually touches
  * through withDb and that had no coordinator arm: group_members, members,
- * loan_repayments, subscriptions. `accounts` is deliberately absent — it is read
+ * loan_repayments, subscriptions. `accounts` is deliberately absent - it is read
  * only inside settleOrgDisbursement, which uses withAdminDb and so bypasses RLS.
  *
  * Each table is proved in both directions. A test that only shows the
@@ -34,13 +34,13 @@ const coordinatorCtx = (userId: string, organizationId: string): TenantContext =
   organizationId,
 });
 
-describe('migration 169 — organization coordinator reads under app_tenant', () => {
+describe('migration 169 - organization coordinator reads under app_tenant', () => {
   let orgId: string, coordinatorId: string;
   let otherOrgId: string, otherCoordinatorId: string;
   // linked: granted to orgId. unlinked: exists, never granted to anyone.
   let linkedGroupId: string, linkedOfficerId: string;
   let unlinkedGroupId: string, unlinkedOfficerId: string;
-  // revoked: granted then deactivated — is_active = false.
+  // revoked: granted then deactivated - is_active = false.
   let revokedGroupId: string;
 
   beforeAll(async () => {
@@ -72,7 +72,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       // .group_membership_id, .installment_number, .due_date, .opening_balance,
       // .principal_component, .interest_component, .total_due and
       // .closing_balance (all NOT NULL with no default, migration 003) were
-      // missing from this insert — it 500'd first on loan_repayments.member_id,
+      // missing from this insert - it 500'd first on loan_repayments.member_id,
       // then (once that was fixed) on loan_funding_splits.group_id, before RLS
       // was ever reached either time. The values below are arbitrary but
       // satisfy chk_loan_repayments_total_due/chk_loan_repayments_amount_paid
@@ -112,7 +112,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     await resetDatabase();
   });
 
-  it('is actually connected as app_tenant (no BYPASSRLS) — not the admin pool', async () => {
+  it('is actually connected as app_tenant (no BYPASSRLS) - not the admin pool', async () => {
     const [role] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ rolname: string; rolbypassrls: boolean; rolsuper: boolean }>(
         'SELECT rolname, rolbypassrls, rolsuper FROM pg_roles WHERE rolname = current_user',
@@ -138,7 +138,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     expect(ctx.role).toBe('organization_coordinator');
   });
 
-  // ── group_members — the table that broke PRs #151, #154 and #155 ──────────
+  // ── group_members - the table that broke PRs #151, #154 and #155 ──────────
   it('sees group_members of a linked group, and no others, on a WHERE-less SELECT', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members');
@@ -157,7 +157,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
         const { rows } = await c.query('SELECT id FROM group_members');
         return rows;
       });
-      // The arm must not filter on gm.is_active, or "inactive members" reads 0 —
+      // The arm must not filter on gm.is_active, or "inactive members" reads 0 -
       // which is the exact assertion portfolio-health.test.ts failed on.
       expect(rows.length).toBeGreaterThan(0);
     } finally {
@@ -184,7 +184,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     expect(rows).toHaveLength(0);
   });
 
-  // ── members — reached through the membership, no group_id of its own ───────
+  // ── members - reached through the membership, no group_id of its own ───────
   it('sees members of linked groups only', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ id: string }>('SELECT id FROM members');
@@ -195,7 +195,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     expect(ids).not.toContain(unlinkedOfficerId);
   });
 
-  // ── loan_repayments — getDashboard's loans_repaid read 0 without this ──────
+  // ── loan_repayments - getDashboard's loans_repaid read 0 without this ──────
   it('sees loan_repayments of linked groups only', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM loan_repayments');
@@ -205,7 +205,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     expect(new Set(rows.map((r) => r.group_id))).toEqual(new Set([linkedGroupId]));
   });
 
-  // ── subscriptions — plan read as NULL via LEFT JOIN LATERAL without this ──
+  // ── subscriptions - plan read as NULL via LEFT JOIN LATERAL without this ──
   it('sees subscriptions of linked groups only', async () => {
     const rows = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM subscriptions');
@@ -220,13 +220,13 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
     // SELECT policy rather than widening it, so reads open and writes stay shut.
     //
     // subscriptions_all is FOR ALL USING (group_id = app_current_group_id())
-    // with no separate WITH CHECK — for an UPDATE, USING is what limits which
+    // with no separate WITH CHECK - for an UPDATE, USING is what limits which
     // existing rows the statement can even see. A coordinator's group_id is
     // NULL, so USING matches zero rows: Postgres does NOT raise for that, it
     // just runs the UPDATE against zero rows. .rejects.toThrow() never held;
     // the real assertion is rowCount plus an unchanged value read back
     // through the same coordinator context (whose SELECT access on this
-    // table is proven by the test above) — a check that can't fail proves
+    // table is proven by the test above) - a check that can't fail proves
     // nothing.
     const [before] = await withDb(coordinatorCtx(coordinatorId, orgId), async (c) => {
       const { rows } = await c.query<{ status: string }>('SELECT status FROM subscriptions WHERE group_id = $1', [
@@ -257,7 +257,7 @@ describe('migration 169 — organization coordinator reads under app_tenant', ()
       const { rows } = await c.query<{ group_id: string }>('SELECT group_id FROM group_members');
       return rows;
     });
-    // Still exactly their own group — the new arm requires the coordinator role.
+    // Still exactly their own group - the new arm requires the coordinator role.
     expect(new Set(rows.map((r) => r.group_id))).toEqual(new Set([linkedGroupId]));
   });
 

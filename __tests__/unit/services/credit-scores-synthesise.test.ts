@@ -1,5 +1,5 @@
 /**
- * credit-scores.service.ts's synthesise() — proves the LoanPolicy wiring is
+ * credit-scores.service.ts's synthesise() - proves the LoanPolicy wiring is
  * live: the reliability tier (and its loan multiplier) come from whatever
  * tierThresholds ladder is passed in, not a hardcoded constant
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §29.6's literal example).
@@ -24,7 +24,7 @@ const DEFAULT_LADDER: TierThreshold[] = [
 ];
 
 // Real per-component weights (financial keys sum to 1.0, social keys sum to
-// 1.0 — mirrors credit-scores.service.ts's FINANCIAL_WEIGHTS/SOCIAL_WEIGHTS).
+// 1.0 - mirrors credit-scores.service.ts's FINANCIAL_WEIGHTS/SOCIAL_WEIGHTS).
 // All components at a flat `score` → financial = social = overall = score,
 // since a weighted sum of equal values (weights summing to 1) equals that value.
 const WEIGHTS: Record<string, number> = {
@@ -58,7 +58,7 @@ describe('synthesise', () => {
     expect(result.loanEligibility).toBe(30000); // 10000 savings * 3x multiplier
   });
 
-  it('assigns a DIFFERENT tier for the same score under a custom ladder — proves the wiring is live', () => {
+  it('assigns a DIFFERENT tier for the same score under a custom ladder - proves the wiring is live', () => {
     const stricterLadder: TierThreshold[] = [
       { tier: 'excellent', min: 90, loanMultiplier: 10 },
       { tier: 'good', min: 80, loanMultiplier: 5 },

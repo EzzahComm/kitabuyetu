@@ -10,9 +10,9 @@ import {
 import { ok, notFound } from '@/lib/utils/response';
 
 /**
- * GET — the calling group's eligibility for a published opportunity.
+ * GET - the calling group's eligibility for a published opportunity.
  * Advisory, not enforced: a group that fails a rule can still apply (see
- * ApplicationEligibility component) — this informs, it doesn't gate, since
+ * ApplicationEligibility component) - this informs, it doesn't gate, since
  * the eligibility DSL (192 lines of range/geo/financial rules) is a partner's
  * stated criteria, not a hard system-level entitlement check the way loan
  * eligibility or subscription entitlements are elsewhere in this codebase.

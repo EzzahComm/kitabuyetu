@@ -1,5 +1,5 @@
 /**
- * Organization subscription plans — real, enforced tiers assigned exclusively
+ * Organization subscription plans - real, enforced tiers assigned exclusively
  * by super_admin (organizations never self-serve a plan; only Kitabu Yetu
  * staff create organizations at all). See types/enums.ts's
  * ORGANIZATION_PLAN_FEATURES/_MONTHLY_FEES for the static tier definitions
@@ -59,7 +59,7 @@ export interface CustomPlanTerms {
 const NO_PLAN_DEFAULTS = ORGANIZATION_PLAN_FEATURES.starter;
 
 /**
- * The allowance-reset job has no interactive caller — it passes a 'system'
+ * The allowance-reset job has no interactive caller - it passes a 'system'
  * sentinel, which is not a UUID. Mirrors billing.service.ts's own actorId()
  * guard exactly (that one is module-private, so duplicated here rather than
  * exported across an otherwise-unrelated module boundary for one helper).
@@ -81,12 +81,12 @@ async function getActiveSubscriptionForUpdate(
 }
 
 /**
- * Assigns a plan — super_admin only (enforced by the route, not here; this
+ * Assigns a plan - super_admin only (enforced by the route, not here; this
  * function trusts its caller the same way admin.service.ts's
  * updateGroupProfile/updateMemberProfile do).
  *
  * starter/growth/premium snapshot every field from the static map. premium_plus
- * requires `custom` in full — "custom, including pricing" was explicit, so
+ * requires `custom` in full - "custom, including pricing" was explicit, so
  * there is no fallback numeric anywhere in this path for it to silently read.
  */
 export async function assignOrganizationPlan(
@@ -109,7 +109,7 @@ export async function assignOrganizationPlan(
 
   if (planType === 'premium_plus') {
     if (!opts.custom || !(opts.custom.monthlyFee >= 0)) {
-      throw new ValidationError('Premium+ requires a monthly fee — every term is negotiated per contract');
+      throw new ValidationError('Premium+ requires a monthly fee - every term is negotiated per contract');
     }
     snapshot = {
       monthlyFee: opts.custom.monthlyFee,
@@ -184,7 +184,7 @@ export async function assignOrganizationPlan(
       ],
     );
 
-    // Grant the bundled SMS allowance immediately, same as a fresh top-up —
+    // Grant the bundled SMS allowance immediately, same as a fresh top-up -
     // see organization-plan-allowance.ts's granting helper for why this is a
     // credited balance addition rather than the group side's separate
     // used/included counter (deliberately simpler; see migration 152).
@@ -202,7 +202,7 @@ export async function assignOrganizationPlan(
   });
 }
 
-/** Current plan + live usage against its caps — for the admin plan card and the org-facing Billing page. */
+/** Current plan + live usage against its caps - for the admin plan card and the org-facing Billing page. */
 export async function getOrganizationPlan(organizationId: string): Promise<{
   subscription: OrganizationSubscription | null;
   usage: { linkedGroups: number; staff: number; activeFundingPrograms: number };
@@ -279,7 +279,7 @@ export async function assertLinkedGroupCap(db: PoolClient, organizationId: strin
   const { maxLinkedGroups } = await getEffectiveLimits(db, organizationId);
   if (maxLinkedGroups === null) return;
 
-  // A re-grant of an already-active link is a no-op for the count — only a
+  // A re-grant of an already-active link is a no-op for the count - only a
   // genuinely NEW (or reactivated-from-revoked) link consumes a slot.
   const { rows: existing } = await db.query<{ is_active: boolean }>(
     `SELECT is_active FROM organization_group_access WHERE organization_id = $1 AND group_id = $2`,
@@ -329,7 +329,7 @@ export async function assertWhiteLabelAccess(db: PoolClient, organizationId: str
 
 /**
  * Credits the bundled allowance directly onto the org's SMS balance via the
- * existing generic ledger function — reuses sms_ledger_append's
+ * existing generic ledger function - reuses sms_ledger_append's
  * allowance_amount column (migration 141), the first time it's ever been
  * used for an organization. Runs on the CALLER's open transaction/client so
  * a plan assignment and its allowance grant commit atomically.
@@ -372,7 +372,7 @@ async function grantSmsAllowanceInTx(
 
 /**
  * Daily job (mirrors resetDueSmsAllowances' anniversary-anchored shape
- * exactly, migration 151) — grants each organization's bundled allowance once
+ * exactly, migration 151) - grants each organization's bundled allowance once
  * per monthly anniversary of its subscription's started_at. Idempotent: an
  * org whose sms_allowance_period_start already covers the current period is
  * skipped by the WHERE clause, so running this hourly or twice in a minute
@@ -406,7 +406,7 @@ export async function grantDueOrganizationSmsAllowances(): Promise<{ organizatio
   });
 }
 
-/** Read-only, RLS-scoped — for the coordinator's own Billing page (real app_tenant enforcement, not the admin pool). */
+/** Read-only, RLS-scoped - for the coordinator's own Billing page (real app_tenant enforcement, not the admin pool). */
 export async function getOrganizationPlanForCoordinator(ctx: TenantContext): Promise<OrganizationSubscription | null> {
   if (!ctx.organizationId) throw new ValidationError('Organization context is required');
   return withDb(ctx, async (db) => {

@@ -7,8 +7,8 @@ import { SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/policies/posting-templates — platform-wide posting templates.
- * PUT /api/admin/policies/posting-templates — set a platform-wide default
+ * GET /api/admin/policies/posting-templates - platform-wide posting templates.
+ * PUT /api/admin/policies/posting-templates - set a platform-wide default
  *   (super_admin only; restricted to standard chart codes).
  */
 

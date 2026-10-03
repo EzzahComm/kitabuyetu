@@ -28,7 +28,7 @@ import { toIsoWeekKey } from './week';
  */
 /**
  * Africa/Nairobi is UTC+3 year-round. Kenya has never observed daylight
- * saving, so this is a constant rather than a lookup — and it is stated as a
+ * saving, so this is a constant rather than a lookup - and it is stated as a
  * named constant precisely so nobody re-derives it as "probably UTC".
  */
 const EAT_OFFSET_MS = 3 * 60 * 60 * 1000;
@@ -40,10 +40,10 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // These used to be getUTCHours()/getUTCDate() on real UTC, so `hour === 8`
   // fired at 11:00 EAT and the code did not mean what it said. Every current
   // time happened to land somewhere reasonable, which is exactly why it went
-  // unnoticed — the hazard was the next schedule someone wrote as a local
+  // unnoticed - the hazard was the next schedule someone wrote as a local
   // hour, which would have been silently three hours out.
   //
-  // Kenya is UTC+3 with NO daylight saving — it has never observed it — so a
+  // Kenya is UTC+3 with NO daylight saving - it has never observed it - so a
   // fixed offset is exact here, and correct in a way a naive offset would not
   // be for most zones. Shifting the instant once lets the existing UTC
   // accessors and the date/week helpers below read Nairobi values unchanged.
@@ -54,17 +54,17 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   const dateStr = toDateStr(nairobiNow); // YYYY-MM-DD, Nairobi
   const weekStr = toIsoWeekKey(nairobiNow); // YYYY-WNN, Nairobi
 
-  // 5-minute bucket index (0–11 per hour). Unaffected by the shift: the offset
+  // 5-minute bucket index (0-11 per hour). Unaffected by the shift: the offset
   // is whole hours, so minutes are identical either way.
   const fiveMinBucket = Math.floor(nairobiNow.getUTCMinutes() / 5);
 
   const queued: Record<string, string | null> = {};
 
-  // ── Every 5 minutes — payload-free self-idempotent sweeps ────────
+  // ── Every 5 minutes - payload-free self-idempotent sweeps ────────
   //
   // These three used to carry a time-bucketed dedup key
   // (`type:date:hour:bucket`), which mints a NEW row every 5 minutes whether
-  // or not the previous one has run — confirmed live: 19,729 of 19,733
+  // or not the previous one has run - confirmed live: 19,729 of 19,733
   // pending job_queue rows were duplicate copies of these six sweep types,
   // all byte-identical empty payloads (docs/audits/optimization-2026-09).
   // A CONSTANT dedup key makes the partial unique index on job_queue enforce
@@ -73,13 +73,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // Gated on real pending work existing, unlike every other type above and
   // below: email_schedules (processDueSchedules' own source table) and
   // email_campaign_recipients have held zero rows for as long as this
-  // feature has existed in production (docs/audits/optimization-2026-09) —
+  // feature has existed in production (docs/audits/optimization-2026-09) -
   // both handlers still ran unconditionally every 5 minutes regardless,
   // which is pure wasted work (a full SELECT/UPDATE against permanently
   // empty tables, 288 times/day, forever). Genuinely dropping the enqueue
   // entirely was considered and rejected: both tables have a real INSERT
   // path (email.service.ts, campaign.service.ts) that's simply never been
-  // exercised yet, not dead code — an existence check costs far less than
+  // exercised yet, not dead code - an existence check costs far less than
   // the handler it guards and does the right thing the moment either
   // feature is actually used, with zero risk of silently orphaning future
   // work the way removing the enqueue outright would.
@@ -89,10 +89,10 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
 
   queued.email_retry_failed = await safe('email_retry_failed', {}, { priority: 5, dedup_key: 'email_retry_failed' });
 
-  // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
+  // Replaces the old lib/queue-based per-recipient campaign fan-out - claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
   // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's
-  // lib/queue + lib/jobs merge). Gated — see comment above
+  // lib/queue + lib/jobs merge). Gated - see comment above
   // email_campaign_process.
   queued.email_campaign_drain = (await hasPendingCampaignRecipients())
     ? await safe('email_campaign_drain', {}, { priority: 5, dedup_key: 'email_campaign_drain' })
@@ -100,7 +100,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
 
   // Same claim-and-send idiom, for the platform-level newsletter digest
   // (lib/services/newsletter-digest.service.ts) instead of a group's own
-  // email_campaigns — see that service's sendDigest()/drainDigestRecipients().
+  // email_campaigns - see that service's sendDigest()/drainDigestRecipients().
   queued.newsletter_digest_drain = (await hasPendingDigestRecipients())
     ? await safe('newsletter_digest_drain', {}, { priority: 5, dedup_key: 'newsletter_digest_drain' })
     : null;
@@ -108,13 +108,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
   //
   // These four claim whatever is due at the moment they run. Two queued copies
-  // do not do twice the work — the second finds the first's rows already
+  // do not do twice the work - the second finds the first's rows already
   // claimed. So the time-bucketed dedup key these used to carry
   // (`type:date:hour:bucket`) bought nothing and cost a great deal: it minted a
   // NEW row every 5 minutes whether or not the previous one had ever run.
   //
   // When these types were starved of tick budget by higher-priority work, that
-  // turned a scheduling gap into unbounded growth — measured in production
+  // turned a scheduling gap into unbounded growth - measured in production
   // 2026-08-20: sms_release_stale_reservations at 2,258 pending having not
   // completed a single job in 8 days, sms_poll_dlr at 1,100 pending / 4 days.
   // The backlog then became its own cause, since every tick scanned thousands
@@ -136,7 +136,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // optimization audit data-checked mpesa_reconcile / mpesa_replay_callbacks /
   // outbox_dispatch the same way as the SMS four (distinct_payloads = 1,
   // empty_payload = pending, for every one) and confirmed they are equally
-  // payload-free self-idempotent sweeps — converted below alongside them.
+  // payload-free self-idempotent sweeps - converted below alongside them.
   queued.sms_retry_failed = await safe(
     'sms_retry_failed',
     {},
@@ -181,7 +181,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   );
 
   // Report-schedule sweep (Phase 5 gap analysis item 2). Same self-idempotent
-  // constant-dedup-key shape as the SMS sweeps above — at most one
+  // constant-dedup-key shape as the SMS sweeps above - at most one
   // outstanding row, freed the moment it completes, so this "ensures one is
   // queued" rather than minting a new one every 5 minutes regardless of
   // whether the last run finished.
@@ -198,12 +198,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     'mpesa_reconcile',
     {},
     {
-      priority: 10, // highest — payments are time-sensitive
+      priority: 10, // highest - payments are time-sensitive
       dedup_key: 'mpesa_reconcile',
     },
   );
 
-  // DLQ replay — re-runs inbound money callbacks whose effect didn't land.
+  // DLQ replay - re-runs inbound money callbacks whose effect didn't land.
   queued.mpesa_replay_callbacks = await safe(
     'mpesa_replay_callbacks',
     {},
@@ -213,7 +213,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // Transactional outbox drain (payment architecture §12).
   queued.outbox_dispatch = await safe('outbox_dispatch', {}, { priority: 8, dedup_key: 'outbox_dispatch' });
 
-  // ── Hourly — payment-spine orphan monitor (§16) ────────────────
+  // ── Hourly - payment-spine orphan monitor (§16) ────────────────
   if (fiveMinBucket === 0) {
     queued.payment_orphan_monitor = await safe(
       'payment_orphan_monitor',
@@ -229,7 +229,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       'disbursement_orphan_monitor',
       {},
       {
-        priority: 9, // outbound money stuck unresolved — high priority
+        priority: 9, // outbound money stuck unresolved - high priority
         dedup_key: `disbursement_orphan_monitor:${dateStr}T${hour}`,
       },
     );
@@ -247,7 +247,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
 
     // SMS provider health (SMS-AUDIT-v3 T3-4 / G14). Hourly matches the other
-    // monitors above and the service's own 1-hour sample window — sampling
+    // monitors above and the service's own 1-hour sample window - sampling
     // more often than the window would re-read the same messages and say the
     // same thing. Priority 7 alongside the payment-spine monitor: noticing an
     // outage is not itself time-critical work, but it must not be starved by
@@ -261,10 +261,10 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       },
     );
 
-    // Paybill sweep — detects completed inbound C2B transactions with no
+    // Paybill sweep - detects completed inbound C2B transactions with no
     // domain record. Had no scheduler at all until now: only reachable via
     // a manual authenticated endpoint, and had run exactly once in the
-    // platform's lifetime (2026-07-29) — meanwhile mpesa_reconcile above
+    // platform's lifetime (2026-07-29) - meanwhile mpesa_reconcile above
     // (which finds nothing 98%+ of the time) ran every 5 minutes forever.
     // Fully idempotent (mpesa_unrouted.receipt is UNIQUE), so hourly
     // carries no correctness risk (docs/audits/optimization-2026-09).
@@ -287,11 +287,11 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // enqueue call finds nothing blocking a fresh duplicate. Confirmed live:
   // sms_birthday_reminders ran 7-8 times/day for 1 intended, mpesa_balance_
   // snapshot (a real Daraja Account Balance call each time) 26 extra times
-  // over 7 days — a genuine external-API cost, not just DB churn
+  // over 7 days - a genuine external-API cost, not just DB churn
   // (docs/audits/optimization-2026-09).
 
-  // ── Daily 06:00 EAT — recurring invoices ──────────────────────
-  // Gated on a due schedule actually existing — invoicing has never
+  // ── Daily 06:00 EAT - recurring invoices ──────────────────────
+  // Gated on a due schedule actually existing - invoicing has never
   // produced an invoice in this deployment (docs/audits/optimization-2026-09
   // dead-weight finding #12), so this job has been running to completion
   // against zero rows every day. The WHERE clause mirrors
@@ -307,15 +307,15 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 07:00 EAT — birthday emails + birthday SMS ──────────
+  // ── Daily 07:00 EAT - birthday emails + birthday SMS ──────────
   // SMS is a separate job type (billed, per-group opt-in via
   // sms_group_settings.auto_send_birthday, defaults false) rather than
-  // folded into email_birthday — the two channels have independent
+  // folded into email_birthday - the two channels have independent
   // opt-in/consent/cost models and reminder_dispatch_log deduplicates
   // per-channel via reference_type already, so nothing forces them
   // through one job. sms_schedules.schedule_type had a 'birthday' value
   // sitting unprocessed for this (sms-scheduler.service.ts's own header
-  // comment: "left for a dedicated follow-up") — this is that follow-up,
+  // comment: "left for a dedicated follow-up") - this is that follow-up,
   // built as a global job like notify_loan_due_alerts rather than a
   // per-group schedule row, since "who gets messaged" varies by the day
   // (today's birthdays), not a fixed recipient list on a fixed cadence.
@@ -338,8 +338,8 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 09:00 EAT — overdue invoice reminders ───────────────
-  // Gated the same way as the recurring-invoice job above — mirrors
+  // ── Daily 09:00 EAT - overdue invoice reminders ───────────────
+  // Gated the same way as the recurring-invoice job above - mirrors
   // sendOverdueInvoiceReminders' own WHERE clause exactly.
   if (hour === 9 && fiveMinBucket === 0 && (await hasOverdueInvoice())) {
     queued.email_overdue_invoices = await safe(
@@ -352,7 +352,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Monday 08:00 EAT — weekly summaries ───────────────────────
+  // ── Monday 08:00 EAT - weekly summaries ───────────────────────
   if (day === 1 && hour === 8 && fiveMinBucket === 0) {
     queued.email_weekly_summary = await safe(
       'email_weekly_summary',
@@ -364,7 +364,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Monday 09:00 EAT — weekly savings-update SMS ──────────────
+  // ── Monday 09:00 EAT - weekly savings-update SMS ──────────────
   // A distinct hour from email_weekly_summary above so the two don't compete
   // within the same tick. Unlike notify_contribution_reminders, this reaches
   // EVERY active member of EVERY active group, not just groups with a
@@ -380,7 +380,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
+  // ── Daily 02:00 EAT - cleanup + SMS money-trail reconciliation ─
   if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(
       'cleanup_expired_tokens',
@@ -393,7 +393,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     // Deliberately an hour AFTER the 01:00 allowance reset/grant: those move
     // billing_accounts, and checking the books mid-adjustment would report
     // drift that is really just ordering. Read-only and report-only, so a low
-    // priority is right — it must never displace a send or a reminder.
+    // priority is right - it must never displace a send or a reminder.
     queued.sms_credit_reconciliation = await safe(
       'sms_credit_reconciliation',
       {},
@@ -402,7 +402,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
         dedup_key: `sms_credit_reconciliation:${dateStr}`,
       },
     );
-    // Retention runs in the same quiet hour. Low priority and idempotent —
+    // Retention runs in the same quiet hour. Low priority and idempotent -
     // a row already redacted is excluded by the query itself.
     queued.sms_message_retention = await safe(
       'sms_message_retention',
@@ -414,7 +414,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 03:00 EAT — M-Pesa charge backfill ──────
+  // ── Daily 03:00 EAT - M-Pesa charge backfill ──────
   // Catches B2C transactions that completed without an mpesa_charges row.
   if (hour === 3 && fiveMinBucket === 0) {
     queued.mpesa_reconcile_charges = await safe(
@@ -427,7 +427,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 04:00 EAT — accounts.balance drift audit ─
+  // ── Daily 04:00 EAT - accounts.balance drift audit ─
   // Compares the denormalized balance column against journal_lines sums
   // and records any drift for finance review (detection only, no rewrite).
   if (hour === 4 && fiveMinBucket === 0) {
@@ -441,7 +441,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 05:00 EAT — sub-account balance snapshot ─
+  // ── Daily 05:00 EAT - sub-account balance snapshot ─
   if (hour === 5 && fiveMinBucket === 0) {
     queued.mpesa_balance_snapshot = await safe(
       'mpesa_balance_snapshot',
@@ -453,7 +453,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 06:00 EAT — GL-to-real-cash reconciliation ─
+  // ── Daily 06:00 EAT - GL-to-real-cash reconciliation ─
   // One hour after the balance snapshot trigger above, so its async Daraja
   // result has had time to land (ACCOUNTING_ARCHITECTURE_AUDIT.md §16).
   if (hour === 6 && fiveMinBucket === 0) {
@@ -467,7 +467,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 20:00 EAT — M-Pesa daily report email ───
+  // ── Daily 20:00 EAT - M-Pesa daily report email ───
   if (hour === 20 && fiveMinBucket === 0) {
     queued.mpesa_daily_report = await safe(
       'mpesa_daily_report',
@@ -479,7 +479,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── Daily 06:00 EAT — loan-due alerts ─────────────
+  // ── Daily 06:00 EAT - loan-due alerts ─────────────
   // Members in Kenya are most likely to act on a reminder mid-morning;
   // 09:00 EAT lands their notification just before they head to work.
   if (hour === 6 && fiveMinBucket === 0) {
@@ -493,12 +493,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── DAILY 01:00 EAT — SMS bundled-allowance reset ────────────────────
+  // ── DAILY 01:00 EAT - SMS bundled-allowance reset ────────────────────
   // Was `date === 1` with a YYYY-MM dedup key: one sweep a month, resetting
   // every group together. Migration 151 moved the allowance period onto each
   // group's own subscription anniversary, and anniversaries fall on every day
   // of the month, so this has to run daily and the dedup key has to be per
-  // DAY rather than per month — a monthly key would let the first run of a
+  // DAY rather than per month - a monthly key would let the first run of a
   // month suppress the other thirty.
   //
   // Resetting nothing is the normal case and costs one indexed UPDATE.
@@ -520,7 +520,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       },
     );
     // Organization-side sibling, same hour and same daily-not-monthly
-    // reasoning (migration 152) — a separate job rather than folded into the
+    // reasoning (migration 152) - a separate job rather than folded into the
     // one above, since it grants against a different table pair
     // (organization_subscriptions/organization_billing_accounts) entirely.
     queued.organization_sms_allowance_grant = await safe(
@@ -533,12 +533,12 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── 1st of month 08:00 EAT — prune old jobs ───────────────────
+  // ── 1st of month 08:00 EAT - prune old jobs ───────────────────
   if (date === 1 && hour === 8 && fiveMinBucket === 0) {
     const monthStr = dateStr.slice(0, 7); // YYYY-MM
 
     // Was a bare direct `await pruneOldJobs(30)` call, bypassing the
-    // safe()/dedup_key mechanism every other entry here uses — that meant it
+    // safe()/dedup_key mechanism every other entry here uses - that meant it
     // fired on all 12 five-minute ticks of this hour instead of once
     // (docs/audits/optimization-2026-09). Routing it through the queue with
     // a monthly key fixes that.
@@ -548,7 +548,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       { priority: 1, dedup_key: `cleanup_old_jobs:${monthStr}` },
     );
 
-    // ── 1st of month 08:00 EAT — contribution-reminders ──
+    // ── 1st of month 08:00 EAT - contribution-reminders ──
     // SMS each member in arrears (per their group's configured
     // contribution-plan.service.ts amounts) their outstanding
     // contribution/welfare balance and where to pay. Dedup keyed at month
@@ -564,7 +564,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── 1st of month 10:00 EAT — per-member account statements ───
+  // ── 1st of month 10:00 EAT - per-member account statements ───
   // A distinct hour from the 08:00 bucket above so this and the
   // contribution-reminder sweep don't compete within the same tick.
   if (date === 1 && hour === 10 && fiveMinBucket === 0) {
@@ -579,7 +579,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
-  // ── 1st of month 11:00 EAT — governance/health-score computation ─────
+  // ── 1st of month 11:00 EAT - governance/health-score computation ─────
   // SUPER_ADMIN_PLATFORM_AUDIT.md §2.10 Phase 2. Hour 11 is otherwise
   // unused across this file, so this never competes with an existing
   // monthly/daily bucket within the same tick.
@@ -608,7 +608,7 @@ async function safe(
 }
 
 /**
- * Existence checks for the two invoicing jobs — invoicing has never
+ * Existence checks for the two invoicing jobs - invoicing has never
  * produced a row in this deployment, so these jobs used to enqueue
  * unconditionally and run to completion against nothing every day
  * (docs/audits/optimization-2026-09 dead-weight finding #12). Fail open
@@ -642,7 +642,7 @@ async function hasDueInvoiceSchedule(): Promise<boolean> {
   }).catch(() => true);
 }
 
-// Existence-check gates for the two campaign job types above — mirrors each
+// Existence-check gates for the two campaign job types above - mirrors each
 // handler's own claim condition exactly (scheduler.service.ts's
 // processDueSchedules, campaign.service.ts's drainCampaignRecipients) so a
 // "yes" here always means the handler would find real work.

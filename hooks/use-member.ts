@@ -32,7 +32,7 @@ export function useMyNotifications(params?: { page?: number; limit?: number }) {
   });
 }
 
-/** Thin wrapper over useMyNotifications for the layout's bell badge — polls so the badge updates without a full page revisit. */
+/** Thin wrapper over useMyNotifications for the layout's bell badge - polls so the badge updates without a full page revisit. */
 export function useUnreadNotificationCount(opts?: { enabled?: boolean }) {
   return useQuery({
     queryKey: meKeys.notifications({ limit: 1 }),

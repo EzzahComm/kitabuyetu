@@ -19,16 +19,16 @@ interface TargetRow {
 }
 
 /**
- * POST /api/admin/auth/switch-org — mint a NEW backoffice session bound to
+ * POST /api/admin/auth/switch-org - mint a NEW backoffice session bound to
  * another organization the caller is active staff at (multi-staff
  * organizations, migration 101). Direct mirror of /api/v1/auth/switch-group's
- * design for the tenant side: no password re-entry — the existing verified
+ * design for the tenant side: no password re-entry - the existing verified
  * access token already proves identity, only the target membership is
  * validated, exactly like admin-login's own org resolution does.
  *
  * Lives under /api/admin/* (not /api/v1/*, unlike switch-group) because
  * proxy.ts buckets every /api/v1/* request as requiring a TENANT-audience
- * token — a backoffice token would be rejected before reaching this
+ * token - a backoffice token would be rejected before reaching this
  * handler. /api/admin/* is the correct bucket for anything requiring
  * aud: 'backoffice'.
  */

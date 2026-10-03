@@ -47,7 +47,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">You're invited</h2>
       <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{firstName}}</strong>,</p>
-      <p style="margin:0 0 20px;color:#374151;">You've been invited to join <strong>{{organizationName}}</strong> as staff on Kitabu Yetu. Click below to confirm your email and continue setup — you'll also need to verify your phone number by SMS code.</p>
+      <p style="margin:0 0 20px;color:#374151;">You've been invited to join <strong>{{organizationName}}</strong> as staff on Kitabu Yetu. Click below to confirm your email and continue setup - you'll also need to verify your phone number by SMS code.</p>
       <a href="{{inviteUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Accept invitation</a>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 14 days. If you were not expecting this invitation, please ignore this email.</p>
     `,
@@ -55,7 +55,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Organization report scheduling (Phase 5) ──────────────────────────────
   organization_report_ready: {
-    subject: '{{reportName}} is ready — {{organizationName}}',
+    subject: '{{reportName}} is ready - {{organizationName}}',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Your scheduled report is ready</h2>
       <p style="margin:0 0 12px;color:#374151;"><strong>{{reportName}}</strong> for <strong>{{organizationName}}</strong> has finished generating.</p>
@@ -87,7 +87,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Contributions ───────────────────────────────────────────────────────────
   contribution_received: {
-    subject: 'Contribution received — KES {{amount}}',
+    subject: 'Contribution received - KES {{amount}}',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Contribution Confirmed</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
@@ -185,7 +185,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Billing / Invoices ───────────────────────────────────────────────────────
   invoice: {
-    subject: 'Invoice {{invoiceNumber}} — KES {{amountDue}} due {{dueDate}}',
+    subject: 'Invoice {{invoiceNumber}} - KES {{amountDue}} due {{dueDate}}',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 20px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -202,9 +202,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_1: {
-    subject: 'Invoice {{invoiceNumber}} overdue — please pay KES {{amountDue}}',
+    subject: 'Invoice {{invoiceNumber}} overdue - please pay KES {{amountDue}}',
     body: `
-      <h2 style="margin:0 0 16px;color:#d97706;">First Overdue Notice — Invoice {{invoiceNumber}}</h2>
+      <h2 style="margin:0 0 16px;color:#d97706;">First Overdue Notice - Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Invoice {{invoiceNumber}} for <strong>KES {{amountDue}}</strong> was due on <strong>{{dueDate}}</strong> and remains unpaid.</p>
       <p style="margin:0 0 20px;color:#374151;">Please make payment at your earliest convenience via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
@@ -213,9 +213,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_2: {
-    subject: 'SECOND NOTICE: Invoice {{invoiceNumber}} — {{daysOverdue}} days past due',
+    subject: 'SECOND NOTICE: Invoice {{invoiceNumber}} - {{daysOverdue}} days past due',
     body: `
-      <h2 style="margin:0 0 16px;color:#dc2626;">Second Overdue Notice — Invoice {{invoiceNumber}}</h2>
+      <h2 style="margin:0 0 16px;color:#dc2626;">Second Overdue Notice - Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Invoice {{invoiceNumber}} for <strong>KES {{amountDue}}</strong> is now <strong style="color:#dc2626;">{{daysOverdue}} days overdue</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">Immediate payment is required. Late fees may apply. Please pay via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
@@ -224,9 +224,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   invoice_overdue_3: {
-    subject: 'FINAL NOTICE: Invoice {{invoiceNumber}} — immediate action required',
+    subject: 'FINAL NOTICE: Invoice {{invoiceNumber}} - immediate action required',
     body: `
-      <h2 style="margin:0 0 16px;color:#dc2626;">FINAL NOTICE — Invoice {{invoiceNumber}}</h2>
+      <h2 style="margin:0 0 16px;color:#dc2626;">FINAL NOTICE - Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">This is your <strong>final notice</strong>. Invoice {{invoiceNumber}} for <strong>KES {{amountDue}}</strong> is <strong style="color:#dc2626;">{{daysOverdue}} days past due</strong>.</p>
       <p style="margin:0 0 20px;color:#374151;">Failure to pay within 7 days may result in service suspension. Pay immediately via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
@@ -235,7 +235,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   payment_receipt: {
-    subject: 'Payment received — KES {{amountPaid}} (Receipt {{receiptNumber}})',
+    subject: 'Payment received - KES {{amountPaid}} (Receipt {{receiptNumber}})',
     body: `
       <h2 style="margin:0 0 16px;color:${GREEN};">Payment Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -264,7 +264,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Venue</td><td style="padding:8px;border:1px solid #e5e7eb;">{{venue}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Agenda</td><td style="padding:8px;border:1px solid #e5e7eb;">{{agenda}}</td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#6b7280;">Please confirm your attendance by replying to this email. — <strong>{{organizerName}}</strong></p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Please confirm your attendance by replying to this email. - <strong>{{organizerName}}</strong></p>
     `,
   },
 
@@ -286,7 +286,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   monthly_statement: {
     subject: '{{groupName}}: Your {{month}} Statement',
     body: `
-      <h2 style="margin:0 0 16px;color:#0B3C88;">Monthly Statement — {{month}}</h2>
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Monthly Statement - {{month}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Please find your statement for <strong>{{month}}</strong> attached.</p>
       <table width="100%" style="border-collapse:collapse;margin:0 0 20px;">
@@ -299,7 +299,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   financial_report: {
-    subject: '{{groupName}}: {{reportType}} — {{period}}',
+    subject: '{{groupName}}: {{reportType}} - {{period}}',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">{{reportType}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -307,12 +307,12 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <p style="margin:0 0 20px;color:#374151;background:#f0fdf4;padding:12px;border-radius:4px;border-left:4px solid ${GREEN};">
         <strong>Confidential:</strong> This report contains sensitive financial data. Please keep it secure and do not forward to unauthorized recipients.
       </p>
-      <p style="margin:0;font-size:13px;color:#6b7280;">Generated: {{generatedAt}} — {{groupName}}</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Generated: {{generatedAt}} - {{groupName}}</p>
     `,
   },
 
   weekly_summary: {
-    subject: '{{groupName}}: Weekly Summary — {{weekLabel}}',
+    subject: '{{groupName}}: Weekly Summary - {{weekLabel}}',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Weekly Summary</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
@@ -347,12 +347,12 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <h2 style="margin:0 0 16px;color:#0B3C88;">{{subject}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{memberName}}</strong>,</p>
       <div style="margin:0 0 20px;color:#374151;line-height:1.6;">{{body}}</div>
-      <p style="margin:0;font-size:13px;color:#6b7280;">— <strong>{{senderName}}</strong>, {{groupName}}</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">- <strong>{{senderName}}</strong>, {{groupName}}</p>
     `,
   },
 
   // Newsletter (Phase 10) is single opt-in with no confirm round trip
-  // (migration 197) — newsletter_confirm/newsletter_welcome were written for
+  // (migration 197) - newsletter_confirm/newsletter_welcome were written for
   // a double opt-in flow that was never built and had zero call sites
   // (confirmed via audit before the campaign-digest feature was added); the
   // digest itself composes its HTML directly from live campaign data rather
@@ -360,7 +360,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
 
   // ─── Contact ─────────────────────────────────────────────────────────────────
   contact_confirmation: {
-    subject: 'We received your message — Kitabu Yetu',
+    subject: 'We received your message - Kitabu Yetu',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Message Received</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{name}}</strong>,</p>
@@ -393,9 +393,9 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   // ─── Operational alerts (staff) ──────────────────────────────────────────────
 
   // SMS-AUDIT-v3 T3-4. Goes to EMAIL_ADMIN, never to a tenant, and NEVER over
-  // SMS — an alert about a broken SMS channel must not depend on that channel.
+  // SMS - an alert about a broken SMS channel must not depend on that channel.
   sms_provider_degraded: {
-    subject: '[ALERT] SMS provider degraded — {{failureRate}} of sends failing',
+    subject: '[ALERT] SMS provider degraded - {{failureRate}} of sends failing',
     body: `
       <h2 style="margin:0 0 16px;color:#b91c1c;">SMS provider degraded</h2>
       <p style="margin:0 0 16px;color:#374151;">
@@ -404,7 +404,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       </p>
       <p style="margin:0 0 16px;color:#374151;">
         Automated reminders, loan alerts and verification codes are affected. Check the
-        provider account balance and credentials first — both have caused this before.
+        provider account balance and credentials first - both have caused this before.
       </p>
       <p style="margin:0;font-size:13px;color:#6b7280;">
         You will not receive another alert for this provider for 6 hours, or until it
@@ -430,7 +430,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
   },
 
   // Was missing entirely, so every low-balance alert since it shipped rendered
-  // through sendTemplatedEmail's last-resort branch — a JSON dump of its vars.
+  // through sendTemplatedEmail's last-resort branch - a JSON dump of its vars.
   // A DB template still wins over this if one exists.
   sms_low_balance: {
     subject: 'SMS credits exhausted',

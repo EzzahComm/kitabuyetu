@@ -1,8 +1,8 @@
 /**
- * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) — "payments" category. Proves
+ * Critical #5 (OPTIMIZATION_CLEANUP_AUDIT.md) - "payments" category. Proves
  * `DELETE /api/v1/payment-requests/[id]` (paymentRequestsService.cancel,
  * `WHERE id = $1 AND group_id = $2`) actually blocks a cross-tenant cancel
- * against a real Postgres instance — not just a mocked query-arg assertion.
+ * against a real Postgres instance - not just a mocked query-arg assertion.
  */
 import { DELETE } from '@/app/api/v1/payment-requests/[id]/route';
 import { authHeaders, buildRequest } from './helpers/request';

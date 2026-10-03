@@ -21,8 +21,8 @@ export const LoginSchema = z.object({
     .optional(),
 });
 
-// Shared by RegisterSchema (public, unauthenticated — creates a new person
-// AND a new group) and CreateAdditionalGroupSchema (authenticated — reuses
+// Shared by RegisterSchema (public, unauthenticated - creates a new person
+// AND a new group) and CreateAdditionalGroupSchema (authenticated - reuses
 // the caller's existing person/member identity, only creates the group).
 // Every field here is group-only; none of it touches members/person.
 //
@@ -34,7 +34,7 @@ export const LoginSchema = z.object({
 const groupDetailsFields = {
   // Which product this group is signing up for (migration 140). Defaults to
   // kitabu_yetu, so every existing caller is unchanged. A chama_reminder
-  // signup skips the chart-of-accounts seeding inside register_group() — it is
+  // signup skips the chart-of-accounts seeding inside register_group() - it is
   // a communication-only product with no journals to post.
   //
   // Client-supplied and that is fine: it grants nothing. The group still has to
@@ -44,19 +44,19 @@ const groupDetailsFields = {
 
   // Group identity
   groupName: z.string().min(3, 'Group name must be at least 3 characters').max(255),
-  // Must match the group_type Postgres enum EXACTLY — 'organization_group' is
+  // Must match the group_type Postgres enum EXACTLY - 'organization_group' is
   // not a member of it (the real value is 'ngo_group'); register_group()'s
   // ::group_type cast rejected it outright and registration 500'd. Derived from
   // GROUP_TYPES rather than restated, so the enum, the validator and the two
   // dropdowns can no longer drift apart the way they did then.
   groupType: z.enum(GROUP_TYPES),
 
-  // Governance — the registrant must take one of the three mandatory roles (spec §2).
+  // Governance - the registrant must take one of the three mandatory roles (spec §2).
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
     errorMap: () => ({ message: 'Choose your role: chairperson, secretary, or treasurer' }),
   }),
 
-  // Location — countyId is required (FK to counties); sub-county / ward fall
+  // Location - countyId is required (FK to counties); sub-county / ward fall
   // back to free text until the IEBC dataset is seeded into sub_counties/wards.
   countyId: z.string().uuid('County is required'),
   subCountyText: z.string().max(80).optional().or(z.literal('')),
@@ -89,7 +89,7 @@ const groupDetailsFields = {
     .or(z.literal('')),
 
   // Group finances (contribution-plan.service.ts's 'contribution_plan'
-  // policy domain). Optional at the schema level — a chama_reminder signup
+  // policy domain). Optional at the schema level - a chama_reminder signup
   // has no GL and never shows this section, and a caller hitting the RPC
   // directly without it just leaves the plan unconfigured (0/0, editable
   // later from Settings). The register/create-group routes write these,
@@ -98,7 +98,7 @@ const groupDetailsFields = {
   welfareAmount: z.coerce.number().min(0).optional(),
 
   // Government registration (groups.is_government_registered /
-  // registration_number / registration_certificate_url — columns from
+  // registration_number / registration_certificate_url - columns from
   // migrations 033 and 074, written by lib/services/group-signup-extras.ts).
   // Entirely optional and non-blocking: never required to complete sign-up,
   // and can be added or changed later from Settings. The certificate PDF is
@@ -113,7 +113,7 @@ const groupDetailsFields = {
 } as const;
 
 // Mirrors the public.register_group RPC signature + the v2 workflow spec.
-// Phase D MVP — verification (email/SMS) fields will be added in Part 2.
+// Phase D MVP - verification (email/SMS) fields will be added in Part 2.
 export const RegisterSchema = z.object({
   ...groupDetailsFields,
 
@@ -128,7 +128,7 @@ export const RegisterSchema = z.object({
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
     .regex(/[0-9]/, 'Password must contain at least one number'),
 
-  // Optional KYC details — when present, populate the shared person record.
+  // Optional KYC details - when present, populate the shared person record.
   nationalId: z.string().max(32).optional().or(z.literal('')),
   dateOfBirth: z
     .string()
@@ -138,10 +138,10 @@ export const RegisterSchema = z.object({
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional(),
 });
 
-// Mirrors the public.register_organization RPC (migration 206) — Enterprise
+// Mirrors the public.register_organization RPC (migration 206) - Enterprise
 // self-serve signup. organizationType has no default (see the RPC's own
 // comment: 'ngo' is 1 of 8 organization_type values, never implicit).
-// email is REQUIRED here unlike RegisterSchema's — organization-coordinator
+// email is REQUIRED here unlike RegisterSchema's - organization-coordinator
 // login is email-only (AdminLoginSchema below), never phone, so a
 // coordinator without an email could never sign back in.
 // planType excludes 'premium_plus', which requires custom hand-entered
@@ -178,17 +178,17 @@ export const RegisterOrganizationSchema = z.object({
 });
 
 // Mirrors the public.create_additional_group RPC (migration 147). Group-only
-// — no person/KYC fields, since an authenticated caller already has an
+// - no person/KYC fields, since an authenticated caller already has an
 // identity; the route resolves it server-side from the verified session, the
 // same trust model app/api/v1/auth/switch-group/route.ts already uses.
 export const CreateAdditionalGroupSchema = z.object(groupDetailsFields);
 
 // Backoffice login (super_admin / support / organization_coordinator).
-// Email-only on purpose — staff identities are issued + recovered via email,
+// Email-only on purpose - staff identities are issued + recovered via email,
 // never phone. No group code field because backoffice context isn't
 // group-scoped.
 // `surface` disambiguates which login page the attempt came from
-// (/admin-login vs /enterprise/login) — the route enforces a different
+// (/admin-login vs /enterprise/login) - the route enforces a different
 // allowed-role list per surface (see SURFACE_ALLOWED_ROLES). Client-supplied
 // and not itself a security boundary: it only narrows which pre-validated
 // role can pass, it never grants anything the account's real platform_role
@@ -200,7 +200,7 @@ export const AdminLoginSchema = z.object({
   surface: z.enum(['platform', 'organization']).optional().default('platform'),
 });
 
-// Step 2 of the backoffice login flow (Phase 2 — MFA). The `challenge`
+// Step 2 of the backoffice login flow (Phase 2 - MFA). The `challenge`
 // token is short-lived (5 min) and identifies the in-flight session;
 // `code` is either a 6-digit TOTP or a recovery code (10 hex chars with
 // optional dash). `label` is set ONLY during enrollment-confirm and gets
@@ -214,13 +214,13 @@ export const AdminLoginMfaVerifySchema = z.object({
   organizationId: z.string().uuid().optional(),
 });
 
-// Phase D Part 2 — registrant verification.
+// Phase D Part 2 - registrant verification.
 export const VerifyStartSchema = z.object({
   channel: z.enum(['email', 'sms']),
   destination: z.string().min(5).max(255),
 });
 
-// Only the SMS path goes through /verify/complete — email links are consumed
+// Only the SMS path goes through /verify/complete - email links are consumed
 // by the public GET /verify/email route since the token itself is the proof.
 export const VerifyCompleteSchema = z.object({
   channel: z.literal('sms'),
@@ -239,7 +239,7 @@ export const RefreshSchema = z.object({
 
 /**
  * This schema was written but had **no route and no caller anywhere** until
- * CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md — meanwhile the settings page's
+ * CLIENT_SERVER_CONTRACT_AUDIT_2026-08.md - meanwhile the settings page's
  * change-password form posted to PATCH /members/[id], which ignores password
  * fields, so it always reported success without changing anything.
  * `POST /api/v1/auth/change-password` now uses it.
@@ -263,14 +263,14 @@ export const ResetPasswordSchema = z.object({
     .regex(/[0-9]/, 'Password must contain at least one number'),
 });
 
-// Backoffice/staff forgot-password — email-link based (staff identities are
+// Backoffice/staff forgot-password - email-link based (staff identities are
 // recovered via email, never phone; see AdminLoginSchema's comment above).
 export const AdminForgotPasswordStartSchema = z.object({
   email: z.string().email('Enter a valid work email'),
 });
 
 // The token itself is the proof of possession (mirrors VerifyStartSchema's
-// email-link shape) — no email/phone re-entered here.
+// email-link shape) - no email/phone re-entered here.
 export const AdminResetPasswordSchema = z.object({
   token: z.string().min(32).max(128),
   password: z

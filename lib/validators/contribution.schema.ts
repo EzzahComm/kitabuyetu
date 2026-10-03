@@ -31,14 +31,14 @@ export const ContributionQuerySchema = z.object({
   sortDir: z.enum(['asc', 'desc']).default('desc'),
 });
 
-// SavingsPolicy 'limits' — advisory min/max/grace period (migration 092).
+// SavingsPolicy 'limits' - advisory min/max/grace period (migration 092).
 export const SetSavingsLimitsSchema = z.object({
   minContribution: z.coerce.number().min(0),
   maxContribution: z.coerce.number().positive().nullable(),
   gracePeriodDays: z.coerce.number().int().min(0),
 });
 
-// ContributionPlan 'amounts' — the group's flat expected monthly contribution
+// ContributionPlan 'amounts' - the group's flat expected monthly contribution
 // and welfare amount (contribution-plan.service.ts). Unlike SavingsPolicy's
 // min/max, these two ARE what notify_contribution_reminders uses to compute
 // each member's outstanding balance/arrears, so 0 genuinely means "this

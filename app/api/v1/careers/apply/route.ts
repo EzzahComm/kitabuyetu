@@ -12,7 +12,7 @@ const ALLOWED_RESUME_TYPES = new Set([
 ]);
 
 /**
- * POST /api/v1/careers/apply — public. multipart/form-data with jobSlug,
+ * POST /api/v1/careers/apply - public. multipart/form-data with jobSlug,
  * jobTitle, applicantName, applicantEmail, applicantPhone?, coverNote?, and
  * an optional `resume` file field. Whitelisted in proxy.ts's
  * PUBLIC_AUTH_PATHS and IP-rate-limited there like every other anonymous

@@ -1,5 +1,5 @@
 /**
- * LoanPolicy 'terms' + FinePolicy 'schedule' — the policy domains migrated
+ * LoanPolicy 'terms' + FinePolicy 'schedule' - the policy domains migrated
  * from the retired group_constitutions table (migration 088, audit §33.1).
  * Advisory values: nothing here enforces lending, so validation is the whole
  * safety surface.

@@ -1,7 +1,7 @@
 /**
- * Allocation engine decision table A1–A9 (payment architecture §3.5) plus the
+ * Allocation engine decision table A1-A9 (payment architecture §3.5) plus the
  * account-suffix parser (A1/A3 inputs). The engine must be deterministic and
- * never guess — every branch here is an acceptance criterion from §20.
+ * never guess - every branch here is an acceptance criterion from §20.
  */
 import { resolveProduct, type OpenPaymentRequest } from '@/lib/utils/allocation-engine';
 import { parseAccountRef } from '@/lib/utils/membership-no';
@@ -23,7 +23,7 @@ const base = {
   amount: 1000,
 };
 
-describe('resolveProduct — decision table', () => {
+describe('resolveProduct - decision table', () => {
   it('A2: exact-amount request wins', () => {
     const r = resolveProduct({
       ...base,
@@ -120,7 +120,7 @@ describe('resolveProduct — decision table', () => {
   });
 });
 
-describe('parseAccountRef — suffix handling (A1/A3 inputs)', () => {
+describe('parseAccountRef - suffix handling (A1/A3 inputs)', () => {
   it('parses valid suffixes in every human format', () => {
     for (const raw of ['BG102534-W', 'BG102534 W', 'bg102534w', 'BG 10253 4-W']) {
       expect(parseAccountRef(raw)).toEqual({ account: 'BG102534', suffix: 'W', invalidSuffix: false });

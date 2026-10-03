@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { jwtVerify, type JWTPayload } from 'jose';
 
-// ─── Rate limiting (Upstash REST — Edge-compatible) ───────────────────────────
+// ─── Rate limiting (Upstash REST - Edge-compatible) ───────────────────────────
 // Fails open on any Redis error so downtime never blocks legitimate traffic.
 //
 // Two separate budgets, not one shared bucket:
 //
-//   RL_LIMIT_IP   — for anonymous surfaces (login/register/forgot-password,
+//   RL_LIMIT_IP   - for anonymous surfaces (login/register/forgot-password,
 //                   webhooks, jurisdictions, and anything else with no verified
 //                   session yet). These are exactly the endpoints a single bad
 //                   actor at one address would hammer, so IP is the right key.
-//   RL_LIMIT_USER — for every authenticated tenant/backoffice route, keyed by
+//   RL_LIMIT_USER - for every authenticated tenant/backoffice route, keyed by
 //                   the JWT's verified `sub` instead of IP.
 //
 // Originally this whole file rate-limited every /api/ request by IP alone,
@@ -18,12 +18,12 @@ import { jwtVerify, type JWTPayload } from 'jose';
 // ONE 120-req/60s budget. Two things made that budget easy to exhaust on
 // entirely legitimate traffic: the dashboard alone fires ~10 parallel API
 // calls on a single page load, and Kenyan mobile carriers commonly put many
-// distinct subscribers behind one CGNAT address — so one dashboard load, or
+// distinct subscribers behind one CGNAT address - so one dashboard load, or
 // a handful of concurrent users on the same carrier/office network, could
 // trip "Too many requests" for everyone sharing that address. Keying
 // authenticated traffic by user instead removes the shared-bucket effect
 // entirely (each session only ever competes with its own requests), so the
-// budget was also raised — it's no longer being split across an unknown
+// budget was also raised - it's no longer being split across an unknown
 // number of strangers.
 const RL_LIMIT_IP = 120; // requests per window, per IP (anonymous surfaces)
 const RL_LIMIT_USER = 240; // requests per window, per authenticated user
@@ -40,7 +40,7 @@ async function checkRateLimit(key: string, limit: number): Promise<boolean> {
     const redisKey = `rl:api:${key}`;
 
     // INCR + EXPIRE NX in a single atomic pipeline call. EXPIRE NX only
-    // sets the TTL when the key has no TTL yet — so subsequent hits within
+    // sets the TTL when the key has no TTL yet - so subsequent hits within
     // the same window don't reset the clock (fixed-window behaviour) and
     // the previous "stuck counter" failure mode (where a fire-and-forget
     // EXPIRE silently failed and the key lived forever without TTL,
@@ -83,7 +83,7 @@ interface KyJwtPayload extends JWTPayload {
   // Tenant claims
   groupId?: string;
   role?: string;
-  // Phase D Part 2 — lifecycle gate. Missing = legacy token, treat as 'active'.
+  // Phase D Part 2 - lifecycle gate. Missing = legacy token, treat as 'active'.
   groupStatus?: string;
   // Active Membership Context + drift epochs (payment architecture §2.1/§2.5).
   // Missing on tokens issued before Phase 3.2.
@@ -91,7 +91,7 @@ interface KyJwtPayload extends JWTPayload {
   membershipNo?: string;
   authVersion?: number;
   sessionVersion?: number;
-  // RBAC permission activation — resolved at issue time from
+  // RBAC permission activation - resolved at issue time from
   // group_members.role_id -> roles.permissions. Missing on legacy tokens.
   permissions?: string[];
   // Backoffice claims
@@ -116,7 +116,7 @@ function rateLimited(): NextResponse {
 
 // Claim headers stamped by this proxy after JWT verification. Inbound copies
 // are stripped from EVERY request (including unauthenticated fall-throughs)
-// so a client can never smuggle its own claims to a handler — belt-and-
+// so a client can never smuggle its own claims to a handler - belt-and-
 // suspenders even though the unauthenticated handlers don't read them.
 const CLAIM_HEADERS = [
   'x-user-id',
@@ -149,7 +149,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/mpesa/b2b') ||
     pathname.startsWith('/api/v1/daraja/'); // registration-safe C2B callback paths (registerC2BUrls
   // only ever submits /api/v1/daraja/c2b-{confirm,validate}
-  // to Safaricom — /api/v1/mpesa/c2b, deleted, was never
+  // to Safaricom - /api/v1/mpesa/c2b, deleted, was never
   // reachable by real traffic; docs/audits/optimization-2026-09)
 
   const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? '0.0.0.0';
@@ -170,24 +170,24 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     pathname.startsWith('/api/v1/webhooks/') || // generic webhooks (WhatsApp Meta)
     pathname.startsWith('/api/v1/email/webhooks/') || // email provider callbacks (Resend, SendGrid)
     // QStash-triggered chunked SMS dispatch (closes SMS_MESSAGING_AUDIT_
-    // 2026-08.md H3 — docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md
+    // 2026-08.md H3 - docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md
     // Phase 3 item 10). Same "signed payload, no JWT"
     // shape as the webhooks above: Upstash signs every delivery with our
     // QStash signing keys (verified via Receiver in the route itself), not
     // a Bearer token. Scoped to this exact path, not the whole
-    // /api/v1/workers/ tree — /api/v1/workers/cron keeps requiring a JWT
+    // /api/v1/workers/ tree - /api/v1/workers/cron keeps requiring a JWT
     // or WORKER_SECRET (see that route's own header comment) here.
     pathname === '/api/v1/workers/sms-dispatch-chunk' ||
     // Upstash Workflow disbursement watchdog (docs/messaging/
     // UNIFIED_MESSAGING_ARCHITECTURE.md §9, B2C_DISBURSEMENT_AUDIT.md C5).
     // Same signed-payload shape, but verified by serve() itself (from
-    // @upstash/workflow) rather than a manual Receiver call in the route —
+    // @upstash/workflow) rather than a manual Receiver call in the route -
     // and unlike sms-dispatch-chunk, QStash re-POSTs this exact path once
     // per workflow step (not just once), so every one of those step
     // callbacks needs to clear this gate too, not just the initial trigger.
     pathname === '/api/v1/workers/disbursement-watchdog';
 
-  // Endpoints reachable with no access token at all — a visitor who forgot
+  // Endpoints reachable with no access token at all - a visitor who forgot
   // their password, or is completing an emailed/SMS'd proof-of-possession
   // flow, has no session by definition. Moved up here for the same reason
   // isWebhook was: the rate-limit decision below needs this list too.
@@ -198,12 +198,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     '/api/v1/auth/logout', // ditto
     '/api/v1/auth/admin/login',
     '/api/v1/auth/admin/login/verify',
-    // §4A email-link verification — the token itself is the proof of
+    // §4A email-link verification - the token itself is the proof of
     // possession (its SHA-256 hash alone identifies the open verification
     // row), so this must stay reachable without an access token: the click
     // may happen on a different device/browser than the one that registered.
     '/api/v1/auth/verify/email',
-    // Multi-staff organizations, Phase 2 (migration 102) — the accept-invite
+    // Multi-staff organizations, Phase 2 (migration 102) - the accept-invite
     // flow is a visitor with only an emailed link, no session yet. Same
     // token-is-the-proof shape as verify/email above.
     '/api/v1/organization-invitations/lookup',
@@ -211,18 +211,18 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     '/api/v1/organization-invitations/verify-otp',
     '/api/v1/organization-invitations/complete',
     '/api/v1/organization-invitations/decline',
-    // Self-service forgot-password — a visitor who forgot their password has
+    // Self-service forgot-password - a visitor who forgot their password has
     // no session by definition. Same OTP-is-the-proof shape as the flows above.
     '/api/v1/auth/forgot-password/start',
     '/api/v1/auth/forgot-password/reset',
     // Staff/backoffice forgot-password (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
-    // Phase 1) — same reasoning, email-link-is-the-proof instead of SMS OTP.
+    // Phase 1) - same reasoning, email-link-is-the-proof instead of SMS OTP.
     '/api/v1/auth/admin/forgot-password/start',
     '/api/v1/auth/admin/forgot-password/reset',
-    // Phase 10 — public marketing-site newsletter signup. A blog visitor has
+    // Phase 10 - public marketing-site newsletter signup. A blog visitor has
     // no session at all, tenant or otherwise.
     '/api/v1/newsletter/subscribe',
-    // Phase 12 — public job application submission. Same reasoning: a
+    // Phase 12 - public job application submission. Same reasoning: a
     // careers-page visitor applying for a role has no session.
     '/api/v1/careers/apply',
   ]);
@@ -230,7 +230,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // Public donation (Changi$ha, migration 182). The route's own header calls it
   // "the ONE public, unauthenticated endpoint on this platform that can trigger a
   // real M-Pesa STK push" and it carries its own per-phone and per-IP rate limits
-  // for exactly that reason — but it was never listed here, so every anonymous
+  // for exactly that reason - but it was never listed here, so every anonymous
   // donation was answered 401 by this file before the handler ever ran.
   //
   // It cannot be an exact entry in the Set above because the slug is dynamic, and
@@ -241,16 +241,16 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
 
   const isAnonymousApiPath =
     isWebhook ||
-    !(isTenantApi || isBackofficeApi) || // e.g. /api/health — no session concept at all
+    !(isTenantApi || isBackofficeApi) || // e.g. /api/health - no session concept at all
     (isTenantApi &&
       (PUBLIC_AUTH_PATHS.has(pathname) || isPublicDonate || pathname.startsWith('/api/v1/jurisdictions/'))); // public reference data (counties etc.)
 
   // Rate-limit every API route except M-Pesa callbacks (Safaricom retries on
-  // non-200). Anonymous surfaces are keyed by IP — same protection this file
+  // non-200). Anonymous surfaces are keyed by IP - same protection this file
   // always had here, since these are exactly the endpoints (login, etc.) a
   // single bad actor at one address would hammer. Everything else requires a
   // verified session and is rate-limited by that session further down,
-  // *after* the JWT is verified — see RL_LIMIT_USER's comment above for why.
+  // *after* the JWT is verified - see RL_LIMIT_USER's comment above for why.
   if (pathname.startsWith('/api/') && !isMpesaCallback && isAnonymousApiPath) {
     const allowed = await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP);
     if (!allowed) return rateLimited();
@@ -270,12 +270,12 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // It never worked: getAuthContext guards with `!groupId`, and '' is falsy in
   // JavaScript, so every organization request threw "Missing authentication
   // context" and the enterprise Portfolio dashboard could never load. Rather
-  // than loosen that guard — and keep stamping `x-aud: 'tenant'` onto a token
-  // that is genuinely backoffice — the tree moved to /api/admin/organization/*,
+  // than loosen that guard - and keep stamping `x-aud: 'tenant'` onto a token
+  // that is genuinely backoffice - the tree moved to /api/admin/organization/*,
   // the bucket whose token it actually receives, behind withOrganizationAccess.
   // Same resolution the switch-org route needed for the same reason.
 
-  // These tenant paths are intentionally unauthenticated — isWebhook and
+  // These tenant paths are intentionally unauthenticated - isWebhook and
   // PUBLIC_AUTH_PATHS are computed above now (the rate-limit check needs
   // them too); this just applies the same bypass to JWT verification.
   if (
@@ -292,13 +292,13 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   // ── JWT required from here on ─────────────────────────────────────────
   //
   // A request that never produces a verified `sub` can't be charged against
-  // a per-user budget — there's no user to charge. Rather than leave these
+  // a per-user budget - there's no user to charge. Rather than leave these
   // two failure branches completely ungated (a flood of missing/garbage/
   // expired tokens against a protected route would otherwise face no rate
   // limit at all from this proxy), fall back to the same IP bucket the
   // anonymous surfaces use. This is strictly narrower than before: it only
   // ever fires on requests that fail authentication, so it can't reintroduce
-  // the shared-IP bottleneck for legitimate authenticated traffic — those
+  // the shared-IP bottleneck for legitimate authenticated traffic - those
   // requests are gated solely by RL_LIMIT_USER, below.
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) {
@@ -322,7 +322,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return unauthorized('Incomplete token payload');
   }
 
-  // Rate-limit authenticated traffic by verified user, not shared IP — see
+  // Rate-limit authenticated traffic by verified user, not shared IP - see
   // RL_LIMIT_USER's comment near the top of this file for why. Deliberately
   // after JWT verification (not before): a request with no valid session
   // can't be charged against a real user's budget, and verifying first means
@@ -359,7 +359,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     const groupStatus = payload.groupStatus ?? 'active';
     requestHeaders.set('x-group-status', groupStatus);
     if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
-    // Active Membership Context (§2.1) + epochs (§2.5) — absent on legacy tokens.
+    // Active Membership Context (§2.1) + epochs (§2.5) - absent on legacy tokens.
     if (payload.membershipId) requestHeaders.set('x-membership-id', payload.membershipId);
     if (payload.membershipNo) requestHeaders.set('x-membership-no', payload.membershipNo);
     if (payload.authVersion != null) requestHeaders.set('x-auth-version', String(payload.authVersion));
@@ -369,14 +369,14 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     // above rather than paying JSON parse overhead per request.
     if (payload.permissions?.length) requestHeaders.set('x-permissions', payload.permissions.join(','));
 
-    // Phase D Part 2 — gate feature routes while group is awaiting
+    // Phase D Part 2 - gate feature routes while group is awaiting
     // verification. The verify endpoints + minimal session-management
     // endpoints stay open so the registrant can complete the flow.
     //
-    // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 — this previously listed
+    // OPTIMIZATION_CLEANUP_AUDIT.md Critical #5 - this previously listed
     // '/api/v1/auth/me' and '/api/v1/auth/verify/', neither of which is a
     // real route (and refresh/logout are already caught by PUBLIC_AUTH_PATHS
-    // above, so they never reach this check either) — meaning this allowlist
+    // above, so they never reach this check either) - meaning this allowlist
     // was entirely dead code and every pending_verification group was
     // permanently locked out with no way to ever complete verification.
     if (groupStatus === 'pending_verification') {
@@ -385,7 +385,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
         return NextResponse.json(
           {
             success: false,
-            error: 'Group not verified yet — complete verification at /verify-group',
+            error: 'Group not verified yet - complete verification at /verify-group',
             code: 'PENDING_VERIFICATION',
           },
           { status: 403 },

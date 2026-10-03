@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 // Shared with app/api/v1/organization/programs/route.ts and
-// app/api/v1/organization/disbursements/route.ts — a single source so a
+// app/api/v1/organization/disbursements/route.ts - a single source so a
 // client dropdown can never drift from what the server actually accepts
 // (this file used to have three independent copies of DISBURSEMENT_TYPES
 // and two of PROGRAM_TYPES, one of them missing 'insurance'/'investment').
@@ -33,7 +33,7 @@ export const DISBURSEMENT_TYPES = [
 // them in lockstep: the DB is the real enforcement, these exist so a bad
 // payload returns a clean 400 instead of a raw 23514 from Postgres.
 
-/** Matches loans_interest_method_check EXACTLY — not the source spec's 'declining_balance'. */
+/** Matches loans_interest_method_check EXACTLY - not the source spec's 'declining_balance'. */
 export const INTEREST_METHODS = ['flat', 'reducing_balance'] as const;
 export const REPAYMENT_FREQUENCIES = ['none', 'weekly', 'monthly', 'quarterly', 'bullet'] as const;
 export const CAPITAL_MODELS = ['liability', 'pass_through'] as const;
@@ -46,7 +46,7 @@ export const WATERFALL_COMPONENTS = ['penalty', 'interest', 'principal'] as cons
 
 // Stored verbatim as jsonb and read by the Phase 4 engine, so this keeps the
 // source spec's snake_case document shape rather than the camelCase used for
-// columns — it is a config document, not a row.
+// columns - it is a config document, not a row.
 export const RepaymentWaterfallSchema = z.object({
   order: z
     .array(z.enum(WATERFALL_COMPONENTS))
@@ -70,7 +70,7 @@ const productTerms = {
   lossBearer: z.enum(LOSS_BEARERS).optional(),
   sharedLossRatio: z.number().min(0).max(1).optional(),
   interestMethod: z.enum(INTEREST_METHODS).optional(),
-  /** PERCENTAGE (12.5 = 12.5%), matching loans.interest_rate — never a 0-1 ratio. */
+  /** PERCENTAGE (12.5 = 12.5%), matching loans.interest_rate - never a 0-1 ratio. */
   interestRateAnnual: z.number().min(0).max(999.99).optional(),
   repaymentFrequency: z.enum(REPAYMENT_FREQUENCIES).optional(),
   gracePeriodDays: z.number().int().min(0).max(3650).optional(),
@@ -82,7 +82,7 @@ const productTerms = {
   /**
    * PERCENTAGE of the allocated amount, retained by the organization and
    * deducted from what's disbursed (migration 125). Independent of
-   * isRepayable — a fee can apply to a grant too, so no superRefine
+   * isRepayable - a fee can apply to a grant too, so no superRefine
    * cross-field rule ties it to the repayable branch below.
    */
   processingFeePct: z.number().min(0).max(100).optional(),
@@ -218,7 +218,7 @@ export const CreateProgramSchema = z
     }
   });
 
-/** Capitalize / decapitalize a product — adjusts its spending authority (budget). */
+/** Capitalize / decapitalize a product - adjusts its spending authority (budget). */
 export const CapitalAdjustmentSchema = z.object({
   amount: z.number().positive('Amount must be positive').max(100_000_000_000),
   reference: z.string().max(64).optional(),
@@ -232,7 +232,7 @@ export const ProgramActionSchema = z.discriminatedUnion('action', [
 
 /**
  * PATCH /programs/:id body. Lifted out of that route file so it stops being a
- * route-private duplicate — the drift this file exists to prevent. Payload
+ * route-private duplicate - the drift this file exists to prevent. Payload
  * shape is unchanged, so the Funding Portal's pause/reactivate keeps working.
  */
 export const UpdateProgramStatusSchema = z.object({
@@ -247,7 +247,7 @@ export const DepositSchema = z.object({
 });
 
 /** How money physically moves. Mirrors the `payment_method` enum, which
- *  `loans.payment_method` already uses — deliberately not a second vocabulary. */
+ *  `loans.payment_method` already uses - deliberately not a second vocabulary. */
 export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
 
 export const DisburseSchema = z
@@ -262,7 +262,7 @@ export const DisburseSchema = z
     /** How it was paid (migration 150). Optional so existing callers keep working;
      *  omitted means "not recorded" rather than any assumed default. */
     paymentMethod: z.enum(PAYMENT_METHODS).optional(),
-    /** Cheque number / bank slip. Requires paymentMethod — a reference with no
+    /** Cheque number / bank slip. Requires paymentMethod - a reference with no
      *  method is a data-entry error, and the DB enforces the same rule. */
     paymentReference: z.string().max(120).optional(),
   })
@@ -291,7 +291,7 @@ export const BrandingSchema = z.object({
 });
 
 /**
- * Mirrors DepositSchema exactly — same trust model, same "reconciled
+ * Mirrors DepositSchema exactly - same trust model, same "reconciled
  * separately" pattern, just crediting organization_billing_accounts.sms_credits
  * instead of the wallet. amountKes not amount: this org already has a
  * differently-scoped `amount` field pattern elsewhere (DisburseSchema), and
@@ -304,13 +304,13 @@ export const TopUpSmsCreditsSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-/** Super_admin only (enforced at the route) — the organization's negotiated per-SMS rate. */
+/** Super_admin only (enforced at the route) - the organization's negotiated per-SMS rate. */
 export const SetSmsRateSchema = z.object({
   rate: z.number().positive('Rate must be positive').max(100),
 });
 
 // ─── Report export + scheduling (Phase 5 gap analysis, remaining items 1-2) ──
-// Mirrors organizationFinanceService.programBudgetReport/donorSpendReport —
+// Mirrors organizationFinanceService.programBudgetReport/donorSpendReport -
 // the two report generators that exist today. Add a value here AND to
 // report-export.service.ts's REPORT_GENERATORS map together.
 export const REPORT_TYPES = ['program_budget', 'donor_spend'] as const;
@@ -380,7 +380,7 @@ export type CreateReportExportInput = z.infer<typeof CreateReportExportSchema>;
 export type CreateReportScheduleInput = z.infer<typeof CreateReportScheduleSchema>;
 export type UpdateReportScheduleInput = z.infer<typeof UpdateReportScheduleSchema>;
 
-// Client request-body types — z.input, not z.infer, matching this
+// Client request-body types - z.input, not z.infer, matching this
 // codebase's convention elsewhere (see accounting.schema.ts): none of the
 // fields above carry a `.default()`, so these are currently identical to
 // the *Input aliases, but kept distinct so a future default doesn't
@@ -395,7 +395,7 @@ export type TopUpSmsCreditsPayload = z.input<typeof TopUpSmsCreditsSchema>;
 
 // ─── Group Programs (migration 206) ─────────────────────────────────────
 // Unrelated to CreateProgramSchema/PROGRAM_TYPES above, which are
-// funding_programs — budget/disbursement config. These schemas are for the
+// funding_programs - budget/disbursement config. These schemas are for the
 // org-run recruitment/membership "Programs" feature: an organization
 // publishes a program, groups apply or are invited, no money involved here.
 

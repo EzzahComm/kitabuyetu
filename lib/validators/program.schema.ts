@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// Group-side payloads for the Programs feature (migration 206) — applying to
+// Group-side payloads for the Programs feature (migration 206) - applying to
 // or responding to an org-run program. See organization.schema.ts's "Group
 // Programs" section for the org-side (create/publish/invite/review) schemas.
 

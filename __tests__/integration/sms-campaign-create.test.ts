@@ -1,22 +1,22 @@
 /**
- * POST /api/v1/sms/campaign — against real Postgres.
+ * POST /api/v1/sms/campaign - against real Postgres.
  *
  * Regression coverage for a genuine production incident: `$9` (scheduled_at)
  * was reused a second time inside `CASE WHEN $9 IS NOT NULL THEN 'scheduled'
  * ELSE 'draft' END` with no explicit cast. node-pg sends no type OIDs, so
  * Postgres could not resolve $9's type from a bare `IS NOT NULL` usage and
- * threw `could not determine data type of parameter $9` — at PARSE time,
+ * threw `could not determine data type of parameter $9` - at PARSE time,
  * before any value is even bound, so this failed on EVERY call, immediate or
  * scheduled alike, not just scheduled ones. Confirmed live in production
  * (2026-08-14) via `vercel logs`, then reproduced against real Postgres
  * before fixing. Same failure class as sms.service.ts's updateLogRow,
  * notifications.service.ts's insertSmsLog, and reminder_dispatch_log.settle()
- * — a `$n` reused both as an assigned value and inside a bare comparison
+ * - a `$n` reused both as an assigned value and inside a bare comparison
  * needs an explicit cast at every occurrence in this codebase.
  *
  * No existing test called this route's POST handler at all before this file
- * — sms-bulk-personalization.test.ts only references it in a comment, and
- * permissions/sms-email-messaging.test.ts only exercises DELETE — which is
+ * - sms-bulk-personalization.test.ts only references it in a comment, and
+ * permissions/sms-email-messaging.test.ts only exercises DELETE - which is
  * exactly how a 100%-failure bug shipped unnoticed.
  */
 import { POST as smsCampaignPost } from '@/app/api/v1/sms/campaign/route';
@@ -50,11 +50,11 @@ describe('POST /api/v1/sms/campaign', () => {
 
   // 20s, not the 5s default: the route calls enforceSmsRateLimit, which
   // reaches for Redis/Upstash over the network (lib/redis's checkRateLimit,
-  // fail-open by design — see rate-limit.ts's own header comment). Neither
+  // fail-open by design - see rate-limit.ts's own header comment). Neither
   // this sandbox nor CI has real egress to it, so it fails open, but not
-  // instantly — same shape as feedback_no_network_on_the_auth_hot_path,
+  // instantly - same shape as feedback_no_network_on_the_auth_hot_path,
   // just not worth widening that fix's scope for on this hotfix.
-  it('creates an immediate campaign (no scheduledAt) as draft — was a 500 on every call', async () => {
+  it('creates an immediate campaign (no scheduledAt) as draft - was a 500 on every call', async () => {
     const res = await smsCampaignPost(
       buildRequest('/api/v1/sms/campaign', {
         method: 'POST',

@@ -3,12 +3,12 @@ import type { IEmailAdapter, EmailPayload, EmailResult } from './types';
 import { withAdminDb } from '@/lib/db';
 import { env } from '@/lib/env';
 
-// Lazily constructed — Resend's constructor throws immediately when its API
+// Lazily constructed - Resend's constructor throws immediately when its API
 // key is missing, and Next.js's build-time page-data-collection step imports
 // every route module (including this one, transitively) regardless of
 // whether RESEND_API_KEY is configured in that environment. A module-scope
 // `new Resend(...)` therefore failed the ENTIRE build at whichever route
-// imported this file first — the same class of bug already fixed once for
+// imported this file first - the same class of bug already fixed once for
 // DATABASE_URL (lib/db/index.ts) and once for daraja.service.ts (b6ee340).
 // Nothing is weakened by deferring construction: send() is never called
 // during a build, only at real request time, by which point validateEnv()
@@ -105,7 +105,7 @@ export class ResendAdapter implements IEmailAdapter {
 
       logId = rows[0]?.id ?? null;
     } catch {
-      // Non-fatal — logging failure must not block delivery.
+      // Non-fatal - logging failure must not block delivery.
     }
 
     try {

@@ -3,13 +3,13 @@
  *
  * Before PLAN_SMS_ALLOWANCE existed, NEITHER of billing.service.ts's two
  * `INSERT INTO subscriptions` statements set `sms_allowance_included`, so
- * every plan silently took the column default of 50 from migration 124 —
+ * every plan silently took the column default of 50 from migration 124 -
  * starter and premium alike, across both products and all 8 live
  * subscriptions. PLAN_COPY meanwhile advertised "Higher SMS allowance" as a
  * premium feature the system never delivered.
  *
  * These tests pin the two properties that failure violated:
- *   1. the allowance is DIFFERENTIATED — a paid upgrade actually buys more
+ *   1. the allowance is DIFFERENTIATED - a paid upgrade actually buys more
  *   2. the pricing page and the subscription row read the SAME constant
  *
  * They are cheap and boring on purpose. The bug was not hard arithmetic; it

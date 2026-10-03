@@ -1,5 +1,5 @@
 /**
- * Membership Number utilities — fixed 8-character payment account numbers:
+ * Membership Number utilities - fixed 8-character payment account numbers:
  *
  *   PP DDDDD C   e.g. BG102534  (displayed "BG 10253 4")
  *   PP    = groups.payment_prefix (2 letters, immutable branch code)
@@ -7,12 +7,12 @@
  *   C     = Damm check digit over the full identifier
  *
  * The Damm quasigroup catches ALL single-character errors and ALL adjacent
- * transpositions — the two dominant human typo classes — so a mistyped
+ * transpositions - the two dominant human typo classes - so a mistyped
  * account number fails validation instead of paying a stranger in another
  * group (audit review W-1).
  *
  * Mirror implementation: supabase/migrations/…_056_membership_payment_accounts.sql
- * (damm_interim / damm_check_digit / damm_valid). KEEP THEM IDENTICAL — the
+ * (damm_interim / damm_check_digit / damm_valid). KEEP THEM IDENTICAL - the
  * DB CHECK constraint and this module must agree on every input.
  */
 
@@ -41,7 +41,7 @@ function dammInterim(digits: string): number {
   return interim;
 }
 
-/** 'BG10253' → '1610253' — prefix letters mapped A=0…Z=25, each mod 10. */
+/** 'BG10253' → '1610253' - prefix letters mapped A=0…Z=25, each mod 10. */
 function digitString(base: string): string {
   const a = (base.charCodeAt(0) - 65) % 10;
   const b = (base.charCodeAt(1) - 65) % 10;
@@ -53,7 +53,7 @@ export function dammCheckDigit(base: string): string {
   return String(dammInterim(digitString(base.toUpperCase())));
 }
 
-/** Strip spaces/dashes/underscores and uppercase — how members actually type. */
+/** Strip spaces/dashes/underscores and uppercase - how members actually type. */
 export function normalizeAccountRef(input: string): string {
   return input
     .trim()
@@ -106,11 +106,11 @@ export interface ParsedAccountRef {
 /**
  * Splits an inbound account reference into membership number + optional
  * product suffix. Members may type `BG102534-W`, `BG102534 W`, or
- * `BG102534W` — all normalise to a 9-char candidate whose first 8 chars have
+ * `BG102534W` - all normalise to a 9-char candidate whose first 8 chars have
  * membership-number shape.
  *
  * Anything that isn't membership-number shaped at all comes back as
- * `account = <normalised input>` with no suffix — the caller's registry
+ * `account = <normalised input>` with no suffix - the caller's registry
  * lookup / legacy grammar handles it.
  */
 export function parseAccountRef(input: string | null | undefined): ParsedAccountRef {

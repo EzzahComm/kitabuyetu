@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 const bodySchema = z.object({ asOf: z.string().date().optional() });
 
 /**
- * POST — manually trigger a governance computation run, instead of waiting
+ * POST - manually trigger a governance computation run, instead of waiting
  * for the monthly scheduled job (1st of month, 11:00 UTC). Same function
  * the job handler calls; this is the on-demand path for both admin use
  * ("recompute now") and verifying the engine works without waiting a month.

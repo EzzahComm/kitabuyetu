@@ -34,7 +34,7 @@ export function useEntitlements() {
     signupProduct: query.data?.signupProduct,
     has: (product: SubscriptionProduct) => products.includes(product),
     /**
-     * True for a group that holds Chama Reminder and NOT Kitabu Yetu — the
+     * True for a group that holds Chama Reminder and NOT Kitabu Yetu - the
      * standalone case that must never be sent to the Kitabu Yetu dashboard.
      * A group holding both is a Kitabu Yetu group with an add-on and belongs
      * on its normal dashboard.
@@ -42,7 +42,7 @@ export function useEntitlements() {
     reminderOnly: products.includes('chama_reminder') && !products.includes('kitabu_yetu'),
     /**
      * True for a group that has not paid for anything yet but registered for
-     * Chama Reminder. `products` cannot answer this — since migration 139 a
+     * Chama Reminder. `products` cannot answer this - since migration 139 a
      * never-paid group holds no subscription at all, so without signupProduct
      * it is indistinguishable from an unpaid Kitabu Yetu group and would be
      * sent to the wrong subscribe page.

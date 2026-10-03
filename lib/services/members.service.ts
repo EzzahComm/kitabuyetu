@@ -25,13 +25,13 @@ export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
  *
  * MUST be called AFTER the creating transaction commits. emitBusinessEvent
  * does its own DB work and may send inline, so calling it inside the
- * transaction would let a messaging failure roll back the member — the exact
+ * transaction would let a messaging failure roll back the member - the exact
  * inversion of what matters here. Best-effort by design, and never throws:
  * a group gaining a member is the real outcome; the SMS is a courtesy on top.
  *
  * Deliberately called from `create()` only, NOT from `linkMemberToGroup`.
  * Both the single-member API and the CSV importer go through that helper, and
- * putting the emit there would blast one SMS per row of a bulk import — a
+ * putting the emit there would blast one SMS per row of a bulk import - a
  * 500-row file would spend 500 credits nobody asked for. Bulk import stays
  * silent; if welcome-on-import is ever wanted it should be an explicit,
  * opt-in choice made at import time.
@@ -46,7 +46,7 @@ async function emitMemberRegisteredEvent(
     const { SMS_EVENTS } = await import('@/lib/sms/events');
     const { withAdminDb } = await import('@/lib/db');
 
-    // The engine's toTemplateVars copies the PAYLOAD and nothing else — it
+    // The engine's toTemplateVars copies the PAYLOAD and nothing else - it
     // does not inject the group. A {{group_name}} left unsupplied renders as
     // an empty string, i.e. "You have joined  on Kitabu Yetu", so it has to be
     // fetched and passed explicitly. withAdminDb because this runs after the
@@ -58,7 +58,7 @@ async function emitMemberRegisteredEvent(
     );
     if (!groupName) {
       const { logger } = await import('@/lib/logger');
-      logger.warn('[members] skipping welcome — group not found', { groupId, memberId });
+      logger.warn('[members] skipping welcome - group not found', { groupId, memberId });
       return;
     }
 
@@ -75,7 +75,7 @@ async function emitMemberRegisteredEvent(
         last_name: member.lastName,
         group_name: groupName,
         // The SHORT per-group number (e.g. NC000078), not the long platform
-        // member_code (KY000000300004) — this is the one a member is asked to
+        // member_code (KY000000300004) - this is the one a member is asked to
         // quote at a meeting, and the long form would push the SMS past one
         // 160-character segment on its own.
         membership_no: member.membershipNo,
@@ -83,7 +83,7 @@ async function emitMemberRegisteredEvent(
     });
   } catch (err) {
     const { logger } = await import('@/lib/logger');
-    logger.error('[members] welcome event failed — member was still created', {
+    logger.error('[members] welcome event failed - member was still created', {
       memberId,
       groupId,
       err: String(err),
@@ -91,13 +91,13 @@ async function emitMemberRegisteredEvent(
   }
 }
 
-/** A members row with credential material removed — the only shape routes may return. */
+/** A members row with credential material removed - the only shape routes may return. */
 export type SafeMember = Omit<Member, 'password_hash'>;
 
 /**
  * Columns on `members` that must never leave this service. The list/detail
  * queries SELECT m.* deliberately (so ordinary profile columns added by a
- * future migration flow through without edits here) — these are the
+ * future migration flow through without edits here) - these are the
  * exception, and every one of them has to be named explicitly because
  * nothing else catches an addition to this list.
  *
@@ -105,7 +105,7 @@ export type SafeMember = Omit<Member, 'password_hash'>;
  * this. reset_otp_hash/reset_otp_expires_at/reset_otp_attempts (migration
  * 104) and session_version (migration 060) rode along unmasked in every
  * GET /members and /members/:id response to ANY authenticated group member
- * — reset_otp_hash is an unsalted SHA-256 of a 6-digit OTP (900,000
+ * - reset_otp_hash is an unsalted SHA-256 of a 6-digit OTP (900,000
  * possibilities), sub-second to offline-brute-force, giving any group
  * member a path to take over a fellow member's account mid password-reset.
  * See __tests__/integration/members-secret-fields.test.ts, which pins this.
@@ -232,7 +232,7 @@ export const membersService = {
       // total_contributed/active_loans_count are computed here (correlated
       // subqueries, same shared connection as the member row) rather than
       // reduced client-side over the profile page's own 10-row contributions/
-      // loans pages — a lifetime SUM/count over a paginated slice silently
+      // loans pages - a lifetime SUM/count over a paginated slice silently
       // understates once a member passes 11 contributions
       // (docs/audits/optimization-2026-09).
       const { rows } = await client.query<
@@ -307,7 +307,7 @@ export const membersService = {
         // gen_random_uuid() default) so this INSERT needs no RETURNING: the
         // row isn't yet linked into group_members at this point in the
         // transaction, so under the least-privileged `app_tenant` role (no
-        // BYPASSRLS — see docs/adr/001-bypassrls-two-role-split.md) the
+        // BYPASSRLS - see docs/adr/001-bypassrls-two-role-split.md) the
         // members_select RLS policy can't see it yet, and Postgres rejects
         // an INSERT...RETURNING whose new row fails the table's SELECT
         // policy. The full row is already re-fetched below via a plain
@@ -383,7 +383,7 @@ export const membersService = {
       return { member: stripSecrets(member), membershipNo: link.membershipNo };
     });
 
-    // After the commit, never inside it — see emitMemberRegisteredEvent.
+    // After the commit, never inside it - see emitMemberRegisteredEvent.
     await emitMemberRegisteredEvent(member.member.id, ctx.groupId, {
       firstName: data.firstName,
       lastName: data.lastName,
@@ -582,7 +582,7 @@ export const membersService = {
         setClauses.push(`reject_reason = $${idx++}`);
         values.push(reason!);
       } else if (target === 'suspended') {
-        // group_members has no suspended_at column — store reason on
+        // group_members has no suspended_at column - store reason on
         // reject_reason for now (Phase A added it as a generic reason field).
         setClauses.push(`reject_reason = $${idx++}`);
         values.push(reason!);
@@ -702,7 +702,7 @@ export const membersService = {
       if (!m[0]) throw new NotFoundError('Group membership for member', memberId);
 
       // The unique partial index on next_of_kin(member_id) WHERE priority=1
-      // catches duplicate primaries — surface a clean conflict instead of the
+      // catches duplicate primaries - surface a clean conflict instead of the
       // raw 23505 to make the UI message readable.
       try {
         const phone = normalizePhone(data.phone);

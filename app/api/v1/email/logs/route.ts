@@ -15,7 +15,7 @@ const QuerySchema = z.object({
 
 // Phase 1 Week 1.2: `super_admin` intentionally sees email_logs across every
 // group (matching analytics/route.ts's existing cross-group precedent for
-// this same table), so that branch stays on the admin pool — email_logs' RLS
+// this same table), so that branch stays on the admin pool - email_logs' RLS
 // policy (migration 014) is a flat `group_id = current_setting(...)` match
 // with no super_admin bypass, and routing an unscoped query through it would
 // silently collapse "every group" down to just the caller's own. Every other

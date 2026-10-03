@@ -135,7 +135,7 @@ export type RegisterResult = LoginResponse & {
   memberCode?: string;
 } & SignupCertificateOutcome;
 
-// No LoginResponse — register-organization issues no session token. The new
+// No LoginResponse - register-organization issues no session token. The new
 // coordinator signs in separately via the mandatory-MFA backoffice flow.
 export interface RegisterOrganizationResult {
   organizationId: string;
@@ -144,7 +144,7 @@ export interface RegisterOrganizationResult {
   nextStep: 'enterprise_login';
 }
 
-// No LoginResponse here either — the group this creates starts unsubscribed
+// No LoginResponse here either - the group this creates starts unsubscribed
 // (migration 139), same as any other new signup. The creator checks back on
 // review status by group code, no login required until they're ready to pay.
 export interface RegisterCampaignResult {
@@ -198,7 +198,7 @@ export const authApi = {
 
   switchGroup: (groupId: string) => api.post<LoginResponse>('/auth/switch-group', { groupId }),
 
-  // Found an additional group under the caller's EXISTING identity — the
+  // Found an additional group under the caller's EXISTING identity - the
   // authenticated counterpart to `register`, for a member who already has an
   // account and would otherwise 409 on their own phone number.
   createGroup: (body: CreateAdditionalGroupPayload) => api.post<CreateGroupResult>('/auth/create-group', body),
@@ -207,16 +207,16 @@ export const authApi = {
 
   logout: (refreshToken?: string) => api.post<void>('/auth/logout', { refreshToken }),
 
-  // Registrant verification (§4A) — pending_verification groups only.
+  // Registrant verification (§4A) - pending_verification groups only.
   verifyStart: (channel: 'email' | 'sms') =>
     api.post<{ channel: 'email' | 'sms'; expiresAt: string }>('/auth/verify/start', { channel }),
 
   verifyComplete: (code: string) => api.post<LoginResponse>('/auth/verify/complete', { code }),
 
-  // Public — no access token required (the token param IS the proof).
+  // Public - no access token required (the token param IS the proof).
   verifyEmailToken: (token: string) => api.post<{ status: string; groupId: string }>('/auth/verify/email', { token }),
 
-  // Self-service forgot-password — public, phone-only (mirrors the pattern
+  // Self-service forgot-password - public, phone-only (mirrors the pattern
   // above). start() always resolves the same way regardless of whether the
   // phone belongs to an account.
   forgotPasswordStart: (phone: string) => api.post<{ status: string }>('/auth/forgot-password/start', { phone }),
@@ -230,7 +230,7 @@ export const authApi = {
   //   - AdminLoginResponse            (legacy path; not reachable with MFA on)
   // The client narrows via isAdminEnrollment / isAdminMfaChallenge.
   // `surface` picks which allowed-role list the server checks
-  // (SURFACE_ALLOWED_ROLES in the route) — 'platform' from /admin-login,
+  // (SURFACE_ALLOWED_ROLES in the route) - 'platform' from /admin-login,
   // 'organization' from /enterprise/login. super_admin passes either.
   adminLogin: (body: { email: string; password: string; surface: 'platform' | 'organization' }) =>
     api.post<AdminLoginResult>('/auth/admin/login', body),
@@ -239,7 +239,7 @@ export const authApi = {
   // code) + the challenge token from step 1. On first-time enrollment the
   // client also echoes back the 10 plaintext recoveryCodes so they get
   // bcrypt-hashed + stored alongside the secret. Can also return
-  // NeedsOrgSelection (multi-staff organizations, migration 101) — the
+  // NeedsOrgSelection (multi-staff organizations, migration 101) - the
   // client shows an org chooser and re-submits with `organizationId`.
   adminLoginVerify: (body: {
     challenge: string;
@@ -249,7 +249,7 @@ export const authApi = {
     organizationId?: string;
   }) => api.post<AdminLoginVerifyResult>('/auth/admin/login/verify', body),
 
-  // Staff/backoffice forgot-password — public, email-link based (mirrors
+  // Staff/backoffice forgot-password - public, email-link based (mirrors
   // forgotPasswordStart/Reset above, but for super_admin/support/
   // organization_coordinator accounts, which sign in with email not phone).
   adminForgotPasswordStart: (email: string) =>
@@ -260,7 +260,7 @@ export const authApi = {
 };
 
 // ------------------------------------------------------------------
-// Organization staff invitations (Phase 2, migration 102) — fully public,
+// Organization staff invitations (Phase 2, migration 102) - fully public,
 // unauthenticated flow reached only via an emailed link. Mirrors
 // authApi.verifyEmailToken's shape: token-in-body, no access token.
 // ------------------------------------------------------------------
@@ -290,7 +290,7 @@ export const orgInvitationApi = {
 };
 
 // ------------------------------------------------------------------
-// Me — the (member) self-service portal. Every route here is scoped to the
+// Me - the (member) self-service portal. Every route here is scoped to the
 // signed-in member's own data (auth.userId), no id params, mirroring
 // authApi's shape but under /me/*.
 // ------------------------------------------------------------------
@@ -329,13 +329,13 @@ export const membersApi = {
   update: (id: string, body: UpdateMemberPayload) => api.patch<GroupMemberRow>(`/members/${id}`, body),
   updateRole: (id: string, role: UpdateMemberRoleInput['role']) => api.put<unknown>(`/members/${id}`, { role }),
   deactivate: (id: string) => api.delete<void>(`/members/${id}`),
-  // Phase E2 — explicit state-machine transition with optional reason.
+  // Phase E2 - explicit state-machine transition with optional reason.
   // Use this instead of `deactivate()` so the audit columns are stamped.
   transitionStatus: (id: string, status: MemberStatusTransitionInput['status'], reason?: string) =>
     api.post<unknown>(`/members/${id}/status`, { status, reason }),
 };
 
-// Phase E2 — next-of-kin emergency contacts, scoped to a member.
+// Phase E2 - next-of-kin emergency contacts, scoped to a member.
 export const nextOfKinApi = {
   list: (memberId: string) => api.get<unknown[]>(`/members/${memberId}/next-of-kin`),
   create: (memberId: string, body: CreateNextOfKinPayload) =>
@@ -367,9 +367,9 @@ export const contributionsApi = {
 };
 
 // ------------------------------------------------------------------
-// Group registration status (groups.is_government_registered — see
+// Group registration status (groups.is_government_registered - see
 // group-registration.service.ts). Entirely optional, never a sign-up
-// blocker — settable at registration or any time later from Settings.
+// blocker - settable at registration or any time later from Settings.
 // ------------------------------------------------------------------
 export const groupRegistrationApi = {
   get: () => api.get<GroupRegistrationStatus>('/settings/registration'),
@@ -396,7 +396,7 @@ export const loansApi = {
     api.post<LoanRepayment>(`/loans/${id}/repayments`, body),
   policy: () => api.get<EffectiveLoanTerms>('/loans/policy'),
   setPolicy: (body: SetLoanTermsPayload) => api.put<EffectiveLoanTerms>('/loans/policy', body),
-  // SIMPLIFICATION_AND_RBAC_AUDIT.md §4 — dashboard's "Upcoming Loan Repayments" card.
+  // SIMPLIFICATION_AND_RBAC_AUDIT.md §4 - dashboard's "Upcoming Loan Repayments" card.
   upcomingRepayments: (limit = 5) =>
     api.get<(LoanRepayment & { member_name: string })[]>(`/loans/upcoming-repayments?limit=${limit}`),
 };
@@ -467,7 +467,7 @@ export const smsApi = {
   deleteSchedule: (id: string) => api.delete<void>(`/sms/schedules?id=${id}`),
   // Provider balance
   // super_admin only. This is the PLATFORM's own float with TextSMS, not a
-  // tenant's credit balance — that is `credits` below, which is what the
+  // tenant's credit balance - that is `credits` below, which is what the
   // group-facing panels show. Calling either of these from a tenant surface
   // 403s by design.
   providerBalance: () => api.get<SmsProviderBalance>('/sms/balance'),
@@ -483,13 +483,13 @@ export const smsApi = {
     }>('/sms/credits'),
   // DLR
   dlr: (messageId: string) => api.get<unknown>(`/sms/dlr?messageId=${messageId}`),
-  // Self-service opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) — scoped to the
+  // Self-service opt-out (SMS_MESSAGING_AUDIT_2026-08.md M5) - scoped to the
   // caller's own phone + active group.
   preferences: () => api.get<{ optedOut: boolean }>('/sms/preferences'),
   setPreferences: (optedOut: boolean) => api.put<{ optedOut: boolean }>('/sms/preferences', { optedOut }),
   // Officer-managed opt-out list (SMS-REAUDIT-2026-09-02 F1). The route has
   // existed since the consent work but had no caller, so `sms_opt_outs` held 0
-  // rows — not "nobody asked to opt out" but "no officer could record one".
+  // rows - not "nobody asked to opt out" but "no officer could record one".
   // The member self-service path above only helps a member with an app login;
   // most are added by an officer as a name and a phone number.
   // Failed messages + the manual retry (SMS-REAUDIT-2026-09-02 F3/F6). The
@@ -498,7 +498,7 @@ export const smsApi = {
   failures: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<SmsFailure>>(`/sms/failures${buildQuery(params ?? {})}`),
   retryFailure: (id: string) => api.post<{ status: string }>(`/sms/failures/${id}/retry`, {}),
-  // Reminder/automation history, suppressed outcomes included — the DSAR view.
+  // Reminder/automation history, suppressed outcomes included - the DSAR view.
   reminderHistory: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<ReminderHistoryRow>>(`/sms/reminder-history${buildQuery(params ?? {})}`),
   // What a bulk send will actually reach and cost, before sending it.
@@ -515,7 +515,7 @@ export const smsApi = {
   updateSettings: (body: SmsGroupSettingsUpdateInput) => api.put<SmsGroupSettings>('/sms/settings', body),
   // Read-only view over the birthday job's own dispatch ledger.
   birthdays: () => api.get<BirthdaysResult>('/sms/birthdays'),
-  // Spec §8. Deliberately carries no provider cost — see
+  // Spec §8. Deliberately carries no provider cost - see
   // lib/services/sms-analytics.service.ts.
   analytics: () => api.get<SmsUsageAnalytics>('/sms/analytics'),
 };
@@ -559,7 +559,7 @@ export interface SmsBulkPreview {
   /**
    * Variables written in the body that NO recipient can fill, so they will be
    * stripped and send as gaps. Empty for an ordinary message. Variables that
-   * only some recipients lack are deliberately absent — see previewBulkSend.
+   * only some recipients lack are deliberately absent - see previewBulkSend.
    */
   unresolvableVariables: string[];
   balance: { credits: number; allowanceRemaining: number; available: number };
@@ -632,7 +632,7 @@ export interface BillingPlanRow {
   current: boolean;
 }
 
-/** GET /billing/entitlements — what this group may use, and what it signed up for. */
+/** GET /billing/entitlements - what this group may use, and what it signed up for. */
 export interface EntitlementsResponse {
   products: SubscriptionProduct[];
   signupProduct: SubscriptionProduct;
@@ -691,7 +691,7 @@ export const organizationApi = {
   policies: () => adminApi.get<EffectiveThreshold[]>('/organization/policies'),
   setPolicy: (body: SetApprovalPolicyInput) => adminApi.put<EffectiveThreshold[]>('/organization/policies', body),
 
-  // §1.5 "what needs attention?" — served separately from dashboard() so a
+  // §1.5 "what needs attention?" - served separately from dashboard() so a
   // failure in either cannot blank the other. `health: null` with
   // incomplete: ['health'] is the R10 signal, NOT zero risk: the caller must
   // render a dash, because "no arrears" and "could not check for arrears" are
@@ -699,12 +699,12 @@ export const organizationApi = {
   // change to the aggregate breaks the UI at compile time rather than silently.
   health: () => adminApi.get<{ health: PortfolioHealth | null; incomplete: string[] }>('/organization/health'),
 
-  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — disbursements page.
+  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - disbursements page.
   // Backend (organization-finance.service.ts) already existed; this is the
   // first frontend client wiring for it.
   wallet: () => adminApi.get<{ wallet: OrgWallet }>('/organization/wallet'),
   deposit: (body: DepositPayload) => adminApi.post<unknown>('/organization/wallet', body),
-  // Separate from the capital wallet above — organization_billing_accounts
+  // Separate from the capital wallet above - organization_billing_accounts
   // .sms_credits is its own wallet, purely for SMS. Same manual/self-attested
   // trust model as deposit(): this records that money already arrived, it
   // does not collect payment itself.
@@ -723,7 +723,7 @@ export const organizationApi = {
     }>('/organization/sms-credits'),
   topUpSmsCredits: (body: TopUpSmsCreditsPayload) =>
     adminApi.post<{ creditsAdded: number; newBalance: number; rateApplied: number }>('/organization/sms-credits', body),
-  // Read-only — an organization never self-serve changes its plan, only
+  // Read-only - an organization never self-serve changes its plan, only
   // super_admin does (app/api/admin/organizations/[id]/plan).
   plan: () =>
     adminApi.get<{
@@ -742,14 +742,14 @@ export const organizationApi = {
   programs: () => adminApi.get<{ items: FundingProgram[] }>('/organization/programs'),
   createProgram: (body: CreateProgramPayload) => adminApi.post<FundingProgram>('/organization/programs', body),
   // Pause/resume a program. Typed here rather than left as a raw adminApi.patch
-  // (which is how the retired (dashboard)/organization page called it) —
+  // (which is how the retired (dashboard)/organization page called it) -
   // an untyped body is exactly the drift trap CLIENT_SERVER_CONTRACT_AUDIT
   // _2026-08.md documents, where a payload/schema mismatch is invisible to
   // tsc and only surfaces as a 400 at runtime.
   updateProgramStatus: (id: string, body: UpdateProgramStatusInput) =>
     adminApi.patch<FundingProgram>(`/organization/programs/${id}`, body),
   // Programme tier of the portfolio drill-down (Org → Programme → Group →
-  // Member) — organization-finance.service.ts's listProgramGroups. Typed
+  // Member) - organization-finance.service.ts's listProgramGroups. Typed
   // against the service's own return shape (ProgramGroupLine, FundingProgram)
   // rather than hand-copied, per the PortfolioHealth precedent above.
   programGroups: (id: string) =>
@@ -770,32 +770,32 @@ export const organizationApi = {
   disbursementAction: (id: string, body: DisbursementActionInput) =>
     adminApi.post<OrgDisbursement>(`/organization/disbursements/${id}`, body),
 
-  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — reports page. Both
+  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - reports page. Both
   // reports already existed server-side (organization-finance.service.ts);
   // this is the first frontend wiring for either.
   budgetReport: () => adminApi.get<{ items: ProgramBudgetLine[] }>('/organization/programs?report=budget'),
   donorSpendReport: () => adminApi.get<{ items: DonorSpendLine[] }>('/organization/programs?report=donor'),
 
-  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — members page. New
-  // backend (organization.service.ts's listMembers) — customer members
+  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - members page. New
+  // backend (organization.service.ts's listMembers) - customer members
   // across the org's branches, distinct from organization staff.
   members: (params?: { page?: number; limit?: number; search?: string }) =>
     adminApi.get<PaginatedResult<OrganizationMemberRow>>(`/organization/members${buildQuery(params ?? {})}`),
 
-  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — audit trail page. New
+  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - audit trail page. New
   // backend (organization.service.ts's listAuditLogs), joining the
   // platform-wide audit_logs table through organization_group_access.
   auditLogs: (params?: { page?: number; limit?: number; search?: string }) =>
     adminApi.get<PaginatedResult<OrganizationAuditLogRow>>(`/organization/audit-logs${buildQuery(params ?? {})}`),
 
-  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — branding page.
+  // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 - branding page.
   // New backend (migration 109 + organization.service.ts's getBranding/
   // setBranding). Scope: logo + primary color only (decision recorded in
-  // the audit doc's Phase 4 section) — no custom domain.
+  // the audit doc's Phase 4 section) - no custom domain.
   branding: () => adminApi.get<OrganizationBranding>('/organization/branding'),
   setBranding: (body: BrandingPayload) => adminApi.put<OrganizationBranding>('/organization/branding', body),
 
-  // Phase 5 gap analysis — geography rollup, the last missing item on the
+  // Phase 5 gap analysis - geography rollup, the last missing item on the
   // organization axis. Typed against organization-geography.service.ts's own
   // return shape, per the PortfolioHealth precedent above.
   geographyCounties: () => adminApi.get<{ counties: OrgCountyAggregationRow[] }>('/organization/geography/counties'),

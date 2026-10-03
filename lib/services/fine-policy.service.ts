@@ -1,5 +1,5 @@
 /**
- * FinePolicy — advisory fine schedule per group (domain 'fine', key
+ * FinePolicy - advisory fine schedule per group (domain 'fine', key
  * 'schedule'), migrated from the retired group_constitutions.fine_schedule
  * column by migration 088 (ACCOUNTING_ARCHITECTURE_AUDIT.md §33.1). A typed
  * wrapper over configuration.service.ts, same shape as ApprovalPolicy and
@@ -7,7 +7,7 @@
  *
  * Advisory only: 'fine' exists as a payment-request category (migration
  * 059), and these amounts are the group's reference tariff for each offence
- * — nothing auto-charges them.
+ * - nothing auto-charges them.
  */
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -59,7 +59,7 @@ export const finePolicyService = {
     });
   },
 
-  /** Access gated at the route (withRole(req, 'chairperson', ...)) — sets the whole group's fine tariff. */
+  /** Access gated at the route (withRole(req, 'chairperson', ...)) - sets the whole group's fine tariff. */
   async setGroupOverride(ctx: TenantContext, schedule: FineSchedule): Promise<void> {
     validateSchedule(schedule);
     await withTransaction(ctx, async (client) => {
@@ -67,7 +67,7 @@ export const finePolicyService = {
     });
   },
 
-  /** Platform-wide default — super_admin only (enforced at the route via withPlatformRole). */
+  /** Platform-wide default - super_admin only (enforced at the route via withPlatformRole). */
   async getPlatformSchedule(client: PoolClient): Promise<EffectiveFineSchedule> {
     const resolved = await resolvePolicyDetailed<FineSchedule>(client, DOMAIN, POLICY_KEY, {}, DEFAULT_FINE_SCHEDULE);
     return { schedule: resolved.value, source: resolved.source };

@@ -6,10 +6,10 @@ import { CreateGroupProgramSchema } from '@/lib/validators/organization.schema';
 import { ok, created } from '@/lib/utils/response';
 
 /**
- * GET  /api/admin/organization/group-programs — list this organization's
- *   programs (recruitment/membership — unrelated to the budget-centric
+ * GET  /api/admin/organization/group-programs - list this organization's
+ *   programs (recruitment/membership - unrelated to the budget-centric
  *   /api/admin/organization/programs, which is funding_programs).
- * POST /api/admin/organization/group-programs — create a program (draft)
+ * POST /api/admin/organization/group-programs - create a program (draft)
  */
 
 export async function GET(req: NextRequest): Promise<Response> {

@@ -2,7 +2,7 @@
  * Runtime feature-flag evaluation (ACCOUNTING_ARCHITECTURE_AUDIT.md §33.4).
  * feature_flags has carried rollout_pct / applies_to / conditions targeting
  * columns since migration 025, but §22 found no code path had ever evaluated
- * them — the table was a de facto global boolean list that only the admin
+ * them - the table was a de facto global boolean list that only the admin
  * portal read. This service makes the declared semantics real (confirmed
  * product decision: build evaluation, don't drop the columns):
  *
@@ -28,7 +28,7 @@ import type { PoolClient } from 'pg';
 import { withDb, type TenantContext } from '@/lib/db';
 import { ForbiddenError } from '@/lib/utils/errors';
 
-// Ordinal only — must stay in step with the plan_type enum's own ordering
+// Ordinal only - must stay in step with the plan_type enum's own ordering
 // (migration 138 inserted `premium` BEFORE 'enterprise' for the same reason).
 // An unranked plan scores -1 via the lookups below, so a missing entry fails
 // closed rather than granting access.
@@ -41,7 +41,7 @@ interface FlagRow {
   conditions: { min_plan?: string; group_ids?: string[]; member_ids?: string[] } | null;
 }
 
-/** Deterministic [0,100) bucket — same subject always lands in the same bucket for a given key. */
+/** Deterministic [0,100) bucket - same subject always lands in the same bucket for a given key. */
 function rolloutBucket(key: string, subjectId: string): number {
   const digest = createHash('sha256').update(`${key}:${subjectId}`).digest();
   return digest.readUInt32BE(0) % 100;
@@ -56,7 +56,7 @@ export async function isFeatureEnabled(
     `SELECT enabled, rollout_pct, applies_to, conditions FROM feature_flags WHERE key = $1`,
     [key],
   );
-  if (rows.length === 0) return true; // unknown key — fail open (see header)
+  if (rows.length === 0) return true; // unknown key - fail open (see header)
 
   const flag = rows[0];
   if (!flag.enabled) return false;
@@ -72,13 +72,13 @@ export async function isFeatureEnabled(
         if (!(minPlan in PLAN_RANK) || !scope.groupId) return false;
         // Since migration 127 a group can hold one subscription per product,
         // so `ORDER BY started_at DESC LIMIT 1` would gate on whichever product
-        // was subscribed to most recently — an arbitrary answer that could flip
+        // was subscribed to most recently - an arbitrary answer that could flip
         // a flag off just because the group added a second product.
         //
         // Take the HIGHEST-ranked plan the group holds anywhere instead: a
         // min_plan condition asks "has this group paid up to at least X", and
         // ranking happens in TS because PLAN_RANK has no SQL equivalent.
-        // Deliberately not scoped to kitabu_yetu — a Chama Reminder flag would
+        // Deliberately not scoped to kitabu_yetu - a Chama Reminder flag would
         // need the same gate, and nothing here is product-specific.
         const { rows: subs } = await client.query<{ plan_type: string }>(
           `SELECT plan_type FROM subscriptions
@@ -113,7 +113,7 @@ export const featureFlagsService = {
   /**
    * Route-level gate: throws ForbiddenError when the flag resolves off for
    * this tenant. Used by module entry routes (welfare, investments,
-   * meetings) — the flags seeded for those modules are enabled/'all' today,
+   * meetings) - the flags seeded for those modules are enabled/'all' today,
    * so wiring this changes zero current behavior while making the admin
    * portal's toggles actually mean something.
    */

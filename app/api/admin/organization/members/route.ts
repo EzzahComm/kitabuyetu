@@ -5,7 +5,7 @@ import { organizationService } from '@/lib/services/organization.service';
 import { ok } from '@/lib/utils/response';
 import { parsePagination } from '@/lib/utils/pagination';
 
-/** GET /api/v1/organization/members — customer members across every branch linked to this organization. */
+/** GET /api/v1/organization/members - customer members across every branch linked to this organization. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withOrganizationAccess(req, 'organization.members.view', async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };

@@ -3,7 +3,7 @@
  *
  * Billing charged 1 credit per recipient regardless of length while the
  * provider bills per segment, and the compose UI used a third number
- * (ceil(len/160)) that was wrong because 160 is the SINGLE-segment size —
+ * (ceil(len/160)) that was wrong because 160 is the SINGLE-segment size -
  * concatenated parts hold 153 GSM-7 characters, the rest going to the UDH.
  */
 import { countSegments, segmentsOf } from '@/lib/sms/segments';
@@ -20,7 +20,7 @@ describe('GSM-7 boundaries', () => {
     expect(countSegments(g(160))).toMatchObject({ encoding: 'gsm7', segments: 1 });
   });
 
-  it('splits at 161 — into 153-character parts, not 160', () => {
+  it('splits at 161 - into 153-character parts, not 160', () => {
     expect(segmentsOf(g(161))).toBe(2);
     expect(segmentsOf(g(306))).toBe(2);
     expect(segmentsOf(g(307))).toBe(3);
@@ -48,7 +48,7 @@ describe('GSM-7 extension characters cost two septets', () => {
   });
 });
 
-describe('UCS-2 — the trap that makes a short message expensive', () => {
+describe('UCS-2 - the trap that makes a short message expensive', () => {
   it('one emoji drops capacity from 160 to 70', () => {
     expect(segmentsOf(g(100))).toBe(1);
     const withEmoji = g(100) + '\u{1F600}';
@@ -57,7 +57,7 @@ describe('UCS-2 — the trap that makes a short message expensive', () => {
   });
 
   it('a curly apostrophe alone forces UCS-2', () => {
-    expect(countSegments('Karibu’').encoding).toBe('ucs2');
+    expect(countSegments('Karibu'').encoding).toBe('ucs2');
   });
 
   it('honours the 70 / 67 boundaries', () => {

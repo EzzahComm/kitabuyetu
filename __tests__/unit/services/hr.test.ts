@@ -1,5 +1,5 @@
 /**
- * HR employee records (Phase 11 foundation) — employee_number generation,
+ * HR employee records (Phase 11 foundation) - employee_number generation,
  * manager-existence/self-manager guards, partial update, audit logging on
  * every write, and the terminate lifecycle (idempotency guard + orphaning
  * of direct reports).
@@ -106,7 +106,7 @@ describe('terminateEmployee', () => {
     );
   });
 
-  it('throws ConflictError when already terminated (not idempotent — a second termination is an error)', async () => {
+  it('throws ConflictError when already terminated (not idempotent - a second termination is an error)', async () => {
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'e1', employment_status: 'terminated' }] });
     await expect(terminateEmployee('admin-1', 'e1', { terminationDate: '2026-01-01' })).rejects.toBeInstanceOf(
       ConflictError,

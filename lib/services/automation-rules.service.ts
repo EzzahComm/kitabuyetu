@@ -1,20 +1,20 @@
 /**
- * Automation rules service — CRUD for SMS + email trigger rules (Phase 9.4.3).
+ * Automation rules service - CRUD for SMS + email trigger rules (Phase 9.4.3).
  *
  * sms_trigger_rules (migration 052) and email_trigger_rules (migration 195)
  * are separate tables with an identical shape. This service is the one place
  * that treats them as a single "automation rule" concept for authoring, so
  * the dispatch engines (lib/sms/trigger-engine.ts, email-trigger.service.ts)
- * stay untouched and channel-specific — this only ever writes rows they later
+ * stay untouched and channel-specific - this only ever writes rows they later
  * read.
  *
  * Rules are never hard-deleted: both execution tables reference rule_id
  * ON DELETE CASCADE, so deleting a rule would silently erase its audit trail.
- * Deactivation (is_active = false) is the only teardown path — a stopped rule
+ * Deactivation (is_active = false) is the only teardown path - a stopped rule
  * keeps its history and can be reactivated later.
  *
  * Query strings are written out per-channel rather than interpolating a table
- * name from a lookup — `channel` is user input (an API body/query field), and
+ * name from a lookup - `channel` is user input (an API body/query field), and
  * this codebase never string-builds identifiers from request data.
  */
 
@@ -128,7 +128,7 @@ function validateCommon(channel: AutomationChannel, data: AutomationRuleInput): 
 
 /**
  * A tenant user authors a rule scoped to whichever context they're acting in
- * — their group, or (groupless) their organization. Platform-wide rules
+ * - their group, or (groupless) their organization. Platform-wide rules
  * (both null, e.g. migration 052's payment_received_receipt seed) are
  * ops/seed-only and not authorable from this service.
  */
@@ -140,7 +140,7 @@ function requireScope(ctx: TenantContext): { groupId: string | null; organizatio
 
 /**
  * Confirm template_key names a real, active template the caller's scope can
- * see — the direct fix for the class of bug this phase surfaced in the email
+ * see - the direct fix for the class of bug this phase surfaced in the email
  * engine (see email-trigger.service.ts): a rule that silently no-ops because
  * its template_key was never created, or was mistyped, is indistinguishable
  * from a rule that's just quiet.
@@ -317,7 +317,7 @@ export async function updateAutomationRule(
     }
 
     // Ownership: only the caller's own group/org rule is editable, never an
-    // inherited platform or (for a group user) organization-level default —
+    // inherited platform or (for a group user) organization-level default -
     // matches sms_templates' `AND is_system = false` guard on writes.
     const ownerClause = scope.groupId ? `group_id = $${++idx}` : `organization_id = $${++idx}`;
     vals.push(scope.groupId ?? scope.organizationId);
@@ -338,7 +338,7 @@ export async function updateAutomationRule(
 }
 
 // ============================================================================
-// EXECUTIONS (recent activity — "why did this rule fire")
+// EXECUTIONS (recent activity - "why did this rule fire")
 // ============================================================================
 
 export async function listRuleExecutions(
@@ -362,7 +362,7 @@ export async function listRuleExecutions(
 }
 
 // ============================================================================
-// FREQUENCY CAPS (email channel only — migration 195)
+// FREQUENCY CAPS (email channel only - migration 195)
 // ============================================================================
 
 export async function listFrequencyCaps(ctx: TenantContext, ruleId: string): Promise<FrequencyCap[]> {

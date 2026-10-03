@@ -74,7 +74,7 @@ export interface AssignRoleResult {
 
 /**
  * Assign (or change) a member's role within a specific group. Super-admin only
- * — the caller is authorized by the route (withPlatformRole('super_admin')).
+ * - the caller is authorized by the route (withPlatformRole('super_admin')).
  */
 export async function assignGroupMemberRole(input: {
   actorId: string;
@@ -208,7 +208,7 @@ export async function assignGroupMemberRole(input: {
         groupId,
         memberId,
         phone: membership.phone,
-        // No brand prefix — the sender ID is already "KITABU YETU".
+        // No brand prefix - the sender ID is already "KITABU YETU".
         body: `Your role in ${membership.group_name} is now ${role.name}.`,
         referenceType: 'role_assignment',
         referenceId: memberId,

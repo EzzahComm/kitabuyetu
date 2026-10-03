@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/airtime              — Buy airtime for a phone (chairperson+)
- * POST /api/v1/mpesa/airtime?type=result  — Safaricom result callback (no JWT)
- * POST /api/v1/mpesa/airtime?type=timeout — Safaricom timeout callback (no JWT)
+ * POST /api/v1/mpesa/airtime              - Buy airtime for a phone (chairperson+)
+ * POST /api/v1/mpesa/airtime?type=result  - Safaricom result callback (no JWT)
+ * POST /api/v1/mpesa/airtime?type=timeout - Safaricom timeout callback (no JWT)
  *
  * The underlying Daraja airtime product is operator-provisioned; the call is
  * gated behind MPESA_AIRTIME_COMMAND_ID and returns 501 until configured.

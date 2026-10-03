@@ -8,9 +8,9 @@
  *
  * Public read functions (getPublicCampaignBySlug/listActiveCampaigns) take no
  * TenantContext and read via withAdminDb with an explicit `status = 'active'`
- * filter baked into the SQL — never through PostgREST/anon grants (see the
+ * filter baked into the SQL - never through PostgREST/anon grants (see the
  * migration header on why). Donation settlement lives in
- * mpesa-stk.service.ts's applyCampaignDonationFromSTK, not here — this module
+ * mpesa-stk.service.ts's applyCampaignDonationFromSTK, not here - this module
  * only creates/reviews campaigns and reads them back.
  */
 import { randomInt } from 'crypto';
@@ -40,7 +40,7 @@ export type CampaignStatus = 'draft' | 'pending_review' | 'active' | 'completed'
  * The payout_* fields (PayoutFields) are where a withdrawal pays out to: a
  * phone (B2C), or a business paybill/till (B2B). Set at creation (phone only)
  * or via setPayoutDestination while still a draft; locked once the campaign
- * leaves 'draft' — see setPayoutDestination's own guard.
+ * leaves 'draft' - see setPayoutDestination's own guard.
  */
 export interface Campaign extends PayoutFields {
   id: string;
@@ -85,10 +85,10 @@ export interface CreateCampaignInput {
   targetAmount: number;
   beneficiaryName?: string;
   /** Required (enforced by CreateCampaignSchema) whenever beneficiaryName is
-   *  set — beneficiary_name is published on the campaign's public, indexed
+   *  set - beneficiary_name is published on the campaign's public, indexed
    *  page, so naming someone needs an explicit confirmation, not a silent
    *  default. Recorded in the creation audit log as evidence, not a new
-   *  column — this is a one-time gate at creation, never re-asked. */
+   *  column - this is a one-time gate at creation, never re-asked. */
   beneficiaryConsentConfirmed?: boolean;
   payoutPhone?: string;
   coverImageUrl?: string;
@@ -244,12 +244,12 @@ export const campaignsService = {
   },
 
   /**
-   * Sets/changes the payout destination — only while still a draft. Locked
+   * Sets/changes the payout destination - only while still a draft. Locked
    * after that (service-layer guard, not just UI): the destination is the
    * single highest-value field on a campaign once it can raise real money,
    * and the admin approves the campaign with it in view. A withdrawal
    * snapshots it per-row anyway, so changing the source post-activation
-   * would only blur which destination governed a given payout — there's no
+   * would only blur which destination governed a given payout - there's no
    * legitimate reason to allow it, so it stays closed.
    */
   async setPayoutDestination(
@@ -264,7 +264,7 @@ export const campaignsService = {
       const platformShortcodes = [process.env.MPESA_SHORTCODE, process.env.MPESA_B2C_SHORTCODE].filter(Boolean);
       if (platformShortcodes.includes(destination.shortcode)) {
         throw new ValidationError(
-          "That is Kitabu Yetu's own M-Pesa number — enter the paybill or till of the business being paid",
+          "That is Kitabu Yetu's own M-Pesa number - enter the paybill or till of the business being paid",
         );
       }
     }
@@ -354,7 +354,7 @@ export const campaignsService = {
     });
   },
 
-  // ── Public reads (no ctx — see module header) ───────────────────────────
+  // ── Public reads (no ctx - see module header) ───────────────────────────
 
   /** Donatable right now: approved and not past its end date. */
   async listActiveCampaigns(): Promise<Campaign[]> {
@@ -367,7 +367,7 @@ export const campaignsService = {
   },
 
   /**
-   * The donation gate — the donate route relies on this returning null for
+   * The donation gate - the donate route relies on this returning null for
    * anything that must not take money, so it stays limited to campaigns that
    * are active AND not past `ends_at`. Display-only reads use
    * getPublicCampaignForDisplay instead.
@@ -394,7 +394,7 @@ export const campaignsService = {
 
   /**
    * Read-only public view of a live OR finished campaign, for its page.
-   * Never used to accept donations — see getPublicCampaignBySlug.
+   * Never used to accept donations - see getPublicCampaignBySlug.
    */
   async getPublicCampaignForDisplay(slug: string): Promise<Campaign | null> {
     return withAdminDb(async (db) => {

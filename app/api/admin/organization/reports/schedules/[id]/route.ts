@@ -8,9 +8,9 @@ import { ok, noContent, handleError } from '@/lib/utils/response';
 type Ctx = { params: Promise<{ id: string }> };
 
 /**
- * PATCH  /api/admin/organization/reports/schedules/:id — update cadence,
+ * PATCH  /api/admin/organization/reports/schedules/:id - update cadence,
  *   recipients, notifyCoordinator, or pause/resume (isActive).
- * DELETE /api/admin/organization/reports/schedules/:id — remove a schedule.
+ * DELETE /api/admin/organization/reports/schedules/:id - remove a schedule.
  */
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;

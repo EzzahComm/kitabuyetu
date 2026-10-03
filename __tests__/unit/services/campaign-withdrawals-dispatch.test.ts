@@ -1,7 +1,7 @@
 /**
  * What approve() actually sends to Daraja for each payout destination
  * (migration 202): B2C for a phone, B2B BusinessPayBill for a paybill, B2B
- * BusinessBuyGoods for a till — and that a Daraja rejection releases the
+ * BusinessBuyGoods for a till - and that a Daraja rejection releases the
  * reservation and marks the row failed rather than leaving money held.
  *
  * approve() query sequence: [tx] SELECT FOR UPDATE -> UPDATE approved ->
@@ -68,7 +68,7 @@ describe('approve() dispatch by payout destination', () => {
     expect(mockQuery.mock.calls[6][1]).toEqual([base.id, 'orig-b2c']);
   });
 
-  it('a paybill destination goes out as B2B BusinessPayBill with the business’s account number', async () => {
+  it('a paybill destination goes out as B2B BusinessPayBill with the business's account number', async () => {
     queueApproveUpTo({
       ...base,
       ...noDestination,
@@ -88,7 +88,7 @@ describe('approve() dispatch by payout destination', () => {
       receiverIdentifier: '4',
       commandId: 'BusinessPayBill',
       accountReference: 'PAT-00123',
-      remarks: 'Changi$ha withdrawal — Medical appeal',
+      remarks: 'Changi$ha withdrawal - Medical appeal',
     });
     // The B2B OriginatorConversationID is what the B2B result callback correlates on.
     expect(mockQuery.mock.calls[6][1]).toEqual([base.id, 'orig-b2b']);

@@ -2,7 +2,7 @@
  * Payment-gated subscription activation (migration 138) against real Postgres.
  *
  * Before this, `upgradePlan()` set status='active' on any plan with no payment
- * check at all — `billing.manage` was the only gate, so a chairperson could
+ * check at all - `billing.manage` was the only gate, so a chairperson could
  * POST /api/v1/billing/plans and land on the top tier with zero money moving.
  * The billing page ran an STK push first, but that sequencing lived entirely
  * in the client and the server never verified it.
@@ -10,7 +10,7 @@
  * Integration rather than unit tests: the exactly-once guarantee is a
  * UNIQUE(payment_id) constraint plus a FOR UPDATE lock and a
  * one-active-per-product partial index, none of which a mocked pg client
- * would enforce — it would accept every assertion here while proving nothing.
+ * would enforce - it would accept every assertion here while proving nothing.
  */
 import { rawQuery } from './helpers/db';
 import { createTestGroup } from './helpers/fixtures';
@@ -123,7 +123,7 @@ describe('payment-gated subscription activation', () => {
     expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
   });
 
-  it('is exactly-once per payment — a replayed callback must not re-activate', async () => {
+  it('is exactly-once per payment - a replayed callback must not re-activate', async () => {
     const fee = PLAN_MONTHLY_FEES.kitabu_yetu.growth;
     const paymentId = await payFor(groupId, 'growth', 'kitabu_yetu', fee);
 
@@ -225,7 +225,7 @@ describe('payment-gated subscription activation', () => {
   it('will not claim a payment made for a different plan', async () => {
     await payFor(groupId, 'starter', 'kitabu_yetu', PLAN_MONTHLY_FEES.kitabu_yetu.starter);
 
-    // Paying for starter must not be claimable as premium — otherwise the
+    // Paying for starter must not be claimable as premium - otherwise the
     // cheapest plan buys the dearest one.
     const claim = await withAdminDb((db) =>
       billingService.findClaimablePayment(db, {
@@ -289,7 +289,7 @@ describe('payment-gated subscription activation', () => {
     // The property this whole block exists to pin: admin.service.ts and
     // getBillingOverview both SUM(monthly_fee) FILTER (WHERE status='active')
     // for MRR. If an annual subscription's full year's charge ever landed in
-    // that column, MRR would read up to 12x too high the moment it activated —
+    // that column, MRR would read up to 12x too high the moment it activated -
     // the exact "engine reads a stored value differently than every other
     // reader of it" failure mode migration 148 fixed for loan interest.
     it('stores the normalized monthly rate in monthly_fee, never the full cycle charge', async () => {
@@ -336,11 +336,11 @@ describe('payment-gated subscription activation', () => {
       // does not exist in the target month lands on that month's LAST day
       // (2026-08-31 -> 2026-11-30), whereas JS setMonth OVERFLOWS into the
       // next one (-> 2026-12-01). Without this the assertion fails on the
-      // 31st of any month whose +3 target is shorter — it passed on
+      // 31st of any month whose +3 target is shorter - it passed on
       // 2026-08-27 and failed on 2026-08-31 for exactly that reason, with the
       // production code correct both times.
       if (expected.getDate() !== now.getDate()) expected.setDate(0);
-      // Same calendar month/year — exact day can drift by the query's own
+      // Same calendar month/year - exact day can drift by the query's own
       // execution moment vs this assertion's, which is not what's under test.
       expect(nextBilling.getUTCFullYear()).toBe(expected.getUTCFullYear());
       expect(nextBilling.getUTCMonth()).toBe(expected.getUTCMonth());
@@ -367,7 +367,7 @@ describe('payment-gated subscription activation', () => {
       expect((await activeSub(groupId, 'kitabu_yetu'))?.plan_type).toBe('starter');
     });
 
-    it('defaults to monthly when billingCycle is omitted — pre-155 callers unchanged', async () => {
+    it('defaults to monthly when billingCycle is omitted - pre-155 callers unchanged', async () => {
       const fee = PLAN_MONTHLY_FEES.kitabu_yetu.growth;
       const paymentId = await payFor(groupId, 'growth', 'kitabu_yetu', fee);
 

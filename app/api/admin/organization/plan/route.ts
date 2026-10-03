@@ -5,9 +5,9 @@ import { getOrganizationPlanForCoordinator } from '@/lib/services/organization-p
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/organization/plan — this organization's own current plan.
+ * GET /api/v1/organization/plan - this organization's own current plan.
  * Read-only, real RLS (getOrganizationPlanForCoordinator uses withDb, not the
- * admin pool) — there is no self-serve change here, only super_admin assigns
+ * admin pool) - there is no self-serve change here, only super_admin assigns
  * or changes a plan (/api/admin/organizations/[id]/plan).
  */
 export async function GET(req: NextRequest): Promise<Response> {

@@ -12,7 +12,7 @@ export type FineStatus = (typeof FINE_STATUSES)[number];
 export const IssueFineSchema = z
   .object({
     memberId: z.string().uuid(),
-    /** Offence key — matches a key in fine-policy.service.ts's effective
+    /** Offence key - matches a key in fine-policy.service.ts's effective
      *  schedule when no explicit amount is supplied. Free text: the schedule's
      *  own keys are group-defined. */
     fineType: z.string().min(1).max(100),
@@ -53,7 +53,7 @@ export type CancelFineInput = z.infer<typeof CancelFineSchema>;
 export type FineQueryInput = z.infer<typeof FineQuerySchema>;
 
 /**
- * PATCH /api/v1/fines/[id] dispatches on `body.action` (loans/[id] pattern) —
+ * PATCH /api/v1/fines/[id] dispatches on `body.action` (loans/[id] pattern) -
  * this union reconstructs the real wire shape so a call site cannot send
  * `action: 'waive'` without the `reason` that action requires.
  */

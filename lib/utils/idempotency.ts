@@ -3,13 +3,13 @@
  *
  * A client sends `Idempotency-Key: <uuid>`; the first execution's response is
  * stored for 24h, and any replay with the same key returns the ORIGINAL
- * response without re-executing — a retried request can never fire a second
+ * response without re-executing - a retried request can never fire a second
  * STK prompt or double-record a transaction.
  *
  * Semantics:
  *  - Keys are scoped per user + route, so two users (or two endpoints) can't
  *    collide on the same UUID.
- *  - 5xx responses are NOT stored — server errors are retryable by contract.
+ *  - 5xx responses are NOT stored - server errors are retryable by contract.
  *  - No header → passthrough (Phase 2 makes the header mandatory on money
  *    POSTs; rolling it out permissively first avoids breaking older clients).
  *  - Redis loss fails OPEN (execute normally): the domain layer's own
@@ -49,7 +49,7 @@ export async function withIdempotencyKey(
       });
     }
   } catch (err) {
-    logger.warn('[idempotency] lookup failed — executing normally', { err: String(err) });
+    logger.warn('[idempotency] lookup failed - executing normally', { err: String(err) });
     return execute();
   }
 

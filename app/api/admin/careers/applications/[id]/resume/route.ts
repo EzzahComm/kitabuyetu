@@ -4,7 +4,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { getResumeUrl } from '@/lib/services/careers.service';
 import { ok, notFound } from '@/lib/utils/response';
 
-/** GET — mints a fresh 1-hour signed URL, never stored, same discipline as report exports. */
+/** GET - mints a fresh 1-hour signed URL, never stored, same discipline as report exports. */
 export function GET(req: NextRequest, { params }: { params: { id: string } }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const url = await getResumeUrl(params.id);

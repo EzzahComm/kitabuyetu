@@ -1,20 +1,20 @@
 /**
  * Resolve the last 2 genuinely open rows in mpesa_unrouted (KES 101 total).
  *
- * UF6QZ6QA8I (KES 100, bill_ref='KY0000003') — same pattern as Anthony's
+ * UF6QZ6QA8I (KES 100, bill_ref='KY0000003') - same pattern as Anthony's
  * UF5QT6SMNR from earlier this session: bill_ref is exactly CAPITAL POINT
  * CHAMA's group_code (KY0000003) with no member suffix, but the C2B
  * payload's FirstName is 'POLYCAP', and Polycap Akoth is an active member
  * there (CP000080). Allocated to him as a real capital-point contribution.
  *
- * UETQZ5SNUZ (KES 1, bill_ref='CONTRIB') — the generic STK-only contribution
+ * UETQZ5SNUZ (KES 1, bill_ref='CONTRIB') - the generic STK-only contribution
  * reference, carrying no group signal at all (unlike KY0000003 above), from
  * the payer already confirmed this session to have sent one other clearly-
  * test payment (the KES 15,000 'it was a test' row). A KES 1 probe against a
  * reference that can't identify which of Polycap's 3 memberships it's for
  * matches that same test-payment pattern far more than a real contribution
  * would. Dismissed as a test/probe payment, not guessed into one of his 3
- * groups — flagged clearly in the resolution notes so it's easy to correct
+ * groups - flagged clearly in the resolution notes so it's easy to correct
  * if that judgment call is wrong.
  *
  *   npx tsx --env-file=.env.local scripts/resolve-last-2-unrouted.ts          # dry run
@@ -56,7 +56,7 @@ async function main() {
       console.log('  done: UF6QZ6QA8I');
     }
   } else {
-    console.log(`SKIP UF6QZ6QA8I — ${!allocate ? 'not found' : 'already resolved'}`);
+    console.log(`SKIP UF6QZ6QA8I - ${!allocate ? 'not found' : 'already resolved'}`);
   }
 
   if (dismiss && !dismiss.resolved) {
@@ -66,18 +66,18 @@ async function main() {
         adminId: 'script:resolve-last-2-unrouted',
         notes:
           `KES 1 against the generic 'CONTRIB' reference, which carries no group signal ` +
-          `(payer Polycap Akoth holds 3 active memberships — Capital Point Chama, Joka Ezra, ` +
-          `The Fiona's — and nothing in this row indicates which). Judged a test/probe payment, ` +
+          `(payer Polycap Akoth holds 3 active memberships - Capital Point Chama, Joka Ezra, ` +
+          `The Fiona's - and nothing in this row indicates which). Judged a test/probe payment, ` +
           `consistent with this same payer's confirmed KES 15,000 test payment earlier this ` +
           `session, rather than guessed into one of the 3 groups. Reopen and reallocate if wrong.`,
       });
       console.log('  done: UETQZ5SNUZ');
     }
   } else {
-    console.log(`SKIP UETQZ5SNUZ — ${!dismiss ? 'not found' : 'already resolved'}`);
+    console.log(`SKIP UETQZ5SNUZ - ${!dismiss ? 'not found' : 'already resolved'}`);
   }
 
-  if (!apply) console.log('\nDry run only — rerun with --apply to write.');
+  if (!apply) console.log('\nDry run only - rerun with --apply to write.');
 }
 
 main()

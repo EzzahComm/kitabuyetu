@@ -1,5 +1,5 @@
 /**
- * GET /api/health — Lightweight liveness probe.
+ * GET /api/health - Lightweight liveness probe.
  *
  * Returns 200 immediately without touching the database or Redis.
  * Used by:

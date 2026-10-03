@@ -5,7 +5,7 @@
  * "DO NOT retroactively reprice previously purchased credits." A customer who
  * buys 5,000 at 0.90 and later 5,000 at 0.80 keeps the first batch at 0.90.
  *
- * The pooled balance stays authoritative for sends — lots are recorded
+ * The pooled balance stays authoritative for sends - lots are recorded
  * alongside it, the same way migration 141 introduced the ledger. So the
  * property under test is not "lots gate sending" (they must not) but "lots
  * tell the truth about which purchase the remaining credits came from".
@@ -63,7 +63,7 @@ describe('SMS purchase lots', () => {
     await rawQuery(`UPDATE billing_accounts SET sms_credits = 0 WHERE group_id = $1`, [groupId]);
   });
 
-  it('never reprices a completed purchase — the §4 scenario', async () => {
+  it('never reprices a completed purchase - the §4 scenario', async () => {
     await purchase(groupId, 5000, 0.9, 2);
     await purchase(groupId, 5000, 0.8, 1);
 
@@ -86,7 +86,7 @@ describe('SMS purchase lots', () => {
 
   it('draws oldest-first, not cheapest-first', async () => {
     // Ordering is by purchase time, never by price. LIFO or cheapest-first
-    // would let a late purchase mask an older one — which matters the moment
+    // would let a late purchase mask an older one - which matters the moment
     // an expiry policy exists, since the oldest credits are the ones that lapse.
     await purchase(groupId, 100, 0.9, 5);
     await purchase(groupId, 100, 0.5, 1); // newer AND cheaper
@@ -161,14 +161,14 @@ describe('SMS purchase lots', () => {
 
   it('surfaces credits that no purchase accounts for, rather than hiding them', async () => {
     // A manual grant straight onto billing_accounts has no lot behind it. That
-    // is information, not corruption — lot_drift is where an operator sees it.
+    // is information, not corruption - lot_drift is where an operator sees it.
     await rawQuery(`UPDATE billing_accounts SET sms_credits = 40 WHERE group_id = $1`, [groupId]);
     expect(await lotDrift(groupId)).toBe(40);
   });
 
   it('has an updated_at column, without which any lot drawdown throws', async () => {
     // sms_credits carried a trg_sms_credits_updated_at trigger running
-    // set_updated_at() while having no such column — invisible while the table
+    // set_updated_at() while having no such column - invisible while the table
     // was insert-only, and an immediate failure the first time a row is
     // updated. Confirmed present in production before migration 146 added it.
     const [row] = await rawQuery<{ count: string }>(

@@ -11,9 +11,9 @@ import { getEffectiveTierThresholds, type TierThreshold } from './loan-policy.se
 // ─── Public types ────────────────────────────────────────────────────────
 
 export interface ComponentScore {
-  /** 0–100 */
+  /** 0-100 */
   score: number;
-  /** 0–1 (weight of this component in the composite) */
+  /** 0-1 (weight of this component in the composite) */
   weight: number;
   /** Underlying raw metrics that produced the score, for transparency. */
   raw: Record<string, unknown>;
@@ -46,7 +46,7 @@ export interface ScoreSummary {
   byTier: Record<ReliabilityTier, number>;
 }
 
-// ─── Scoring config — single source of truth for weights + tier thresholds ─
+// ─── Scoring config - single source of truth for weights + tier thresholds ─
 
 // Financial-dimension weights (sum to 1.0). These define what fraction of the
 // financial_score each component contributes.
@@ -78,7 +78,7 @@ type ComponentKey = FinancialKey | SocialKey;
 
 // Kept as a single map for compatibility with the existing service code that
 // reads `c.weight` per component. Each component's `weight` is its share
-// *within its dimension* — so the financial keys all sum to 1.0 and the
+// *within its dimension* - so the financial keys all sum to 1.0 and the
 // social keys all sum to 1.0, separately.
 const COMPONENT_WEIGHTS: Record<ComponentKey, number> = {
   ...FINANCIAL_WEIGHTS,
@@ -211,7 +211,7 @@ export const creditScoresService = {
       const where = conds.join(' AND ');
 
       // DISTINCT ON (cs.member_id) keeps only the latest snapshot per member
-      // — relies on the idx_credit_scores_member_latest index for performance.
+      // - relies on the idx_credit_scores_member_latest index for performance.
       const [{ rows: cnt }, { rows: items }] = await Promise.all([
         client.query<{ count: string }>(
           `SELECT COUNT(*) AS count FROM (
@@ -371,7 +371,7 @@ export function synthesise(
   }
   social = clamp(social, 0, 100);
 
-  // Composite. Weighted blend of the two dimensions — financial heavier
+  // Composite. Weighted blend of the two dimensions - financial heavier
   // because it has more signal density and more reliable underlying data.
   const overall = clamp(financial * FINANCIAL_BLEND + social * SOCIAL_BLEND, 0, 100);
 
@@ -461,7 +461,7 @@ async function componentContributionConsistency(
 }
 
 /**
- * Loan repayment timeliness — share of completed repayments paid on or before
+ * Loan repayment timeliness - share of completed repayments paid on or before
  * due_date. Loans in 'defaulted' or 'written_off' status cap the score at 30
  * regardless. No loans ever → neutral 70 (don't punish people who never
  * borrowed).
@@ -511,10 +511,10 @@ async function componentLoanRepayment(client: PoolClient, groupId: string, membe
 
   let score: number;
   if (totalLoans === 0) {
-    // Never borrowed — neutral; don't penalise but don't reward either.
+    // Never borrowed - neutral; don't penalise but don't reward either.
     score = 70;
   } else if (total === 0) {
-    // Loan(s) exist but no scheduled repayments yet — neutral too.
+    // Loan(s) exist but no scheduled repayments yet - neutral too.
     score = 70;
   } else {
     score = (onTime / total) * 100;
@@ -540,7 +540,7 @@ async function componentLoanRepayment(client: PoolClient, groupId: string, membe
 }
 
 /**
- * Savings growth — sum of completed contributions in last 12 months vs the
+ * Savings growth - sum of completed contributions in last 12 months vs the
  * prior 12 months. Ratio of 1.0 (flat) ↦ 50; 2.0 (doubled) ↦ 100; 0 ↦ 0.
  * If there's no prior history but recent activity exists, score 70 (new
  * member growing).
@@ -572,7 +572,7 @@ async function componentSavingsGrowth(client: PoolClient, groupId: string, membe
   if (recent === 0 && prior === 0) {
     score = 0;
   } else if (prior === 0) {
-    // Newly active member — give them the benefit of the doubt.
+    // Newly active member - give them the benefit of the doubt.
     score = 70;
   } else {
     ratio = recent / prior;
@@ -591,7 +591,7 @@ async function componentSavingsGrowth(client: PoolClient, groupId: string, membe
 }
 
 /**
- * Share ownership — percentile rank of member's total shares among all
+ * Share ownership - percentile rank of member's total shares among all
  * shareholders in the group. Member with 0 shares scores 0; top holder
  * scores 100. Uses PERCENT_RANK over the population to avoid an N-row
  * round trip.
@@ -629,7 +629,7 @@ async function componentShareOwnership(client: PoolClient, groupId: string, memb
   if (memberShares === 0) {
     score = 0;
   } else if (totalHolders <= 1) {
-    // Sole shareholder — 100% by definition.
+    // Sole shareholder - 100% by definition.
     score = 100;
   } else {
     // PERCENT_RANK is 0..1 ascending; convert to 0..100.
@@ -648,7 +648,7 @@ async function componentShareOwnership(client: PoolClient, groupId: string, memb
 }
 
 /**
- * Dividend participation — did the member actually receive a paid-out
+ * Dividend participation - did the member actually receive a paid-out
  * dividend in the last 12 months? Binary 100/30. 30 (not 0) since
  * non-participation is usually a function of group policy more than the
  * member's behaviour.
@@ -689,7 +689,7 @@ async function componentDividendParticipation(
 // ─── Social components (E6.2) ──────────────────────────────────────────
 
 /**
- * Meeting attendance — % of meetings in the last 12 months where the member
+ * Meeting attendance - % of meetings in the last 12 months where the member
  * was marked 'present' or 'late'. Excused absences don't count as
  * participation but also don't penalise as harshly as plain absent.
  *
@@ -699,7 +699,7 @@ async function componentDividendParticipation(
  *   score    = (attended / relevant) × 100
  *
  * If the group has had no meetings in 12mo OR the member was excused for
- * every meeting, score is a neutral 60 — we can't penalise someone for
+ * every meeting, score is a neutral 60 - we can't penalise someone for
  * something the group didn't host.
  */
 async function componentMeetingAttendance(
@@ -750,7 +750,7 @@ async function componentMeetingAttendance(
 }
 
 /**
- * Welfare participation — has the member contributed to the welfare pool
+ * Welfare participation - has the member contributed to the welfare pool
  * in the last 12 months? Binary 100/40. 40 (not 0) because welfare giving
  * varies a lot by group culture and individual circumstance.
  */
@@ -786,10 +786,10 @@ async function componentWelfareParticipation(
 }
 
 /**
- * Leadership role — is the member currently holding an officer role?
+ * Leadership role - is the member currently holding an officer role?
  * Officers (chairperson / treasurer / secretary) get 100; regular members
  * get 50. We don't penalise non-officers because position is appointed,
- * not earned alone — but holding a role demonstrates active engagement.
+ * not earned alone - but holding a role demonstrates active engagement.
  */
 async function componentLeadershipRole(client: PoolClient, groupId: string, memberId: string): Promise<ComponentScore> {
   const { rows } = await client.query<{ role: string }>(

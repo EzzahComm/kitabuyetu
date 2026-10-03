@@ -49,7 +49,7 @@ export const ReportQuerySchema = z.object({
 });
 
 // GET /accounting/journals was the only list endpoint on the group surface
-// with no cap at all (parseInt with no schema, no .max(), no NaN guard) —
+// with no cap at all (parseInt with no schema, no .max(), no NaN guard) -
 // every peer list endpoint caps at 100-200 (docs/audits/optimization-2026-09).
 export const JournalQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -77,13 +77,13 @@ export const SetApprovalPolicySchema = z.object({
   threshold: z.number().nonnegative().max(1_000_000_000),
 });
 
-// Posting-template override (§29.9) — structure is further locked to the
+// Posting-template override (§29.9) - structure is further locked to the
 // event's default shape by posting-templates.service.ts; this only checks form.
 export const SetPostingTemplateSchema = z.object({
   // Must stay in step with posting-templates.service.ts's PostingEvent union.
   // It drifted before: commit c10b1ee added loan_disbursement/loan_repayment
   // to that union (and to DEFAULT_TEMPLATES, and to the Policies-tab list the
-  // UI renders from it) but not to this enum — so picking either of those two
+  // UI renders from it) but not to this enum - so picking either of those two
   // events in the UI produced a 400 no override could get past. loan_charge
   // (migration 179) and fine_collection (migration 180) below, same reason.
   event: z.enum([
@@ -120,7 +120,7 @@ export type UpdateAccountInput = z.infer<typeof UpdateAccountSchema>;
 // Now also the client's payload type: the accounting page used to post
 // `{ memo, lines }` against this schema's required `entryDate` + `description`,
 // so every "Post journal" click 400'd. Nothing caught it because
-// accountingApi.createJournal took `body: unknown` — it is typed against this
+// accountingApi.createJournal took `body: unknown` - it is typed against this
 // now, so a drifting payload is a compile error rather than a runtime 400.
 export type CreateJournalInput = z.infer<typeof CreateJournalSchema>;
 export type VoidJournalInput = z.infer<typeof VoidJournalSchema>;

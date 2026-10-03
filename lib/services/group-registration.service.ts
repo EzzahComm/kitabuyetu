@@ -1,8 +1,8 @@
 /**
- * Group registration status — groups.is_government_registered /
+ * Group registration status - groups.is_government_registered /
  * registration_number / registration_certificate_url / registration_date
  * (columns from migrations 033 and 074; nothing wrote them until sign-up and
- * Settings did). Entirely optional and non-blocking by design — a group can
+ * Settings did). Entirely optional and non-blocking by design - a group can
  * onboard, subscribe and use every feature with this unset, and can add or
  * change it later from Settings.
  *
@@ -24,7 +24,7 @@ export interface GroupRegistrationStatus {
   isGovernmentRegistered: boolean;
   registrationNumber: string | null;
   registrationDate: string | null;
-  /** Short-lived signed URL, minted fresh on every read — never a stored public link. */
+  /** Short-lived signed URL, minted fresh on every read - never a stored public link. */
   certificateUrl: string | null;
 }
 
@@ -41,7 +41,7 @@ async function toStatus(row: GroupRegistrationRow): Promise<GroupRegistrationSta
     try {
       certificateUrl = await createGroupDocumentSignedUrl(row.registration_certificate_url);
     } catch {
-      // Storage hiccup — the group's own status fields are still real and
+      // Storage hiccup - the group's own status fields are still real and
       // useful; just surface no link rather than failing the whole read.
       certificateUrl = null;
     }
@@ -73,14 +73,14 @@ export const groupRegistrationService = {
     });
   },
 
-  /** Chairperson-only (gated at the route). registrationNumber may be blank — a group can flag itself registered and add the number later. */
+  /** Chairperson-only (gated at the route). registrationNumber may be blank - a group can flag itself registered and add the number later. */
   async setStatus(
     ctx: TenantContext,
     input: { isGovernmentRegistered: boolean; registrationNumber: string | null },
   ): Promise<GroupRegistrationStatus> {
     const registrationNumber = input.isGovernmentRegistered ? input.registrationNumber?.trim() || null : null;
     return withTransaction(ctx, async (client) => {
-      // Flipping the flag off clears the number and certificate together —
+      // Flipping the flag off clears the number and certificate together -
       // the CHECK constraint on registration_date mirrors this for dates, and
       // leaving a stale number/cert behind a false flag would be the
       // confusing state (the CHECK constraint doesn't reach the cert URL,
@@ -96,7 +96,7 @@ export const groupRegistrationService = {
         [input.isGovernmentRegistered, registrationNumber, ctx.groupId],
       );
       // Zero rows means RLS filtered the update out (not the group's chairperson)
-      // or the group is gone — never a silent success.
+      // or the group is gone - never a silent success.
       if (!rows[0]) throw new ValidationError('Group not found');
 
       await client.query(
@@ -113,7 +113,7 @@ export const groupRegistrationService = {
     });
   },
 
-  /** Chairperson-only (gated at the route). Marks the group registered — a certificate implies the flag, even if the number was never entered. */
+  /** Chairperson-only (gated at the route). Marks the group registered - a certificate implies the flag, even if the number was never entered. */
   async setCertificate(
     ctx: TenantContext,
     file: { buffer: Buffer; contentType: string },

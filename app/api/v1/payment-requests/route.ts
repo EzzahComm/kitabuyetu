@@ -37,7 +37,7 @@ const ListSchema = z.object({
   memberId: z.string().uuid().optional(),
 });
 
-/** GET /api/v1/payment-requests — list this group's payment requests. */
+/** GET /api/v1/payment-requests - list this group's payment requests. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
@@ -52,7 +52,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-/** POST /api/v1/payment-requests — open a request so an inbound payment lands on the intended product (treasurer+). */
+/** POST /api/v1/payment-requests - open a request so an inbound payment lands on the intended product (treasurer+). */
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'payments.request', async (auth) => {
     try {

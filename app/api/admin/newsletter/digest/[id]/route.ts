@@ -5,7 +5,7 @@ import * as newsletterDigestService from '@/lib/services/newsletter-digest.servi
 import { UpdateNewsletterDigestSchema } from '@/lib/validators/newsletter-digest.schema';
 import { ok } from '@/lib/utils/response';
 
-/** GET /api/admin/newsletter/digest/[id] — a single digest, for the preview screen. Super-admin only. */
+/** GET /api/admin/newsletter/digest/[id] - a single digest, for the preview screen. Super-admin only. */
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const { id } = await params;
@@ -14,7 +14,7 @@ export function GET(req: NextRequest, { params }: { params: Promise<{ id: string
   });
 }
 
-/** PATCH /api/admin/newsletter/digest/[id] — edit a draft's subject/body before sending. Super-admin only. */
+/** PATCH /api/admin/newsletter/digest/[id] - edit a draft's subject/body before sending. Super-admin only. */
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async () => {
     const { id } = await params;

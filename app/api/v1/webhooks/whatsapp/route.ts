@@ -1,11 +1,11 @@
 /**
  * Meta WhatsApp Cloud API webhook receiver.
  *
- * GET  — Meta subscribe handshake. Echoes back `hub.challenge` when the
+ * GET  - Meta subscribe handshake. Echoes back `hub.challenge` when the
  *        verify token matches WHATSAPP_VERIFY_TOKEN. Called once at setup
  *        and periodically by Meta to confirm the endpoint is reachable.
  *
- * POST — Status + inbound-message callbacks. Body is HMAC-SHA256-signed
+ * POST - Status + inbound-message callbacks. Body is HMAC-SHA256-signed
  *        against WHATSAPP_APP_SECRET; signature lands in `x-hub-signature-256`
  *        as `sha256=<hex>`. We verify the signature against the *raw* request
  *        bytes (NOT the JSON-parsed object) before doing anything else, so
@@ -20,7 +20,7 @@
  * the phone matches.
  *
  * Returns 200 on any well-formed callback even when individual entries
- * can't be matched — Meta retries non-200 responses aggressively and we
+ * can't be matched - Meta retries non-200 responses aggressively and we
  * don't want a stale wa_message_id triggering an infinite retry loop.
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       return new NextResponse('Invalid signature', { status: 401 });
     }
   } else if (env.NODE_ENV === 'production') {
-    // OPTIMIZATION_CLEANUP_AUDIT.md High #7 — this used to only warn and
+    // OPTIMIZATION_CLEANUP_AUDIT.md High #7 - this used to only warn and
     // accept the unsigned callback in every environment, including
     // production. Fail closed in prod, matching the Resend/SendGrid
     // webhooks right next to this one; still soft-warn in dev/staging so
@@ -73,7 +73,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     logger.error('[whatsapp.webhook] rejecting callback: WHATSAPP_APP_SECRET not set');
     return NextResponse.json({ error: 'Webhook secret not configured' }, { status: 503 });
   } else {
-    logger.warn('[whatsapp.webhook] WHATSAPP_APP_SECRET not set — accepting unsigned callback (dev only)');
+    logger.warn('[whatsapp.webhook] WHATSAPP_APP_SECRET not set - accepting unsigned callback (dev only)');
   }
 
   let payload: WaWebhookPayload;
@@ -138,7 +138,7 @@ function verifySignature(rawBody: string, header: string, secret: string): boole
 
 async function applyStatusUpdate(s: WaStatus): Promise<void> {
   // Meta sends one of: sent | delivered | read | failed
-  // (sometimes also "deleted" — we ignore that case).
+  // (sometimes also "deleted" - we ignore that case).
   const wamid = s.id;
   if (!wamid) return;
 
@@ -170,7 +170,7 @@ async function applyStatusUpdate(s: WaStatus): Promise<void> {
       newStatus = 'failed';
       break;
     default:
-      return; // unknown status — ignore
+      return; // unknown status - ignore
   }
 
   const ts = s.timestamp ? parseInt(s.timestamp, 10) : Math.floor(Date.now() / 1000);
@@ -193,7 +193,7 @@ async function applyStatusUpdate(s: WaStatus): Promise<void> {
 
 async function recordInboundMessage(m: WaInboundMessage, _fromPhoneId?: string): Promise<void> {
   // Inbound messages don't carry our group context, so resolve via the
-  // sender's phone matching a member row. If no match, skip silently —
+  // sender's phone matching a member row. If no match, skip silently -
   // we don't store unsolicited messages from unknown numbers.
   if (!m.from) return;
   const fromPhone = normalizePhone(m.from);

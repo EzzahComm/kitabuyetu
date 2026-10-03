@@ -7,13 +7,13 @@ import { CreateProgramSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET  /api/v1/organization/programs — list this organization's funding programs
- *   ?report=budget — budget variance/utilization report instead (per program:
+ * GET  /api/v1/organization/programs - list this organization's funding programs
+ *   ?report=budget - budget variance/utilization report instead (per program:
  *   budget vs disbursed vs reserved-under-approval, plus schedule variance
  *   for dated programs).
- *   ?report=donor — donor/grant spend report instead (programs rolled up by
+ *   ?report=donor - donor/grant spend report instead (programs rolled up by
  *   funding_source, with a per-recipient-group settled-spend breakdown).
- * POST /api/v1/organization/programs — create a funding program
+ * POST /api/v1/organization/programs - create a funding program
  */
 
 export async function GET(req: NextRequest): Promise<Response> {
@@ -21,7 +21,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role, organizationId: auth.organizationId };
     const report = req.nextUrl.searchParams.get('report');
 
-    // R11 — the three ?report= views are financial analyses across the whole
+    // R11 - the three ?report= views are financial analyses across the whole
     // organization, so each is a significant read and is audited. The bare
     // list below deliberately is NOT: it is what the funding page polls on a
     // 120s interval, and recording that would bury the real accesses.

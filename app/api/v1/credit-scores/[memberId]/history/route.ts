@@ -9,7 +9,7 @@ interface RouteParams {
   params: Promise<{ memberId: string }>;
 }
 
-/** GET /api/v1/credit-scores/[memberId]/history — historical snapshots (newest first). */
+/** GET /api/v1/credit-scores/[memberId]/history - historical snapshots (newest first). */
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { memberId } = await params;
   return withAuth(req, async (auth) => {

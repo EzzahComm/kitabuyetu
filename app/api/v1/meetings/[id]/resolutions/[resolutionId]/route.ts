@@ -10,7 +10,7 @@ type Params = { params: Promise<{ id: string; resolutionId: string }> };
  * Mark a resolution implemented, or amend its follow-through details.
  *
  * `meeting_resolutions.implemented` has existed since migration 023 with no
- * write path anywhere — this is it. The service scopes the update by meeting
+ * write path anywhere - this is it. The service scopes the update by meeting
  * AND group, so a resolution id belonging to another meeting or another
  * tenant is not reachable here.
  */

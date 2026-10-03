@@ -3,7 +3,7 @@
  * Postgres.
  *
  * C1: debitPayer's billing lookup used a bare `FOR UPDATE` over a LEFT JOIN,
- * which PostgreSQL rejects at parse-analysis (0A000) *unconditionally* — not
+ * which PostgreSQL rejects at parse-analysis (0A000) *unconditionally* - not
  * data-dependently. Every group-funded send therefore threw before billing:
  * /sms/send, the whole trigger engine, and all bulk campaigns. Production
  * recorded the error verbatim in sms_trigger_executions.reason.
@@ -25,7 +25,7 @@ import { rawQuery } from './helpers/db';
 import { NotFoundError } from '@/lib/utils/errors';
 
 // The provider client is the boundary under test here only insofar as billing
-// must happen before it — dispatch itself is mocked so no real SMS is sent.
+// must happen before it - dispatch itself is mocked so no real SMS is sent.
 jest.mock('@/lib/services/textsms.service', () => ({
   sendSingleSms: jest.fn().mockResolvedValue({
     responseCode: 200,
@@ -52,7 +52,7 @@ jest.mock('@/lib/services/textsms.service', () => ({
  * Give a group the billing state a group-funded send requires.
  *
  * allowance defaults to 0 (not the column's own DEFAULT 50, migration 124) so
- * this file's C1/C3 tests keep exercising pure paid-credit behaviour — the
+ * this file's C1/C3 tests keep exercising pure paid-credit behaviour - the
  * Decision B flip is proven separately, with its own explicit allowance,
  * below.
  */
@@ -86,7 +86,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
     await provisionBilling(groupId, 100);
   });
 
-  describe('C1 — the group billing lookup executes and debits', () => {
+  describe('C1 - the group billing lookup executes and debits', () => {
     it('sends, debits credits, and writes a usage log row', async () => {
       const ctx = { userId: officerId, groupId, role: 'treasurer' };
 
@@ -129,7 +129,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
     });
   });
 
-  describe('Decision B — a real notifyMember call site actually bills (Phase 2b, migration 124)', () => {
+  describe('Decision B - a real notifyMember call site actually bills (Phase 2b, migration 124)', () => {
     it('assignGroupMemberRole bills the role-change notice via the bundled allowance', async () => {
       const { groupId: rgGroupId, officerId } = await createTestGroup('treasurer');
       await provisionBilling(rgGroupId, 100, 50);
@@ -159,7 +159,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
       );
       expect(after.sms_allowance_used).toBe(before.sms_allowance_used + 1);
       // settleReservation runs synchronously inside sendSmsLeg's finally,
-      // awaited before assignGroupMemberRole returns — nothing left earmarked.
+      // awaited before assignGroupMemberRole returns - nothing left earmarked.
       expect(after.sms_allowance_reserved).toBe(0);
 
       const [log] = await rawQuery<{ payer_type: string; billing_state: string }>(
@@ -175,7 +175,7 @@ describe('SMS billing path (C1) and DLR tenant scope (C3)', () => {
     });
   });
 
-  describe('C3 — getDlr is scoped to the calling tenant', () => {
+  describe('C3 - getDlr is scoped to the calling tenant', () => {
     it('refuses a message id belonging to another group', async () => {
       const [log] = await rawQuery<{ id: string }>(
         `UPDATE sms_usage_logs SET provider_msg_id='foreign-msg-1', status='sent', sent_at=NOW()

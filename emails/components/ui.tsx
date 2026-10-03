@@ -4,7 +4,7 @@ import { BRAND } from '@/lib/brand';
 
 /**
  * Shared, email-safe building blocks for Kitabu Yetu templates. All inline
- * styles — no external CSS. Money uses a tabular, prominent treatment so the
+ * styles - no external CSS. Money uses a tabular, prominent treatment so the
  * figure is the first thing a member sees.
  */
 
@@ -12,7 +12,7 @@ const c = BRAND.colors;
 
 const KES = (n: number) => 'KSh ' + new Intl.NumberFormat('en-KE', { maximumFractionDigits: 0 }).format(n);
 
-/** Hero amount — the focal point of receipts and money emails. */
+/** Hero amount - the focal point of receipts and money emails. */
 export function Amount({ value, label }: { value: number; label?: string }) {
   return (
     <Section style={{ textAlign: 'center', padding: '8px 0 4px' }}>
@@ -89,7 +89,7 @@ const chipColors: Record<ChipTone, { bg: string; fg: string }> = {
   info: { bg: '#E7EEF8', fg: '#0A3477' },
 };
 
-/** Status pill — mirrors the in-app StatusPill tone language. */
+/** Status pill - mirrors the in-app StatusPill tone language. */
 export function StatusChip({ label, tone = 'positive' }: { label: string; tone?: ChipTone }) {
   const t = chipColors[tone];
   return (
@@ -109,7 +109,7 @@ export function StatusChip({ label, tone = 'positive' }: { label: string; tone?:
   );
 }
 
-/** Tinted panel — e.g. the contribution auto-split breakdown. */
+/** Tinted panel - e.g. the contribution auto-split breakdown. */
 export function Panel({ title, children }: { title?: string; children: React.ReactNode }) {
   return (
     <Section style={{ backgroundColor: '#F6F8FB', borderRadius: 12, padding: '16px 18px', margin: '4px 0' }}>
@@ -125,7 +125,7 @@ export function Panel({ title, children }: { title?: string; children: React.Rea
   );
 }
 
-/** A labelled progress/allocation line (label · amount · bar). */
+/** A labelled progress/allocation line (label - amount - bar). */
 export function AllocationRow({ label, amount, pct }: { label: string; amount: number; pct: number }) {
   return (
     <div style={{ marginBottom: 10 }}>

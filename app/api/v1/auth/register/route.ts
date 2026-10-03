@@ -34,7 +34,7 @@ interface RegisterGroupResult {
   group_id: string;
   group_code: string;
   group_name: string;
-  group_status: string; // Phase D Part 2 — always 'pending_verification' now
+  group_status: string; // Phase D Part 2 - always 'pending_verification' now
   member_id: string;
   member_code: string;
   person_id: string;
@@ -91,7 +91,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       nationalId: input.nationalId ?? '',
       dateOfBirth: input.dateOfBirth ?? '',
       gender: input.gender ?? '',
-      // Migration 140 — decides whether register_group seeds a chart of
+      // Migration 140 - decides whether register_group seeds a chart of
       // accounts. Nothing else in the RPC branches on it.
       product: input.product,
     };
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // The Membership Number is allocated by the group_members INSERT trigger
       // (migration 056) inside the RPC; the RPC's JSONB result predates it.
       // Permissions are resolved here too (RBAC activation, same lookup as
-      // login) — signAccessToken doesn't derive them itself, and omitting
+      // login) - signAccessToken doesn't derive them itself, and omitting
       // them leaves every withPermission check failing with "Missing
       // permission" until the member's next login/refresh.
       const { rows: gm } = await client.query<{ membership_no: string; permissions: string[] }>(
@@ -170,7 +170,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
 
     stage = 'sign_tokens';
-    // role mirrors what the RPC actually wrote to group_members — derived from
+    // role mirrors what the RPC actually wrote to group_members - derived from
     // creator_role so a treasurer / secretary gets their role-appropriate JWT
     // instead of being elevated to chairperson.
     const accessToken = signAccessToken({
@@ -181,14 +181,14 @@ export async function POST(req: NextRequest): Promise<Response> {
       groupStatus: result.group_status,
       permissions,
     });
-    // Pin the new group to the refresh token (audit C-1) — registration's
+    // Pin the new group to the refresh token (audit C-1) - registration's
     // session must revalidate THIS membership on refresh, same as login.
     const { token: refreshToken } = signRefreshToken(result.member_id, 'tenant', result.group_id);
 
     stage = 'persist_refresh_token';
     try {
       const rtHash = hashToken(refreshToken);
-      // The refresh_tokens TABLE is the rotation source of truth (§15.3) —
+      // The refresh_tokens TABLE is the rotation source of truth (§15.3) -
       // without this row the session's first refresh would be rejected.
       // Redis remains the fast revocation cache.
       await withAdminDb((client) =>
@@ -280,7 +280,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         return errorResponse('Phone number already registered', 'DUPLICATE_PHONE', 409);
       }
       if (e.constraint?.includes('group_code')) {
-        return errorResponse('Group code collision — please retry', 'GROUP_CODE_COLLISION', 500);
+        return errorResponse('Group code collision - please retry', 'GROUP_CODE_COLLISION', 500);
       }
       return handleError(err);
     }
@@ -294,7 +294,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     }
 
     // Unknown failure. The stage + full PG error detail are already in the
-    // server-side log above (OPTIMIZATION_CLEANUP_AUDIT.md Medium #22) — the
+    // server-side log above (OPTIMIZATION_CLEANUP_AUDIT.md Medium #22) - the
     // client response stays generic rather than exposing internal pipeline
     // step names.
     return errorResponse('Registration failed. Please try again or contact support.', 'REGISTRATION_FAILED', 500);

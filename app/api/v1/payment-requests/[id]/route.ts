@@ -6,7 +6,7 @@ import { noContent, handleError } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** DELETE /api/v1/payment-requests/:id — cancel an open request (treasurer+). */
+/** DELETE /api/v1/payment-requests/:id - cancel an open request (treasurer+). */
 export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withPermission(req, 'payments.request', async (auth) => {

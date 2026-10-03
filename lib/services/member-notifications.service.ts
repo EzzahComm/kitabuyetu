@@ -2,7 +2,7 @@
  * Read-side for the (member) portal's in-app notifications list + bell
  * badge. Deliberately a separate file from notifications.service.ts, which
  * is the SMS/WhatsApp *dispatch* service (confusingly similar name, very
- * different job) — that file's notifyMember() is what now also writes the
+ * different job) - that file's notifyMember() is what now also writes the
  * rows this file reads.
  */
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';

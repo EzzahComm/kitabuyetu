@@ -22,7 +22,7 @@ export interface CertificateUpload {
 
 export interface CertificateCheck {
   certificate?: CertificateUpload;
-  /** Why the file was not accepted — safe to show the registrant. Absent when no file was attached. */
+  /** Why the file was not accepted - safe to show the registrant. Absent when no file was attached. */
   rejected?: string;
 }
 

@@ -1,5 +1,5 @@
 /**
- * Group funding sources (migration 115) — provenance of a group's capital.
+ * Group funding sources (migration 115) - provenance of a group's capital.
  *
  * First service of the Capital & Investment Layer
  * (docs/capital-layer/capital-layer-spec.md). This is a classification table,
@@ -9,7 +9,7 @@
  *
  * Every query explicitly scopes by group_id rather than relying on RLS alone
  * (ADR-001: RLS is still decorative for application traffic pending the
- * app_tenant cutover — see docs/capital-layer/impact-report.md §D-D).
+ * app_tenant cutover - see docs/capital-layer/impact-report.md §D-D).
  */
 import type { PoolClient } from 'pg';
 import { withDb, type TenantContext } from '@/lib/db';
@@ -94,7 +94,7 @@ export async function listForGroup(ctx: TenantContext): Promise<GroupFundingSour
 }
 
 /**
- * The group's internal savings source — guaranteed to exist by migration 115's
+ * The group's internal savings source - guaranteed to exist by migration 115's
  * auto-provisioning trigger plus its backfill, for every group ever created.
  *
  * This is the default funding source when a member loan is disbursed without an
@@ -114,7 +114,7 @@ export async function getInternalSavingsSource(ctx: TenantContext): Promise<Grou
     if (rows.length === 0) {
       // Migration 115 guarantees this row exists and asserts it at apply time,
       // so reaching here means the trigger was dropped or the group was created
-      // by a path that bypassed it — a real data-integrity fault, not a
+      // by a path that bypassed it - a real data-integrity fault, not a
       // not-found the caller should paper over.
       throw new NotFoundError('Group has no internal savings funding source');
     }
@@ -135,7 +135,7 @@ export interface FundingSplit {
  *
  * With no plan supplied, the loan is funded entirely from the group's internal
  * savings. That default is what keeps every pre-existing caller working
- * unchanged once attribution becomes mandatory — a group that has never taken
+ * unchanged once attribution becomes mandatory - a group that has never taken
  * organization capital should not have to think about this at all.
  *
  * Validated here rather than relying solely on migration 118's deferred
@@ -157,7 +157,7 @@ export async function resolveFundingPlan(
     if (!rows[0]) {
       // Guaranteed to exist by migration 115's trigger + backfill, so this
       // means the trigger was dropped or the group was created by a path that
-      // bypassed it — a data-integrity fault, not a user error.
+      // bypassed it - a data-integrity fault, not a user error.
       throw new NotFoundError('Group has no internal savings funding source');
     }
     return [{ fundingSourceId: rows[0].id, amount: principal }];
@@ -168,7 +168,7 @@ export async function resolveFundingPlan(
   // here is numeric(15,2), so two decimal places is the real precision.
   if (Math.round(total * 100) !== Math.round(principal * 100)) {
     throw new ValidationError(
-      `Funding plan totals ${total.toFixed(2)} but the loan principal is ${principal.toFixed(2)} — every disbursed loan must be fully attributed`,
+      `Funding plan totals ${total.toFixed(2)} but the loan principal is ${principal.toFixed(2)} - every disbursed loan must be fully attributed`,
     );
   }
 
@@ -189,7 +189,7 @@ export async function resolveFundingPlan(
   return plan;
 }
 
-/** Reads back how a loan was funded — the attribution the capital layer rests on. */
+/** Reads back how a loan was funded - the attribution the capital layer rests on. */
 export async function getLoanFundingSplits(
   ctx: TenantContext,
   loanId: string,

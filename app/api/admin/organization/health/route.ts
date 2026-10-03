@@ -5,12 +5,12 @@ import { organizationHealthService } from '@/lib/services/organization-health.se
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/admin/organization/health — portfolio risk indicators: loans past
+ * GET /api/admin/organization/health - portfolio risk indicators: loans past
  * due, groups in arrears, defaults, and membership movement.
  *
  * The "what needs attention?" half of §1.5, served separately from
  * /organization/dashboard (the "what is happening?" half) so that a failure in
- * either cannot blank the other — the same per-section independence R10 asks
+ * either cannot blank the other - the same per-section independence R10 asks
  * for, at the route level.
  *
  * Lives under /api/admin/* because an organization coordinator holds a

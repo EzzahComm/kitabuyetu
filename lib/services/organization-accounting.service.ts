@@ -3,14 +3,14 @@
  * (ACCOUNTING_ARCHITECTURE_AUDIT.md §9 Critical finding, §29.13 item 3).
  *
  * A deliberate parallel to accounting.service.ts (the group-scoped ledger),
- * not an extension of it — organizations are a structurally different
- * entity (fund accounting: net assets, donors, program disbursements — no
+ * not an extension of it - organizations are a structurally different
+ * entity (fund accounting: net assets, donors, program disbursements - no
  * members, shares, or welfare pools), and this keeps every change scoped to
  * new tables rather than touching the already-hardened, RLS-tightly-scoped
  * accounts/journal_entries tables every group financial operation depends
  * on. See organization_accounts / organization_journal_entries /
  * organization_journal_lines (migration 085) for the schema this operates
- * over — structurally identical to the group ledger (two-layer balance
+ * over - structurally identical to the group ledger (two-layer balance
  * enforcement via DB triggers, a trigger-maintained balance column).
  */
 import type { PoolClient } from 'pg';
@@ -37,7 +37,7 @@ export interface OrgTrialBalanceLine {
   netBalance: string;
 }
 
-// Kept in lockstep with migration 085's seed INSERT — this is the set every
+// Kept in lockstep with migration 085's seed INSERT - this is the set every
 // current posting path (deposit, settleOrgDisbursement) actually uses.
 const DEFAULT_ORG_ACCOUNTS = [
   { code: '1001', name: 'Cash and Bank', type: 'asset' },
@@ -52,7 +52,7 @@ export interface OrgSystemJournalLine {
 }
 
 export const organizationAccountingService = {
-  /** Participates in the caller's own transaction — used when provisioning a new organization. */
+  /** Participates in the caller's own transaction - used when provisioning a new organization. */
   async seedDefaultAccountsInTx(client: PoolClient, organizationId: string): Promise<void> {
     for (const acct of DEFAULT_ORG_ACCOUNTS) {
       const { rows } = await client.query<{ id: string }>(
@@ -114,7 +114,7 @@ export const organizationAccountingService = {
 /**
  * Posts a balanced system-generated journal entry within the CALLER's own
  * transaction, mirroring accounting.service.ts's postSystemJournal exactly
- * — same missing-account tolerance (logs + returns null rather than failing
+ * - same missing-account tolerance (logs + returns null rather than failing
  * the caller's real business transaction), same direct status='posted'
  * insert pattern relying on the deferred constraint trigger (migration 085)
  * to validate balance at COMMIT.
@@ -194,5 +194,5 @@ export async function postOrgSystemJournal(
 }
 
 // Referenced so ValidationError stays a live import if this file grows
-// request-facing methods later — avoids an unused-import lint error today.
+// request-facing methods later - avoids an unused-import lint error today.
 void ValidationError;

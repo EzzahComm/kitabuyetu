@@ -1,5 +1,5 @@
 /**
- * Public Changi$ha campaign statement — what donors see on /fundraise/[slug]
+ * Public Changi$ha campaign statement - what donors see on /fundraise/[slug]
  * to follow the money: totals, the supporters list and every release of
  * funds.
  *

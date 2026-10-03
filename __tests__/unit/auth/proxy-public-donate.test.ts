@@ -5,13 +5,13 @@ import { proxy } from '@/proxy';
  * POST /api/v1/campaigns/<slug>/donate describes itself as "the ONE public,
  * unauthenticated endpoint on this platform that can trigger a real M-Pesa STK
  * push", and carries its own per-phone and per-IP rate limits for exactly that
- * reason — but it was never added to proxy.ts's public-path allowlist, so this
+ * reason - but it was never added to proxy.ts's public-path allowlist, so this
  * file answered 401 before the handler ever ran. Every anonymous Changi$ha
  * donation failed from the day the route shipped.
  *
  * The allowlist is an exact-match Set and the slug is dynamic, so the fix is an
  * anchored pattern. These tests pin both halves of that: the donate leaf is
- * open, and the sibling campaign routes stay closed — a prefix rule would have
+ * open, and the sibling campaign routes stay closed - a prefix rule would have
  * silently exposed /campaigns/<id> and /campaigns/<id>/donations, which are
  * committee-only.
  *
@@ -61,7 +61,7 @@ describe('proxy: public Changi$ha donation endpoint', () => {
   });
 
   it('still requires a session for the sibling campaign routes', async () => {
-    // These must NOT have been opened up by the fix — a prefix rule would have.
+    // These must NOT have been opened up by the fix - a prefix rule would have.
     for (const path of [
       '/api/v1/campaigns',
       '/api/v1/campaigns/some-id',

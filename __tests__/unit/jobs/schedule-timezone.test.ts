@@ -4,7 +4,7 @@
  *
  * enqueueTimeBasedJobs used getUTCHours()/getUTCDate(), so `hour === 8` fired
  * at 11:00 EAT and the code did not mean what it said. Every existing time
- * happened to land somewhere reasonable, which is why it went unnoticed — the
+ * happened to land somewhere reasonable, which is why it went unnoticed - the
  * hazard was the next schedule written as a local hour.
  *
  * These assert the offset arithmetic the enqueuer relies on, including the
@@ -48,7 +48,7 @@ describe('Nairobi scheduling', () => {
   });
 
   it('gets the 1st-of-month check right at the boundary', () => {
-    // 2026-08-31T21:00Z is 2026-09-01T00:00 EAT — the monthly jobs must see
+    // 2026-08-31T21:00Z is 2026-09-01T00:00 EAT - the monthly jobs must see
     // date === 1 here, and must NOT still see it three hours later in UTC.
     expect(nairobiParts('2026-08-31T21:00:00Z').date).toBe(1);
     expect(nairobiParts('2026-08-31T20:00:00Z').date).toBe(31);
@@ -67,7 +67,7 @@ describe('Nairobi scheduling', () => {
   });
 
   it('uses a fixed offset because Kenya has no daylight saving', () => {
-    // Same offset in the northern summer and winter — no DST to track.
+    // Same offset in the northern summer and winter - no DST to track.
     const jan = nairobiParts('2026-01-15T05:00:00Z').hour;
     const jul = nairobiParts('2026-07-15T05:00:00Z').hour;
     expect(jan).toBe(8);

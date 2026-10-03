@@ -7,7 +7,7 @@ import { ok } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** POST /api/v1/me/goals/[id]/progress — log manual progress toward one of the signed-in member's own goals. */
+/** POST /api/v1/me/goals/[id]/progress - log manual progress toward one of the signed-in member's own goals. */
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {

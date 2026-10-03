@@ -4,7 +4,7 @@ import { withPermission } from '@/lib/auth/middleware';
 import { contributionsService } from '@/lib/services/contributions.service';
 import { ok, handleError } from '@/lib/utils/response';
 
-/** GET /api/v1/contributions/non-contributors — active members with no completed
+/** GET /api/v1/contributions/non-contributors - active members with no completed
  *  contribution this month (treasurer+). Returns { count, sample[] }. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'contributions.view', async (auth) => {

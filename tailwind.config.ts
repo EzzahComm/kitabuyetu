@@ -18,7 +18,7 @@ const scaleColors = (name: string, scale: Scale) =>
 /**
  * Any page that renders the marketing header. `brand-*` utilities resolve to
  * brandGreen everywhere else (the authenticated app is unchanged) and to the
- * Finanza palette here — see lib/ui/finanza-palette.ts.
+ * Finanza palette here - see lib/ui/finanza-palette.ts.
  */
 const MARKETING_SCOPE = 'html:has([data-marketing-theme])';
 

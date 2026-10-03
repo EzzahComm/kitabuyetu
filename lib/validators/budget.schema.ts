@@ -2,8 +2,8 @@ import { z } from 'zod';
 
 /**
  * Budget tracking (migration 178, lib/services/budget.service.ts). A budget
- * is a real financial record — planned amounts per real GL account
- * (public.accounts), for one group, over one fiscal period — compared
+ * is a real financial record - planned amounts per real GL account
+ * (public.accounts), for one group, over one fiscal period - compared
  * against actual activity already posted to the double-entry ledger
  * (journal_entries/journal_lines). It is not a policy, so it does not go
  * through configuration.service.ts's cascading resolver.
@@ -18,7 +18,7 @@ export const BudgetLineInputSchema = z.object({
   notes: z.string().max(500).optional().nullable(),
 });
 
-// One appearance per account per budget — mirrors LoanFundingPlanSchema's
+// One appearance per account per budget - mirrors LoanFundingPlanSchema's
 // identical rule in lib/validators/loan.schema.ts. A second planned amount
 // for the same account has nowhere sensible to go; combine it into one line.
 const noDuplicateAccounts = (lines: { accountId: string }[]) =>
@@ -36,7 +36,7 @@ export const CreateBudgetSchema = z
       .min(1, 'A budget needs at least one line')
       .max(200)
       .refine(noDuplicateAccounts, {
-        message: 'An account can only appear once per budget — combine the amounts instead',
+        message: 'An account can only appear once per budget - combine the amounts instead',
       }),
   })
   .refine((v) => v.periodEnd >= v.periodStart, {
@@ -44,7 +44,7 @@ export const CreateBudgetSchema = z
     path: ['periodEnd'],
   });
 
-// All fields optional — the service fills in whatever is omitted from the
+// All fields optional - the service fills in whatever is omitted from the
 // existing row before re-validating the period range, since periodStart and
 // periodEnd may each be supplied independently of the other.
 export const UpdateBudgetSchema = z
@@ -54,14 +54,14 @@ export const UpdateBudgetSchema = z
     periodEnd: z.string().date().optional(),
     status: z.enum(BUDGET_STATUSES).optional(),
     notes: z.string().max(1000).optional().nullable(),
-    // When present, REPLACES the full set of lines (not a partial patch) —
+    // When present, REPLACES the full set of lines (not a partial patch) -
     // simplest correct semantics for a small, officer-edited list.
     lines: z
       .array(BudgetLineInputSchema)
       .min(1, 'A budget needs at least one line')
       .max(200)
       .refine(noDuplicateAccounts, {
-        message: 'An account can only appear once per budget — combine the amounts instead',
+        message: 'An account can only appear once per budget - combine the amounts instead',
       })
       .optional(),
   })

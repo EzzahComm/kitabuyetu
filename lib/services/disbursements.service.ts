@@ -2,8 +2,8 @@
  * Unified B2C disbursement spine (payment architecture; closes
  * B2C_DISBURSEMENT_AUDIT.md blockers C1-C5).
  *
- * This is the ONLY path that may call Daraja B2C. Every real-money payout —
- * loan disbursement today, any future group→member payout — goes through
+ * This is the ONLY path that may call Daraja B2C. Every real-money payout -
+ * loan disbursement today, any future group→member payout - goes through
  * initiateDisbursement(). No caller reaches lib/services/mpesa.service.ts's
  * initiateB2C() directly.
  *
@@ -11,12 +11,12 @@
  * gate (parks pending_approval above the group's threshold) → dispatch (Daraja,
  * outside any DB transaction) → settle on callback (lib/services/mpesa.service.ts
  * handleB2CResult calls releaseDisbursementReservation, which this module does
- * not duplicate — one settlement path, not two).
+ * not duplicate - one settlement path, not two).
  *
  * Idempotency (C2): callers supply an idempotency key (the API layer derives
  * one from the Idempotency-Key header); (group_id, idempotency_key) is
  * UNIQUE, and a repeated call with the same key returns the existing row
- * instead of a second real payout — regardless of what state that row is in.
+ * instead of a second real payout - regardless of what state that row is in.
  */
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
@@ -89,7 +89,7 @@ export const disbursementsService = {
       // Balance check (C1): lock the group's cash account, require the
       // amount to fit within available = balance - reserved_amount. Routed
       // through lock_group_cash_account() (migration 100, SECURITY DEFINER)
-      // — a plain SELECT ... FOR UPDATE here would also be checked against
+      // - a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
       const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
@@ -110,9 +110,9 @@ export const disbursementsService = {
       const requiresApproval = input.amount > threshold;
 
       // Reserve (C1/C4): earmark the funds now, before Daraja is ever called
-      // — including during the approval-pending window, so a second pending
+      // - including during the approval-pending window, so a second pending
       // request can't also pass the balance check against the same cash.
-      // adjust_account_reserved_amount() (migration 100, SECURITY DEFINER) —
+      // adjust_account_reserved_amount() (migration 100, SECURITY DEFINER) -
       // see the lock above for why a direct UPDATE needs it too.
       await db.query(`SELECT adjust_account_reserved_amount($1, $2)`, [cashAccountId, input.amount.toFixed(2)]);
 
@@ -161,7 +161,7 @@ export const disbursementsService = {
       return { row: disbursement, alreadyExisted: false };
     });
 
-    // Dispatch happens OUTSIDE the transaction — the Daraja call is a network
+    // Dispatch happens OUTSIDE the transaction - the Daraja call is a network
     // request and must not hold a Postgres row lock for its duration.
     if (!alreadyExisted && row.status === 'approved') {
       await dispatchDisbursement(row.id);
@@ -171,7 +171,7 @@ export const disbursementsService = {
     return { ...fresh, needsApproval: fresh.requires_approval && fresh.status === 'pending_approval' };
   },
 
-  /** Second-officer approval (maker-checker) — approver ≠ initiator. */
+  /** Second-officer approval (maker-checker) - approver ≠ initiator. */
   async approve(ctx: TenantContext, id: string): Promise<DisbursementRow> {
     const row = await withTransaction(ctx, async (db) => {
       const { rows } = await db.query<DisbursementRow>(
@@ -216,7 +216,7 @@ export const disbursementsService = {
     return this.getById(ctx, row.id);
   },
 
-  /** Reject a pending disbursement — releases the reservation. */
+  /** Reject a pending disbursement - releases the reservation. */
   async reject(ctx: TenantContext, id: string, reason: string): Promise<DisbursementRow> {
     return withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<DisbursementRow>(
@@ -320,16 +320,16 @@ export const disbursementsService = {
  * Stuck-payout monitor (B2C audit C5/F13): a 'dispatched' row older than the
  * threshold means Safaricom accepted the request but no result callback has
  * arrived. Safaricom's B2C API offers no generic "query by conversation ID"
- * without a receipt, so this cannot auto-resolve the ambiguity — what it CAN
+ * without a receipt, so this cannot auto-resolve the ambiguity - what it CAN
  * do is guarantee the money never sits in an unknown state *silently*. Every
  * stuck row is logged (the paging signal) so a human reconciles it against
  * the daily Safaricom settlement report, per the audit's §11 recommendation.
  *
  * Also surfaces unreconciled 'timed_out' rows (the disbursement watchdog's
- * own terminal state — lib/services/disbursement-watchdog.service.ts). This
+ * own terminal state - lib/services/disbursement-watchdog.service.ts). This
  * is required, not cosmetic: the moment the watchdog flips a row out of
- * 'dispatched', it would otherwise silently vanish from this — the only
- * existing mechanism anything queries for stuck payouts — trading "stuck
+ * 'dispatched', it would otherwise silently vanish from this - the only
+ * existing mechanism anything queries for stuck payouts - trading "stuck
  * forever, silently" for "resolved status, but now invisible to the one
  * monitor that exists". A 'timed_out' row keeps paging every run until a
  * human sets reconciled_at, same as a still-'dispatched' row keeps paging
@@ -362,7 +362,7 @@ export async function findStuckDisbursements(): Promise<{
       ageMinutes: Math.round(Number(r.age_minutes)),
     }));
     if (samples.length > 0) {
-      logger.error('[disbursements] stuck B2C payouts — no result callback received', {
+      logger.error('[disbursements] stuck B2C payouts - no result callback received', {
         count: samples.length,
         samples: samples.slice(0, 5),
       });
@@ -377,7 +377,7 @@ export async function findStuckDisbursements(): Promise<{
  * transitions, so a concurrent reconciliation sweep or duplicate approval
  * can never dispatch twice. If the Daraja POST itself throws (network/5xx,
  * before any Safaricom response), the reservation is released and the row
- * marked failed — a stuck 'dispatched' row means Safaricom accepted the
+ * marked failed - a stuck 'dispatched' row means Safaricom accepted the
  * request and a result callback is genuinely pending.
  */
 async function dispatchDisbursement(id: string): Promise<void> {
@@ -438,10 +438,10 @@ async function dispatchDisbursement(id: string): Promise<void> {
     // result callback never lands, this bounds how long the row can sit
     // 'dispatched' before being surfaced as 'timed_out' instead of silently
     // stuck forever. Never blocks/fails a real dispatch that already
-    // succeeded — see triggerDisbursementWatchdog's own non-throwing contract.
+    // succeeded - see triggerDisbursementWatchdog's own non-throwing contract.
     await triggerDisbursementWatchdog({ kind: 'disbursement', rowId: claimed.id });
   } catch (err) {
-    // The Daraja POST never landed — release the hold and mark failed so the
+    // The Daraja POST never landed - release the hold and mark failed so the
     // treasurer can see it and retry with a fresh idempotency key.
     logger.error('[disbursements] dispatch failed before Daraja accepted the request', {
       disbursementId: id,

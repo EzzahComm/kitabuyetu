@@ -9,7 +9,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const { searchParams } = req.nextUrl;
     // contributions is opt-in: no current caller (dashboard or /welfare)
-    // reads it — confirmed by a whole-repo grep — so the paginated items
+    // reads it - confirmed by a whole-repo grep - so the paginated items
     // query and its separate unbounded COUNT(*) only run when explicitly
     // asked for (docs/audits/optimization-2026-09).
     const includeContributions = searchParams.get('includeContributions') === 'true';

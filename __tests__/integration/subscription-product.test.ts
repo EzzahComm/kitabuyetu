@@ -1,12 +1,12 @@
 /**
- * Multi-product subscriptions (migration 127 — Chama Reminder Phase 2,
+ * Multi-product subscriptions (migration 127 - Chama Reminder Phase 2,
  * docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md §5 Decision A),
  * against real Postgres.
  *
  * Until now a group could hold exactly one active subscription. Widening that
  * to one-per-(group, product) is the easy half; the risk is that several
  * existing readers were written against the old invariant and fail SILENTLY
- * rather than loudly once a second row exists — an arbitrary row picked by
+ * rather than loudly once a second row exists - an arbitrary row picked by
  * `SELECT ... INTO`, a cancel that hits every product, an aggregate that emits
  * one list row per product. Each test below pins one of those.
  *
@@ -50,7 +50,7 @@ function ctxFor(groupId: string, userId: string): TenantContext {
 }
 
 describe('multi-product subscriptions (migration 127)', () => {
-  it('register_group grants no subscription — there is no free plan (migration 139)', async () => {
+  it('register_group grants no subscription - there is no free plan (migration 139)', async () => {
     await resetDatabase();
 
     // Bypass the fixture's own paid-subscription provisioning: what is under
@@ -82,14 +82,14 @@ describe('multi-product subscriptions (migration 127)', () => {
     // deliberately Phase 4". This IS Phase 4: a communication-only group has
     // nothing to post journals against, and the entitlement gate now keeps it
     // out of every accounting surface, so seeding a ledger it can never reach
-    // would be dead data. Buying Kitabu Yetu later seeds it — see the
+    // would be dead data. Buying Kitabu Yetu later seeds it - see the
     // conversion tests at the foot of this file.
     const [accounts] = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM accounts WHERE group_id = $1`, [
       crGroupId,
     ]);
     expect(Number(accounts.n)).toBe(0);
 
-    // The billing account IS still created for both products — it holds the SMS
+    // The billing account IS still created for both products - it holds the SMS
     // credit balance, and Chama Reminder is entirely SMS.
     expect(await rawQuery(`SELECT group_id FROM billing_accounts WHERE group_id = $1`, [crGroupId])).toHaveLength(1);
   });
@@ -125,7 +125,7 @@ describe('multi-product subscriptions (migration 127)', () => {
       [groupId],
     );
 
-    // MIN(0.90, 0.80) — not whichever row the planner happened to return first,
+    // MIN(0.90, 0.80) - not whichever row the planner happened to return first,
     // which is what the old SELECT ... INTO over a LEFT JOIN gave.
     expect(Number(result.rate)).toBe(0.8);
     // SUM(50, 500) = 550 free, so 600 messages split 550 allowance / 50 paid.
@@ -158,7 +158,7 @@ describe('multi-product subscriptions (migration 127)', () => {
       { product: 'kitabu_yetu', plan_type: 'growth', status: 'active' },
     ]);
 
-    // And the Chama Reminder row was never touched — still exactly one
+    // And the Chama Reminder row was never touched - still exactly one
     // cancelled row, the Kitabu Yetu starter this upgrade replaced.
     const cancelled = await rawQuery<{ product: string }>(
       `SELECT product FROM subscriptions WHERE group_id = $1 AND status = 'cancelled'`,
@@ -185,7 +185,7 @@ describe('multi-product subscriptions (migration 127)', () => {
     const page = await listGroups({ page: 1, limit: 25 });
 
     // A plain LEFT JOIN put sub.plan_type in the GROUP BY, so this group would
-    // appear twice — while the paired count query's COUNT(DISTINCT g.id) still
+    // appear twice - while the paired count query's COUNT(DISTINCT g.id) still
     // said 1, desynchronising the pagination.
     const rows = (page.items as { id: string; plan: string }[]).filter((r) => r.id === groupId);
     expect(rows).toHaveLength(1);
@@ -231,7 +231,7 @@ describe('multi-product subscriptions (migration 127)', () => {
     // THE UPSELL. Chama Reminder exists to convert into Kitabu Yetu, and
     // without this the converted group's every accounting path would throw
     // "Account code(s) not in your chart of accounts" from inside a posting
-    // template — pointing nowhere near the cause.
+    // template - pointing nowhere near the cause.
     const { groupId, officerId } = await createTestGroup('chairperson', {
       subscribed: false,
       product: 'chama_reminder',

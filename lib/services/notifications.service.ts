@@ -2,7 +2,7 @@
  * Cron-driven notification helper.
  *
  * Used by job handlers (notify_loan_due_alerts, notify_contribution_reminders)
- * that operate *across* groups via withAdminDb — i.e. there is no tenant
+ * that operate *across* groups via withAdminDb - i.e. there is no tenant
  * context to thread through smsService / whatsappService.
  *
  * Channel policy:
@@ -10,7 +10,7 @@
  *   2. SMS (TextSMS) as fallback when WhatsApp is unconfigured, dry_run,
  *      or fails outright.
  *   3. If both fail or both are unconfigured, the row is logged and the
- *      handler moves on — never throw out of a cron handler over a single
+ *      handler moves on - never throw out of a cron handler over a single
  *      delivery failure.
  *
  * Writes audit rows to whatsapp_messages / sms_usage_logs with actor_id=null
@@ -21,12 +21,12 @@
  * other path (lib/services/messaging-billing.ts) rather than the hardcoded
  * `credits_deducted = 0` it used before. `billingMode` decides whether that
  * reservation actually charges:
- *   'unbilled' (default) — a log row is written with credits 0, exactly as
+ *   'unbilled' (default) - a log row is written with credits 0, exactly as
  *                          today. Every current caller keeps this behaviour;
  *                          Phase 2b flips the default once the bundled
  *                          per-plan allowance exists.
- *   'billed'             — reserve, then consume on provider acceptance.
- *   'platform'           — platform-funded (auth/OTP). Can never carry a
+ *   'billed'             - reserve, then consume on provider acceptance.
+ *   'platform'           - platform-funded (auth/OTP). Can never carry a
  *                          charge; enforced by a CHECK constraint.
  *
  * ── This function must never throw ──
@@ -64,7 +64,7 @@ export interface NotifyRecipient {
    *  referenceType-derived label when omitted, so existing call sites don't
    *  need to change. */
   title?: string;
-  /** Defaults to 'unbilled' — every existing caller keeps its current cost. */
+  /** Defaults to 'unbilled' - every existing caller keeps its current cost. */
   billingMode?: NotifyBillingMode;
   /** Organization to bill when billingMode is 'billed' and the org is paying. */
   payerOrganizationId?: string | null;
@@ -91,7 +91,7 @@ function deriveTitle(rcpt: NotifyRecipient): string {
  * the real WhatsApp/SMS dispatch this file already does. A single choke
  * point here organically populates the feed for every existing call site
  * (lib/jobs/handlers.ts, lib/services/mpesa-stk.service.ts) without having
- * to touch each one individually. Never throws — an in-app write failing
+ * to touch each one individually. Never throws - an in-app write failing
  * must never break the real delivery this function exists for.
  */
 async function writeInAppNotification(rcpt: NotifyRecipient): Promise<void> {
@@ -116,7 +116,7 @@ export interface NotifyOutcome {
  * Returns true when the recipient phone is on the group's opt-out list.
  * Mirrors the suppression enforced on the tenant send paths
  * (smsService.send / sendBulkCampaign) so automated cron reminders honour
- * the same consent signal — they previously bypassed it entirely.
+ * the same consent signal - they previously bypassed it entirely.
  */
 async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean> {
   try {
@@ -139,7 +139,7 @@ async function isPhoneOptedOut(groupId: string, phone: string): Promise<boolean>
  */
 export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome> {
   // Outer guard: this function must never throw (see the file header). Before
-  // Phase 2a it could — sendText() below sat outside any try/catch, so a
+  // Phase 2a it could - sendText() below sat outside any try/catch, so a
   // throwing WhatsApp client escaped to callers that don't guard, stranding
   // reminder.service's claim row as 'pending'. That hole is closed here rather
   // than assumed away, because a credit reservation now sits downstream of it.
@@ -154,7 +154,7 @@ export async function notifyMember(rcpt: NotifyRecipient): Promise<NotifyOutcome
 
 async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> {
   // In-app copy is independent of SMS/WhatsApp deliverability (invalid
-  // phone, opt-out, provider outage) — a member should still see it in the
+  // phone, opt-out, provider outage) - a member should still see it in the
   // portal even if every external channel fails or is skipped.
   await writeInAppNotification(rcpt);
 
@@ -214,11 +214,11 @@ async function notifyMemberInner(rcpt: NotifyRecipient): Promise<NotifyOutcome> 
  * Two deliberate departures from the pre-Phase-2a behaviour:
  *
  *  1. The log row is written BEFORE the provider call, not after. Previously a
- *     crash mid-dispatch lost the message entirely — no row, no trace, credits
+ *     crash mid-dispatch lost the message entirely - no row, no trace, credits
  *     unaccounted. Write-before-send is what makes the reservation recoverable
  *     and matches what smsService.send() already did.
  *  2. Settlement is in a `finally`, so no path can leave an earmark held. The
- *     one case a finally cannot cover — the process dying outright — is the
+ *     one case a finally cannot cover - the process dying outright - is the
  *     reason sms_release_stale_reservations exists.
  */
 async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyOutcome> {
@@ -232,7 +232,7 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   let reservedFromPaid = 0;
   let reservedFromBundle = 0;
   if (mode === 'billed') {
-    // Reserve SEGMENTS, not a flat 1 — a long reminder is billed by the
+    // Reserve SEGMENTS, not a flat 1 - a long reminder is billed by the
     // provider as several (SMS-AUDIT-v3 G5).
     const segs = segmentsOf(rcpt.body);
     const reservation = await reserveCredits(pool, target, segs);
@@ -265,7 +265,7 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
     reservedFromPaid = reservation.fromPaid;
     reservedFromBundle = reservation.fromAllowanceCount;
     // Phase 2b (migration 124): this is always a single-message reservation
-    // (count=1 above), so fromAllowance is all-or-nothing — either 0 or the
+    // (count=1 above), so fromAllowance is all-or-nothing - either 0 or the
     // full reservedCredits.
     fromAllowance = reservation.fromAllowance;
   }
@@ -273,7 +273,7 @@ async function sendSmsLeg(rcpt: NotifyRecipient, phone: string): Promise<NotifyO
   const logId = await insertSmsLog(rcpt, phone, mode, reservedCredits, fromAllowance, segmentsOf(rcpt.body));
 
   // No ticket row means the finally-block below can never settle, and the
-  // stale-reservation sweeper cannot find it either — it scans sms_usage_logs.
+  // stale-reservation sweeper cannot find it either - it scans sms_usage_logs.
   // The earmark would sit on the account forever, invisibly reducing what the
   // group can spend. Hand it back now, before the send, since an unrecordable
   // message is also one we cannot prove in order to charge for it.
@@ -395,7 +395,7 @@ async function writeWhatsAppLog(
  * Write the ledger row BEFORE the provider is called, in 'queued' state.
  *
  * Returns the row id so the send can be finalised and its reservation settled.
- * Returns null if the write fails — the send still proceeds, because
+ * Returns null if the write fails - the send still proceeds, because
  * delivering the message matters more than auditing it.
  *
  * It used to say here that "an unsettled reservation is what the sweeper
@@ -443,7 +443,7 @@ async function insertSmsLog(
         rcpt.correlationId ?? null,
         rcpt.referenceType ?? null,
         rcpt.referenceId ?? null,
-        // Recorded, not hardcoded (SMS-AUDIT-v3 T3-3) — see sms.service.ts's
+        // Recorded, not hardcoded (SMS-AUDIT-v3 T3-3) - see sms.service.ts's
         // identical comment on why this column has to be real.
         activeSmsProvider(),
         payerType,
@@ -485,7 +485,7 @@ async function finaliseSmsLog(
 }
 
 /**
- * Send a platform-funded service SMS — auth codes, verification, invitations.
+ * Send a platform-funded service SMS - auth codes, verification, invitations.
  *
  * These previously called the provider directly, so they were invisible: no
  * ledger row, no cost attribution, nothing in the SMS Centre
@@ -498,12 +498,12 @@ async function finaliseSmsLog(
  *    callers have no group whose opt-out list could even be consulted.
  *  - No WhatsApp. Changing the delivery channel of auth codes is out of scope.
  *  - payer_type='platform', so a CHECK constraint guarantees it can never
- *    carry a charge — a group with zero SMS credits must never be locked out
+ *    carry a charge - a group with zero SMS credits must never be locked out
  *    of its own password reset.
  *
  * Never throws. startPasswordReset() in particular promises "always resolves
  * without error" and previously broke that promise only for phone numbers that
- * actually exist — an account-enumeration oracle, since the unguarded provider
+ * actually exist - an account-enumeration oracle, since the unguarded provider
  * call was unreachable for unknown numbers.
  */
 export async function sendServiceSms(input: {

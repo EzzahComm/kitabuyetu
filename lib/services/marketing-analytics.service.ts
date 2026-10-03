@@ -1,17 +1,17 @@
 /**
- * Cross-channel marketing analytics (Phase 9.6) — ties together bulk
+ * Cross-channel marketing analytics (Phase 9.6) - ties together bulk
  * campaigns (marketing_campaigns/email_campaigns, Phase 9.2/9.3), the
  * automation engine (sms_trigger_executions/email_trigger_executions,
  * Phase 9.4), and the CRM (crm_contacts/crm_opportunities/crm_activities,
  * Phase 9.1/9.5) into one view.
  *
  * Deliberately separate from lib/services/analytics.service.ts (the
- * financial executive summary behind /analytics) — the roadmap is explicit
+ * financial executive summary behind /analytics) - the roadmap is explicit
  * that marketing metrics stay apart from financial/member scoring, not
  * layered onto the same dashboard.
  *
  * All queries rely on each table's own RLS (group/org scoping) rather than
- * an explicit WHERE — every table here already has it (migrations 052, 183,
+ * an explicit WHERE - every table here already has it (migrations 052, 183,
  * 192, 194, 195).
  */
 
@@ -22,12 +22,12 @@ export interface ChannelCampaignStats {
   recipients: number;
   sent: number;
   failed: number;
-  deliveryRate: number; // sent / recipients, 0–1
+  deliveryRate: number; // sent / recipients, 0-1
 }
 
 export interface EmailCampaignStats extends ChannelCampaignStats {
   opened: number;
-  openRate: number; // opened / sent, 0–1
+  openRate: number; // opened / sent, 0-1
 }
 
 export interface AutomationStats {
@@ -47,7 +47,7 @@ export interface AutomationVolumePoint {
 export interface CrmSnapshot {
   totalContacts: number;
   optedInContacts: number;
-  optInRate: number; // 0–1
+  optInRate: number; // 0-1
   opportunitiesByStage: Record<string, { count: number; amount: number }>;
   activitiesInPeriod: number;
 }

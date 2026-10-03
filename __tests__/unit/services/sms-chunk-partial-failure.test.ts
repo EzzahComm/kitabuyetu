@@ -1,7 +1,7 @@
 /**
  * Partial-batch integrity in sendBulkSmsChunked (SMS-AUDIT-v3 G4, T3-2).
  *
- * A throw on chunk k used to discard every response from chunks 0..k-1 —
+ * A throw on chunk k used to discard every response from chunks 0..k-1 -
  * messages the provider had already ACCEPTED and billed us for. The caller
  * then treated the whole batch as never-dispatched: every row failed, every
  * reservation released, sms_failures rows written, and retryFailures sent
@@ -9,7 +9,7 @@
  * provider charge, and a first send no DLR could ever confirm.
  *
  * Mocked at the HTTP layer, because sendBulkSmsChunked calls the module's own
- * internal sendBulkSms — mocking the exported binding does not intercept it.
+ * internal sendBulkSms - mocking the exported binding does not intercept it.
  */
 import axios from 'axios';
 import { sendBulkSmsChunked, type BulkSmsItem } from '@/lib/services/textsms.service';
@@ -65,7 +65,7 @@ describe('sendBulkSmsChunked partial failure', () => {
     const res = await sendBulkSmsChunked(items(150));
     const failures = res.responses.filter((r) => !r.success);
 
-    // Without this the failed half falls back to positional matching — the
+    // Without this the failed half falls back to positional matching - the
     // exact defect H6 fixed for the success path.
     expect(failures).toHaveLength(50);
     expect(failures.every((r) => typeof r.clientSmsId === 'number')).toBe(true);

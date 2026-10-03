@@ -4,19 +4,19 @@
  *
  * A provider *rejection* (sendBulkSmsChunked resolves with success: false
  * per item) was already handled correctly before this fix. What H5 flagged
- * is the OTHER failure mode: sendBulkSmsChunked itself throwing — a network
+ * is the OTHER failure mode: sendBulkSmsChunked itself throwing - a network
  * error, timeout, or DNS failure, where the provider never answered at all.
  * Before this fix that exception propagated straight out of
  * sendBulkCampaign: every row in the batch was left at its INSERT default
  * (status='queued', billing_state='reserved'), no sms_failures row was
  * written (so retryFailures() would never see it), and the reservation only
- * cleared ~15 minutes later via the stale-reservation sweeper — burning the
+ * cleared ~15 minutes later via the stale-reservation sweeper - burning the
  * retry window and looking, from the campaign's own row, like the send
  * never happened at all.
  *
  * This file proves: the exception is caught, every row in the batch is
  * marked failed with the thrown reason, a retryable sms_failures row is
- * written for each recipient, the reservation is released (not consumed —
+ * written for each recipient, the reservation is released (not consumed -
  * nothing here was ever accepted by the provider), and a campaign is
  * finished at 'completed' rather than left stuck at 'sending'.
  */
@@ -91,14 +91,14 @@ describe('sendBulkCampaign dispatch exception handling (H5)', () => {
     }
 
     // Never accepted by the provider, so the reservation must be released,
-    // not consumed — no charge for a send that never happened.
+    // not consumed - no charge for a send that never happened.
     const [{ sms_credits: after }] = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM billing_accounts WHERE group_id=$1`,
       [groupId],
     );
     expect(after).toBe(before);
 
-    // A retryable sms_failures row per recipient — the part that was
+    // A retryable sms_failures row per recipient - the part that was
     // entirely missing before this fix.
     const failures = await rawQuery<{ phone: string; failure_code: string; next_retry_at: Date | null }>(
       `SELECT phone, failure_code, next_retry_at FROM sms_failures WHERE group_id=$1 ORDER BY phone`,

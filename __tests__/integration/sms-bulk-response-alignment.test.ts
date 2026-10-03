@@ -5,10 +5,10 @@
  * sendBulkCampaign indexed result.responses[i] against logIds[i]/eligible[i]
  * by raw array position. A clientSmsId was sent to the provider per item
  * specifically so the response could be matched back unambiguously, but
- * nothing ever read it back — so a chunk returning responses out of order,
+ * nothing ever read it back - so a chunk returning responses out of order,
  * or fewer responses than items, silently wrote the wrong status onto the
  * wrong recipient's log row. This file proves the fix by mocking the
- * provider to return responses reordered and with a gap — the only way to
+ * provider to return responses reordered and with a gap - the only way to
  * actually exercise the bug, since a real provider call always happens to
  * come back in order in the happy path a mocked-in-order test would give.
  */
@@ -107,7 +107,7 @@ describe('bulk SMS response alignment (H6)', () => {
     const logs = await logsFor(groupId);
     const byPhone = new Map(logs.map((l) => [l.recipient_phone, l]));
 
-    // Recipient 1's own response was a REJECTION (clientSmsId 1) — before the
+    // Recipient 1's own response was a REJECTION (clientSmsId 1) - before the
     // fix, positional indexing would have given it responses[0], which in
     // this scrambled array actually belongs to recipient 3.
     expect(byPhone.get(phones[0])!.status).toBe('failed');
@@ -129,7 +129,7 @@ describe('bulk SMS response alignment (H6)', () => {
 
     const phones = ['254700000004', '254700000005', '254700000006'];
 
-    // clientSmsId 2 (the middle recipient) never comes back at all — the
+    // clientSmsId 2 (the middle recipient) never comes back at all - the
     // exact "chunk returned fewer responses than sent" scenario H6 describes.
     // Before the fix, this would have shifted recipient 3's response onto
     // recipient 2's log row via positional indexing.
@@ -166,13 +166,13 @@ describe('bulk SMS response alignment (H6)', () => {
     expect(byPhone.get(phones[0])!.status).toBe('sent');
     expect(byPhone.get(phones[0])!.provider_msg_id).toBe('msg-1');
 
-    // Never answered — status column is untouched (stays the insert default),
+    // Never answered - status column is untouched (stays the insert default),
     // but the reservation is still released so the group isn't charged for a
     // message that was never confirmed sent.
     expect(byPhone.get(phones[1])!.status).toBe('queued');
     expect(byPhone.get(phones[1])!.billing_state).toBe('released');
 
-    // Recipient 3's own response, correctly attributed — not recipient 2's
+    // Recipient 3's own response, correctly attributed - not recipient 2's
     // absence shifted onto it.
     expect(byPhone.get(phones[2])!.status).toBe('sent');
     expect(byPhone.get(phones[2])!.provider_msg_id).toBe('msg-3');
@@ -185,7 +185,7 @@ describe('bulk SMS response alignment (H6)', () => {
 
     const phones = ['254700000007', '254700000008'];
 
-    // No clientSmsId on any response — canUseClientId is false, so
+    // No clientSmsId on any response - canUseClientId is false, so
     // alignBulkResponses falls back to the exact pre-H6 positional behaviour.
     mockSendBulkSmsChunked.mockResolvedValue({
       responses: [

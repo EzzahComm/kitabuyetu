@@ -17,7 +17,7 @@ const CreateCampaignSchema = z.object({
   launch: z.boolean().optional(),
 });
 
-// Was withAuth only (any authenticated member) — matches SMS campaigns'
+// Was withAuth only (any authenticated member) - matches SMS campaigns'
 // existing messaging.send gate on its equivalent GET (list) route.
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {

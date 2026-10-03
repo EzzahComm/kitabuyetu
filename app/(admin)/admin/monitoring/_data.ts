@@ -1,6 +1,6 @@
 /**
  * Shared helpers for the Platform Monitoring page.
- * All dashboard data is live — served by /api/admin/dashboard?widget=monitoring_dashboard
+ * All dashboard data is live - served by /api/admin/dashboard?widget=monitoring_dashboard
  * (see lib/services/admin.service.ts → getMonitoringDashboardData).
  */
 

@@ -6,7 +6,7 @@ import { ReminderHistoryQuerySchema } from '@/lib/validators/sms.schema';
 import { ok } from '@/lib/utils/response';
 
 /**
- * GET /api/v1/sms/reminder-history — which automations ran, for whom, and
+ * GET /api/v1/sms/reminder-history - which automations ran, for whom, and
  * what happened (SMS-AUDIT-v3 T3-5 / G21).
  *
  * `reminder_dispatch_log` has recorded every automated reminder since
@@ -15,7 +15,7 @@ import { ok } from '@/lib/utils/response';
  * it reached, or why a particular member heard nothing. That gap is what makes
  * a data-subject request unanswerable from the product today.
  *
- * SUPPRESSED outcomes are included rather than filtered out — a suppressed row
+ * SUPPRESSED outcomes are included rather than filtered out - a suppressed row
  * is the evidence that an opt-out was honoured, which is the row a DPA request
  * most needs to see.
  *

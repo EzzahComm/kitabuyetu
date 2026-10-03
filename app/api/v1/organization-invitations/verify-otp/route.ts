@@ -12,7 +12,7 @@ const Schema = z.object({
     .regex(/^\d{6}$/, 'OTP must be 6 digits'),
 });
 
-/** POST /api/v1/organization-invitations/verify-otp — public. */
+/** POST /api/v1/organization-invitations/verify-otp - public. */
 export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { token, otp } = Schema.parse(await req.json());

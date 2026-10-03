@@ -1,5 +1,5 @@
 /**
- * DR runbook — rebuild the payment_accounts routing registry.
+ * DR runbook - rebuild the payment_accounts routing registry.
  *
  *   npx tsx scripts/rebuild-payment-accounts.ts          # dry run (report only)
  *   npx tsx scripts/rebuild-payment-accounts.ts --commit # insert missing rows
@@ -7,7 +7,7 @@
  * The registry is derived state (payment architecture §1.8): every row is
  * reconstructable from group_members (membership numbers + legacy member
  * codes) and invoices (invoice numbers). This script re-derives it
- * idempotently — existing rows are never touched (`ON CONFLICT DO NOTHING`),
+ * idempotently - existing rows are never touched (`ON CONFLICT DO NOTHING`),
  * so it is safe to run against a live system at any time.
  *
  * Use cases: disaster recovery after a partial restore, post-migration
@@ -73,7 +73,7 @@ async function main(): Promise<void> {
 
   const missing = await countMissing();
   const total = missing.membershipNos + missing.legacyCodes + missing.invoices;
-  console.log('payment_accounts — missing registry rows:');
+  console.log('payment_accounts - missing registry rows:');
   console.log(`  membership numbers : ${missing.membershipNos}`);
   console.log(`  legacy member codes: ${missing.legacyCodes}`);
   console.log(`  invoice numbers    : ${missing.invoices}`);
@@ -83,7 +83,7 @@ async function main(): Promise<void> {
     return;
   }
   if (!commit) {
-    console.log(`\nDry run — ${total} rows would be inserted. Re-run with --commit to apply.`);
+    console.log(`\nDry run - ${total} rows would be inserted. Re-run with --commit to apply.`);
     return;
   }
 
@@ -97,8 +97,8 @@ async function main(): Promise<void> {
   const remaining = after.membershipNos + after.legacyCodes + after.invoices;
   if (remaining > 0) {
     // Identifier collision (e.g. a member_code equal to another row's key)
-    // requires human review — report loudly rather than guessing.
-    console.error(`WARNING: ${remaining} rows still missing after rebuild — investigate identifier collisions.`);
+    // requires human review - report loudly rather than guessing.
+    console.error(`WARNING: ${remaining} rows still missing after rebuild - investigate identifier collisions.`);
     process.exitCode = 1;
   } else {
     console.log('Registry verified complete.');

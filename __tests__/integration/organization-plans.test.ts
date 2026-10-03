@@ -1,5 +1,5 @@
 /**
- * Organization subscription plans — real, enforced tiers assigned only by
+ * Organization subscription plans - real, enforced tiers assigned only by
  * super_admin. See supabase/migrations/20260817000000_152_* and
  * lib/services/organization-plan.service.ts for the full rationale: this is
  * the opposite choice from the group side's currently-decorative
@@ -54,7 +54,7 @@ describe('Organization subscription plans', () => {
       expect(sub.max_funding_programs).toBe(10);
     });
 
-    it('rejects premium_plus with no custom terms — "custom, including pricing" was explicit', async () => {
+    it('rejects premium_plus with no custom terms - "custom, including pricing" was explicit', async () => {
       await expect(assignOrganizationPlan(organizationId, 'premium_plus', coordinatorId)).rejects.toThrow(
         /monthly fee/i,
       );
@@ -71,7 +71,7 @@ describe('Organization subscription plans', () => {
       expect(sub.is_custom).toBe(true);
     });
 
-    it('a later assignment cancels the prior row rather than mutating it — the snapshot is never retroactively altered', async () => {
+    it('a later assignment cancels the prior row rather than mutating it - the snapshot is never retroactively altered', async () => {
       const first = await assignOrganizationPlan(organizationId, 'starter', coordinatorId);
       await assignOrganizationPlan(organizationId, 'growth', coordinatorId);
 
@@ -80,7 +80,7 @@ describe('Organization subscription plans', () => {
         [first.id],
       );
       expect(row.status).toBe('cancelled');
-      expect(Number(row.monthly_fee)).toBe(2999); // untouched — still Starter's fee at the time
+      expect(Number(row.monthly_fee)).toBe(2999); // untouched - still Starter's fee at the time
 
       const current = await getOrganizationPlan(organizationId);
       expect(current.subscription?.plan_type).toBe('growth');
@@ -228,7 +228,7 @@ describe('Organization subscription plans', () => {
       ).resolves.toBeDefined();
     });
 
-    it('only Premium+ can set white-label branding — Premium itself cannot', async () => {
+    it('only Premium+ can set white-label branding - Premium itself cannot', async () => {
       await assignOrganizationPlan(organizationId, 'premium', coordinatorId);
       await expect(
         organizationService.setBranding(ctxFor(coordinatorId, organizationId), { primaryColor: '#123456' }),
@@ -242,7 +242,7 @@ describe('Organization subscription plans', () => {
   });
 
   describe('route-level authorization', () => {
-    it('a support-role caller is denied on the plan-assignment route — assignment is a super_admin action', async () => {
+    it('a support-role caller is denied on the plan-assignment route - assignment is a super_admin action', async () => {
       const res = await adminPlanPost(
         buildRequest(`/api/admin/organizations/${organizationId}/plan`, {
           method: 'POST',

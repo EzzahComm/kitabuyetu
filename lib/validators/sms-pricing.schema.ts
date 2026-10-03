@@ -3,7 +3,7 @@ import { z } from 'zod';
 /**
  * Super-admin SMS pricing input (spec §12).
  *
- * Bounds are deliberately generous rather than opinionated — the point of
+ * Bounds are deliberately generous rather than opinionated - the point of
  * making pricing configurable is that the numbers change without a deploy. What
  * these schemas refuse is the shape of a mistake: a negative price, an inverted
  * band, a package that sells zero credits.
@@ -14,7 +14,7 @@ export const TierCreateSchema = z
     kind: z.literal('tier'),
     name: z.string().min(1).max(60),
     minCredits: z.number().int().min(0),
-    // null means "and above" — the open-ended top band. Explicitly nullable
+    // null means "and above" - the open-ended top band. Explicitly nullable
     // rather than optional, so the intent is stated rather than inferred.
     maxCredits: z.number().int().min(0).nullable(),
     unitPrice: z.number().min(0),

@@ -1,8 +1,8 @@
 /**
- * M-Pesa orchestration layer — public barrel.
+ * M-Pesa orchestration layer - public barrel.
  *
  * The implementation is split by concern across sibling `mpesa-*.service.ts`
- * files (OPTIMIZATION_CLEANUP_AUDIT.md High #9 — this file was previously
+ * files (OPTIMIZATION_CLEANUP_AUDIT.md High #9 - this file was previously
  * 3,126 lines mixing every M-Pesa flow):
  *
  *  - mpesa-spine.service.ts           payment-spine primitives (shared)

@@ -1,7 +1,7 @@
 /**
- * Programs — organization-run initiatives groups apply to or are invited
+ * Programs - organization-run initiatives groups apply to or are invited
  * into. Completely separate from funding_programs (budget/disbursement
- * config) and organizationFinanceService — see migration 206's header for
+ * config) and organizationFinanceService - see migration 206's header for
  * why these are two unrelated concepts that happen to share a name.
  *
  * This file is program CRUD + lifecycle only. Applications are
@@ -281,13 +281,13 @@ export const programsService = {
   },
 
   /**
-   * Published programs, discoverable by any group — group-side browse.
+   * Published programs, discoverable by any group - group-side browse.
    * Uses withAdminDb rather than withDb: organizations_select's RLS policy
    * only admits super_admin or the owning organization_coordinator, so a
    * plain tenant role joining to `organizations` under RLS would get every
    * row filtered out and see an empty list. The `programs` row itself is
    * still hard-filtered to status = 'published' here, which is exactly what
-   * programs_select's own RLS policy already grants any tenant role anyway —
+   * programs_select's own RLS policy already grants any tenant role anyway -
    * this only fixes the join's visibility, it doesn't widen program access.
    */
   async listPublished(_ctx: TenantContext): Promise<ProgramRow[]> {
@@ -301,10 +301,10 @@ export const programsService = {
 
   /**
    * withAdminDb for the same organizations-join reason as listPublished
-   * above — so the authorization that RLS would otherwise provide is done
+   * above - so the authorization that RLS would otherwise provide is done
    * explicitly here instead: published rows are visible to anyone, a
    * non-published row only to super_admin or the row's OWN organization's
-   * coordinator (checked by organizationId, not just role — a different
+   * coordinator (checked by organizationId, not just role - a different
    * org's coordinator must not see this org's draft programs).
    */
   async getProgram(ctx: TenantContext, id: string): Promise<ProgramRow> {

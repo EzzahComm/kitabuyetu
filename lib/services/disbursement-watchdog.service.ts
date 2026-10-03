@@ -1,28 +1,28 @@
 /**
- * Disbursement watchdog — timeout resolution (Upstash Workflow).
+ * Disbursement watchdog - timeout resolution (Upstash Workflow).
  *
  * Closes B2C_DISBURSEMENT_AUDIT.md C5 for all three money-out spines
  * (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md §9): a dropped Daraja
  * result callback leaves a payout stuck 'dispatched'/'processing' forever,
  * with its true state unknown. This module is the ONE thing the watchdog
  * workflow route (app/api/v1/workers/disbursement-watchdog/route.ts) does
- * when its context.waitForEvent step times out — kept as a plain, directly
+ * when its context.waitForEvent step times out - kept as a plain, directly
  * testable function rather than logic buried inside the serve()-wrapped
  * route, same "route is a thin adapter" discipline as
  * app/api/v1/workers/sms-dispatch-chunk/route.ts over smsService.sendBulkCampaign.
  *
- * The real callback handlers — handleB2CResult (mpesa-b2c.service.ts),
+ * The real callback handlers - handleB2CResult (mpesa-b2c.service.ts),
  * handleSettlementB2BResult / handleVendorPaymentResult
- * (settlement-callbacks.service.ts) — remain the PRIMARY resolution path and
+ * (settlement-callbacks.service.ts) - remain the PRIMARY resolution path and
  * are unchanged. This module only runs when they never got the chance to.
  *
  * Deliberately does NOT touch accounts.reserved_amount. A timed-out row's
- * money fate is genuinely unknown — Safaricom may have paid it out for real
+ * money fate is genuinely unknown - Safaricom may have paid it out for real
  * despite the callback being dropped. Releasing the reservation on timeout
  * would let the group's available balance grow back before anyone has
  * confirmed the money didn't leave, opening a double-spend window. This
  * preserves exactly today's implicit behavior (nothing mutates a stuck row's
- * reservation) — it only makes the status explicit and findable instead of
+ * reservation) - it only makes the status explicit and findable instead of
  * silently stuck.
  */
 import { withAdminDb } from '@/lib/db';
@@ -30,7 +30,7 @@ import { logger } from '@/lib/logger';
 import type { DisbursementWatchdogKind } from '@/lib/queue/qstash';
 
 // Table/in-flight-status pair per kind. Keyed by the closed
-// DisbursementWatchdogKind union (never user input) — safe to interpolate
+// DisbursementWatchdogKind union (never user input) - safe to interpolate
 // the table name directly, there is no fourth value this can ever be.
 const SPINE_BY_KIND: Record<
   DisbursementWatchdogKind,
@@ -39,7 +39,7 @@ const SPINE_BY_KIND: Record<
   disbursement: { table: 'disbursement_requests', inProgressStatus: 'dispatched', amountColumn: 'amount' },
   settlement: { table: 'settlement_requests', inProgressStatus: 'processing', amountColumn: 'amount' },
   vendor_payment: { table: 'vendor_payments', inProgressStatus: 'processing', amountColumn: 'amount' },
-  // campaign_withdrawals has no plain 'amount' column — gross_amount is the
+  // campaign_withdrawals has no plain 'amount' column - gross_amount is the
   // reservation-sized figure (what was actually held against 1001), unlike
   // net_amount which is only what Daraja was asked to pay out.
   campaign_withdrawal: { table: 'campaign_withdrawals', inProgressStatus: 'processing', amountColumn: 'gross_amount' },
@@ -47,17 +47,17 @@ const SPINE_BY_KIND: Record<
 
 export interface WatchdogTimeoutResult {
   /** false means the real callback handler already resolved this row before
-   *  the workflow's timeout fired — a safe no-op, not an error. */
+   *  the workflow's timeout fired - a safe no-op, not an error. */
   resolved: boolean;
 }
 
 /**
- * Flip a payout row to 'timed_out' — ONLY if it's still in its in-flight
+ * Flip a payout row to 'timed_out' - ONLY if it's still in its in-flight
  * state. Idempotent and race-safe: if handleB2CResult (or its settlement/
  * vendor-payment equivalents) already moved the row to 'completed'/'failed'
- * — whether because the real callback beat the timeout, or because
+ * - whether because the real callback beat the timeout, or because
  * notifyDisbursementCallback's own best-effort notify raced ahead of this
- * workflow reaching waitForEvent and got lost — this UPDATE's WHERE clause
+ * workflow reaching waitForEvent and got lost - this UPDATE's WHERE clause
  * simply matches zero rows and `resolved` comes back false.
  */
 export async function resolveWatchdogTimeout(
@@ -102,7 +102,7 @@ export async function resolveWatchdogTimeout(
       );
 
       // Same shape/fields as findStuckDisbursements' existing paging signal
-      // (disbursements.service.ts) — deliberately not a new alert channel;
+      // (disbursements.service.ts) - deliberately not a new alert channel;
       // see the messaging architecture doc §9 for why.
       logger.error(`[disbursement-watchdog] ${kind} timed out waiting for a Daraja result callback`, {
         kind,

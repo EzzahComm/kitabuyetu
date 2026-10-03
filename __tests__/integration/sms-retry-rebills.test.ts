@@ -3,7 +3,7 @@
  *
  * Found in production 2026-08-16 while sending real loan notifications. The
  * first attempt reserves credits and RELEASES them when the provider rejects
- * (billing_state='released', credits_deducted=0) — correct so far. Nothing
+ * (billing_state='released', credits_deducted=0) - correct so far. Nothing
  * then re-reserved on retry, so a message that failed once and succeeded on
  * retry was delivered with credits_deducted = 0. Free SMS, for every tenant,
  * silently. Eight real messages went out that way before it was noticed.
@@ -11,7 +11,7 @@
  * The ordering matters as much as the billing. The reservation has to happen
  * BEFORE the provider call: once the provider accepts, we cannot decline to
  * send, so discovering an empty balance at that point would leave us having
- * delivered something unbilled all over again — the very bug being fixed.
+ * delivered something unbilled all over again - the very bug being fixed.
  */
 import { smsService } from '@/lib/services/sms.service';
 import { createTestGroup } from './helpers/fixtures';
@@ -50,7 +50,7 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
  *
  *  The first failure schedules an exponential backoff, so next_retry_at lands
  *  minutes in the future and retryFailures() would correctly skip the row.
- *  Backdate it — the point of these tests is the BILLING behaviour once a
+ *  Backdate it - the point of these tests is the BILLING behaviour once a
  *  retry runs, not the backoff schedule (which sms-dispatch-exception covers).
  */
 async function queueOneFailedSend(groupId: string, userId: string) {
@@ -106,7 +106,7 @@ describe('retryFailures billing', () => {
     await provisionBilling(groupId, 10);
     await queueOneFailedSend(groupId, officerId);
 
-    // Released by the failed first attempt — nothing charged yet.
+    // Released by the failed first attempt - nothing charged yet.
     expect(await billingOf(groupId)).toBe(10);
     expect((await logOf(groupId)).credits_deducted).toBe('0.0000');
 
@@ -132,7 +132,7 @@ describe('retryFailures billing', () => {
     });
     await smsService.retryFailures();
 
-    // Reserved then released — the balance must come back untouched.
+    // Reserved then released - the balance must come back untouched.
     expect(await billingOf(groupId)).toBe(10);
     expect((await logOf(groupId)).billing_state).toBe('released');
   });
@@ -152,7 +152,7 @@ describe('retryFailures billing', () => {
   it('refuses to send when the payer cannot afford it', async () => {
     // Fund it first: the ORIGINAL send has to reserve successfully for a
     // failure row to exist at all. Draining the balance afterwards is what
-    // reproduces the real case — credits ran out between the first attempt
+    // reproduces the real case - credits ran out between the first attempt
     // and the retry.
     await provisionBilling(groupId, 10);
     await queueOneFailedSend(groupId, officerId);

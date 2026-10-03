@@ -6,7 +6,7 @@ import { ok } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
-/** PATCH /api/v1/me/notifications/[id] — mark one of the signed-in member's own notifications read. */
+/** PATCH /api/v1/me/notifications/[id] - mark one of the signed-in member's own notifications read. */
 export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
   return withAuth(req, async (auth) => {

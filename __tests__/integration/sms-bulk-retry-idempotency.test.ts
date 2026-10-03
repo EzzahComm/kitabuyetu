@@ -4,10 +4,10 @@
  *
  * resetStuckJobs (fixed separately, PR #34) reclaims a job that timed out
  * without ever finishing, incrementing attempts and setting it back to
- * pending — a real retry, not a crash-recovery no-op, re-invokes
+ * pending - a real retry, not a crash-recovery no-op, re-invokes
  * handleSmsBulkSend with the SAME payload.phones list. Before this fix,
  * sendBulkCampaign had no memory of what an earlier attempt already did:
- * every recipient — including ones already billed and sent — got a brand
+ * every recipient - including ones already billed and sent - got a brand
  * new reservation, a brand new log row, and a brand new dispatch to the
  * provider. This file proves a simulated retry (calling sendBulkCampaign
  * twice with the same dispatchBatchId/campaignId and the same phone list)
@@ -100,7 +100,7 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     });
     expect(second.sent).toBe(0);
     expect(second.failed).toBe(0);
-    // The provider was never called again — nothing new to dispatch.
+    // The provider was never called again - nothing new to dispatch.
     expect(mockSendBulkSmsChunked).toHaveBeenCalledTimes(1);
 
     const [afterSecond] = await rawQuery<{ sms_credits: string }>(
@@ -143,7 +143,7 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     expect(first.sent).toBe(1);
 
     // The retry re-submits the FULL original list (the real shape of a
-    // job-level retry — the job payload doesn't shrink between attempts).
+    // job-level retry - the job payload doesn't shrink between attempts).
     mockSendBulkSmsChunked.mockResolvedValueOnce(acceptedResponses([phones[1], phones[2]]));
     const second = await smsService.sendBulkCampaign({
       groupId,
@@ -190,7 +190,7 @@ describe('sms_bulk_send retry idempotency (H3)', () => {
     );
 
     // Simulate: an earlier attempt logged and dispatched everyone
-    // successfully, but crashed before its own completion UPDATE ran — the
+    // successfully, but crashed before its own completion UPDATE ran - the
     // campaign is left at 'sending' with real rows already in place.
     for (const phone of phones) {
       await rawQuery(

@@ -16,7 +16,7 @@ export async function GET(req: NextRequest, { params }: Params): Promise<Respons
 }
 
 /**
- * PATCH /api/v1/fines/[id] — action dispatch (loans/[id] pattern):
+ * PATCH /api/v1/fines/[id] - action dispatch (loans/[id] pattern):
  *   action: 'waive'               -> WaiveFineSchema   -> finesService.waive
  *   action: 'cancel'              -> CancelFineSchema   -> finesService.cancel
  *   action: 'initiateCollection'  -> (no body)          -> finesService.initiateCollection

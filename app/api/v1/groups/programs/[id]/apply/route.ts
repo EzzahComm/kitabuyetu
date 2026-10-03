@@ -5,7 +5,7 @@ import { programApplicationsService } from '@/lib/services/program-applications.
 import { SubmitProgramApplicationSchema } from '@/lib/validators/program.schema';
 import { created } from '@/lib/utils/response';
 
-/** POST /api/v1/groups/programs/:id/apply — chairperson applies the group to a published program */
+/** POST /api/v1/groups/programs/:id/apply - chairperson applies the group to a published program */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOneOf(req, ['chairperson'], async (auth) => {
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

@@ -6,10 +6,10 @@ import { checkCertificate } from '@/lib/utils/signup-request';
 import { badRequest, ok, handleError } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/settings/registration/certificate — multipart/form-data with a
+ * POST /api/v1/settings/registration/certificate - multipart/form-data with a
  * `certificate` PDF field (up to 4 MB: Vercel rejects bigger bodies before they
  * reach us). Chairperson only, matching who the database lets update the group
- * record. Uploading implies the group is registered — the flag flips to true
+ * record. Uploading implies the group is registered - the flag flips to true
  * even if a registration number was never separately entered.
  *
  * This is for adding or replacing the certificate AFTER the group is up and

@@ -70,7 +70,7 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
  * Phase 9.1: record a real, enforced suppression on bounce/complaint. Looks
  * up the recipient + group from the email_logs row this webhook already
  * updated (no new lookup path). Only group-scoped log rows produce a
- * suppression — email_suppressions requires exactly one of group_id/
+ * suppression - email_suppressions requires exactly one of group_id/
  * organization_id (migration 192), and there is no org-level email send yet
  * for a scopeless row to meaningfully attach to.
  */
@@ -122,7 +122,7 @@ export async function getEmailAnalytics(
   byDay: { date: string; sent: number; failed: number }[];
 }> {
   // Was string-interpolated (`AND group_id = '${groupId}'`) directly into the
-  // SQL text instead of a parameterised placeholder — every other query in
+  // SQL text instead of a parameterised placeholder - every other query in
   // this file (and the codebase) passes values as $N params. Not currently
   // exploitable (groupId here always comes from a verified JWT via
   // app/api/v1/email/analytics/route.ts, never raw user input), but a

@@ -13,7 +13,7 @@
  *
  * The account reference carries the 'L' suffix deliberately. Without it the
  * allocation engine (lib/utils/allocation-engine.ts, tier A3) falls through to
- * the group default — 'savings' for this group — and a repayment would be
+ * the group default - 'savings' for this group - and a repayment would be
  * banked as savings while the loan sat untouched.
  */
 import { withAdminDb } from '@/lib/db';
@@ -40,7 +40,7 @@ interface Row {
 }
 
 async function main() {
-  if (!PAYBILL) throw new Error('MPESA_SHORTCODE is not set — refusing to send a message with no paybill');
+  if (!PAYBILL) throw new Error('MPESA_SHORTCODE is not set - refusing to send a message with no paybill');
 
   const rows = await withAdminDb(async (db) => {
     const { rows } = await db.query<Row>(`
@@ -62,7 +62,7 @@ async function main() {
   });
 
   if (rows.length !== 4) {
-    throw new Error(`Expected 4 disbursed loans, found ${rows.length} — refusing to send`);
+    throw new Error(`Expected 4 disbursed loans, found ${rows.length} - refusing to send`);
   }
 
   const money = (v: string) =>
@@ -100,7 +100,7 @@ async function main() {
     );
   }
 
-  console.log(SEND ? '\nDone.' : '\nDry run only — pass --send to dispatch.');
+  console.log(SEND ? '\nDone.' : '\nDry run only - pass --send to dispatch.');
 }
 
 main()

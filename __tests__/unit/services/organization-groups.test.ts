@@ -1,5 +1,5 @@
 /**
- * organizationService.listGroupSummaries — was fully unbounded (no LIMIT at
+ * organizationService.listGroupSummaries - was fully unbounded (no LIMIT at
  * all), returning every group linked to an organization in one query
  * (audit/04-performance-findings.md #1). Now bounded by a default/max page
  * size while preserving every consumer's "give me everything for

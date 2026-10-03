@@ -6,14 +6,14 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatKES(amount: string | number | null | undefined): string {
-  if (amount === null || amount === undefined) return '—';
+  if (amount === null || amount === undefined) return '-';
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
-  if (isNaN(num)) return '—';
+  if (isNaN(num)) return '-';
   return num.toLocaleString('en-KE', { style: 'currency', currency: 'KES' });
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Date(date).toLocaleDateString('en-KE', {
     day: '2-digit',
     month: 'short',
@@ -22,7 +22,7 @@ export function formatDate(date: string | Date | null | undefined): string {
 }
 
 export function formatDateTime(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Date(date).toLocaleString('en-KE', {
     day: '2-digit',
     month: 'short',

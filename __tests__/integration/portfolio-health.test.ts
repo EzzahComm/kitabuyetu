@@ -1,11 +1,11 @@
 /**
- * Portfolio health indicators — GET /api/admin/organization/health.
+ * Portfolio health indicators - GET /api/admin/organization/health.
  *
  * The §1.5 "what needs attention?" layer. Three things are worth asserting and
  * the third is the easiest to get wrong:
  *
  * 1. Arrears are actually detected at all.
- * 2. They are not inflated by fan-out — the group here carries THREE members
+ * 2. They are not inflated by fan-out - the group here carries THREE members
  *    against ONE overdue loan, so a flat join of loans to group_members would
  *    report 3 (the PR #105 class, 99x on real data).
  * 3. A percentage over an empty denominator is NULL, not 0. "0% of loans are
@@ -51,8 +51,8 @@ const PRINCIPAL = 50_000;
  * Inserts a loan already past its next payment date, still active.
  *
  * All three rows go in ONE statement deliberately. Migration 118 enforces that
- * loan_funding_splits sum to the principal — "every disbursed loan must be fully
- * attributed to its funding sources" — via a DEFERRED constraint that fires at
+ * loan_funding_splits sum to the principal - "every disbursed loan must be fully
+ * attributed to its funding sources" - via a DEFERRED constraint that fires at
  * COMMIT. rawQuery wraps each call in its own transaction, so inserting the loan
  * and its split separately trips the check on the first COMMIT. A single
  * statement with CTEs keeps them in one transaction.

@@ -8,7 +8,7 @@ interface RouteParams {
   params: Promise<{ memberId: string }>;
 }
 
-/** GET /api/v1/credit-scores/[memberId] — latest score for one member. */
+/** GET /api/v1/credit-scores/[memberId] - latest score for one member. */
 export async function GET(req: NextRequest, { params }: RouteParams): Promise<Response> {
   const { memberId } = await params;
   return withAuth(req, async (auth) => {

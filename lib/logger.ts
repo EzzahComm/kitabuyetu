@@ -25,7 +25,7 @@ function isProd(): boolean {
  * substring so `apikey`, `TEXTSMS_API_KEY`, `x-api-key` and `apiKey` all hit.
  *
  * `partnerid` is here because TextSMS authenticates on the pair
- * (apikey, partnerID) — redacting only the key would still publish half the
+ * (apikey, partnerID) - redacting only the key would still publish half the
  * credential.
  */
 const SECRET_KEY_RE =
@@ -40,7 +40,7 @@ const MAX_DEPTH = 6;
  * Reduce a value to something safe to serialize.
  *
  * The load-bearing case is `value instanceof Error`. An AxiosError is an
- * Error, and its `toJSON()` includes `config` — which for this codebase's
+ * Error, and its `toJSON()` includes `config` - which for this codebase's
  * provider calls carries `apikey` in `params` (GET: delivery reports, balance)
  * or in `data` (POST: sends). So `JSON.stringify({ err: axiosError })` used to
  * write the live TextSMS credential into the log stream in cleartext.
@@ -51,13 +51,13 @@ const MAX_DEPTH = 6;
  * subsystem alone use the nested form, so the reduction has to happen here,
  * at every depth, rather than being a rule each caller has to remember.
  *
- * `seen` breaks cycles — an Error's `config.request` graph is self-referential,
+ * `seen` breaks cycles - an Error's `config.request` graph is self-referential,
  * and JSON.stringify throws on that.
  */
 function sanitize(value: unknown, depth = 0, seen = new WeakSet<object>()): unknown {
   if (value instanceof Error) {
     // Deliberately a fixed shape: name/message/stack only. Never spread the
-    // error's own enumerable properties — that is exactly where `config` lives.
+    // error's own enumerable properties - that is exactly where `config` lives.
     return { name: value.name, message: value.message, stack: value.stack };
   }
 
@@ -80,7 +80,7 @@ function sanitize(value: unknown, depth = 0, seen = new WeakSet<object>()): unkn
 
 function emit(level: LogLevel, args: unknown[]): void {
   if (isProd()) {
-    // Structured JSON in production — easy to ingest by Logtail/Datadog/CloudWatch
+    // Structured JSON in production - easy to ingest by Logtail/Datadog/CloudWatch
     const [first, ...rest] = args;
     const entry: LogEntry = {
       level,
@@ -90,7 +90,7 @@ function emit(level: LogLevel, args: unknown[]): void {
     // Merge additional context objects into the log entry
     for (const extra of rest) {
       if (extra instanceof Error) {
-        // Same `entry.error` shape as before — anything parsing these logs
+        // Same `entry.error` shape as before - anything parsing these logs
         // keeps working.
         entry.error = sanitize(extra);
       } else if (extra !== null && typeof extra === 'object') {
@@ -116,7 +116,7 @@ function emit(level: LogLevel, args: unknown[]): void {
       console.log(JSON.stringify(entry));
     }
   } else {
-    // Human-readable in development — sanitized on the same terms as
+    // Human-readable in development - sanitized on the same terms as
     // production. Preview and CI both run non-production, and their logs are
     // routinely more widely readable than production's, so this branch is if
     // anything the more important one to keep clean. `stack` is preserved, so
@@ -127,7 +127,7 @@ function emit(level: LogLevel, args: unknown[]): void {
       console.error(prefix, ...safe);
       // Preview and CI report too: an environment that only reports in
       // production is one where the reporting itself is never exercised
-      // before it matters. Sanitized on the same terms — `safe`, not `args`.
+      // before it matters. Sanitized on the same terms - `safe`, not `args`.
       const [head, ...tail] = safe;
       reportError(typeof head === 'string' ? head : JSON.stringify(head), { detail: tail });
     } else if (level === 'warn') console.warn(prefix, ...safe);

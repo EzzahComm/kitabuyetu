@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  *
  * Everything under (auth), (dashboard), (member), (admin), (enterprise) and
  * (reminder) is either behind a login or an application route with nothing for
- * a crawler, so none of it appears here — and app/robots.ts disallows those
+ * a crawler, so none of it appears here - and app/robots.ts disallows those
  * prefixes outright.
  */
 const ROUTES: { path: string; priority: number; changeFrequency: 'monthly' | 'weekly' }[] = [

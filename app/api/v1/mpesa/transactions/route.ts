@@ -1,6 +1,6 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * GET /api/v1/mpesa/transactions â€” Paginated list of all M-Pesa transactions
+ * GET /api/v1/mpesa/transactions â€" Paginated list of all M-Pesa transactions
  *
  * Query params: page, limit, type, status, phone, dateFrom, dateTo
  */

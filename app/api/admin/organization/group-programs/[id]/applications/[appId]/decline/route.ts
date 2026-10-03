@@ -5,7 +5,7 @@ import { programApplicationsService } from '@/lib/services/program-applications.
 import { DeclineProgramApplicationSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
-/** POST /api/admin/organization/group-programs/:id/applications/:appId/decline — requires a reason */
+/** POST /api/admin/organization/group-programs/:id/applications/:appId/decline - requires a reason */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ appId: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.group_programs.manage', async (ctx) => {
     const { appId } = await params;

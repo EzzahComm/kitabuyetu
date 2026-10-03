@@ -5,7 +5,7 @@ import { programsService } from '@/lib/services/programs.service';
 import { TransitionGroupProgramStatusSchema } from '@/lib/validators/organization.schema';
 import { ok } from '@/lib/utils/response';
 
-/** PATCH /api/admin/organization/group-programs/:id/status — draft→published→paused→closed→archived */
+/** PATCH /api/admin/organization/group-programs/:id/status - draft→published→paused→closed→archived */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.group_programs.manage', async (ctx) => {
     const { id } = await params;

@@ -98,7 +98,7 @@ function buildLoansCsv(today: string): { csv: string; filename: string } {
     term_months: '6',
     disbursement_date: today,
     status: 'active',
-    // Blank is the useful default — the loan then takes the group's own loan
+    // Blank is the useful default - the loan then takes the group's own loan
     // policy. Shown filled in only so the accepted values are discoverable.
     interest_method: 'flat',
     purpose: 'School fees',

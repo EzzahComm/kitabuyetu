@@ -10,7 +10,7 @@ const QuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
-/** GET /api/v1/me/notifications — the signed-in member's own notifications + unread count. */
+/** GET /api/v1/me/notifications - the signed-in member's own notifications + unread count. */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     const params = QuerySchema.parse(Object.fromEntries(req.nextUrl.searchParams));

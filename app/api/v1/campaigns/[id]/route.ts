@@ -14,7 +14,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   });
 }
 
-/** PATCH — set the payout destination: phone, paybill or till (draft only;
+/** PATCH - set the payout destination: phone, paybill or till (draft only;
  *  campaigns.service.ts's own guard is the real enforcement, this route is
  *  just the wire-up). */
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {

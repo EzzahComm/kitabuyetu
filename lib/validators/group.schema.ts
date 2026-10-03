@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-// groups.is_government_registered / registration_number — see
+// groups.is_government_registered / registration_number - see
 // group-registration.service.ts. Deliberately permissive: a group can flag
 // itself registered without a number yet (cert upload is a separate
 // multipart endpoint), and can flip the flag off at any time.

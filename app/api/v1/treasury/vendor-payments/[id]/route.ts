@@ -23,7 +23,7 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 }
 
 /**
- * POST /api/v1/treasury/vendor-payments/:id — approve or reject (treasurer+).
+ * POST /api/v1/treasury/vendor-payments/:id - approve or reject (treasurer+).
  * Maker-checker: the service rejects a decision by the requester.
  * Approval dispatches the Daraja B2C/B2B call for the row's channel.
  */

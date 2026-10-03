@@ -10,7 +10,7 @@ function bearerReq(path: string, token: string): NextRequest {
 
 /**
  * Reads a header proxy.ts asked Next.js to attach to the downstream request
- * via NextResponse.next({ request: { headers } }) — Next.js surfaces these
+ * via NextResponse.next({ request: { headers } }) - Next.js surfaces these
  * on the returned response under the `x-middleware-request-<name>` prefix.
  */
 function downstreamHeader(res: Response, name: string): string | null {
@@ -19,7 +19,7 @@ function downstreamHeader(res: Response, name: string): string | null {
 
 /**
  * proxy.ts's checkRateLimit() does a REAL fetch() to Upstash whenever
- * process.env.REDIS_URL is set — and next/jest loads .env*, so it always is.
+ * process.env.REDIS_URL is set - and next/jest loads .env*, so it always is.
  * Every proxy() call below would otherwise make a live network round-trip:
  * slow, and a genuine source of CI flakes (two tests in this file timed out at
  * jest's 5s default on 2026-08-05, passing again on re-run).
@@ -29,7 +29,7 @@ function downstreamHeader(res: Response, name: string): string | null {
  * deterministically, with no network.
  *
  * It has to be deleted here rather than in the environment because lib/env.ts
- * requires REDIS_URL and validates at import time (via lib/auth/jwt.ts above) —
+ * requires REDIS_URL and validates at import time (via lib/auth/jwt.ts above) -
  * unsetting it before the run fails the whole suite. checkRateLimit reads
  * process.env at call time, so removing it after import is both safe and
  * sufficient.
@@ -48,14 +48,14 @@ afterAll(() => {
  * The organization API tree is BACKOFFICE-audience, at /api/admin/organization/*.
  *
  * This file used to assert a carve-out that let a backoffice token reach
- * /api/v1/organization/* by reshaping its claims to look tenant-ish —
+ * /api/v1/organization/* by reshaping its claims to look tenant-ish -
  * including `x-group-id: ''`, which it asserted explicitly. That carve-out
  * never actually worked: getAuthContext guards with `!groupId`, and '' is
  * falsy, so every organization request threw "Missing authentication context"
  * and the enterprise Portfolio dashboard could not load at all.
  *
  * The old test passed anyway, because it only ever checked what the proxy
- * stamped — never that a route could USE those headers. Worth remembering:
+ * stamped - never that a route could USE those headers. Worth remembering:
  * asserting the mechanics of a workaround is not the same as asserting the
  * outcome it exists to produce.
  */
@@ -70,7 +70,7 @@ describe('proxy: organization API audience', () => {
     const res = await proxy(bearerReq('/api/admin/organization/profile', token));
 
     expect(res.status).not.toBe(403);
-    // Stamped as what it really is — no more pretending a backoffice token is
+    // Stamped as what it really is - no more pretending a backoffice token is
     // a tenant one, and no empty-string group sentinel.
     expect(downstreamHeader(res, 'x-aud')).toBe('backoffice');
     expect(downstreamHeader(res, 'x-platform-role')).toBe('organization_coordinator');
@@ -85,7 +85,7 @@ describe('proxy: organization API audience', () => {
     expect(downstreamHeader(res, 'x-platform-role')).toBe('super_admin');
   });
 
-  it('rejects a backoffice token on /api/v1/* — the carve-out is gone', async () => {
+  it('rejects a backoffice token on /api/v1/* - the carve-out is gone', async () => {
     const token = signBackofficeAccessToken({
       sub: 'coordinator-1',
       aud: 'backoffice',
@@ -97,7 +97,7 @@ describe('proxy: organization API audience', () => {
     expect((await proxy(bearerReq('/api/v1/loans', token))).status).toBe(403);
   });
 
-  it('rejects a TENANT token on the organization tree — it is not a group-scoped surface', async () => {
+  it('rejects a TENANT token on the organization tree - it is not a group-scoped surface', async () => {
     const token = signAccessToken({
       sub: 'member-1',
       groupId: 'group-1',

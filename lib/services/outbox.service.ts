@@ -9,7 +9,7 @@
  *
  * Consumer note (Phase 1.5): the SMS receipt still runs on its existing
  * direct `emitBusinessEvent` path (idempotent per rule+paymentId), so this
- * dispatcher currently ACKNOWLEDGES rows rather than fanning out — it exists
+ * dispatcher currently ACKNOWLEDGES rows rather than fanning out - it exists
  * so the queue-depth metric is real and so Phase 2 consumers (notifications,
  * balance caches, webhooks) plug into an already-running pipeline instead of
  * a dead table. Rows that repeatedly fail are parked (dead) with a loud log.
@@ -72,7 +72,7 @@ export async function dispatchOutboxEvents(): Promise<{
         const attempts = row.attempts + 1;
         if (attempts >= MAX_ATTEMPTS) {
           // Park it: mark processed so the queue drains, but record the death
-          // loudly — the §16 alert on this log line is the operator signal.
+          // loudly - the §16 alert on this log line is the operator signal.
           await db.query(`UPDATE event_outbox SET processed_at = NOW(), attempts = $2 WHERE id = $1`, [
             row.id,
             attempts,
@@ -127,7 +127,7 @@ export async function dispatchOutboxEvents(): Promise<{
 
 /**
  * Per-type consumer fan-out. Deliberately minimal in Phase 1.5 (see module
- * comment); each Phase 2 consumer adds a case here — always idempotent.
+ * comment); each Phase 2 consumer adds a case here - always idempotent.
  */
 async function handleOutboxEvent(row: OutboxRow): Promise<void> {
   switch (row.event_type) {
@@ -138,7 +138,7 @@ async function handleOutboxEvent(row: OutboxRow): Promise<void> {
       // path; migrating them here is a Phase 2 task.
       return;
     default:
-      // Unknown types are acknowledged too — an outbox must never wedge on a
+      // Unknown types are acknowledged too - an outbox must never wedge on a
       // producer/consumer version skew; new consumers deploy before producers.
       logger.warn('[outbox] no consumer for event type', { eventType: row.event_type });
       return;
@@ -180,7 +180,7 @@ export async function findSpineOrphans(): Promise<{
     }));
 
     if (samples.length > 0) {
-      // §16: this log line is the paging signal — completed money that never
+      // §16: this log line is the paging signal - completed money that never
       // reached a ledger is the one thing that must never sit quietly.
       logger.error('[spine] orphaned payments detected (received but never allocated)', {
         count: samples.length,

@@ -1,6 +1,6 @@
 /**
  * Splits a contribution amount across multiple ledger accounts per
- * group-configured rules. Pure function — no DB, no I/O.
+ * group-configured rules. Pure function - no DB, no I/O.
  *
  * Algorithm (per the locked plan decision):
  *   1. Fixed-amount lines are applied first in priority order (ascending).
@@ -20,9 +20,9 @@
 
 export interface SplitRule {
   account_code: string;
-  /** 0 < percentage <= 100 — exclusive with `fixed_amount`. */
+  /** 0 < percentage <= 100 - exclusive with `fixed_amount`. */
   percentage: number | null;
-  /** > 0 in KES — exclusive with `percentage`. */
+  /** > 0 in KES - exclusive with `percentage`. */
   fixed_amount: number | null;
   /** Lower priority applied first (ascending). Defaults to 100. */
   priority: number;
@@ -32,7 +32,7 @@ export interface Allocation {
   account_code: string;
   /** Allocation in KES, rounded to 2dp (NUMERIC(15,2) compatible). */
   amount: number;
-  /** Same value in cents — useful for journal posting without re-rounding. */
+  /** Same value in cents - useful for journal posting without re-rounding. */
   amount_cents: number;
 }
 
@@ -76,9 +76,9 @@ export function allocateSplit(
   // 2. Percentage lines via largest-remainder.
   //
   // Two distinct "leftover" concepts to keep separate:
-  //   • Rounding gap  — sum(ideals) - sum(floors). At most pct.length cents.
+  //   • Rounding gap  - sum(ideals) - sum(floors). At most pct.length cents.
   //                     Distributed WITHIN the pct group by largest remainder.
-  //   • Uncovered     — remainder - sum(ideals). Non-zero when totalPct < 100.
+  //   • Uncovered     - remainder - sum(ideals). Non-zero when totalPct < 100.
   //                     Falls through to the default account in step 3.
   if (pct.length > 0 && remainder > 0) {
     const totalPct = pct.reduce((sum, r) => sum + (r.percentage ?? 0), 0);

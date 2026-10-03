@@ -1,18 +1,18 @@
 /**
- * Programme tier of the portfolio drill-down —
+ * Programme tier of the portfolio drill-down -
  * GET /api/admin/organization/programs/:id/groups.
  *
  * Two things this file exists to prove, in order of how expensive they are to
  * get wrong:
  *
  * 1. CROSS-TENANT. A coordinator of organization B asking for organization A's
- *    program must get 404 — not 403, and above all not rows. 404 rather than
+ *    program must get 404 - not 403, and above all not rows. 404 rather than
  *    403 because a 403 confirms the id exists somewhere, which is itself a
  *    cross-tenant disclosure.
  *
  * 2. FAN-OUT. The per-group figures join disbursements and members for the same
  *    group. Done with a naive join, every disbursement row multiplies by every
- *    member row — the 99x inflation fixed in PR #105 (admin.service getGroupById)
+ *    member row - the 99x inflation fixed in PR #105 (admin.service getGroupById)
  *    and again in admin-geography's county rollup. A single-member group cannot
  *    detect that bug, so the group here deliberately has three members: a
  *    regression would report 30,000 against a 10,000 disbursement.
@@ -26,7 +26,7 @@ import { organizationFinanceService } from '@/lib/services/organization-finance.
 import type { TenantContext } from '@/lib/db';
 
 const DISBURSED = 10_000; // below the 50,000 maker-checker threshold on purpose
-const RESERVED = 60_000; // above it on purpose — parks at 'pending_approval'
+const RESERVED = 60_000; // above it on purpose - parks at 'pending_approval'
 
 interface GroupLine {
   group_id: string;
@@ -64,7 +64,7 @@ describe('Funding-program group drill-down', () => {
     await assignGroupToOrganization(orgA, groupId, coordA, 'read');
 
     // Writes use a ctx carrying the real groupId, matching what
-    // createTestOrgDisbursement does — settlement posts a journal entry into
+    // createTestOrgDisbursement does - settlement posts a journal entry into
     // the GROUP's books, so the group-scoped path has to resolve.
     const ctx: TenantContext = {
       userId: coordA,
@@ -114,7 +114,7 @@ describe('Funding-program group drill-down', () => {
     expect(res.status).toBe(403);
   });
 
-  it("returns 404 — not 403, and no rows — for another organization's program", async () => {
+  it("returns 404 - not 403, and no rows - for another organization's program", async () => {
     const res = await call(
       programId,
       backofficeHeaders({
@@ -141,7 +141,7 @@ describe('Funding-program group drill-down', () => {
     // 422, not 400: handleError maps ZodError -> VALIDATION_ERROR/422
     // (lib/utils/response.ts). Without the boundary schema this id would reach
     // `WHERE id = $1` against a uuid column and surface as a Postgres cast
-    // error — a 500 for what is plainly a client mistake.
+    // error - a 500 for what is plainly a client mistake.
     expect(res.status).toBe(422);
   });
 
@@ -162,7 +162,7 @@ describe('Funding-program group drill-down', () => {
     const line = data.groups.find((g) => g.group_id === groupId);
     expect(line).toBeDefined();
 
-    // The group really does have several members — otherwise this test proves
+    // The group really does have several members - otherwise this test proves
     // nothing about fan-out.
     expect(line!.active_members).toBeGreaterThan(1);
 
@@ -188,7 +188,7 @@ describe('Funding-program group drill-down', () => {
     expect(parseFloat(line.disbursed)).toBe(DISBURSED);
   });
 
-  it('reconciles with the program header — per-group disbursed sums to disbursed_total', async () => {
+  it('reconciles with the program header - per-group disbursed sums to disbursed_total', async () => {
     const res = await call(
       programId,
       backofficeHeaders({
@@ -204,7 +204,7 @@ describe('Funding-program group drill-down', () => {
     const summed = data.groups.reduce((acc, g) => acc + parseFloat(g.disbursed), 0);
     expect(summed).toBe(parseFloat(data.program.disbursed_total));
 
-    // R10 — nothing degraded on the happy path, so no metric may be flagged.
+    // R10 - nothing degraded on the happy path, so no metric may be flagged.
     expect(data.incomplete).toEqual([]);
   });
 });

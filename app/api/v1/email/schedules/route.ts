@@ -21,7 +21,7 @@ const UpdateScheduleSchema = z.object({
   isActive: z.boolean(),
 });
 
-// Was withAuth only (any authenticated member) — the exact same gap as
+// Was withAuth only (any authenticated member) - the exact same gap as
 // email/templates' missing GET gate, mirrored here: SMS's equivalent
 // (GET /api/v1/sms/schedules) already requires messaging.schedules.view.
 export async function GET(req: NextRequest): Promise<Response> {
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-// Was withOneOf(['chairperson','treasurer','super_admin']) — no single
+// Was withOneOf(['chairperson','treasurer','super_admin']) - no single
 // existing permission string covers exactly {treasurer, chairperson}, so
 // this composes two that do (treasury.manage ⊆ {treasurer,chairperson},
 // messaging.manage ⊆ {chairperson}) rather than inventing a new one;
@@ -71,7 +71,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-// Was withAuth only (any member could toggle any schedule's isActive) —
+// Was withAuth only (any member could toggle any schedule's isActive) -
 // same gap class as GET above; matches SMS schedules' PATCH gate.
 export async function PATCH(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.schedules.manage', async (auth) => {

@@ -1,6 +1,6 @@
 import { allocateSplit, type SplitRule } from '@/lib/utils/split-allocator';
 
-// Helper: each test verifies the allocation invariant — sum(amount_cents) === input * 100
+// Helper: each test verifies the allocation invariant - sum(amount_cents) === input * 100
 const sumCents = (allocs: { amount_cents: number }[]) => allocs.reduce((a, x) => a + x.amount_cents, 0);
 
 const rule = (over: Partial<SplitRule>): SplitRule => ({
@@ -11,7 +11,7 @@ const rule = (over: Partial<SplitRule>): SplitRule => ({
   ...over,
 });
 
-describe('allocateSplit — empty / degenerate input', () => {
+describe('allocateSplit - empty / degenerate input', () => {
   it('returns empty array for zero amount', () => {
     expect(allocateSplit(0, [], '4001')).toEqual([]);
   });
@@ -26,7 +26,7 @@ describe('allocateSplit — empty / degenerate input', () => {
   });
 });
 
-describe('allocateSplit — percentage rules', () => {
+describe('allocateSplit - percentage rules', () => {
   it('splits 50/50 evenly when divisible', () => {
     const out = allocateSplit(
       1000,
@@ -51,7 +51,7 @@ describe('allocateSplit — percentage rules', () => {
       '4001',
     );
     // Total pct = 99.99 → 99 cents allocated by floors, 1 cent leftover by
-    // largest remainder (all .0 — ties broken by priority → A wins).
+    // largest remainder (all .0 - ties broken by priority → A wins).
     // Then the remaining 100 - 9999/100 = 0.01 → default account.
     // 33.33% of 10000 = 3333.0 exactly → floors 3333, remainders 0.
     // sum floors = 9999. leftover cents from pct round = 0 (no fractional).
@@ -64,7 +64,7 @@ describe('allocateSplit — percentage rules', () => {
   });
 
   it('largest-remainder handles 1/3 splits exactly on KES 100', () => {
-    // 33.34/33.33/33.33 — sums to 100, no default leftover
+    // 33.34/33.33/33.33 - sums to 100, no default leftover
     const out = allocateSplit(
       100,
       [
@@ -101,7 +101,7 @@ describe('allocateSplit — percentage rules', () => {
   });
 });
 
-describe('allocateSplit — fixed-amount rules', () => {
+describe('allocateSplit - fixed-amount rules', () => {
   it('applies fixed lines in priority order', () => {
     const out = allocateSplit(
       3000,
@@ -141,7 +141,7 @@ describe('allocateSplit — fixed-amount rules', () => {
   });
 });
 
-describe('allocateSplit — invariants', () => {
+describe('allocateSplit - invariants', () => {
   it('total allocation always equals input', () => {
     const fixtures: Array<{ amount: number; rules: SplitRule[] }> = [
       {

@@ -21,7 +21,7 @@ export interface SendReactEmailOptions {
 
 /**
  * Render a React Email template and send it through the EXISTING delivery
- * pipeline — so multi-provider fallback, dry-run, and email_logs all apply
+ * pipeline - so multi-provider fallback, dry-run, and email_logs all apply
  * unchanged. This is the supported way to send a React Email template; it does
  * not bypass `sendEmailWithFallback`.
  *
@@ -29,7 +29,7 @@ export interface SendReactEmailOptions {
  *   import ContributionReceipt from '@/emails/contribution-receipt';
  *   await sendReactEmail({
  *     to: member.email,
- *     subject: `Receipt — ${formatKES(amount)} contribution`,
+ *     subject: `Receipt - ${formatKES(amount)} contribution`,
  *     element: <ContributionReceipt {...props} />,
  *     groupId, userId, templateKey: 'contribution_receipt',
  *     category: 'contribution', referenceId: contributionId, referenceType: 'contribution',

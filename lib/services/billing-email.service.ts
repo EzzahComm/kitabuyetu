@@ -10,8 +10,8 @@ const SHORTCODE = process.env.MPESA_SHORTCODE ?? '';
  * The staff address, when one is configured.
  *
  * The hardcoded `?? 'admin@kitabuyetu.com'` fallback this replaces pointed at
- * a domain this platform does not own — the site is kitabuyetu.co.ke and mail
- * comes from ezzahcomm.co.ke — so in the one situation it existed for (no
+ * a domain this platform does not own - the site is kitabuyetu.co.ke and mail
+ * comes from ezzahcomm.co.ke - so in the one situation it existed for (no
  * EMAIL_ADMIN configured) it mailed nowhere, silently, forever. A fallback to
  * an address nobody owns is worse than no fallback: it hides the
  * misconfiguration it was meant to survive.
@@ -185,7 +185,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
     const days: number = inv.days_overdue ?? 0;
     const level: number = inv.overdue_notice_level ?? 0;
 
-    // Level 1: 3–7 days overdue | Level 2: 8–14 days | Level 3: 15+ days
+    // Level 1: 3-7 days overdue | Level 2: 8-14 days | Level 3: 15+ days
     const targetLevel = days >= 15 ? 3 : days >= 8 ? 2 : days >= 3 ? 1 : 0;
     if (targetLevel === 0 || targetLevel <= level) continue;
     if (!inv.recipient_email) continue;
@@ -220,10 +220,10 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
       referenceType: 'invoice',
     }).catch(() => {});
 
-    // CC admin at level 2 and beyond — only when there is somewhere to send it.
+    // CC admin at level 2 and beyond - only when there is somewhere to send it.
     // Previously this always "succeeded" into a domain we do not own.
     if (targetLevel >= 2 && !ADMIN_EMAIL) {
-      logger.warn('[billing-email] EMAIL_ADMIN unset — overdue notice not copied to staff', {
+      logger.warn('[billing-email] EMAIL_ADMIN unset - overdue notice not copied to staff', {
         invoiceId: inv.id,
         level: targetLevel,
       });

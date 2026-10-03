@@ -1,5 +1,5 @@
 /**
- * POST /api/v1/auth/admin/login/verify — Step 2 of the backoffice login.
+ * POST /api/v1/auth/admin/login/verify - Step 2 of the backoffice login.
  *
  * Accepts the short-lived MFA challenge JWT from step 1 plus the code the
  * user typed. Two branches:
@@ -9,7 +9,7 @@
  *       challenge JWT. On success, the secret is encrypted at rest with
  *       ENCRYPTION_KEY and persisted to member_mfa_secrets along with
  *       bcrypt-hashed recovery codes. (Recovery code hashing happens
- *       here so they're never re-presented by /admin/login — the step-1
+ *       here so they're never re-presented by /admin/login - the step-1
  *       response is the only time the plaintext exists.)
  *     - On success the backoffice access + refresh tokens are issued.
  *
@@ -48,7 +48,7 @@ import { AdminLoginMfaVerifySchema } from '@/lib/validators/auth.schema';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 import type { AdminLoginResponse, NeedsOrgSelection } from '@/types/api.types';
 
-// OPTIMIZATION_CLEANUP_AUDIT.md High #11 — see app/api/v1/auth/login/route.ts's
+// OPTIMIZATION_CLEANUP_AUDIT.md High #11 - see app/api/v1/auth/login/route.ts's
 // identical comment; this used to disagree with the validated schema default.
 const MAX_ATTEMPTS = env.MAX_LOGIN_ATTEMPTS;
 const LOCKOUT_MINUTES = env.LOGIN_LOCKOUT_MINUTES;
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       return errorResponse('Sign-in session expired. Start again.', 'MFA_CHALLENGE_EXPIRED', 401);
     }
 
-    // Same lockout namespace as step 1 — re-derive from email below.
+    // Same lockout namespace as step 1 - re-derive from email below.
     // Look up the member by the challenge's sub claim (not by email from
     // request body) so a stolen challenge token can't be redirected to a
     // different account.
@@ -93,7 +93,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       if (!member || !member.is_active || !PLATFORM_ROLES.includes(member.platform_role as AdminPlatformRole)) {
         return null;
       }
-      // organization_coordinator scope — resolved via organization_members
+      // organization_coordinator scope - resolved via organization_members
       // (migration 101), not organizations.coordinator_member_id directly;
       // that column is legacy/display-only now. A member can be active
       // staff at more than one organization (multi-staff organizations),
@@ -161,24 +161,24 @@ export async function POST(req: NextRequest): Promise<Response> {
 
       // Persist enrollment. The recovery codes presented at step 1 are
       // hashed and stored here; they were generated client-side via the
-      // step-1 response and never sent back to the client again — the
+      // step-1 response and never sent back to the client again - the
       // user is expected to have written them down at enrollment time.
       // Regenerate fresh hashes from a fresh set of codes ONLY if the
       // request body included them; for the simpler MVP flow we trust
       // the codes shown at step 1 (the verify route just enrolls with
-      // an empty recovery array if the client didn't echo them back —
+      // an empty recovery array if the client didn't echo them back -
       // we'll add explicit recovery-code persistence to the verify body
       // in a follow-up if UX feedback demands it).
       //
       // Pragmatic choice for Phase 2: we hash + persist the codes that
       // were issued at step 1. To do that without trusting client input,
       // we'd need to also encode them in the challenge JWT. Putting 10
-      // codes (200+ bytes) into the challenge is fine size-wise — let's
+      // codes (200+ bytes) into the challenge is fine size-wise - let's
       // not overcomplicate. For now we trust the client to NOT POST them
-      // back — they're displayed at enrollment, and the client retains
+      // back - they're displayed at enrollment, and the client retains
       // them. If the user loses their codes they need a super_admin to
       // reset (manual SQL until Phase 5 UI). That's acceptable for an
-      // MVP — Authy / Google Authenticator users rarely lose their
+      // MVP - Authy / Google Authenticator users rarely lose their
       // device.
       const encryptedSecret = encryptSecret(challenge.secret);
       // The codes presented at step 1 are hashed here so a future verify

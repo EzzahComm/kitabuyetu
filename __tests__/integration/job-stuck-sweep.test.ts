@@ -4,8 +4,8 @@
  *
  * resetStuckJobs used to flip a timed-out job back to 'pending' without
  * touching `attempts`. Because `attempts` is incremented only in
- * processSingleJob's catch branch — which a timed-out invocation never reaches,
- * since the function died and nothing threw — such a job was released forever
+ * processSingleJob's catch branch - which a timed-out invocation never reaches,
+ * since the function died and nothing threw - such a job was released forever
  * and never approached max_attempts.
  *
  * For sms_bulk_send that loop re-ran debitPayer and re-inserted log rows on

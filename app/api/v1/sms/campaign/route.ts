@@ -10,7 +10,7 @@ import { ForbiddenError } from '@/lib/utils/errors';
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { ok, notFound } from '@/lib/utils/response';
 
-// GET /api/v1/sms/campaign â€” list campaigns
+// GET /api/v1/sms/campaign â€" list campaigns
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
     const { searchParams } = new URL(req.url);
@@ -48,7 +48,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-// POST /api/v1/sms/campaign â€” create & optionally send
+// POST /api/v1/sms/campaign â€" create & optionally send
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
     const limited = await enforceSmsRateLimit('campaign', auth.groupId);
@@ -79,12 +79,12 @@ export async function POST(req: NextRequest): Promise<Response> {
     // Insert campaign row
     //
     // $9 (scheduled_at) is reused a second time inside the CASE below to
-    // derive `status` — the same parameter-type-inference failure class this
+    // derive `status` - the same parameter-type-inference failure class this
     // codebase has hit three times already (sms.service.ts's updateLogRow,
     // notifications.service.ts's insertSmsLog, reminder_dispatch_log.settle):
     // node-pg sends no type OIDs, and a bare $9 used only via `IS NOT NULL`
     // on its second occurrence gives Postgres nothing to resolve a type from,
-    // so it throws `could not determine data type of parameter $9` — on
+    // so it throws `could not determine data type of parameter $9` - on
     // EVERY call, not just scheduled ones, since this fails at parse time
     // before any value is even bound. Cast explicitly at both occurrences.
     const {
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       ),
     );
 
-    // Send immediately if not scheduled — enqueue a durable dispatch job
+    // Send immediately if not scheduled - enqueue a durable dispatch job
     // (dedup-keyed on the campaign id so a retried request can't double-send).
     if (!input.scheduledAt && phones.length > 0) {
       await enqueueJob(
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   });
 }
 
-// DELETE /api/v1/sms/campaign?id=xxx â€” cancel
+// DELETE /api/v1/sms/campaign?id=xxx â€" cancel
 export async function DELETE(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.manage', async (auth) => {
     const id = new URL(req.url).searchParams.get('id');

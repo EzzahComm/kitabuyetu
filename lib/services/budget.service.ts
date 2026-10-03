@@ -14,7 +14,7 @@ import type {
  * Budget tracking (migration 178): planned amounts per real GL account
  * (public.accounts), compared against what has actually been posted to the
  * double-entry ledger (journal_entries/journal_lines) for the budget's own
- * period. No actual amount is ever stored — it is computed live on every
+ * period. No actual amount is ever stored - it is computed live on every
  * read, the same way accounting.service.ts's trial balance / P&L / balance
  * sheet compute their own totals, and reusing that exact debit/credit-normal
  * convention (see fetchLinesWithActuals below).
@@ -24,7 +24,7 @@ export interface Budget {
   id: string;
   group_id: string;
   name: string;
-  /** ISO date (YYYY-MM-DD) — selected as ::text to avoid JS Date/timezone
+  /** ISO date (YYYY-MM-DD) - selected as ::text to avoid JS Date/timezone
    *  round-tripping when these values are fed back into date-range queries. */
   period_start: string;
   period_end: string;
@@ -70,12 +70,12 @@ async function fetchBudgetOrThrow(client: PoolClient, groupId: string, id: strin
 
 /**
  * Per-line actual = what has actually posted to that GL account within the
- * budget's own period, on the account's own normal-balance side — identical
+ * budget's own period, on the account's own normal-balance side - identical
  * convention to accounting.service.ts's getProfitAndLoss (asset/expense are
  * debit-normal; liability/equity/income are credit-normal). The date/status
  * filter lives inside FILTER, never in the LEFT JOIN's ON clause: putting it
  * in the join condition is the exact bug getProfitAndLoss's own comment
- * documents — it silently sums every period ever posted, not just this one.
+ * documents - it silently sums every period ever posted, not just this one.
  */
 async function fetchLinesWithActuals(
   client: PoolClient,
@@ -111,7 +111,7 @@ async function fetchLinesWithActuals(
   }));
 }
 
-/** A budget line must name a real, active account belonging to THIS group —
+/** A budget line must name a real, active account belonging to THIS group -
  *  RLS scopes group_id on accounts too, but a cross-group id could otherwise
  *  slip through as a plain uuid with no FK-level group check (same class of
  *  gap membership-guard.ts's assertActiveMembership closes for member ids). */
@@ -212,7 +212,7 @@ export const budgetService = {
 
       await insertBudgetLines(client, ctx.groupId, budget.id, data.lines);
 
-      // Audit log — atomic with the budget + lines insert.
+      // Audit log - atomic with the budget + lines insert.
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -247,7 +247,7 @@ export const budgetService = {
       if (!existingRows[0]) throw new NotFoundError('Budget', id);
       const prev = existingRows[0];
 
-      // periodStart/periodEnd may each be supplied independently — re-validate
+      // periodStart/periodEnd may each be supplied independently - re-validate
       // the effective range against whichever side wasn't sent, since the
       // Zod schema can only check a range when both sides are present.
       const nextPeriodStart = data.periodStart ?? prev.period_start;
@@ -296,7 +296,7 @@ export const budgetService = {
           ctx.groupId,
           data.lines.map((l) => l.accountId),
         );
-        // Full replace, not a merge — simplest correct semantics for a small,
+        // Full replace, not a merge - simplest correct semantics for a small,
         // officer-edited list (see UpdateBudgetSchema's comment). Safe inside
         // this transaction: a failure after the DELETE rolls the whole update
         // back, so a partial line set is never visible to another reader.
@@ -304,7 +304,7 @@ export const budgetService = {
         await insertBudgetLines(client, ctx.groupId, id, data.lines);
       }
 
-      // Audit log — atomic with the update, old/new values per §1.2's pattern.
+      // Audit log - atomic with the update, old/new values per §1.2's pattern.
       await client.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -340,7 +340,7 @@ export const budgetService = {
   // Hard delete, deliberately narrower than contributions'/loans' soft-delete
   // pattern: a DRAFT budget has never represented committed real activity (no
   // caller ever priced or reported against it), so nothing is lost by
-  // removing it outright — budget_lines cascades via its FK. Anything past
+  // removing it outright - budget_lines cascades via its FK. Anything past
   // draft is refused entirely (RLS's budgets_delete policy backstops the
   // same rule at the DB layer), matching the brief's "a budget with real
   // activity shouldn't vanish".

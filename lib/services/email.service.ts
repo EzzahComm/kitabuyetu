@@ -124,10 +124,10 @@ export async function scheduleEmail(opts: {
   };
 
   // Route through the RLS-enforced tenant pool whenever a real group is known
-  // — the only current caller (POST /api/v1/email/schedules) always supplies
+  // - the only current caller (POST /api/v1/email/schedules) always supplies
   // one, taken from a validated tenant JWT. A hypothetical future caller with
   // no group (a platform-level schedule not tied to any tenant) falls back to
-  // the admin pool, same as before this change — RLS's group-scoped policy
+  // the admin pool, same as before this change - RLS's group-scoped policy
   // would otherwise reject a NULL group_id row outright.
   const result = opts.groupId
     ? await withTransaction<{ rows: { id: string }[] }>(
@@ -139,7 +139,7 @@ export async function scheduleEmail(opts: {
   return result.rows[0].id;
 }
 
-// Send a financial report — restricted to treasurer / chairperson roles
+// Send a financial report - restricted to treasurer / chairperson roles
 export async function sendFinancialReport(opts: {
   to: string;
   subject: string;

@@ -2,15 +2,15 @@
  * Who "Send to All Members" actually reaches, against real Postgres.
  *
  * The bug this pins: ComposeTab built the recipient list in the browser from
- * `useMembers({ pageSize: 500 })`. `MemberQuerySchema` has no `pageSize` — only
- * `limit`, default 20, max 100 — so Zod stripped the key and the list came back
+ * `useMembers({ pageSize: 500 })`. `MemberQuerySchema` has no `pageSize` - only
+ * `limit`, default 20, max 100 - so Zod stripped the key and the list came back
  * with 20 rows. Every group larger than that silently reached its first 20
  * members and the UI reported a successful send.
  *
  * Nothing caught it because no layer was wrong on its own: the query was valid,
  * the response was valid, the send was valid. Only the number was wrong, and no
- * assertion anywhere named the number. So this file uses a group of 25 — bigger
- * than the old cap, small enough to build quickly — and asserts the count.
+ * assertion anywhere named the number. So this file uses a group of 25 - bigger
+ * than the old cap, small enough to build quickly - and asserts the count.
  *
  * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §3.1.
  */
@@ -23,7 +23,7 @@ import { __resetSubscriptionCache } from '@/lib/auth/subscription-gate';
 
 // There is no Redis in the integration environment, so the real limiter has to
 // let its fetch fail before every send. It fails open (that is its production
-// behaviour during an outage, by design) but not quickly — the wait dominated
+// behaviour during an outage, by design) but not quickly - the wait dominated
 // this suite's runtime. Stubbing it returns the same answer sooner; what this
 // file is about is who gets the message, not how many sends a group may make.
 jest.mock('@/lib/sms/rate-limit', () => ({
@@ -32,7 +32,7 @@ jest.mock('@/lib/sms/rate-limit', () => ({
 
 const MESSAGE = 'Meeting on Saturday at 10am.';
 
-/** Bigger than MemberQuerySchema's old default of 20 — that gap is the test. */
+/** Bigger than MemberQuerySchema's old default of 20 - that gap is the test. */
 const GROUP_SIZE = 25;
 
 function send(groupId: string, officerId: string, body: unknown) {
@@ -132,7 +132,7 @@ describe('POST /sms/bulk recipient resolution', () => {
   });
 
   it('resolves against the calling group only', async () => {
-    // The phones come from the token's group, never from the request body — so
+    // The phones come from the token's group, never from the request body - so
     // one group's send can never sweep in another's members. With 25 sitting in
     // the neighbouring group, a leak would be unmissable.
     const other = await createTestGroup('chairperson');
