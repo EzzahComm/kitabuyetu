@@ -14,6 +14,7 @@ import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { organizationService } from './organization.service';
 import { programsService, activateProgramMembership, type ProgramMembershipRow } from './programs.service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 
 export type ProgramInvitationStatus = 'pending' | 'accepted' | 'declined' | 'cancelled' | 'expired';
 
@@ -84,7 +85,19 @@ export const programInvitationsService = {
           [ctx.userId, rows[0].id],
         );
         const { rows: full } = await client.query<ProgramInvitationRow>(`${ROW_SELECT} WHERE pi.id = $1`, [rows[0].id]);
-        return full[0];
+        const row = full[0];
+        try {
+          await emitActivity({
+            type: ActivityEventType.PROGRAM_INVITATION_SENT,
+            dedupKey: `program-invitation-sent:${row.id}`,
+            actor: { userId: ctx.userId, role: ctx.role },
+            group: { id: row.groupId, name: row.groupName },
+            metadata: { programId: row.programId, programName: row.programName },
+          });
+        } catch {
+          // non-fatal
+        }
+        return row;
       });
     } catch (err) {
       if (
@@ -170,7 +183,19 @@ export const programInvitationsService = {
 
       const membership = await activateProgramMembership(client, existing.programId, existing.groupId, 'invitation');
       const { rows } = await client.query<ProgramInvitationRow>(`${ROW_SELECT} WHERE pi.id = $1`, [id]);
-      return { invitation: rows[0], membership };
+      const row = rows[0];
+      try {
+        await emitActivity({
+          type: ActivityEventType.PROGRAM_INVITATION_ACCEPTED,
+          dedupKey: `program-invitation-accepted:${id}`,
+          actor: { userId: ctx.userId, role: ctx.role },
+          group: { id: row.groupId, name: row.groupName },
+          metadata: { programId: row.programId, programName: row.programName },
+        });
+      } catch {
+        // non-fatal
+      }
+      return { invitation: row, membership };
     });
   },
 
@@ -192,7 +217,19 @@ export const programInvitationsService = {
         [ctx.userId, id],
       );
       const { rows } = await client.query<ProgramInvitationRow>(`${ROW_SELECT} WHERE pi.id = $1`, [id]);
-      return rows[0];
+      const row = rows[0];
+      try {
+        await emitActivity({
+          type: ActivityEventType.PROGRAM_INVITATION_DECLINED,
+          dedupKey: `program-invitation-declined:${id}`,
+          actor: { userId: ctx.userId, role: ctx.role },
+          group: { id: row.groupId, name: row.groupName },
+          metadata: { programId: row.programId, programName: row.programName },
+        });
+      } catch {
+        // non-fatal
+      }
+      return row;
     });
   },
 };

@@ -13,6 +13,7 @@ import { withDb, withAdminDb, type TenantContext } from '@/lib/db';
 import { organizationService } from './organization.service';
 import { programsService, activateProgramMembership, type ProgramMembershipRow } from './programs.service';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 
 export type ProgramApplicationStatus =
   | 'draft'
@@ -98,7 +99,19 @@ export const programApplicationsService = {
         const { rows: full } = await client.query<ProgramApplicationRow>(`${ROW_SELECT} WHERE pa.id = $1`, [
           rows[0].id,
         ]);
-        return full[0];
+        const row = full[0];
+        try {
+          await emitActivity({
+            type: ActivityEventType.PROGRAM_APPLICATION_SUBMITTED,
+            dedupKey: `program-application-submitted:${row.id}`,
+            actor: { userId: ctx.userId },
+            group: { id: row.groupId, name: row.groupName },
+            metadata: { programId: row.programId, programName: row.programName },
+          });
+        } catch {
+          // non-fatal
+        }
+        return row;
       });
     } catch (err) {
       if (
@@ -216,7 +229,19 @@ export const programApplicationsService = {
 
       const membership = await activateProgramMembership(client, existing.programId, existing.groupId, 'application');
       const { rows } = await client.query<ProgramApplicationRow>(`${ROW_SELECT} WHERE pa.id = $1`, [id]);
-      return { application: rows[0], membership };
+      const row = rows[0];
+      try {
+        await emitActivity({
+          type: ActivityEventType.PROGRAM_APPLICATION_ACCEPTED,
+          dedupKey: `program-application-accepted:${id}`,
+          actor: { userId: ctx.userId, role: ctx.role },
+          group: { id: row.groupId, name: row.groupName },
+          metadata: { programId: row.programId, programName: row.programName },
+        });
+      } catch {
+        // non-fatal
+      }
+      return { application: row, membership };
     });
   },
 
@@ -243,7 +268,19 @@ export const programApplicationsService = {
         [ctx.userId, id, reviewNotes],
       );
       const { rows } = await client.query<ProgramApplicationRow>(`${ROW_SELECT} WHERE pa.id = $1`, [id]);
-      return rows[0];
+      const row = rows[0];
+      try {
+        await emitActivity({
+          type: ActivityEventType.PROGRAM_APPLICATION_DECLINED,
+          dedupKey: `program-application-declined:${id}`,
+          actor: { userId: ctx.userId, role: ctx.role },
+          group: { id: row.groupId, name: row.groupName },
+          metadata: { programId: row.programId, programName: row.programName, reason: reviewNotes },
+        });
+      } catch {
+        // non-fatal
+      }
+      return row;
     });
   },
 
