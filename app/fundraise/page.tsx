@@ -135,12 +135,19 @@ export default async function FundraisePage() {
       </FinanzaSection>
 
       <CtaBand
-        title="Raising money for your group?"
-        subtitle={`No monthly fee. A standard ${CHANGISHA_PRICING.platformFeePct}% platform fee plus the M-Pesa charge, only when you withdraw.`}
+        title="Raising money for a cause?"
+        subtitle={`No monthly fee to start a campaign. A standard ${CHANGISHA_PRICING.platformFeePct}% platform fee plus the M-Pesa charge, only when you withdraw.`}
         footnote="Donors pay nothing extra · Every campaign reviewed before it goes live"
         showPlanPrices={false}
-        primary={{ label: 'See Pricing', href: `${ROUTES.pricing}#changisha` }}
+        primary={{ label: 'Start a campaign', href: '/start-campaign' }}
       />
+      <p className="pb-12 text-center text-sm text-finanza-text">
+        Already running a group?{' '}
+        <Link href={ROUTES.pricing + '#changisha'} className="font-medium text-brand-500 hover:underline">
+          See pricing
+        </Link>{' '}
+        or sign in to create a campaign from your dashboard.
+      </p>
     </PageShell>
   );
 }
