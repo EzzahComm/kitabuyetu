@@ -253,14 +253,12 @@ export const DEFAULT_TEMPLATES: Record<TemplateKey, string> = {
   group_announcement: '{{group_name}}: {{message}}',
   group_verification_otp:
     'Verify your Kitabu Yetu group registration with code {{otp}}. Valid for 10 minutes. Do not share.',
-  general_message:
-    'Dear {{first_name}}, {{message}} - {{sender_signature}}',
+  general_message: 'Dear {{first_name}}, {{message}} - {{sender_signature}}',
   meeting_notice:
     'Dear {{first_name}}, {{group_name}} meeting: {{meeting_date}} at {{meeting_location}}. Agenda: {{agenda}}. - {{sender_signature}}',
   payment_notice:
     'Dear {{first_name}}, payment of KES {{amount}} is due on {{due_date}}. Reference: {{reference}}. Pay via Paybill {{paybill}}, Account {{account_number}}. - {{sender_signature}}',
-  urgent_notice:
-    'Dear {{first_name}}, URGENT: {{message}} - {{sender_signature}}',
+  urgent_notice: 'Dear {{first_name}}, URGENT: {{message}} - {{sender_signature}}',
   event_invitation:
     'Dear {{first_name}}, you are invited to {{event_name}} on {{event_date}} at {{event_location}}. RSVP to {{organizer_contact}}. - {{sender_signature}}',
   appreciation_message:
