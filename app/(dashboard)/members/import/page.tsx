@@ -265,6 +265,12 @@ function IdleView({ onUpload, canPreview }: { onUpload: (file: File) => void; ca
               handleFile(e.dataTransfer.files?.[0]);
             }}
             onClick={() => canPreview && inputEl.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                canPreview && inputEl.current?.click();
+              }
+            }}
             role="button"
             tabIndex={canPreview ? 0 : -1}
             aria-disabled={!canPreview}

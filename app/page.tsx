@@ -34,19 +34,15 @@ import {
   btnPrimary,
 } from '@/components/marketing/finanza';
 import {
-  CallbackSection,
   CommunitiesSection,
-  CtaBand,
   CustomerPathsSection,
-  FaqSection,
-  LatestPostsSection,
-  LiveCampaignsSection,
-  KitabuFacts,
   MemberBenefitsSection,
-  ProductTabsSection,
-  TestimonialsSection,
-  TrustSection,
-} from '@/components/marketing/kitabu-sections';
+} from '@/components/marketing/sections/audience';
+import { CallbackSection, CtaBand } from '@/components/marketing/sections/cta';
+import { LatestPostsSection, LiveCampaignsSection } from '@/components/marketing/sections/live-content';
+import { KitabuFacts, ProductTabsSection } from '@/components/marketing/sections/products';
+import { TestimonialsSection } from '@/components/marketing/sections/testimonials';
+import { FaqSection, TrustSection } from '@/components/marketing/sections/trust';
 
 import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
 import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
@@ -116,7 +112,7 @@ const TODAY = [
   'Balances taken on faith',
 ];
 const WITH_KITABU = [
-  'One book every official can see',
+  'One ledger every official can see',
   'Payments matched automatically',
   'The system does the maths',
   'Reports in minutes',

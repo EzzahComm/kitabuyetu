@@ -4,7 +4,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { ROUTES } from '@/components/marketing/routes';
 import { FinanzaHeading, FinanzaSection, btnPrimary } from '@/components/marketing/finanza';
-import { FounderCard, JoinTeamCard } from '@/components/marketing/kitabu-sections';
+import { FounderCard, JoinTeamCard } from '@/components/marketing/sections/team';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about/team',

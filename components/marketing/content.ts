@@ -756,7 +756,7 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
     icon: Users,
     eyebrow: 'I run a group',
     title: 'Your members, money and meetings — sorted.',
-    body: 'Savings, loans, welfare and M-Pesa in one book. No more reconciling by hand.',
+    body: 'Savings, loans, welfare and M-Pesa in one ledger. No more reconciling by hand.',
     audience: ['Chamas', 'Welfare groups', 'Investment clubs', 'SACCOs', 'VSLAs', 'Community groups'],
     href: ROUTES.startGroup,
     linkText: 'Start your group',

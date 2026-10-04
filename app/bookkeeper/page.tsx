@@ -1,21 +1,21 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import {
-  IconCash,
-  IconPhone,
-  IconBook,
-  IconUsers,
-  IconTrendingUp,
-  IconFileText,
-  IconLock,
-  IconCircleCheck,
-  IconHomeHeart,
-  IconHeartHandshake,
-  IconBuildingBank,
-  IconPlant2,
-  IconClipboardList,
-  IconCoins,
-} from '@tabler/icons-react';
+  Banknote,
+  BookOpen,
+  CircleCheck,
+  ClipboardList,
+  Coins,
+  FileText,
+  HeartHandshake,
+  House,
+  Landmark,
+  Lock,
+  Phone,
+  Sprout,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -65,7 +65,7 @@ export default function BookkeeperPage() {
               Bookkeeper
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
-              Every shilling. Every member. <em className="not-italic text-brand-500">One book.</em>
+              Every shilling. Every member. <em className="not-italic text-brand-500">One ledger.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
               Replace the notebook with books that always balance — contributions, loans, welfare and shares, with
@@ -140,7 +140,7 @@ export default function BookkeeperPage() {
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
-                      <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+                      <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
                   ))}
@@ -189,7 +189,7 @@ export default function BookkeeperPage() {
         <Container className="mb-20">
           <div className="rounded-lg bg-finanza-dark p-8 text-white md:p-12">
             <div className="mx-auto max-w-2xl text-center">
-              <IconPhone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
+              <Phone size={48} aria-hidden="true" className="mx-auto mb-4 text-brand-400" />
               <h2 className="mb-4 font-display text-3xl font-bold">Built for M-Pesa</h2>
               <p className="mb-6 text-lg leading-relaxed text-white/70">
                 M-Pesa is included on every plan. Money in, money out — recorded automatically.
@@ -230,33 +230,33 @@ const coreFeatures = [
   {
     title: 'Member register',
     description: 'Who’s in, their role, and what each has paid and owes.',
-    icon: <IconUsers size={24} />,
+    icon: <Users size={24} />,
   },
   {
     title: 'Financial tracking',
     description: 'Savings, loans, welfare, shares, investments and expenses — in books that always balance.',
-    icon: <IconCash size={24} />,
+    icon: <Banknote size={24} />,
   },
   {
     title: 'M-Pesa integration',
     description: 'Payments matched to members automatically. Anything unclear waits for an official — never guessed.',
-    icon: <IconPhone size={24} />,
+    icon: <Phone size={24} />,
   },
   {
     title: 'Reporting',
     description: 'Member statements, income and balance sheets — ready in minutes, never retyped.',
-    icon: <IconFileText size={24} />,
+    icon: <FileText size={24} />,
   },
   {
     title: 'Loan management',
     description: 'Apply, approve, pay out and track repayments, interest and arrears.',
-    icon: <IconTrendingUp size={24} />,
+    icon: <TrendingUp size={24} />,
   },
   {
     title: 'Roles and a record of every change',
     description:
       'Your data is private to your group, officials see only what their role allows, and every change is recorded.',
-    icon: <IconLock size={24} />,
+    icon: <Lock size={24} />,
   },
 ];
 
@@ -269,17 +269,17 @@ const manageMoney = {
     {
       title: 'Members and their money',
       desc: 'Every member’s role, contacts and full payment history.',
-      icon: <IconUsers size={24} />,
+      icon: <Users size={24} />,
     },
     {
       title: 'M-Pesa in and out',
       desc: 'Payments land on the right member; payouts go straight to M-Pesa.',
-      icon: <IconPhone size={24} />,
+      icon: <Phone size={24} />,
     },
     {
       title: 'Close the month in minutes',
       desc: 'Statements and reports straight from the books — and closed months can’t be changed.',
-      icon: <IconBook size={24} />,
+      icon: <BookOpen size={24} />,
     },
   ],
 };
@@ -310,31 +310,31 @@ const useCases = [
   {
     name: 'Savings groups (chamas)',
     description: 'Monthly contributions, loan cycles and dividend distribution for savings-based groups.',
-    icon: <IconCoins size={32} />,
+    icon: <Coins size={32} />,
   },
   {
     name: 'VSLAs',
     description: 'Village savings and loan associations tracking member cycles, share-outs and group funds.',
-    icon: <IconHomeHeart size={32} />,
+    icon: <House size={32} />,
   },
   {
     name: 'Welfare groups',
     description: 'Welfare contributions, claims, beneficiaries and payouts, with a record of who was paid what.',
-    icon: <IconHeartHandshake size={32} />,
+    icon: <HeartHandshake size={32} />,
   },
   {
     name: 'Cooperatives',
     description: 'Member shares, share capital, dividends and member equity across a growing membership.',
-    icon: <IconBuildingBank size={32} />,
+    icon: <Landmark size={32} />,
   },
   {
     name: 'CBOs',
     description: 'Community-based organizations tracking projects, funding received and what it was spent on.',
-    icon: <IconPlant2 size={32} />,
+    icon: <Sprout size={32} />,
   },
   {
     name: 'Associations',
     description: 'Professional and community associations managing member records, dues and group funds.',
-    icon: <IconClipboardList size={32} />,
+    icon: <ClipboardList size={32} />,
   },
 ];

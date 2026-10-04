@@ -1,15 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  IconMessages,
-  IconCalendarDot,
-  IconUsers,
-  IconPhone,
-  IconCircleCheck,
-  IconTrendingUp,
-  IconBell,
-  IconClock,
-} from '@tabler/icons-react';
+import { Bell, Calendar, CircleCheck, Clock, MessagesSquare, Phone, TrendingUp, Users } from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -156,7 +147,7 @@ export default function ChamaReminderPage() {
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
-                      <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+                      <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
                   ))}
@@ -221,32 +212,32 @@ const coreFeatures = [
   {
     title: 'Member list',
     description: 'Names and numbers in one place, ready to message.',
-    icon: <IconUsers size={24} />,
+    icon: <Users size={24} />,
   },
   {
     title: 'SMS campaigns',
     description: 'Send now or schedule — to one member or everyone.',
-    icon: <IconMessages size={24} />,
+    icon: <MessagesSquare size={24} />,
   },
   {
     title: 'Message templates',
     description: 'Personalised with each member’s name, amount and date.',
-    icon: <IconBell size={24} />,
+    icon: <Bell size={24} />,
   },
   {
     title: 'Scheduled reminders',
     description: 'Contribution reminders, meeting notices and birthday greetings — on time, every time.',
-    icon: <IconClock size={24} />,
+    icon: <Clock size={24} />,
   },
   {
     title: 'Delivery tracking',
     description: 'See what was delivered and resend what wasn’t.',
-    icon: <IconCircleCheck size={24} />,
+    icon: <CircleCheck size={24} />,
   },
   {
     title: 'Simple pricing',
     description: 'SMS included every month. Top up only when you need to.',
-    icon: <IconTrendingUp size={24} />,
+    icon: <TrendingUp size={24} />,
   },
 ];
 
@@ -259,17 +250,17 @@ const keepMembersInformed = {
     {
       title: 'A member list that is yours',
       desc: 'Names and numbers, always ready to message.',
-      icon: <IconUsers size={24} />,
+      icon: <Users size={24} />,
     },
     {
       title: 'Reminders that go out on time',
       desc: 'Scheduled once, sent automatically — no one has to remember.',
-      icon: <IconClock size={24} />,
+      icon: <Clock size={24} />,
     },
     {
       title: 'Move to Bookkeeper when ready',
       desc: 'Upgrade any time. Your members and messages come with you.',
-      icon: <IconTrendingUp size={24} />,
+      icon: <TrendingUp size={24} />,
     },
   ],
 };

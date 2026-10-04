@@ -22,7 +22,7 @@ const SLIDES = [
   {
     id: 'bookkeeper',
     product: 'Bookkeeper',
-    title: 'Every shilling. Every member. One book.',
+    title: 'Every shilling. Every member. One ledger.',
     subtitle: 'Contributions, loans and welfare that always balance — with M-Pesa payments recorded for you.',
     photo: PRODUCT_PHOTOS.bookkeeper,
     cta: { label: 'Start your group book', href: signUpUrl('kitabu_yetu') },

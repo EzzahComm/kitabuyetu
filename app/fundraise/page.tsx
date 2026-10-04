@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { FinanzaHeading, FinanzaSection } from '@/components/marketing/finanza';
-import { CtaBand } from '@/components/marketing/kitabu-sections';
+import { CtaBand } from '@/components/marketing/sections/cta';
 import { ROUTES } from '@/components/marketing/routes';
 import { CHANGISHA_PRICING } from '@/types/enums';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
