@@ -65,7 +65,7 @@ export default function BookkeeperPage() {
               Bookkeeper
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
-              Every shilling. Every member. <em className="not-italic text-brand-500">One book.</em>
+              Every shilling. Every member. <em className="not-italic text-brand-500">One ledger.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
               Replace the notebook with books that always balance — contributions, loans, welfare and shares, with

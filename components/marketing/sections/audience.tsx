@@ -110,7 +110,7 @@ interface CommunityCard {
 const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: "Women's savings groups & VSLAs",
-    title: 'The savings, the loans and the social fund — in one book.',
+    title: 'The savings, the loans and the social fund — in one ledger.',
     body: 'Meet the way you always have. The record lives in one shared book.',
     points: [
       'Record cash by hand — M-Pesa payments record themselves',

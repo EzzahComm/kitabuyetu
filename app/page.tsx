@@ -112,7 +112,7 @@ const TODAY = [
   'Balances taken on faith',
 ];
 const WITH_KITABU = [
-  'One book every official can see',
+  'One ledger every official can see',
   'Payments matched automatically',
   'The system does the maths',
   'Reports in minutes',
