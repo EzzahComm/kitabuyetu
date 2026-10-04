@@ -176,7 +176,7 @@ export function useLayoutAuthGuard(options: {
 
 **Impact:** 10-30% render reduction on data-heavy pages  
 **Effort:** Low (1-2 hours)  
-**Status:** Identified, not started
+**Status:** Skipped after analysis; no change made. The named target, `LogsTab`, holds only `page` and `status`, and both change the query key, so its rows re-render exactly when new data arrives and a memo would never skip. Lists are server-paginated at 20 rows. `StatusPill` is a pure ~10-operation component, so the props comparison costs about as much as rendering it. The codebase uses no `React.memo` anywhere. The "10-30%" figure was an estimate, not a measurement; there is no jsdom or React Testing Library in the repo to count renders, and a browser profile needs a running authenticated app. Revisit only if a profile of a real page shows a slow interaction.
 
 **Target Components:**
 
