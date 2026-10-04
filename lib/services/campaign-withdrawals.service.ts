@@ -32,6 +32,7 @@
  *    therefore before dispatch — can be computed at all.
  */
 import { emitWithdrawalEvent, ActivityEventType } from '@/lib/notifications';
+import { notifyWithdrawalOfficers } from './campaign-officer-notices.service';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
@@ -44,6 +45,7 @@ import {
   getApprovedOfficerRoles,
   getApprovedOfficerRolesBySubject,
   getOfficerRole,
+  isCampaignOfficerRole,
   remainingApproverRoles,
   type CampaignOfficerRole,
 } from './campaign-officers.service';
@@ -118,12 +120,16 @@ export const campaignWithdrawalsService = {
       throw new ValidationError('A valid idempotency key is required');
     }
 
+    let replayed = false;
     const created = await withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<CampaignWithdrawalRow>(
         `SELECT * FROM campaign_withdrawals WHERE group_id = $1 AND idempotency_key = $2`,
         [ctx.groupId, input.idempotencyKey],
       );
-      if (existing[0]) return existing[0];
+      if (existing[0]) {
+        replayed = true;
+        return existing[0];
+      }
 
       // Three different offices have to sign off a release, so the group must have all three
       // filled, and the requester must hold one of them (their office counts as their sign-off).
@@ -267,6 +273,14 @@ export const campaignWithdrawalsService = {
       actorUserId: ctx.userId,
       stage: 'Awaiting approval by the chairperson, treasurer and secretary',
     });
+    if (!replayed && isCampaignOfficerRole(created.requested_by_role)) {
+      const requestedByRole = created.requested_by_role;
+      await notifyWithdrawalOfficers(created.id, {
+        kind: 'approval_needed',
+        requestedByRole,
+        offices: CAMPAIGN_OFFICER_ROLES.filter((r) => r !== requestedByRole),
+      });
+    }
     return created;
   },
 
@@ -358,6 +372,7 @@ export const campaignWithdrawalsService = {
         actorUserId: ctx.userId,
         stage: 'Approved by the chairperson, treasurer and secretary - Kitabu Yetu approval required',
       });
+      await notifyWithdrawalOfficers(result.row.id, { kind: 'with_platform' });
     }
     return this.getById(ctx, result.row.id);
   },
@@ -417,6 +432,7 @@ export const campaignWithdrawalsService = {
       return updated[0];
     });
     await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_REJECTED, { actorUserId: ctx.userId, reason });
+    await notifyWithdrawalOfficers(id, { kind: 'rejected', reason, by: 'officer' });
     return rejected;
   },
 
@@ -480,6 +496,7 @@ export const campaignWithdrawalsService = {
     });
 
     await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_APPROVED, { adminUserId });
+    await notifyWithdrawalOfficers(row.id, { kind: 'released' });
     await dispatchCampaignWithdrawal(row.id);
     return row;
   },
@@ -525,6 +542,7 @@ export const campaignWithdrawalsService = {
       return updated[0];
     });
     await emitWithdrawalEvent(id, ActivityEventType.WITHDRAWAL_REJECTED, { adminUserId, reason });
+    await notifyWithdrawalOfficers(id, { kind: 'rejected', reason, by: 'platform' });
     return declined;
   },
 

@@ -16,6 +16,7 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
   withAdminDb: jest.fn(),
 }));
+jest.mock('@/lib/services/campaign-officer-notices.service', () => ({ notifyWithdrawalOfficers: jest.fn() }));
 jest.mock('@/lib/queue/qstash', () => ({ triggerDisbursementWatchdog: jest.fn() }));
 jest.mock('@/lib/services/settlement-approvals.service', () => ({ recordApproval: jest.fn() }));
 jest.mock('@/lib/services/campaign-officers.service', () => ({

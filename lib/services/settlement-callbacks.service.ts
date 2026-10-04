@@ -26,6 +26,7 @@ import {
   postCampaignWithdrawalJournal,
 } from './posting-templates.service';
 import { notifyDisbursementCallback } from '@/lib/queue/qstash';
+import { notifyWithdrawalOfficers } from './campaign-officer-notices.service';
 import { payoutChannel, type PayoutMethod } from '@/lib/campaigns/payout-destination';
 
 // What to tell the disbursement watchdog once a handler's transaction
@@ -431,6 +432,12 @@ export async function handleCampaignWithdrawalResult(body: Record<string, unknow
         receipt: ok ? String(watchdogNotify.eventData.receipt ?? '') : null,
         reason: ok ? undefined : String(watchdogNotify.eventData.failureReason ?? ''),
       },
+    );
+    await notifyWithdrawalOfficers(
+      watchdogNotify.rowId,
+      ok
+        ? { kind: 'completed', receipt: String(watchdogNotify.eventData.receipt ?? '') || undefined }
+        : { kind: 'failed', reason: String(watchdogNotify.eventData.failureReason ?? '') || undefined },
     );
   }
 }

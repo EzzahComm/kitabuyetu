@@ -13,6 +13,7 @@
  */
 import { withTransaction, withDb, withAdminDb } from '@/lib/db';
 import { campaignWithdrawalsService } from '@/lib/services/campaign-withdrawals.service';
+import { notifyWithdrawalOfficers } from '@/lib/services/campaign-officer-notices.service';
 import {
   assertCampaignOfficersComplete,
   CampaignOfficersIncompleteError,
@@ -27,6 +28,7 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
   withAdminDb: jest.fn(),
 }));
+jest.mock('@/lib/services/campaign-officer-notices.service', () => ({ notifyWithdrawalOfficers: jest.fn() }));
 jest.mock('@/lib/queue/qstash', () => ({ triggerDisbursementWatchdog: jest.fn() }));
 
 jest.mock('@/lib/services/campaign-officers.service', () => ({
@@ -42,6 +44,7 @@ const mockClient = { query: mockQuery };
 
 beforeEach(() => {
   mockQuery.mockReset();
+  (notifyWithdrawalOfficers as jest.Mock).mockReset();
   (assertCampaignOfficersComplete as jest.Mock).mockReset().mockResolvedValue(undefined);
   (getOfficerRole as jest.Mock).mockReset().mockResolvedValue('treasurer');
   (getApprovedOfficerRoles as jest.Mock).mockReset().mockResolvedValue([]);
@@ -104,6 +107,7 @@ describe('campaignWithdrawalsService.request', () => {
     const res = await campaignWithdrawalsService.request(ctx, input);
     expect(res.id).toBe('cw-1');
     expect(mockQuery).toHaveBeenCalledTimes(1);
+    expect(notifyWithdrawalOfficers).not.toHaveBeenCalled(); // a replay never re-notifies
   });
 
   it('rejects when the campaign is not active', async () => {
@@ -198,6 +202,7 @@ describe('campaignWithdrawalsService.request', () => {
           {
             id: 'cw-1',
             status: 'pending_approval',
+            requested_by_role: 'treasurer',
             gross_amount: '1000.00',
             platform_fee_amount: '40.00',
             mpesa_charge_amount: '33.00',
@@ -208,6 +213,12 @@ describe('campaignWithdrawalsService.request', () => {
 
     const res = await campaignWithdrawalsService.request(ctx, input);
     expect(res.net_amount).toBe('927.00');
+    // The other two offices are told their approval is needed; the requester is not.
+    expect(notifyWithdrawalOfficers).toHaveBeenCalledWith('cw-1', {
+      kind: 'approval_needed',
+      requestedByRole: 'treasurer',
+      offices: ['chairperson', 'secretary'],
+    });
 
     const reserveCall = mockQuery.mock.calls[7];
     expect(reserveCall[0]).toContain('adjust_account_reserved_amount');
@@ -339,6 +350,7 @@ describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
     const res = await campaignWithdrawalsService.approve(ctx, 'cw-1');
 
     expect(res.status).toBe('awaiting_platform');
+    expect(notifyWithdrawalOfficers).toHaveBeenCalledWith('cw-1', { kind: 'with_platform' });
     const approvalCall = mockQuery.mock.calls[1];
     expect(approvalCall[1]).toContain('secretary'); // approval is recorded against the office
     expect(mockQuery.mock.calls[2][0]).toContain("status = 'awaiting_platform'");
@@ -356,6 +368,7 @@ describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
     const res = await campaignWithdrawalsService.approve(ctx, 'cw-1');
 
     expect(res.status).toBe('pending_approval');
+    expect(notifyWithdrawalOfficers).not.toHaveBeenCalled();
     expect(queries().some((q) => q.includes("status = 'awaiting_platform'"))).toBe(false);
     expect(mockQuery.mock.calls[2][1][2]).toBe('campaignWithdrawal.approve_partial');
   });
@@ -403,6 +416,7 @@ describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
     const res = await campaignWithdrawalsService.platformApprove('admin-1', 'cw-1');
 
     expect(res.status).toBe('approved');
+    expect(notifyWithdrawalOfficers).toHaveBeenCalledWith('cw-1', { kind: 'released' });
     const [selectSql] = mockQuery.mock.calls[0];
     expect(selectSql).toContain("status = 'awaiting_platform'");
     const approvalCall = mockQuery.mock.calls[1];
