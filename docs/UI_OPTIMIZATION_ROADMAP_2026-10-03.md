@@ -202,7 +202,7 @@ export const StatusPill = React.memo(function StatusPill({ status }: Props) {
 
 **Impact:** 8KB for desktop visitors  
 **Effort:** Low (1-2 hours)  
-**Status:** Identified, not started
+**Status:** Skipped after measuring. The mobile-only code (`MobileNavGroup` plus the mobile panel) is about 4.4 KB of source, at most ~1.5 KB gzipped, not 8 KB, and it is plain JSX with no heavy dependency. Lazy-loading it would add a request and a possible flash on the primary mobile nav control, on every marketing page, for about a kilobyte. Revisit only if the header gains a heavy dependency.
 
 **Target:** `/components/marketing/site-header.tsx` (473 lines)
 
