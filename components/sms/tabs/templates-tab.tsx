@@ -70,8 +70,11 @@ export function TemplatesTab() {
           <h3 className="text-sm font-medium">New Template</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Key (snake_case)</label>
+              <label htmlFor="template-key-snake-case" className="text-xs text-muted-foreground block mb-1">
+                Key (snake_case)
+              </label>
               <input
+                id="template-key-snake-case"
                 className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
                 value={key}
                 onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))}
@@ -79,8 +82,11 @@ export function TemplatesTab() {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Display Name</label>
+              <label htmlFor="template-display-name" className="text-xs text-muted-foreground block mb-1">
+                Display Name
+              </label>
               <input
+                id="template-display-name"
                 className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -89,8 +95,11 @@ export function TemplatesTab() {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Category</label>
+            <label htmlFor="template-category" className="text-xs text-muted-foreground block mb-1">
+              Category
+            </label>
             <select
+              id="template-category"
               aria-label="Template category"
               className="w-full text-sm border rounded-lg px-3 py-2"
               value={category}

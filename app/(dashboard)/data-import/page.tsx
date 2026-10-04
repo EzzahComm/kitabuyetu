@@ -311,6 +311,12 @@ function IdleView({ kind, onUpload }: { kind: Kind; onUpload: (f: File) => void 
               handleFile(e.dataTransfer.files?.[0]);
             }}
             onClick={() => inputEl.current?.click()}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                inputEl.current?.click();
+              }
+            }}
             role="button"
             tabIndex={0}
             className={`cursor-pointer rounded-lg border-2 border-dashed p-10 text-center transition-colors

@@ -67,8 +67,11 @@ export function CampaignsTab() {
           <h3 className="text-sm font-medium text-foreground">New Campaign</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Name</label>
+              <label htmlFor="campaign-name" className="text-xs text-muted-foreground block mb-1">
+                Name
+              </label>
               <input
+                id="campaign-name"
                 className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
@@ -76,8 +79,11 @@ export function CampaignsTab() {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
+              <label htmlFor="campaign-recipients" className="text-xs text-muted-foreground block mb-1">
+                Recipients
+              </label>
               <select
+                id="campaign-recipients"
                 aria-label="Select recipients"
                 className="w-full text-sm border rounded-lg px-3 py-2"
                 value={recipType}
@@ -89,8 +95,11 @@ export function CampaignsTab() {
             </div>
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Message</label>
+            <label htmlFor="campaign-message" className="text-xs text-muted-foreground block mb-1">
+              Message
+            </label>
             <textarea
+              id="campaign-message"
               className="w-full text-sm border rounded-lg px-3 py-2 resize-none"
               rows={3}
               value={message}
@@ -99,8 +108,11 @@ export function CampaignsTab() {
             />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Schedule (optional)</label>
+            <label htmlFor="campaign-schedule-optional" className="text-xs text-muted-foreground block mb-1">
+              Schedule (optional)
+            </label>
             <input
+              id="campaign-schedule-optional"
               type="datetime-local"
               aria-label="Schedule date and time"
               className="text-sm border rounded-lg px-3 py-2"

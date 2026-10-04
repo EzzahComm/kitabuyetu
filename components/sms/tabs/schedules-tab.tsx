@@ -79,8 +79,11 @@ export function SchedulesTab() {
           <h3 className="text-sm font-medium">New Schedule</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Name</label>
+              <label htmlFor="schedule-name" className="text-xs text-muted-foreground block mb-1">
+                Name
+              </label>
               <input
+                id="schedule-name"
                 className="w-full text-sm border rounded-lg px-3 py-2"
                 value={sName}
                 onChange={(e) => setSName(e.target.value)}
@@ -88,8 +91,11 @@ export function SchedulesTab() {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Type</label>
+              <label htmlFor="schedule-type" className="text-xs text-muted-foreground block mb-1">
+                Type
+              </label>
               <select
+                id="schedule-type"
                 aria-label="Schedule type"
                 className="w-full text-sm border rounded-lg px-3 py-2"
                 value={sType}
@@ -103,8 +109,11 @@ export function SchedulesTab() {
               </select>
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Recipients</label>
+              <label htmlFor="schedule-recipients" className="text-xs text-muted-foreground block mb-1">
+                Recipients
+              </label>
               <select
+                id="schedule-recipients"
                 aria-label="Select recipients"
                 className="w-full text-sm border rounded-lg px-3 py-2"
                 value={recipType}
@@ -116,8 +125,11 @@ export function SchedulesTab() {
             </div>
             {sType === 'one_time' ? (
               <div>
-                <label className="text-xs text-muted-foreground block mb-1">Run At</label>
+                <label htmlFor="schedule-run-at" className="text-xs text-muted-foreground block mb-1">
+                  Run At
+                </label>
                 <input
+                  id="schedule-run-at"
                   type="datetime-local"
                   aria-label="Schedule run date and time"
                   className="w-full text-sm border rounded-lg px-3 py-2"
@@ -127,8 +139,11 @@ export function SchedulesTab() {
               </div>
             ) : (
               <div>
-                <label className="text-xs text-muted-foreground block mb-1">Cron Expression</label>
+                <label htmlFor="schedule-cron-expression" className="text-xs text-muted-foreground block mb-1">
+                  Cron Expression
+                </label>
                 <input
+                  id="schedule-cron-expression"
                   className="w-full text-sm border rounded-lg px-3 py-2 font-mono"
                   value={sCron}
                   onChange={(e) => setSCron(e.target.value)}
@@ -138,8 +153,11 @@ export function SchedulesTab() {
             )}
           </div>
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Message</label>
+            <label htmlFor="schedule-message" className="text-xs text-muted-foreground block mb-1">
+              Message
+            </label>
             <textarea
+              id="schedule-message"
               className="w-full text-sm border rounded-lg px-3 py-2 resize-none"
               rows={3}
               value={sMessage}

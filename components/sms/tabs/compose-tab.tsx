@@ -94,8 +94,11 @@ export function ComposeTab() {
           <h2 className="font-semibold text-sm text-foreground">Compose Message</h2>
 
           <div>
-            <label className="text-xs font-medium text-foreground block mb-1">Load Template</label>
+            <label htmlFor="compose-load-template" className="text-xs font-medium text-foreground block mb-1">
+              Load Template
+            </label>
             <select
+              id="compose-load-template"
               aria-label="Load template"
               className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
               value={templateId}
@@ -111,8 +114,11 @@ export function ComposeTab() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-foreground block mb-1">Message</label>
+            <label htmlFor="compose-message" className="text-xs font-medium text-foreground block mb-1">
+              Message
+            </label>
             <textarea
+              id="compose-message"
               className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
               rows={5}
               placeholder="Type your message…"
@@ -140,8 +146,10 @@ export function ComposeTab() {
           </div>
 
           <div>
-            <label className="text-xs font-medium text-foreground block mb-2">Recipients</label>
-            <div className="flex gap-2 mb-3">
+            <span id="compose-recipients-label" className="text-xs font-medium text-foreground block mb-2">
+              Recipients
+            </span>
+            <div role="group" aria-labelledby="compose-recipients-label" className="flex gap-2 mb-3">
               {(['all', 'active', 'custom'] as const).map((t) => (
                 <button
                   key={t}

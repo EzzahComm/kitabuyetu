@@ -220,7 +220,7 @@ Extract mobile menu, lazy-load on mobile only
 
 **Impact:** WCAG 2.1 AA compliance  
 **Effort:** Medium (2-3 hours)  
-**Status:** Identified, not started
+**Status:** Done for the measurable gaps (PR #213). Ran the full `jsx-a11y` recommended ruleset (already installed): fixed 24 of 25 unassociated form labels, added keyboard activation (Enter/Space) to the two CSV drop zones, and labelled a button group. The `aria-modal` item did not apply: dialogs use Radix, which sets it. Left as is: backdrop click handlers, intentional `autoFocus` in dialogs and login, shadcn heading components (false positives), and one demo-page label. Not done: enabling the full ruleset in CI, and manual screen-reader testing.
 
 **Gaps:**
 

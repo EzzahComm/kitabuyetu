@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -25,6 +25,7 @@ export function OpportunityApplicationForm({
   groupMemberCount,
   onSuccess,
 }: OpportunityApplicationFormProps) {
+  const uid = useId();
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [eligibility, setEligibility] = useState<EligibilityCheck | null>(null);
@@ -134,8 +135,11 @@ export function OpportunityApplicationForm({
           </div>
         ))}
       <div>
-        <label className="block text-sm font-medium text-gray-900">Group Name *</label>
+        <label htmlFor={`${uid}-group_name`} className="block text-sm font-medium text-gray-900">
+          Group Name *
+        </label>
         <Input
+          id={`${uid}-group_name`}
           name="group_name"
           value={formData.group_name}
           onChange={handleChange}
@@ -146,8 +150,11 @@ export function OpportunityApplicationForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900">Contact Person Name *</label>
+        <label htmlFor={`${uid}-contact_member_name`} className="block text-sm font-medium text-gray-900">
+          Contact Person Name *
+        </label>
         <Input
+          id={`${uid}-contact_member_name`}
           name="contact_member_name"
           value={formData.contact_member_name}
           onChange={handleChange}
@@ -158,8 +165,11 @@ export function OpportunityApplicationForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900">Phone Number *</label>
+        <label htmlFor={`${uid}-contact_member_phone`} className="block text-sm font-medium text-gray-900">
+          Phone Number *
+        </label>
         <Input
+          id={`${uid}-contact_member_phone`}
           name="contact_member_phone"
           value={formData.contact_member_phone}
           onChange={handleChange}
@@ -170,8 +180,11 @@ export function OpportunityApplicationForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900">Email Address</label>
+        <label htmlFor={`${uid}-contact_member_email`} className="block text-sm font-medium text-gray-900">
+          Email Address
+        </label>
         <Input
+          id={`${uid}-contact_member_email`}
           name="contact_member_email"
           type="email"
           value={formData.contact_member_email}
@@ -182,8 +195,11 @@ export function OpportunityApplicationForm({
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-gray-900">Message (Optional)</label>
+        <label htmlFor={`${uid}-message`} className="block text-sm font-medium text-gray-900">
+          Message (Optional)
+        </label>
         <Textarea
+          id={`${uid}-message`}
           name="message"
           value={formData.message}
           onChange={handleChange}
