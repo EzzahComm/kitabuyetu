@@ -3,7 +3,7 @@ import { api } from '@/lib/api/client';
 import type { Campaign, CampaignDonation, CreateCampaignInput } from '@/lib/services/campaigns.service';
 import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.service';
 import type { PayoutDestination } from '@/lib/campaigns/payout-destination';
-import type { CampaignOfficerStatus } from '@/lib/services/campaign-officers.service';
+import type { CampaignEligibility } from '@/lib/services/campaign-plan.service';
 
 const BASE = '/campaigns';
 
@@ -20,11 +20,11 @@ export function useCampaigns() {
   });
 }
 
-/** Does the group have the chairperson, treasurer and secretary a campaign needs? */
+/** Does the group have an active Changi$ha plan and the chairperson, treasurer and secretary a campaign needs? */
 export function useCampaignEligibility() {
   return useQuery({
     queryKey: [...campaignKeys.all, 'eligibility'] as const,
-    queryFn: () => api.get<CampaignOfficerStatus>(`${BASE}/eligibility`),
+    queryFn: () => api.get<CampaignEligibility>(`${BASE}/eligibility`),
   });
 }
 

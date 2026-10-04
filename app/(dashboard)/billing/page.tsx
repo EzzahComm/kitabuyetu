@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import Link from 'next/link';
 import { MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -64,6 +65,20 @@ export default function BillingPage() {
       <PageHeader title="Billing" description={useCurrentPlanSummary('kitabu_yetu')} />
 
       <PlanPurchase product="kitabu_yetu" />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Changi$ha fundraising</CardTitle>
+          <CardDescription>
+            Run public fundraising campaigns for your group. A Changi$ha plan is needed to create or launch a campaign.
+          </CardDescription>
+        </CardHeader>
+        <CardFooter>
+          <Button asChild variant="outline">
+            <Link href="/billing/changisha">View Changi$ha plans</Link>
+          </Button>
+        </CardFooter>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">

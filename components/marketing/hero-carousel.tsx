@@ -44,7 +44,7 @@ const SLIDES = [
     subtitle: 'A shareable M-Pesa campaign page, kept separate from your group’s savings.',
     photo: PRODUCT_PHOTOS.fundraise,
     cta: { label: 'Start a campaign', href: '/start-campaign' },
-    note: `No monthly fee · ${CHANGISHA_PRICING.platformFeePct}% only when you withdraw · Donors pay nothing extra`,
+    note: `From KES ${PLAN_MONTHLY_FEES.changisha.starter} a month · ${CHANGISHA_PRICING.platformFeePct}% when you withdraw · Donors pay nothing extra`,
   },
   {
     id: 'enterprise',

@@ -4,7 +4,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { FinanzaHeading, FinanzaSection } from '@/components/marketing/finanza';
 import { CtaBand } from '@/components/marketing/sections/cta';
 import { ROUTES } from '@/components/marketing/routes';
-import { CHANGISHA_PRICING } from '@/types/enums';
+import { CHANGISHA_PRICING, PLAN_MONTHLY_FEES } from '@/types/enums';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 import { CampaignCard } from '@/components/marketing/campaign-card';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
@@ -136,7 +136,7 @@ export default async function FundraisePage() {
 
       <CtaBand
         title="Raising money for a cause?"
-        subtitle={`No monthly fee. ${CHANGISHA_PRICING.platformFeePct}% plus the M-Pesa charge — only when you withdraw.`}
+        subtitle={`Plans from KES ${PLAN_MONTHLY_FEES.changisha.starter} a month, plus ${CHANGISHA_PRICING.platformFeePct}% and the M-Pesa charge when you withdraw.`}
         footnote="Donors pay nothing extra · Every campaign checked before it goes live"
         showPlanPrices={false}
         primary={{ label: 'Start a campaign', href: '/start-campaign' }}

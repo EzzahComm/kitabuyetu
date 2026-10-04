@@ -6,7 +6,7 @@ export type PlanType = 'starter' | 'growth' | 'premium' | 'enterprise';
  * scoped *within* a product, which is why the three tables below are keyed by
  * (product, plan) rather than by plan alone.
  */
-export type SubscriptionProduct = 'kitabu_yetu' | 'chama_reminder';
+export type SubscriptionProduct = 'kitabu_yetu' | 'chama_reminder' | 'changisha';
 export type SubscriptionStatus = 'active' | 'expired' | 'cancelled' | 'suspended' | 'trial';
 
 export const DEFAULT_PRODUCT: SubscriptionProduct = 'kitabu_yetu';
@@ -15,6 +15,7 @@ export const DEFAULT_PRODUCT: SubscriptionProduct = 'kitabu_yetu';
 export const PRODUCT_LABEL: Record<SubscriptionProduct, string> = {
   kitabu_yetu: 'Kitabu Yetu',
   chama_reminder: 'Chama Reminder',
+  changisha: 'Changi$ha',
 };
 export type ContributionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'overdue';
 export type LoanStatus =
@@ -161,6 +162,7 @@ const EVERY_PLAN = <T>(value: T): Record<PlanType, T> => ({
 export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFeatures>> = {
   kitabu_yetu: EVERY_PLAN(ALL_FEATURES),
   chama_reminder: EVERY_PLAN(ALL_FEATURES),
+  changisha: EVERY_PLAN(ALL_FEATURES),
 };
 
 /**
@@ -192,10 +194,12 @@ export const PLAN_FEATURES: Record<SubscriptionProduct, Record<PlanType, PlanFea
  * rejects it for exactly that reason.
  */
 /**
- * Changi$ha (campaign fundraising) has no subscription. It is charged when a
- * group withdraws raised funds: the platform fee below plus Safaricom's B2C
- * charge (mpesa_b2c_charge_tiers), both deducted from the gross withdrawal.
- * Donors pay nothing on top of their gift.
+ * Changi$ha (campaign fundraising) is a paid plan (PLAN_MONTHLY_FEES.changisha,
+ * migration 213): a group can create and launch campaigns only while its plan is
+ * active. On top of the plan, a group is charged when it withdraws raised funds:
+ * the platform fee below plus Safaricom's B2C charge (mpesa_b2c_charge_tiers),
+ * both deducted from the gross withdrawal. Donors pay nothing on top of their
+ * gift.
  *
  * These are the platform DEFAULTS campaign-withdrawals.service applies. A
  * per-group 'changisha' policy (configuration.service) can override either,
@@ -214,6 +218,13 @@ export const PLAN_MONTHLY_FEES: Record<SubscriptionProduct, Record<PlanType, num
     enterprise: 0, // negotiated — never self-serve
   },
   chama_reminder: {
+    starter: 100,
+    growth: 250,
+    premium: 400,
+    enterprise: 0, // negotiated — never self-serve
+  },
+  // Same tier prices as Chama Reminder (Kumbusha), starting at KES 100.
+  changisha: {
     starter: 100,
     growth: 250,
     premium: 400,
@@ -282,6 +293,13 @@ export const PLAN_SMS_ALLOWANCE: Record<SubscriptionProduct, Record<PlanType, nu
     premium: 300,
     enterprise: 300, // floor — negotiated per contract
   },
+  // Same bundle as Chama Reminder (Kumbusha): the SMS a group gets with its plan is what separates the tiers.
+  changisha: {
+    starter: 100,
+    growth: 200,
+    premium: 300,
+    enterprise: 300, // floor — negotiated per contract
+  },
 };
 
 /** Plans a group can buy itself. `enterprise` is negotiated and excluded. */
@@ -328,6 +346,20 @@ export const PLAN_COPY: Record<SubscriptionProduct, { type: PlanType; label: str
       type: 'enterprise',
       label: 'Enterprise',
       features: ['All Premium features', 'Custom sender ID', 'Dedicated support'],
+    },
+  ],
+  changisha: [
+    {
+      type: 'starter',
+      label: 'Starter',
+      features: ['Run Changi$ha campaigns', 'Three-office withdrawal approval', 'SMS included'],
+    },
+    { type: 'growth', label: 'Growth', features: ['All Starter features', 'More SMS included'] },
+    { type: 'premium', label: 'Premium', features: ['All Growth features', 'Higher SMS allowance'] },
+    {
+      type: 'enterprise',
+      label: 'Enterprise',
+      features: ['All Premium features', 'Dedicated support'],
     },
   ],
 };

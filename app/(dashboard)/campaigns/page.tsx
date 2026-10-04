@@ -51,7 +51,8 @@ export default function CampaignsPage() {
   const { data: eligibility } = useCampaignEligibility();
   // Until the eligibility check has answered, don't block; the server enforces the rule either way.
   const officersMissing = eligibility && !eligibility.complete ? eligibility.missing : [];
-  const canStart = canManage && officersMissing.length === 0;
+  const planMissing = eligibility ? !eligibility.planActive : false;
+  const canStart = canManage && officersMissing.length === 0 && !planMissing;
   const createCampaign = useCreateCampaign();
 
   const form = useForm<CreateCampaignForm>({ resolver: zodResolver(createSchema) });
@@ -89,17 +90,29 @@ export default function CampaignsPage() {
         }
       />
 
-      {canManage && officersMissing.length > 0 && (
+      {canManage && (planMissing || officersMissing.length > 0) && (
         <Card className="border-amber-300 bg-amber-50">
-          <CardContent className="space-y-1 p-4 text-sm text-amber-900">
+          <CardContent className="space-y-3 p-4 text-sm text-amber-900">
             <p className="font-semibold">Your group can&apos;t start a campaign yet</p>
-            <p>
-              Money raised is released with sign-off from the chairperson, treasurer and secretary, so each office needs
-              an active member before a campaign can be created. Still missing: {officersMissing.join(', ')}.
-            </p>
-            <Link href="/members" className="font-medium underline underline-offset-2">
-              Add them under Members
-            </Link>
+            <ul className="list-disc space-y-2 pl-5">
+              {planMissing && (
+                <li>
+                  Subscribe to a Changi$ha plan (from KES 100 a month).{' '}
+                  <Link href="/billing/changisha" className="font-medium underline underline-offset-2">
+                    Choose a plan
+                  </Link>
+                </li>
+              )}
+              {officersMissing.length > 0 && (
+                <li>
+                  Money raised is released with sign-off from the chairperson, treasurer and secretary, so each office
+                  needs an active member. Still missing: {officersMissing.join(', ')}.{' '}
+                  <Link href="/members" className="font-medium underline underline-offset-2">
+                    Add them under Members
+                  </Link>
+                </li>
+              )}
+            </ul>
           </CardContent>
         </Card>
       )}

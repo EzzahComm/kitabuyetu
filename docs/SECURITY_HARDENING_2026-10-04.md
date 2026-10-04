@@ -79,6 +79,23 @@ Now:
 - The dashboard shows a checklist and disables "New campaign" until the three
   offices are filled, and shows per-office progress on each withdrawal.
 
+### Changi$ha plan (migration 213)
+
+Groups pay to fundraise: a campaign can be created, submitted for review or
+approved only while the group holds an active `changisha` subscription, bought
+through the shared plan checkout (STK push, amount verified server-side).
+
+- Prices match Kumbusha: Starter KES 100, Growth 250, Premium 400 a month
+  (`PLAN_MONTHLY_FEES.changisha`), with the same SMS bundle per tier (100/200/300).
+- The 4% withdrawal fee and the M-Pesa charge are unchanged.
+- Withdrawing money already raised is not gated by the plan, so a lapsed plan
+  never traps donors' money. Donations to a live campaign are also not gated.
+- A Changi$ha plan on its own does not open the member list or SMS Centre: the
+  subscription gate's "any product" now means a core product.
+- Pricing, fundraise and start-campaign pages no longer say "no monthly fee".
+- `scripts/clear-tenant-data.sql` (the test reseed of system roles) now carries
+  `campaigns.view/manage/withdraw`; it had drifted from migrations 183 and 212.
+
 Existing campaigns are untouched. A group whose active campaign lacks one of
 the three offices cannot withdraw until the office is filled.
 

@@ -4,6 +4,7 @@
  * can eventually push money into.
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
+import { assertChangishaPlanActive, ChangishaPlanRequiredError } from '@/lib/services/campaign-plan.service';
 import { isAcceptingDonations, campaignsService } from '@/lib/services/campaigns.service';
 import {
   assertCampaignOfficersComplete,
@@ -22,12 +23,18 @@ jest.mock('@/lib/services/campaign-officers.service', () => ({
   assertCampaignOfficersComplete: jest.fn(),
 }));
 
+jest.mock('@/lib/services/campaign-plan.service', () => ({
+  ...jest.requireActual('@/lib/services/campaign-plan.service'),
+  assertChangishaPlanActive: jest.fn(),
+}));
+
 const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
   mockQuery.mockReset();
   (assertCampaignOfficersComplete as jest.Mock).mockReset().mockResolvedValue(undefined);
+  (assertChangishaPlanActive as jest.Mock).mockReset().mockResolvedValue(undefined);
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
@@ -72,6 +79,12 @@ describe('campaignsService.createCampaign', () => {
       new CampaignOfficersIncompleteError(['secretary']),
     );
     await expect(campaignsService.createCampaign(ctx, input)).rejects.toBeInstanceOf(CampaignOfficersIncompleteError);
+    expect(mockQuery).not.toHaveBeenCalled(); // nothing inserted
+  });
+
+  it('refuses a group without an active Changi$ha plan', async () => {
+    (assertChangishaPlanActive as jest.Mock).mockRejectedValueOnce(new ChangishaPlanRequiredError());
+    await expect(campaignsService.createCampaign(ctx, input)).rejects.toBeInstanceOf(ChangishaPlanRequiredError);
     expect(mockQuery).not.toHaveBeenCalled(); // nothing inserted
   });
 

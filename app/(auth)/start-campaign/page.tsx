@@ -12,6 +12,10 @@ const STEPS = [
     body: 'The group needs an active chairperson, treasurer and secretary, three different people. Add them under Members after you sign in.',
   },
   {
+    title: 'Subscribe to a Changi$ha plan',
+    body: 'Plans start at KES 100 a month, paid by M-Pesa from Billing. You need an active plan to create or launch a campaign.',
+  },
+  {
     title: 'Create the campaign from your dashboard',
     body: 'Go to Campaigns and choose New campaign. Kitabu Yetu reviews every campaign before it goes live.',
   },

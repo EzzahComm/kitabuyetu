@@ -15,6 +15,7 @@
  */
 import { randomInt } from 'crypto';
 import { assertCampaignOfficersComplete } from './campaign-officers.service';
+import { assertChangishaPlanActive } from './campaign-plan.service';
 import { emitCampaignEvent, ActivityEventType } from '@/lib/notifications';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
@@ -150,6 +151,7 @@ export const campaignsService = {
       // A campaign's money is released with sign-off from the chairperson, treasurer and secretary,
       // so the group must have all three before it can start one.
       await assertCampaignOfficersComplete(db, ctx.groupId);
+      await assertChangishaPlanActive(db, ctx.groupId);
       const slug = await uniqueSlug(db, data.title);
       const accountCode = await uniqueAccountCode(db);
 
@@ -222,6 +224,8 @@ export const campaignsService = {
       }
       // An officer may have left since the draft was created.
       await assertCampaignOfficersComplete(db, ctx.groupId);
+      // The plan may have lapsed since the draft was created.
+      await assertChangishaPlanActive(db, ctx.groupId);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns SET status = 'pending_review', updated_at = NOW()
@@ -443,6 +447,7 @@ export const campaignsService = {
 
       // Do not make a campaign public for a group that cannot release its funds under the three-office rule.
       await assertCampaignOfficersComplete(db, existing[0].group_id);
+      await assertChangishaPlanActive(db, existing[0].group_id);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns

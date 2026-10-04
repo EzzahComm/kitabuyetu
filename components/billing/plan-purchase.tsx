@@ -32,6 +32,7 @@ type PurchasablePlan = UpgradePlanInput['planType'];
 const PRODUCT_REFERENCE: Record<SubscriptionProduct, string> = {
   kitabu_yetu: 'SUBSCRIPT',
   chama_reminder: 'REMINDER',
+  changisha: 'CHANGISHA',
 };
 
 /**

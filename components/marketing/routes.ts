@@ -156,7 +156,7 @@ export const PRICING_ITEMS: NavLink[] = [
   {
     label: 'Changi$ha',
     href: `${ROUTES.pricing}#changisha`,
-    description: 'No monthly fee — a small fee per withdrawal.',
+    description: 'Plans from KES 100 a month, plus a small fee per withdrawal.',
   },
   { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];
