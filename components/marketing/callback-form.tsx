@@ -1,7 +1,8 @@
 'use client';
 
 import { useId, useState, type FormEvent, type ReactNode } from 'react';
-import { Mail, MessageCircle } from 'lucide-react';
+import { Mail } from 'lucide-react';
+import { WhatsAppLogo } from './brand-icons';
 import { cn } from '@/lib/utils';
 import { CONTACT, whatsappHref } from './routes';
 
@@ -123,7 +124,7 @@ export function CallbackForm({ variant = 'callback', className }: CallbackFormPr
           value="whatsapp"
           className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-500 px-6 py-3.5 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
-          <MessageCircle aria-hidden="true" size={20} />
+          <WhatsAppLogo aria-hidden="true" size={20} />
           Send on WhatsApp
         </button>
         <button

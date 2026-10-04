@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { Mail, MapPin, MessageCircle, Phone } from 'lucide-react';
+import { Mail, MapPin, Phone } from 'lucide-react';
+import { WhatsAppLogo } from '@/components/marketing/brand-icons';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CONTACT, ROUTES, telHref, whatsappHref } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
@@ -109,7 +110,7 @@ export default function ContactPage() {
                   rel="noopener noreferrer"
                   className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
                 >
-                  <MessageCircle aria-hidden="true" size={20} />
+                  <WhatsAppLogo aria-hidden="true" size={20} />
                   Chat on WhatsApp
                 </a>
                 <SocialLinks variant="footer" className="flex-wrap justify-center" />

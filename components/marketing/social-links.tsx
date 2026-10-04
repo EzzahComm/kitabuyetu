@@ -1,14 +1,15 @@
-import { Facebook, Instagram, Linkedin, MessageCircle, X, Youtube, type LucideIcon } from 'lucide-react';
+import { Facebook, Instagram, Linkedin, Youtube, type LucideIcon } from 'lucide-react';
+import { WhatsAppLogo, XLogo } from './brand-icons';
 import { cn } from '@/lib/utils';
 import { SOCIAL_LINKS, type SocialLink, type SocialPlatform } from './routes';
 
 const ICONS: Record<SocialPlatform, LucideIcon> = {
   facebook: Facebook,
-  x: X,
+  x: XLogo,
   linkedin: Linkedin,
   instagram: Instagram,
   youtube: Youtube,
-  whatsapp: MessageCircle,
+  whatsapp: WhatsAppLogo,
 };
 
 const VARIANT: Record<'nav' | 'footer' | 'card', string> = {

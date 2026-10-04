@@ -30,7 +30,7 @@ Comprehensive UI optimization audit identified **10 specific opportunities** for
 
 **Impact:** 15KB savings + simplified dependency management  
 **Effort:** Low (1-2 hours)  
-**Status:** Done (PR #213)
+**Status:** Done (PR #213). Note: the installed lucide-react has no X or WhatsApp logos, so those two live in `components/marketing/brand-icons.tsx` (Tabler paths, MIT) instead of being swapped for look-alike lucide icons.
 
 **Consolidation Plan:**
 
