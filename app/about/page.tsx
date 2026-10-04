@@ -15,13 +15,10 @@ import {
   Pill,
   btnOutline,
 } from '@/components/marketing/finanza';
-import {
-  CtaBand,
-  FounderCard,
-  JoinTeamCard,
-  KitabuFacts,
-  TestimonialsSection,
-} from '@/components/marketing/kitabu-sections';
+import { CtaBand } from '@/components/marketing/sections/cta';
+import { KitabuFacts } from '@/components/marketing/sections/products';
+import { FounderCard, JoinTeamCard } from '@/components/marketing/sections/team';
+import { TestimonialsSection } from '@/components/marketing/sections/testimonials';
 import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({

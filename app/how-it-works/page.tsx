@@ -1,12 +1,5 @@
 import type { Metadata } from 'next';
-import {
-  IconDeviceMobile,
-  IconShieldCheck,
-  IconBook,
-  IconCash,
-  IconChecklist,
-  IconTrendingUp,
-} from '@tabler/icons-react';
+import { Banknote, BookOpen, ListChecks, ShieldCheck, Smartphone, TrendingUp } from 'lucide-react';
 
 import { SectionTitle } from '@/components/SectionTitle';
 import { Benefits } from '@/components/Benefits';
@@ -64,17 +57,17 @@ const theFlow = {
     {
       title: 'Member pays',
       desc: 'A payment prompt on their phone, or your PayBill with their member number. Anyone can pay on their behalf.',
-      icon: <IconDeviceMobile />,
+      icon: <Smartphone />,
     },
     {
       title: 'Payment is matched',
       desc: 'Each payment is checked with M-Pesa, then linked to the right member automatically.',
-      icon: <IconShieldCheck />,
+      icon: <ShieldCheck />,
     },
     {
       title: 'The records update',
       desc: 'Split into savings, welfare and loan repayment by your rules — and confirmed to the member by SMS.',
-      icon: <IconBook />,
+      icon: <BookOpen />,
     },
   ],
 };
@@ -88,17 +81,17 @@ const theEdges = {
     {
       title: 'It never guesses',
       desc: 'A payment without a clear reference waits on your dashboard until an official assigns it.',
-      icon: <IconChecklist />,
+      icon: <ListChecks />,
     },
     {
       title: 'Cash still counts',
       desc: 'Cash collected at the meeting is recorded by hand, in the same books.',
-      icon: <IconCash />,
+      icon: <Banknote />,
     },
     {
       title: 'Money goes out the same way',
       desc: 'Loans, welfare and dividends go straight to members’ M-Pesa — approved first, then confirmed.',
-      icon: <IconTrendingUp />,
+      icon: <TrendingUp />,
     },
   ],
 };

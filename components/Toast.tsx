@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { IconCheck, IconX, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
+import { Check, CircleAlert, Info, X } from 'lucide-react';
 
 export type ToastType = 'success' | 'error' | 'warning' | 'info';
 
@@ -53,14 +53,14 @@ export function ToastContainer() {
     const iconProps = { size: 20, className: 'flex-shrink-0' };
     switch (type) {
       case 'success':
-        return <IconCheck {...iconProps} className="text-success-600 dark:text-success-400" />;
+        return <Check {...iconProps} className="text-success-600 dark:text-success-400" />;
       case 'error':
-        return <IconX {...iconProps} className="text-error-600 dark:text-error-400" />;
+        return <X {...iconProps} className="text-error-600 dark:text-error-400" />;
       case 'warning':
-        return <IconAlertCircle {...iconProps} className="text-warning-600 dark:text-warning-400" />;
+        return <CircleAlert {...iconProps} className="text-warning-600 dark:text-warning-400" />;
       case 'info':
       default:
-        return <IconInfoCircle {...iconProps} className="text-info-600 dark:text-info-400" />;
+        return <Info {...iconProps} className="text-info-600 dark:text-info-400" />;
     }
   };
 
@@ -113,7 +113,7 @@ export function ToastContainer() {
               className="flex-shrink-0 hover:opacity-70 transition-opacity"
               aria-label="Close"
             >
-              <IconX size={18} />
+              <X size={18} />
             </button>
           </div>
         </div>
@@ -132,7 +132,6 @@ export function useToast() {
   return {
     addToast: (toast: Omit<Toast, 'id'>) => {
       // Placeholder - implement with Context API in production
-      console.log('Toast:', toast);
     },
   };
 }
