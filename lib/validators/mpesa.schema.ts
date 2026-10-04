@@ -24,7 +24,7 @@ export const StkPushSchema = z
     // whose amount the payer chose. The M-Pesa callback refuses it too — this
     // is the first of the two gates, not the only one.
     planType: z.enum(['starter', 'growth', 'premium']).optional(),
-    product: z.enum(['kitabu_yetu', 'chama_reminder']).optional(),
+    product: z.enum(['kitabu_yetu', 'chama_reminder', 'changisha']).optional(),
     // Optional and defaulted server-side to 'monthly' (migration 155) — an
     // older client that doesn't know about cycles yet still works unchanged.
     billingCycle: z.enum(['monthly', 'quarterly', 'biannual', 'annual']).optional(),

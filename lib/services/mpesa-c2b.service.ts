@@ -307,7 +307,7 @@ export async function handleC2BConfirmation(
       if (!isSandboxTestRef(body.BillRefNumber)) {
         // Same race this whole function's step-1 check exists for, just a
         // second, later checkpoint: an STK success callback for this exact
-        // receipt (e.g. account_reference 'SUBSCRIPT'/'CONTRIB'/'REMINDER' —
+        // receipt (e.g. account_reference 'SUBSCRIPT'/'CONTRIB'/'REMINDER'/'CHANGISHA' —
         // real values, just STK-only ones no group code can ever match) may
         // have committed its payments row in the window between step 1 and
         // here. Found 2026-08-26: this exact branch is what filed 7 rows —

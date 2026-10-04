@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
-import { useCampaigns, useCreateCampaign } from '@/hooks/use-campaigns';
+import { useCampaigns, useCampaignEligibility, useCreateCampaign } from '@/hooks/use-campaigns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -48,6 +48,11 @@ export default function CampaignsPage() {
   const canManage = useHasPermission('campaigns.manage');
 
   const { data: campaigns, isLoading } = useCampaigns();
+  const { data: eligibility } = useCampaignEligibility();
+  // Until the eligibility check has answered, don't block; the server enforces the rule either way.
+  const officersMissing = eligibility && !eligibility.complete ? eligibility.missing : [];
+  const planMissing = eligibility ? !eligibility.planActive : false;
+  const canStart = canManage && officersMissing.length === 0 && !planMissing;
   const createCampaign = useCreateCampaign();
 
   const form = useForm<CreateCampaignForm>({ resolver: zodResolver(createSchema) });
@@ -78,12 +83,39 @@ export default function CampaignsPage() {
         description="Raise funds for a cause. New campaigns go live once a Kitabu Yetu admin reviews them."
         actions={
           canManage && (
-            <Button onClick={() => setOpen(true)}>
+            <Button onClick={() => setOpen(true)} disabled={!canStart}>
               <Plus className="mr-2 h-4 w-4" /> New campaign
             </Button>
           )
         }
       />
+
+      {canManage && (planMissing || officersMissing.length > 0) && (
+        <Card className="border-amber-300 bg-amber-50">
+          <CardContent className="space-y-3 p-4 text-sm text-amber-900">
+            <p className="font-semibold">Your group can&apos;t start a campaign yet</p>
+            <ul className="list-disc space-y-2 pl-5">
+              {planMissing && (
+                <li>
+                  Subscribe to a Changi$ha plan (from KES 100 a month).{' '}
+                  <Link href="/billing/changisha" className="font-medium underline underline-offset-2">
+                    Choose a plan
+                  </Link>
+                </li>
+              )}
+              {officersMissing.length > 0 && (
+                <li>
+                  Money raised is released with sign-off from the chairperson, treasurer and secretary, so each office
+                  needs an active member. Still missing: {officersMissing.join(', ')}.{' '}
+                  <Link href="/members" className="font-medium underline underline-offset-2">
+                    Add them under Members
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       {isLoading ? (
         <p className="text-sm text-muted-foreground">Loading…</p>
@@ -96,7 +128,7 @@ export default function CampaignsPage() {
               approved.
             </p>
             {canManage && (
-              <Button onClick={() => setOpen(true)}>
+              <Button onClick={() => setOpen(true)} disabled={!canStart}>
                 <Plus className="mr-2 h-4 w-4" /> New campaign
               </Button>
             )}

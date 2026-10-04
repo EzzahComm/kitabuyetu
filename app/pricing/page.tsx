@@ -29,7 +29,7 @@ export const metadata: Metadata = marketingMetadata({
   path: '/pricing',
   title: 'Chama App Pricing — One Price per Group',
   description:
-    'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising with no monthly fee.',
+    'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising from KES 100 a month.',
 });
 
 /** Kitabu Yetu is the default product, so it needs no query string; Chama
@@ -140,7 +140,7 @@ const FAQS: [string, string][] = [
   ['Can we move from Chama Reminder to Kitabu Yetu?', 'Yes, any time. Your group, members and messages carry over.'],
   [
     'What does Changi$ha cost?',
-    `No monthly fee. When the group withdraws raised funds, a standard ${CHANGISHA_PRICING.platformFeePct}% platform fee and Safaricom's M-Pesa transfer charge are deducted. Donors pay nothing extra.`,
+    `A monthly plan from KES ${PLAN_MONTHLY_FEES.changisha.starter} (Starter), ${PLAN_MONTHLY_FEES.changisha.growth} (Growth) or ${PLAN_MONTHLY_FEES.changisha.premium} (Premium) lets your group create and launch campaigns. When the group withdraws raised funds, a standard ${CHANGISHA_PRICING.platformFeePct}% platform fee and Safaricom's M-Pesa transfer charge are deducted. Donors pay nothing extra.`,
   ],
   ['Is there a free plan?', 'No. Plans start from a low monthly price, paid by M-Pesa.'],
 ];
@@ -182,7 +182,7 @@ export default function PricingPage() {
           Changi$ha and Enterprise
         </h2>
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Changi$ha — priced per withdrawal, from CHANGISHA_PRICING (the withdrawal service's defaults). */}
+          {/* Changi$ha — a monthly plan (PLAN_MONTHLY_FEES.changisha) plus a per-withdrawal fee from CHANGISHA_PRICING. */}
           <section
             id="changisha"
             aria-labelledby="changisha-heading"
@@ -195,12 +195,16 @@ export default function PricingPage() {
               </h3>
             </div>
             <p className="font-display text-4xl font-bold text-finanza-dark">
-              {CHANGISHA_PRICING.platformFeePct}%
-              <span className="ml-2 text-base font-normal text-finanza-text">of each withdrawal</span>
+              From KES {PLAN_MONTHLY_FEES.changisha.starter}
+              <span className="ml-2 text-base font-normal text-finanza-text">a month</span>
             </p>
-            <p className="mt-2 text-finanza-text">No monthly fee. You pay only when you take money out.</p>
+            <p className="mt-2 text-finanza-text">
+              Growth KES {PLAN_MONTHLY_FEES.changisha.growth}, Premium KES {PLAN_MONTHLY_FEES.changisha.premium}. Plus{' '}
+              {CHANGISHA_PRICING.platformFeePct}% of each withdrawal.
+            </p>
             <ul className="mt-6 flex-1 space-y-2.5 text-[0.9375rem] text-finanza-text">
               {[
+                'A registered group with a chairperson, treasurer and secretary runs the campaign',
                 'Donors give by M-Pesa and pay nothing extra',
                 "Safaricom's M-Pesa transfer charge is passed on at cost",
                 `Minimum withdrawal KES ${CHANGISHA_PRICING.minWithdrawal.toLocaleString()}, to an M-Pesa number, paybill or till`,

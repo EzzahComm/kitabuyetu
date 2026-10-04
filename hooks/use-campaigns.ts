@@ -3,6 +3,7 @@ import { api } from '@/lib/api/client';
 import type { Campaign, CampaignDonation, CreateCampaignInput } from '@/lib/services/campaigns.service';
 import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.service';
 import type { PayoutDestination } from '@/lib/campaigns/payout-destination';
+import type { CampaignEligibility } from '@/lib/services/campaign-plan.service';
 
 const BASE = '/campaigns';
 
@@ -16,6 +17,14 @@ export function useCampaigns() {
   return useQuery({
     queryKey: campaignKeys.lists(),
     queryFn: () => api.get<Campaign[]>(BASE),
+  });
+}
+
+/** Does the group have an active Changi$ha plan and the chairperson, treasurer and secretary a campaign needs? */
+export function useCampaignEligibility() {
+  return useQuery({
+    queryKey: [...campaignKeys.all, 'eligibility'] as const,
+    queryFn: () => api.get<CampaignEligibility>(`${BASE}/eligibility`),
   });
 }
 

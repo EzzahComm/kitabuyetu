@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string }> };
 /** GET /api/v1/campaigns/:id/withdrawals — list this campaign's withdrawals. */
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withPermission(req, 'payouts.manage', async (auth) => {
+  return withPermission(req, 'campaigns.withdraw', async (auth) => {
     try {
       const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return ok(await campaignWithdrawalsService.listForCampaign(ctx, id));
@@ -24,17 +24,18 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 
 /**
  * POST /api/v1/campaigns/:id/withdrawals — request a withdrawal to the
- * campaign's payout phone. Reserves the funds immediately; a second officer
- * must approve before anything reaches Daraja. Same sensitive-op re-check as
+ * campaign's payout destination (campaigns.withdraw). Reserves the funds
+ * immediately; the other two offices of the group must approve, then Kitabu
+ * Yetu, before anything reaches Daraja. Same sensitive-op re-check as
  * every other outbound-money route (§2.5): outbound money must not ride a
  * stale token.
  */
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { id } = await params;
-  return withPermission(req, 'payouts.manage', async (auth) => {
+  return withPermission(req, 'campaigns.withdraw', async (auth) => {
     try {
       const freshPermissions = await assertAuthFresh(auth);
-      requirePermission({ role: auth.role, permissions: freshPermissions }, 'payouts.manage');
+      requirePermission({ role: auth.role, permissions: freshPermissions }, 'campaigns.withdraw');
 
       const idempotencyKey = req.headers.get('idempotency-key');
       if (!idempotencyKey) {

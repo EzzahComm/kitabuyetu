@@ -18,7 +18,7 @@ import { getUnitPrice } from '@/lib/services/sms-pricing.service';
 /** ?product= — defaults to kitabu_yetu, so the existing billing page is unchanged. */
 function readProduct(req: NextRequest): SubscriptionProduct {
   const raw = req.nextUrl.searchParams.get('product');
-  return raw === 'chama_reminder' ? 'chama_reminder' : DEFAULT_PRODUCT;
+  return raw === 'chama_reminder' || raw === 'changisha' ? raw : DEFAULT_PRODUCT;
 }
 
 export async function GET(req: NextRequest): Promise<Response> {

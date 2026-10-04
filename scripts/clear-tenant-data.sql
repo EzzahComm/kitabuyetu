@@ -151,7 +151,8 @@ FROM (VALUES
     'messaging.send','data.import',
     'welfare.request','welfare.view','investments.view',
     'import.preview','import.commit','import.cancel',
-    'messaging.templates.view','messaging.schedules.view'
+    'messaging.templates.view','messaging.schedules.view',
+    'campaigns.view','campaigns.manage','campaigns.withdraw'
   ]),
   (NULL::uuid, 'treasurer', 'Treasurer', 'Manages group finances', 'treasurer'::member_role, 60, true, ARRAY[
     'dashboard.view','meetings.view',
@@ -166,7 +167,8 @@ FROM (VALUES
     'import.preview','import.commit','import.cancel',
     'messaging.templates.view','messaging.schedules.view',
     'import.start','investments.manage',
-    'credit_scores.recompute'
+    'credit_scores.recompute',
+    'campaigns.view','campaigns.manage','campaigns.withdraw'
   ]),
   (NULL::uuid, 'chairperson', 'Chairperson', 'Group administrator', 'chairperson'::member_role, 80, true, ARRAY[
     'dashboard.view','meetings.view',
@@ -187,7 +189,8 @@ FROM (VALUES
     'import.rollback','messaging.templates.manage','messaging.schedules.manage',
     'fines.manage',
     'credit_scores.recompute',
-    'loans.policy.manage','credit_scores.policy.manage','mpesa.bill_manager.manage'
+    'loans.policy.manage','credit_scores.policy.manage','mpesa.bill_manager.manage',
+    'campaigns.view','campaigns.manage','campaigns.withdraw'
   ])
 ) AS v(group_id, code, name, description, base_role, rank, is_system, permissions)
 WHERE NOT EXISTS (
