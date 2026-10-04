@@ -5,6 +5,10 @@
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import { isAcceptingDonations, campaignsService } from '@/lib/services/campaigns.service';
+import {
+  assertCampaignOfficersComplete,
+  CampaignOfficersIncompleteError,
+} from '@/lib/services/campaign-officers.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
@@ -13,11 +17,17 @@ jest.mock('@/lib/db', () => ({
   withAdminDb: jest.fn(),
 }));
 
+jest.mock('@/lib/services/campaign-officers.service', () => ({
+  ...jest.requireActual('@/lib/services/campaign-officers.service'),
+  assertCampaignOfficersComplete: jest.fn(),
+}));
+
 const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
   mockQuery.mockReset();
+  (assertCampaignOfficersComplete as jest.Mock).mockReset().mockResolvedValue(undefined);
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
@@ -55,6 +65,14 @@ describe('campaignsService.createCampaign', () => {
       ForbiddenError,
     );
     expect(mockQuery).not.toHaveBeenCalled();
+  });
+
+  it('refuses a group that does not have a chairperson, treasurer and secretary', async () => {
+    (assertCampaignOfficersComplete as jest.Mock).mockRejectedValueOnce(
+      new CampaignOfficersIncompleteError(['secretary']),
+    );
+    await expect(campaignsService.createCampaign(ctx, input)).rejects.toBeInstanceOf(CampaignOfficersIncompleteError);
+    expect(mockQuery).not.toHaveBeenCalled(); // nothing inserted
   });
 
   it('rejects a non-positive target amount', async () => {

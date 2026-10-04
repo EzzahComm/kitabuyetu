@@ -50,6 +50,38 @@ re-applying is a no-op; `app_tenant` can still execute all 20 definer
 functions; the full integration suite (79 suites, 523 tests) passes both as
 the superuser and under `app_tenant`.
 
+## Changi$ha campaigns: group-only, three offices, mandatory sign-off (migrations 211, 212)
+
+Audit finding: the public `register_campaign()` path created a one-person
+throwaway group for anyone, withdrawals needed only one person other than the
+requester (not a different office), a secretary could not take part, and a
+policy could switch Kitabu Yetu's sign-off off.
+
+Now:
+
+- **Campaigns belong to a registered group** that has an active chairperson,
+  treasurer and secretary (three different people; `group_members` allows one
+  role per person). Checked when a campaign is created, submitted for review,
+  approved by Kitabu Yetu, and when a withdrawal is requested, approved or
+  released (`lib/services/campaign-officers.service.ts`).
+- **211** drops `register_campaign()`; the public route, validator and
+  client call are removed. `/start-campaign` now explains the steps and sends
+  people to register their group.
+- **Withdrawals**: the requester's office counts as their sign-off; the other
+  two offices must each approve (one approval per office, recorded in
+  `settlement_approvals.approver_role`); then Kitabu Yetu signs off. The
+  sign-off is no longer a policy; it is always required.
+- **212** adds the `campaigns.withdraw` permission (chairperson, treasurer,
+  secretary) and a trigger that refuses to move a withdrawal past
+  `pending_approval` without all three offices, or into a money-moving status
+  without a Kitabu Yetu approval, so the rule holds even if application code
+  forgets it.
+- The dashboard shows a checklist and disables "New campaign" until the three
+  offices are filled, and shows per-office progress on each withdrawal.
+
+Existing campaigns are untouched. A group whose active campaign lacks one of
+the three offices cannot withdraw until the office is filled.
+
 ## Reviewed and deliberately not changed
 
 | Finding                                                                                                                                              | Decision                                                                                                                                                                                                                                                                                                                                                         |

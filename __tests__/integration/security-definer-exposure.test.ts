@@ -32,11 +32,8 @@ describe('SECURITY DEFINER function exposure', () => {
         WHERE n.nspname = 'public' AND p.prosecdef
           AND p.proname IN ('register_group', 'register_organization', 'register_campaign')`,
     );
-    expect(named.map((r) => r.proname).sort()).toEqual([
-      'register_campaign',
-      'register_group',
-      'register_organization',
-    ]);
+    // register_campaign was dropped in 211: campaigns belong to registered groups.
+    expect(named.map((r) => r.proname).sort()).toEqual(['register_group', 'register_organization']);
   });
 
   it('no SECURITY DEFINER function in public is executable by anon or authenticated', async () => {

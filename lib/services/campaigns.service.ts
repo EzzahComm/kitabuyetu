@@ -14,6 +14,7 @@
  * only creates/reviews campaigns and reads them back.
  */
 import { randomInt } from 'crypto';
+import { assertCampaignOfficersComplete } from './campaign-officers.service';
 import { emitCampaignEvent, ActivityEventType } from '@/lib/notifications';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
@@ -146,6 +147,9 @@ export const campaignsService = {
     if (!(data.targetAmount > 0)) throw new ValidationError('Target amount must be positive');
 
     const created = await withTransaction(ctx, async (db) => {
+      // A campaign's money is released with sign-off from the chairperson, treasurer and secretary,
+      // so the group must have all three before it can start one.
+      await assertCampaignOfficersComplete(db, ctx.groupId);
       const slug = await uniqueSlug(db, data.title);
       const accountCode = await uniqueAccountCode(db);
 
@@ -216,6 +220,8 @@ export const campaignsService = {
           'Set where withdrawals are paid (an M-Pesa phone, paybill or till) before submitting for review',
         );
       }
+      // An officer may have left since the draft was created.
+      await assertCampaignOfficersComplete(db, ctx.groupId);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns SET status = 'pending_review', updated_at = NOW()
@@ -434,6 +440,9 @@ export const campaignsService = {
         [campaignId],
       );
       if (!existing[0]) throw new NotFoundError('Pending campaign', campaignId);
+
+      // Do not make a campaign public for a group that cannot release its funds under the three-office rule.
+      await assertCampaignOfficersComplete(db, existing[0].group_id);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns

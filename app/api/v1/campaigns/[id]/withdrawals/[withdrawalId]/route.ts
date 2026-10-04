@@ -12,7 +12,7 @@ type Ctx = { params: Promise<{ id: string; withdrawalId: string }> };
 /** GET /api/v1/campaigns/:id/withdrawals/:withdrawalId */
 export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { withdrawalId } = await params;
-  return withPermission(req, 'payouts.manage', async (auth) => {
+  return withPermission(req, 'campaigns.withdraw', async (auth) => {
     try {
       const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
       return ok(await campaignWithdrawalsService.getById(ctx, withdrawalId));
@@ -24,15 +24,16 @@ export async function GET(req: NextRequest, { params }: Ctx): Promise<Response> 
 
 /**
  * POST /api/v1/campaigns/:id/withdrawals/:withdrawalId — approve or reject
- * (payouts.manage). Maker-checker: the service rejects a decision by the
- * requester. Approval dispatches the Daraja B2C call.
+ * (campaigns.withdraw). The requester's office counts as their sign-off; the
+ * other two offices must each approve, then Kitabu Yetu signs off. Nothing is
+ * dispatched from here: only the platform release sends money.
  */
 export async function POST(req: NextRequest, { params }: Ctx): Promise<Response> {
   const { withdrawalId } = await params;
-  return withPermission(req, 'payouts.manage', async (auth) => {
+  return withPermission(req, 'campaigns.withdraw', async (auth) => {
     try {
       const freshPermissions = await assertAuthFresh(auth);
-      requirePermission({ role: auth.role, permissions: freshPermissions }, 'payouts.manage');
+      requirePermission({ role: auth.role, permissions: freshPermissions }, 'campaigns.withdraw');
 
       const input = WithdrawalActionSchema.parse(await req.json());
       const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };

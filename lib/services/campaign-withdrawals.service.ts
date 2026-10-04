@@ -33,11 +33,20 @@
  */
 import { emitWithdrawalEvent, ActivityEventType } from '@/lib/notifications';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
-import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
 import { payoutColumns, toPayoutDestination, type PayoutFields } from '@/lib/campaigns/payout-destination';
 import { recordApproval } from './settlement-approvals.service';
 import { resolvePolicy } from './configuration.service';
+import {
+  CAMPAIGN_OFFICER_ROLES,
+  assertCampaignOfficersComplete,
+  getApprovedOfficerRoles,
+  getApprovedOfficerRolesBySubject,
+  getOfficerRole,
+  remainingApproverRoles,
+  type CampaignOfficerRole,
+} from './campaign-officers.service';
 import { computeB2BCharge, computeB2CCharge } from './mpesa-charges.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 import { CHANGISHA_PRICING } from '@/types/enums';
@@ -67,8 +76,18 @@ export interface CampaignWithdrawalRow extends PayoutFields {
   failure_reason: string | null;
   reconciled_at: Date | null;
   idempotency_key: string | null;
-  /** Snapshotted at request time: does this release also need a Kitabu Yetu super-admin's sign-off? */
+  /** Kept for history; Kitabu Yetu's sign-off is now mandatory for every release (see request()). */
   platform_signoff_required: boolean;
+  /** The requester's office, snapshotted at request time. Their office counts as their sign-off. */
+  requested_by_role: string | null;
+  /** Which offices have signed off and which are still owed. Filled in on reads, not stored. */
+  approval_progress?: ApprovalProgress;
+}
+
+export interface ApprovalProgress {
+  requested_by_role: CampaignOfficerRole | null;
+  approved_roles: CampaignOfficerRole[];
+  remaining_roles: CampaignOfficerRole[];
 }
 
 /** One row of the Kitabu Yetu release queue — includes the destination, so the reviewer sees where money goes. */
@@ -92,9 +111,6 @@ const DEFAULT_MIN_WITHDRAWAL = CHANGISHA_PRICING.minWithdrawal;
 /** Non-terminal — still counts against the campaign's undrawn balance. */
 const OPEN_STATUSES = ['pending_approval', 'awaiting_platform', 'approved', 'processing'];
 
-/** Kitabu Yetu signs off every release unless a policy explicitly turns it off (see request()). */
-const DEFAULT_REQUIRE_PLATFORM_SIGNOFF = true;
-
 export const campaignWithdrawalsService = {
   async request(ctx: TenantContext, input: RequestWithdrawalInput): Promise<CampaignWithdrawalRow> {
     if (!(input.grossAmount > 0)) throw new ValidationError('Amount must be positive');
@@ -108,6 +124,14 @@ export const campaignWithdrawalsService = {
         [ctx.groupId, input.idempotencyKey],
       );
       if (existing[0]) return existing[0];
+
+      // Three different offices have to sign off a release, so the group must have all three
+      // filled, and the requester must hold one of them (their office counts as their sign-off).
+      await assertCampaignOfficersComplete(db, ctx.groupId);
+      const requesterRole = await getOfficerRole(db, ctx.groupId, ctx.userId);
+      if (!requesterRole) {
+        throw new ForbiddenError("Only the group's chairperson, treasurer or secretary can request a withdrawal");
+      }
 
       const { rows: campaignRows } = await db.query<PayoutFields & { status: string; amount_raised: string }>(
         `SELECT status, amount_raised, payout_method, payout_phone, payout_shortcode, payout_account, payout_payee_name
@@ -172,13 +196,6 @@ export const campaignWithdrawalsService = {
         { groupId: ctx.groupId },
         DEFAULT_PLATFORM_FEE_PCT,
       );
-      const platformSignoffRequired = await resolvePolicy<boolean>(
-        db,
-        'changisha',
-        'require_platform_signoff',
-        { groupId: ctx.groupId },
-        DEFAULT_REQUIRE_PLATFORM_SIGNOFF,
-      );
       const platformFeeAmount = Math.round(input.grossAmount * (platformFeePct / 100) * 100) / 100;
       const mpesaChargeAmount =
         destination.method === 'phone'
@@ -198,8 +215,9 @@ export const campaignWithdrawalsService = {
         `INSERT INTO campaign_withdrawals
            (campaign_id, group_id, payout_method, payout_phone, payout_shortcode, payout_account,
             payout_payee_name, gross_amount, platform_fee_pct, platform_fee_amount,
-            mpesa_charge_amount, net_amount, status, requested_by, idempotency_key, platform_signoff_required)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending_approval',$13,$14,$15)
+            mpesa_charge_amount, net_amount, status, requested_by, idempotency_key, platform_signoff_required,
+            requested_by_role)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,'pending_approval',$13,$14,true,$15)
          RETURNING *`,
         [
           input.campaignId,
@@ -216,7 +234,7 @@ export const campaignWithdrawalsService = {
           netAmount.toFixed(2),
           ctx.userId,
           input.idempotencyKey,
-          platformSignoffRequired,
+          requesterRole,
         ],
       );
 
@@ -247,13 +265,19 @@ export const campaignWithdrawalsService = {
     // After commit; deduped per withdrawal, so an idempotent replay is silent.
     await emitWithdrawalEvent(created.id, ActivityEventType.WITHDRAWAL_REQUESTED, {
       actorUserId: ctx.userId,
-      stage: 'Awaiting approval by group officials',
+      stage: 'Awaiting approval by the chairperson, treasurer and secretary',
     });
     return created;
   },
 
+  /**
+   * One office's approval. The requester's own office counts as their sign-off, so the other two
+   * offices must each approve; a second person from the requester's office does not count, nor does
+   * a second approval from an office that has already signed. Only when every office has signed does
+   * the withdrawal move to Kitabu Yetu's queue (which is mandatory for every release).
+   */
   async approve(ctx: TenantContext, id: string): Promise<CampaignWithdrawalRow> {
-    const row = await withTransaction(ctx, async (db) => {
+    const result = await withTransaction(ctx, async (db) => {
       const { rows } = await db.query<CampaignWithdrawalRow>(
         `SELECT * FROM campaign_withdrawals
          WHERE  id = $1 AND group_id = $2 AND status = 'pending_approval'
@@ -261,23 +285,57 @@ export const campaignWithdrawalsService = {
         [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Pending campaign withdrawal', id);
-
       const prior = rows[0];
+
+      await assertCampaignOfficersComplete(db, ctx.groupId);
+      const approverRole = await getOfficerRole(db, ctx.groupId, ctx.userId);
+      if (!approverRole) {
+        throw new ForbiddenError("Only the group's chairperson, treasurer or secretary can approve a withdrawal");
+      }
+      if (approverRole === prior.requested_by_role) {
+        throw new ForbiddenError(
+          `This withdrawal was requested by the ${approverRole}; it must be approved by the other two offices`,
+        );
+      }
+      const alreadyApproved = await getApprovedOfficerRoles(db, id);
+      if (alreadyApproved.includes(approverRole)) {
+        throw new ConflictError(`The ${approverRole} has already approved this withdrawal`);
+      }
+
       await recordApproval(db, ctx, {
         subjectType: 'campaign_withdrawal',
         subjectId: id,
         initiatedBy: prior.requested_by ?? '',
         decision: 'approved',
+        approverRole,
       });
 
-      // With platform sign-off on, the second officer's approval only moves it to the
-      // platform's queue — nothing is dispatched until a Kitabu Yetu super-admin releases it.
-      const nextStatus = prior.platform_signoff_required ? 'awaiting_platform' : 'approved';
-      const { rows: updated } = await db.query<CampaignWithdrawalRow>(
-        `UPDATE campaign_withdrawals SET status = $2 WHERE id = $1 RETURNING *`,
-        [id, nextStatus],
-      );
+      const approvedRoles = [...alreadyApproved, approverRole];
+      const remaining = remainingApproverRoles(prior.requested_by_role as CampaignOfficerRole | null, approvedRoles);
 
+      // Still waiting on another office: record the approval and leave the status alone.
+      if (remaining.length > 0) {
+        await db.query(
+          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [
+            ctx.groupId,
+            ctx.userId,
+            'campaignWithdrawal.approve_partial',
+            'campaign_withdrawal',
+            id,
+            JSON.stringify({ status: prior.status }),
+            JSON.stringify({ status: prior.status, approved_by_role: approverRole, awaiting_roles: remaining }),
+          ],
+        );
+        return { row: prior, complete: false };
+      }
+
+      // Every office has signed. Kitabu Yetu's sign-off is mandatory, so nothing is dispatched here.
+      const { rows: updated } = await db.query<CampaignWithdrawalRow>(
+        `UPDATE campaign_withdrawals SET status = 'awaiting_platform' WHERE id = $1 RETURNING *`,
+        [id],
+      );
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -288,25 +346,20 @@ export const campaignWithdrawalsService = {
           'campaign_withdrawal',
           id,
           JSON.stringify({ status: prior.status }),
-          JSON.stringify({ status: nextStatus }),
+          JSON.stringify({ status: 'awaiting_platform', approved_by_role: approverRole }),
         ],
       );
-
-      return updated[0];
+      return { row: updated[0], complete: true };
     });
 
-    // Only a fully approved row is dispatched; an awaiting_platform row waits for platformApprove().
-    if (row.status === 'awaiting_platform') {
+    if (result.complete) {
       // The action-required alert: Kitabu Yetu now has to sign this off.
-      await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_PENDING_REVIEW, {
+      await emitWithdrawalEvent(result.row.id, ActivityEventType.WITHDRAWAL_PENDING_REVIEW, {
         actorUserId: ctx.userId,
-        stage: 'Approved by group officials — Kitabu Yetu approval required',
+        stage: 'Approved by the chairperson, treasurer and secretary - Kitabu Yetu approval required',
       });
-    } else {
-      await emitWithdrawalEvent(row.id, ActivityEventType.WITHDRAWAL_APPROVED, { actorUserId: ctx.userId });
     }
-    if (row.status === 'approved') await dispatchCampaignWithdrawal(row.id);
-    return this.getById(ctx, row.id);
+    return this.getById(ctx, result.row.id);
   },
 
   async reject(ctx: TenantContext, id: string, reason: string): Promise<CampaignWithdrawalRow> {
@@ -320,12 +373,17 @@ export const campaignWithdrawalsService = {
       if (!rows[0]) throw new NotFoundError('Pending campaign withdrawal', id);
 
       const prior = rows[0];
+      const rejecterRole = await getOfficerRole(db, ctx.groupId, ctx.userId);
+      if (!rejecterRole) {
+        throw new ForbiddenError("Only the group's chairperson, treasurer or secretary can reject a withdrawal");
+      }
       await recordApproval(db, ctx, {
         subjectType: 'campaign_withdrawal',
         subjectId: id,
         initiatedBy: prior.requested_by ?? '',
         decision: 'rejected',
         reason,
+        approverRole: rejecterRole,
       });
 
       const { rows: acctRows } = await db.query<{ id: string }>(`SELECT * FROM lock_group_cash_account($1, '1001')`, [
@@ -393,6 +451,10 @@ export const campaignWithdrawalsService = {
       );
       if (!rows[0]) throw new NotFoundError('Campaign withdrawal awaiting platform sign-off', id);
       const prior = rows[0];
+
+      // An officer may have left since the group signed off; do not release to a group that can no
+      // longer meet the three-office rule.
+      await assertCampaignOfficersComplete(db, prior.group_id);
 
       await db.query(
         `INSERT INTO settlement_approvals (subject_type, subject_id, group_id, approver_id, approver_kind, decision)
@@ -473,7 +535,7 @@ export const campaignWithdrawalsService = {
         [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Campaign withdrawal', id);
-      return rows[0];
+      return (await withApprovalProgress(db, rows))[0];
     });
   },
 
@@ -485,10 +547,36 @@ export const campaignWithdrawalsService = {
          ORDER  BY requested_at DESC`,
         [campaignId, ctx.groupId],
       );
-      return rows;
+      return withApprovalProgress(db, rows);
     });
   },
 };
+
+/** Adds which offices have signed and which are still owed, from the approvals ledger. */
+async function withApprovalProgress(
+  db: Parameters<typeof getApprovedOfficerRolesBySubject>[0],
+  rows: CampaignWithdrawalRow[],
+): Promise<CampaignWithdrawalRow[]> {
+  const approvedBySubject = await getApprovedOfficerRolesBySubject(
+    db,
+    rows.map((r) => r.id),
+  );
+  return rows.map((row) => {
+    const requestedByRole = (CAMPAIGN_OFFICER_ROLES as readonly string[]).includes(row.requested_by_role ?? '')
+      ? (row.requested_by_role as CampaignOfficerRole)
+      : null;
+    const approvedRoles = approvedBySubject.get(row.id) ?? [];
+    return {
+      ...row,
+      approval_progress: {
+        requested_by_role: requestedByRole,
+        approved_roles: approvedRoles,
+        remaining_roles:
+          row.status === 'pending_approval' ? remainingApproverRoles(requestedByRole, approvedRoles) : [],
+      },
+    };
+  });
+}
 
 /**
  * Same shape as findStuckVendorPayments/findStuckDisbursements, including

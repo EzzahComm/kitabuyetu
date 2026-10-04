@@ -6,14 +6,21 @@
  * undrawn-balance gate (on top of the group cash gate) and the
  * gross/platformFee/mpesaCharge/net arithmetic.
  *
- * request()'s query sequence: idempotency lookup -> campaign FOR UPDATE ->
+ * request()'s query sequence: idempotency lookup -> (officer checks, mocked) -> campaign FOR UPDATE ->
  * drawn-so-far SUM -> lock_group_cash_account -> resolvePolicy(min) ->
- * resolvePolicy(fee %) -> resolvePolicy(platform sign-off) -> computeB2CCharge -> adjust_account_reserved_amount
+ * resolvePolicy(fee %) -> computeB2CCharge -> adjust_account_reserved_amount
  * -> INSERT campaign_withdrawals -> INSERT audit_logs.
  */
 import { withTransaction, withDb, withAdminDb } from '@/lib/db';
 import { campaignWithdrawalsService } from '@/lib/services/campaign-withdrawals.service';
-import { ValidationError, NotFoundError } from '@/lib/utils/errors';
+import {
+  assertCampaignOfficersComplete,
+  CampaignOfficersIncompleteError,
+  getApprovedOfficerRoles,
+  getApprovedOfficerRolesBySubject,
+  getOfficerRole,
+} from '@/lib/services/campaign-officers.service';
+import { ConflictError, ForbiddenError, ValidationError, NotFoundError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -22,11 +29,23 @@ jest.mock('@/lib/db', () => ({
 }));
 jest.mock('@/lib/queue/qstash', () => ({ triggerDisbursementWatchdog: jest.fn() }));
 
+jest.mock('@/lib/services/campaign-officers.service', () => ({
+  ...jest.requireActual('@/lib/services/campaign-officers.service'),
+  assertCampaignOfficersComplete: jest.fn(),
+  getOfficerRole: jest.fn(),
+  getApprovedOfficerRoles: jest.fn(),
+  getApprovedOfficerRolesBySubject: jest.fn(),
+}));
+
 const mockQuery = jest.fn();
 const mockClient = { query: mockQuery };
 
 beforeEach(() => {
   mockQuery.mockReset();
+  (assertCampaignOfficersComplete as jest.Mock).mockReset().mockResolvedValue(undefined);
+  (getOfficerRole as jest.Mock).mockReset().mockResolvedValue('treasurer');
+  (getApprovedOfficerRoles as jest.Mock).mockReset().mockResolvedValue([]);
+  (getApprovedOfficerRolesBySubject as jest.Mock).mockReset().mockResolvedValue(new Map());
   (withTransaction as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withDb as jest.Mock).mockImplementation((_ctx, fn) => fn(mockClient));
   (withAdminDb as jest.Mock).mockImplementation((fn) => fn(mockClient));
@@ -46,6 +65,24 @@ const activePhone = {
 
 describe('campaignWithdrawalsService.request', () => {
   const input = { campaignId: 'camp-1', grossAmount: 1000, idempotencyKey: 'wk-1' };
+
+  it('refuses a group without all three offices filled — nothing is reserved', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no idempotency row
+    (assertCampaignOfficersComplete as jest.Mock).mockRejectedValueOnce(
+      new CampaignOfficersIncompleteError(['secretary']),
+    );
+    await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(
+      CampaignOfficersIncompleteError,
+    );
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a requester who is not the chairperson, treasurer or secretary', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [] });
+    (getOfficerRole as jest.Mock).mockResolvedValueOnce(null);
+    await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ForbiddenError);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
 
   it('rejects a non-positive amount before touching the DB', async () => {
     await expect(campaignWithdrawalsService.request(ctx, { ...input, grossAmount: 0 })).rejects.toBeInstanceOf(
@@ -137,7 +174,6 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 90 }] }) // platform fee % — 90% of 1000 = 900
-      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '150.00' }] }); // mpesa charge — 900 + 150 > 1000
 
     await expect(campaignWithdrawalsService.request(ctx, input)).rejects.toBeInstanceOf(ValidationError);
@@ -155,7 +191,6 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 4% of 1000 = 40
-      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '33.00' }] }) // mpesa charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
       .mockResolvedValueOnce({
@@ -174,15 +209,16 @@ describe('campaignWithdrawalsService.request', () => {
     const res = await campaignWithdrawalsService.request(ctx, input);
     expect(res.net_amount).toBe('927.00');
 
-    const reserveCall = mockQuery.mock.calls[8];
+    const reserveCall = mockQuery.mock.calls[7];
     expect(reserveCall[0]).toContain('adjust_account_reserved_amount');
     expect(reserveCall[1]).toEqual(['acct-1', '1000.00']); // reserves the GROSS amount, not net
 
-    const chargeCall = mockQuery.mock.calls[7];
+    const chargeCall = mockQuery.mock.calls[6];
     expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2c')"); // phone -> B2C tariff
 
-    const insertCall = mockQuery.mock.calls[9];
+    const insertCall = mockQuery.mock.calls[8];
     expect(insertCall[0]).toContain('INSERT INTO campaign_withdrawals');
+    expect(insertCall[0]).toContain('platform_signoff_required'); // always true: Kitabu Yetu signs off every release
     expect(insertCall[1]).toEqual([
       'camp-1',
       'grp-1',
@@ -198,7 +234,7 @@ describe('campaignWithdrawalsService.request', () => {
       '927.00', // net_amount
       'officer-1',
       'wk-1',
-      true, // platform_signoff_required (default: Kitabu Yetu signs off every release)
+      'treasurer', // requested_by_role
     ]);
   });
 
@@ -222,17 +258,16 @@ describe('campaignWithdrawalsService.request', () => {
       .mockResolvedValueOnce({ rows: [{ id: 'acct-1', balance: '10000.00', reserved_amount: '0.00' }] })
       .mockResolvedValueOnce({ rows: [{ value: 100 }] }) // min withdrawal
       .mockResolvedValueOnce({ rows: [{ value: 4 }] }) // platform fee % — 40
-      .mockResolvedValueOnce({ rows: [{ value: true }] }) // require platform sign-off
       .mockResolvedValueOnce({ rows: [{ charge: '22.00' }] }) // B2B charge
       .mockResolvedValueOnce({ rows: [] }) // adjust_account_reserved_amount
       .mockResolvedValueOnce({ rows: [{ id: 'cw-2', net_amount: '938.00' }] }); // INSERT
 
     await campaignWithdrawalsService.request(ctx, input);
 
-    const chargeCall = mockQuery.mock.calls[7];
+    const chargeCall = mockQuery.mock.calls[6];
     expect(chargeCall[0]).toContain("mpesa_charge_for_amount($1, 'b2b')");
 
-    const insertCall = mockQuery.mock.calls[9];
+    const insertCall = mockQuery.mock.calls[8];
     expect(insertCall[1].slice(2, 7)).toEqual(['paybill', null, '247247', 'PAT-00123', 'Kenyatta National Hospital']);
     expect(insertCall[1][11]).toBe('938.00'); // net = 1000 - 40 - 22
   });
@@ -287,11 +322,15 @@ describe('campaignWithdrawalsService.reject', () => {
 describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
   const queries = () => mockQuery.mock.calls.map((c) => String(c[0]));
 
-  it('a second officer approving moves the row to awaiting_platform and dispatches NOTHING', async () => {
+  const pending = (requestedByRole: string) => ({
+    rows: [{ id: 'cw-1', requested_by: 'officer-2', status: 'pending_approval', requested_by_role: requestedByRole }],
+  });
+
+  it('the last office approving moves the row to awaiting_platform and dispatches NOTHING', async () => {
+    (getOfficerRole as jest.Mock).mockResolvedValue('secretary');
+    (getApprovedOfficerRoles as jest.Mock).mockResolvedValue(['treasurer']); // requester is the chairperson
     mockQuery
-      .mockResolvedValueOnce({
-        rows: [{ id: 'cw-1', requested_by: 'officer-2', status: 'pending_approval', platform_signoff_required: true }],
-      })
+      .mockResolvedValueOnce(pending('chairperson'))
       .mockResolvedValueOnce({ rows: [] }) // recordApproval
       .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'awaiting_platform' }] }) // UPDATE
       .mockResolvedValueOnce({ rows: [] }) // audit
@@ -300,10 +339,57 @@ describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
     const res = await campaignWithdrawalsService.approve(ctx, 'cw-1');
 
     expect(res.status).toBe('awaiting_platform');
-    const updateCall = mockQuery.mock.calls[2];
-    expect(updateCall[1]).toEqual(['cw-1', 'awaiting_platform']);
-    // Dispatch would claim the row with `SET status = 'processing'`; it must not have run.
+    const approvalCall = mockQuery.mock.calls[1];
+    expect(approvalCall[1]).toContain('secretary'); // approval is recorded against the office
+    expect(mockQuery.mock.calls[2][0]).toContain("status = 'awaiting_platform'");
     expect(queries().some((q) => q.includes("SET    status = 'processing'"))).toBe(false);
+  });
+
+  it('the first of the two other offices approving leaves the row pending', async () => {
+    (getOfficerRole as jest.Mock).mockResolvedValue('secretary');
+    mockQuery
+      .mockResolvedValueOnce(pending('chairperson'))
+      .mockResolvedValueOnce({ rows: [] }) // recordApproval
+      .mockResolvedValueOnce({ rows: [] }) // audit (approve_partial)
+      .mockResolvedValueOnce({ rows: [{ id: 'cw-1', status: 'pending_approval' }] }); // getById
+
+    const res = await campaignWithdrawalsService.approve(ctx, 'cw-1');
+
+    expect(res.status).toBe('pending_approval');
+    expect(queries().some((q) => q.includes("status = 'awaiting_platform'"))).toBe(false);
+    expect(mockQuery.mock.calls[2][1][2]).toBe('campaignWithdrawal.approve_partial');
+  });
+
+  it("the requester's own office cannot approve (a second treasurer does not count)", async () => {
+    (getOfficerRole as jest.Mock).mockResolvedValue('chairperson');
+    mockQuery.mockResolvedValueOnce(pending('chairperson'));
+    await expect(campaignWithdrawalsService.approve(ctx, 'cw-1')).rejects.toBeInstanceOf(ForbiddenError);
+    expect(mockQuery).toHaveBeenCalledTimes(1); // no approval recorded
+  });
+
+  it('an office that has already approved cannot approve again', async () => {
+    (getOfficerRole as jest.Mock).mockResolvedValue('treasurer');
+    (getApprovedOfficerRoles as jest.Mock).mockResolvedValue(['treasurer']);
+    mockQuery.mockResolvedValueOnce(pending('chairperson'));
+    await expect(campaignWithdrawalsService.approve(ctx, 'cw-1')).rejects.toBeInstanceOf(ConflictError);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('a non-officer cannot approve', async () => {
+    (getOfficerRole as jest.Mock).mockResolvedValue(null);
+    mockQuery.mockResolvedValueOnce(pending('chairperson'));
+    await expect(campaignWithdrawalsService.approve(ctx, 'cw-1')).rejects.toBeInstanceOf(ForbiddenError);
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+
+  it('nobody can approve once the group has lost one of the three offices', async () => {
+    (assertCampaignOfficersComplete as jest.Mock).mockRejectedValueOnce(
+      new CampaignOfficersIncompleteError(['treasurer']),
+    );
+    mockQuery.mockResolvedValueOnce(pending('chairperson'));
+    await expect(campaignWithdrawalsService.approve(ctx, 'cw-1')).rejects.toBeInstanceOf(
+      CampaignOfficersIncompleteError,
+    );
   });
 
   it('platformApprove releases an awaiting_platform row and records a backoffice approval', async () => {
@@ -322,6 +408,17 @@ describe('platform sign-off (Kitabu Yetu releases the funds)', () => {
     const approvalCall = mockQuery.mock.calls[1];
     expect(approvalCall[0]).toContain("'backoffice'");
     expect(approvalCall[1]).toEqual(['cw-1', 'grp-1', 'admin-1']);
+  });
+
+  it('platformApprove refuses to release when the group no longer has all three offices', async () => {
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'cw-1', group_id: 'grp-1', status: 'awaiting_platform' }] });
+    (assertCampaignOfficersComplete as jest.Mock).mockRejectedValueOnce(
+      new CampaignOfficersIncompleteError(['secretary']),
+    );
+    await expect(campaignWithdrawalsService.platformApprove('admin-1', 'cw-1')).rejects.toBeInstanceOf(
+      CampaignOfficersIncompleteError,
+    );
+    expect(queries().some((q) => q.includes('settlement_approvals'))).toBe(false);
   });
 
   it('platformApprove refuses a row that is not awaiting the platform (e.g. already released)', async () => {
