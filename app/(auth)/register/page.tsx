@@ -192,7 +192,7 @@ function RegisterForm() {
     handleSubmit,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
+  } = useForm<z.input<typeof schema>, unknown, FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { groupType: 'chama', creatorRole: 'chairperson', isGovernmentRegistered: false },
   });
