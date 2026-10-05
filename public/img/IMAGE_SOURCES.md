@@ -10,14 +10,14 @@ claims, and nobody pictured is presented as a Kitabu Yetu user.
 
 ## In use
 
-| File              | Role in `photos.ts` | Source                                                                                                                        |
-| ----------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `hero-one.jpg`    | `youthTech`          | Not recorded — confirm the licence before launch (see below)                                                                   |
-| `hero-two.jpg`    | `memberPhone`         | Unsplash License, Ali Mkumbwa — https://unsplash.com/photos/a-man-walking-down-a-street-while-using-a-cell-phone-8ZyV_nwX5dA  |
-| `benefit-one.jpg` | `vslaRecords`        | Not recorded — confirm the licence before launch (see below)                                                                   |
-| `benefit-two.jpg` | `vslaReading`        | Not recorded — confirm the licence before launch (see below)                                                                   |
-| `fundraise.jpg`   | `payments`           | Unsplash License, Ali Mkumbwa — https://unsplash.com/photos/a-woman-standing-in-front-of-a-fruit-stand-holding-a-cell-phone-5dFuO02OHh0 |
-| `enterprise.jpg`  | `organisations`      | Unsplash License, Cytonn Photography — https://unsplash.com/photos/two-person-handshaking-vWchRczcQwM                        |
+| File              | Role in `photos.ts` | Source                                                                                                                                  |
+| ----------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `hero-one.jpg`    | `youthTech`         | Not recorded — confirm the licence before launch (see below)                                                                            |
+| `hero-two.jpg`    | `memberPhone`       | Unsplash License, Ali Mkumbwa — https://unsplash.com/photos/a-man-walking-down-a-street-while-using-a-cell-phone-8ZyV_nwX5dA            |
+| `benefit-one.jpg` | `vslaRecords`       | Not recorded — confirm the licence before launch (see below)                                                                            |
+| `benefit-two.jpg` | `vslaReading`       | Not recorded — confirm the licence before launch (see below)                                                                            |
+| `fundraise.jpg`   | `payments`          | Unsplash License, Ali Mkumbwa — https://unsplash.com/photos/a-woman-standing-in-front-of-a-fruit-stand-holding-a-cell-phone-5dFuO02OHh0 |
+| `enterprise.jpg`  | `organisations`     | Unsplash License, Cytonn Photography — https://unsplash.com/photos/two-person-handshaking-vWchRczcQwM                                   |
 
 The first three (`hero-one.jpg`, `benefit-one.jpg`, `benefit-two.jpg`) were
 already in the repository with no recorded source. Before they carry the
