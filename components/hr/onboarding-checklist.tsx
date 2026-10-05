@@ -68,7 +68,9 @@ function TaskRow({ employeeId, task }: { employeeId: string; task: OnboardingTas
 
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className={`text-sm font-medium ${task.status === 'done' || task.status === 'skipped' ? 'text-muted-foreground line-through' : ''}`}>
+          <p
+            className={`text-sm font-medium ${task.status === 'done' || task.status === 'skipped' ? 'text-muted-foreground line-through' : ''}`}
+          >
             {task.title}
           </p>
           <Badge variant={STATUS_VARIANT[task.status]} className="text-[10px]">
@@ -77,7 +79,9 @@ function TaskRow({ employeeId, task }: { employeeId: string; task: OnboardingTas
         </div>
         {task.description && <p className="mt-0.5 text-xs text-muted-foreground">{task.description}</p>}
         {task.due_date && (
-          <p className={`mt-0.5 text-xs ${isOverdue(task.due_date, task.status) ? 'font-medium text-destructive' : 'text-muted-foreground'}`}>
+          <p
+            className={`mt-0.5 text-xs ${isOverdue(task.due_date, task.status) ? 'font-medium text-destructive' : 'text-muted-foreground'}`}
+          >
             Due {formatDate(task.due_date)}
             {isOverdue(task.due_date, task.status) && ' · overdue'}
           </p>
