@@ -36,7 +36,7 @@ export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
  * silent; if welcome-on-import is ever wanted it should be an explicit,
  * opt-in choice made at import time.
  */
-async function emitMemberRegisteredEvent(
+export async function emitMemberRegisteredEvent(
   memberId: string,
   groupId: string,
   member: { firstName: string; lastName: string; membershipNo: string },

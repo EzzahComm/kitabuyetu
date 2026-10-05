@@ -68,6 +68,7 @@ const addMemberSchema = z.object({
   firstName: z.string().trim().min(2, 'Enter a first name'),
   lastName: z.string().trim().min(2, 'Enter a last name'),
   phone: z.string().trim().refine(isValidKenyanPhone, 'Enter a valid Kenyan phone number'),
+  nationalId: z.string().trim().min(5, 'National ID number is required').max(20),
   dateOfBirth: z.string().optional().or(z.literal('')),
   role: z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
 });
@@ -102,6 +103,7 @@ export default function ReminderMembersPage() {
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone,
+        nationalId: values.nationalId,
         role: values.role,
         ...(values.dateOfBirth ? { dateOfBirth: values.dateOfBirth } : {}),
       };
@@ -175,6 +177,11 @@ export default function ReminderMembersPage() {
                 <Label>Phone</Label>
                 <Input placeholder="0712345678" {...register('phone')} />
                 {errors.phone && <p className="text-xs text-destructive">{errors.phone.message}</p>}
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label>National ID number</Label>
+                <Input {...register('nationalId')} />
+                {errors.nationalId && <p className="text-xs text-destructive">{errors.nationalId.message}</p>}
               </div>
               <div className="space-y-1">
                 <Label>
