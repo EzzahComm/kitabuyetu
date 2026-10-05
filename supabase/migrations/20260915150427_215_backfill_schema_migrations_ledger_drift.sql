@@ -10,6 +10,12 @@
 -- replay already creates these same ledger rows naturally when each of the
 -- 109-166 migration files runs in sequence.
 
+-- Guarded: plain Postgres (CI's tenant-isolation job, local non-Supabase DBs)
+-- has no supabase_migrations schema, so this must no-op there rather than fail.
+DO $guard$
+BEGIN
+IF to_regclass('supabase_migrations.schema_migrations') IS NOT NULL THEN
+EXECUTE $sql$
 INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES
   ('20260802000000', '109_organization_branding'),
   ('20260803000000', '110_permission_catalog_reconciliation'),
@@ -44,8 +50,14 @@ INSERT INTO supabase_migrations.schema_migrations (version, name) VALUES
   ('20260902010000', '164_org_topup_exactly_once'),
   ('20260902020000', '165_staff_alert_state'),
   ('20260902030000', '166_dlr_terminally_unknown')
-ON CONFLICT (version) DO NOTHING;
+ON CONFLICT (version) DO NOTHING
+$sql$;
 
+EXECUTE $sql$
 UPDATE supabase_migrations.schema_migrations
 SET name = '114_fix_audit_logs_insert_policy'
-WHERE name = 'fix_audit_logs_insert_policy';
+WHERE name = 'fix_audit_logs_insert_policy'
+$sql$;
+END IF;
+END
+$guard$;
