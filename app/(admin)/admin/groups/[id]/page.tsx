@@ -19,7 +19,11 @@ import {
   Mail,
   Activity,
   Pencil,
+  Plus,
 } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
@@ -29,6 +33,7 @@ import type { Tone } from '@/lib/ui/tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import {
   DropdownMenu,
@@ -43,10 +48,21 @@ import {
   useUpdateGroupProfile,
   useAdminGroupMembers,
   useGroupGovernanceSnapshot,
+  useCreateGroupMember,
 } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
+import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { GROUP_TYPES, GROUP_TYPE_LABELS } from '@/types/enums';
+
+const addMemberSchema = z.object({
+  firstName: z.string().trim().min(2, 'Enter a first name'),
+  lastName: z.string().trim().min(2, 'Enter a last name'),
+  phone: z.string().trim().refine(isValidKenyanPhone, 'Enter a valid Kenyan phone number'),
+  dateOfBirth: z.string().optional().or(z.literal('')),
+  role: z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
+});
+type AddMemberFormValues = z.infer<typeof addMemberSchema>;
 
 interface GroupActivityRow {
   action: string;
@@ -183,6 +199,36 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       // 409 from uq_group_name_per_county arrives here with a readable
       // message — surfaced as-is rather than retried.
       toast({ variant: 'destructive', title: 'Could not save', description: getErrorMessage(e) });
+    }
+  };
+
+  const createMember = useCreateGroupMember();
+  const [addMemberOpen, setAddMemberOpen] = useState(false);
+  const {
+    register: registerMember,
+    handleSubmit: handleSubmitMember,
+    reset: resetMemberForm,
+    formState: { errors: memberErrors, isSubmitting: isSubmittingMember },
+  } = useForm<AddMemberFormValues>({
+    resolver: zodResolver(addMemberSchema),
+    defaultValues: { role: 'member' },
+  });
+
+  const handleAddMember = async (values: AddMemberFormValues) => {
+    try {
+      await createMember.mutateAsync({
+        groupId: id,
+        firstName: values.firstName,
+        lastName: values.lastName,
+        phone: values.phone,
+        role: values.role,
+        ...(values.dateOfBirth ? { dateOfBirth: values.dateOfBirth } : {}),
+      });
+      toast({ title: 'Member added' });
+      setAddMemberOpen(false);
+      resetMemberForm();
+    } catch (e) {
+      toast({ variant: 'destructive', title: 'Failed to add member', description: getErrorMessage(e) });
     }
   };
 
@@ -493,10 +539,13 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
       {/* Members — SUPER_ADMIN_PLATFORM_AUDIT.md §2.1/§2.5 Phase 1: this
           page previously had no member table at all, only aggregate stats. */}
       <Card>
-        <CardHeader className="pb-2">
+        <CardHeader className="pb-2 flex items-center justify-between">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <Users size={14} className="text-blue-500" /> Members ({membersData?.total ?? 0})
           </CardTitle>
+          <Button size="sm" className="h-8 gap-1.5" onClick={() => setAddMemberOpen(true)}>
+            <Plus size={14} /> Add member
+          </Button>
         </CardHeader>
         <CardContent>
           <PaginatedTable<GroupMemberRow>
@@ -584,6 +633,67 @@ export default function GroupDetailPage({ params }: { params: Promise<{ id: stri
           )}
         </CardContent>
       </Card>
+
+      {/* Add member — the backoffice path for a group whose own tenant users
+          haven't (or can't yet) sign in and add themselves. */}
+      <Dialog
+        open={addMemberOpen}
+        onOpenChange={(v) => {
+          setAddMemberOpen(v);
+          if (!v) resetMemberForm();
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add member</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleSubmitMember(handleAddMember)} className="space-y-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1">
+                <Label>First name</Label>
+                <Input {...registerMember('firstName')} />
+                {memberErrors.firstName && <p className="text-xs text-destructive">{memberErrors.firstName.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label>Last name</Label>
+                <Input {...registerMember('lastName')} />
+                {memberErrors.lastName && <p className="text-xs text-destructive">{memberErrors.lastName.message}</p>}
+              </div>
+              <div className="space-y-1 sm:col-span-2">
+                <Label>Phone</Label>
+                <Input placeholder="0712345678" {...registerMember('phone')} />
+                {memberErrors.phone && <p className="text-xs text-destructive">{memberErrors.phone.message}</p>}
+              </div>
+              <div className="space-y-1">
+                <Label>
+                  Date of birth <span className="text-xs text-muted-foreground">(optional)</span>
+                </Label>
+                <Input type="date" {...registerMember('dateOfBirth')} />
+              </div>
+              <div className="space-y-1">
+                <Label>Role</Label>
+                <select
+                  {...registerMember('role')}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="member">Member</option>
+                  <option value="secretary">Secretary</option>
+                  <option value="treasurer">Treasurer</option>
+                  <option value="chairperson">Chairperson</option>
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setAddMemberOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" loading={isSubmittingMember}>
+                Add member
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       {/* Edit group profile — the typo-correction path. Deliberately separate
           from the status actions above: the API branches on whether the body

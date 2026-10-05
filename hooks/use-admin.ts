@@ -378,6 +378,27 @@ export function useUpdateMemberProfile() {
   });
 }
 
+/** Add a member to a group from the backoffice — see createGroupMember. */
+export interface CreateGroupMemberInput {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth?: string;
+  role?: 'member' | 'secretary' | 'treasurer' | 'chairperson';
+}
+
+export function useCreateGroupMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, ...body }: CreateGroupMemberInput & { groupId: string }) =>
+      adminFetch<unknown>(`/api/admin/groups/${groupId}/members`, { method: 'POST', json: body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'groups', vars.groupId, 'members'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'groups', vars.groupId] });
+    },
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Organizations (federating bodies — banks, SACCOs, foundations)
 // ─────────────────────────────────────────────────────────────────────────────
