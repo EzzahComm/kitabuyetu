@@ -192,9 +192,7 @@ export async function sendOverdueInvoiceReminders(): Promise<void> {
 
     const amountDue = parseFloat(inv.total_amount) - parseFloat(inv.paid_amount);
     const templateKey = `invoice_overdue_${targetLevel}` as
-      | 'invoice_overdue_1'
-      | 'invoice_overdue_2'
-      | 'invoice_overdue_3';
+      'invoice_overdue_1' | 'invoice_overdue_2' | 'invoice_overdue_3';
 
     const vars = {
       invoiceNumber: inv.invoice_number,

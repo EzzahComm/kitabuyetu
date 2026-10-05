@@ -98,13 +98,14 @@ Most group-scoped services rely entirely on RLS for access control, with no expl
 - No role-based checks
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| list() | ❌ | Filters by ctx.groupId only |
-| create() | ⚠️ | Validates active membership; no role check |
-| update() | ❌ | Filters by ctx.groupId; any group member can update |
-| delete() | ⚠️ | Only pending contributions; any group member can delete |
-| remindNonContributors() | ❌ | No role check (likely should be treasurer-only) |
+
+| Operation               | Check Present | Details                                                 |
+| ----------------------- | ------------- | ------------------------------------------------------- |
+| list()                  | ❌            | Filters by ctx.groupId only                             |
+| create()                | ⚠️            | Validates active membership; no role check              |
+| update()                | ❌            | Filters by ctx.groupId; any group member can update     |
+| delete()                | ⚠️            | Only pending contributions; any group member can delete |
+| remindNonContributors() | ❌            | No role check (likely should be treasurer-only)         |
 
 **Context Usage**:
 
@@ -150,16 +151,17 @@ async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contrib
 - **Partial dual-control**: `writeOff()` enforces maker-checker
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| list() | ❌ | Filters by ctx.groupId only |
-| apply() | ⚠️ | Validates active membership; allows data.memberId override but no role check |
-| approve() | ❌ | Filters by status; any group member can approve |
-| reject() | ❌ | Filters by status; any group member can reject |
-| disburse() | ❌ | Filters by status; any group member can disburse |
-| recordRepayment() | ⚠️ | Validates installment status; no role check |
-| markDefaulted() | ❌ | Filters by status; any group member can mark defaulted |
-| writeOff() | ✅ | **Enforces maker-checker**: approver ≠ defaulted_by |
+
+| Operation         | Check Present | Details                                                                      |
+| ----------------- | ------------- | ---------------------------------------------------------------------------- |
+| list()            | ❌            | Filters by ctx.groupId only                                                  |
+| apply()           | ⚠️            | Validates active membership; allows data.memberId override but no role check |
+| approve()         | ❌            | Filters by status; any group member can approve                              |
+| reject()          | ❌            | Filters by status; any group member can reject                               |
+| disburse()        | ❌            | Filters by status; any group member can disburse                             |
+| recordRepayment() | ⚠️            | Validates installment status; no role check                                  |
+| markDefaulted()   | ❌            | Filters by status; any group member can mark defaulted                       |
+| writeOff()        | ✅            | **Enforces maker-checker**: approver ≠ defaulted_by                          |
 
 **Context Usage**:
 
@@ -231,17 +233,18 @@ async approve(ctx: TenantContext, id: string, _data: ApproveLoanInput): Promise<
 - Belt-and-braces pattern: both app layer and RLS checks
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| getWallet() | ✅ | assertOrganizationCoordinator |
-| deposit() | ✅ | assertOrganizationCoordinator |
-| listLedger() | ✅ | assertOrganizationCoordinator |
-| listPrograms() | ✅ | assertOrganizationCoordinator |
-| listProgramGroups() | ✅ | assertOrganizationCoordinator + explicit org_id check |
-| programBudgetReport() | ✅ | assertOrganizationCoordinator + assertReportsAccess |
-| requestDisbursement() | ✅ | assertOrganizationCoordinator |
-| approveDisbursement() | ✅ | assertOrganizationCoordinator + **maker-checker** |
-| rejectDisbursement() | ✅ | assertOrganizationCoordinator |
+
+| Operation             | Check Present | Details                                               |
+| --------------------- | ------------- | ----------------------------------------------------- |
+| getWallet()           | ✅            | assertOrganizationCoordinator                         |
+| deposit()             | ✅            | assertOrganizationCoordinator                         |
+| listLedger()          | ✅            | assertOrganizationCoordinator                         |
+| listPrograms()        | ✅            | assertOrganizationCoordinator                         |
+| listProgramGroups()   | ✅            | assertOrganizationCoordinator + explicit org_id check |
+| programBudgetReport() | ✅            | assertOrganizationCoordinator + assertReportsAccess   |
+| requestDisbursement() | ✅            | assertOrganizationCoordinator                         |
+| approveDisbursement() | ✅            | assertOrganizationCoordinator + **maker-checker**     |
+| rejectDisbursement()  | ✅            | assertOrganizationCoordinator                         |
 
 **Context Usage**:
 
@@ -298,17 +301,18 @@ async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisburseme
 - Implements `applyMemberMask()` for field-level masking based on `ctx.role`
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| list() | ❌ | Filters by ctx.groupId; applies member mask for field masking only |
-| getById() | ❌ | Filters by ctx.groupId; applies member mask |
-| create() | ❌ | Validates billing cap; no role check |
-| update() | ❌ | Filters by ctx.groupId; any member can update |
-| updateRole() | ❌ | No role check (critical: only officers should change roles) |
-| transitionStatus() | ❌ | No role check (critical: archiving/suspending members) |
-| archive() | ❌ | No role check |
-| changePassword() | ❌ | Own password only (acceptable pattern) |
-| createNextOfKin() | ❌ | Filters by ctx.groupId; no role check |
+
+| Operation          | Check Present | Details                                                            |
+| ------------------ | ------------- | ------------------------------------------------------------------ |
+| list()             | ❌            | Filters by ctx.groupId; applies member mask for field masking only |
+| getById()          | ❌            | Filters by ctx.groupId; applies member mask                        |
+| create()           | ❌            | Validates billing cap; no role check                               |
+| update()           | ❌            | Filters by ctx.groupId; any member can update                      |
+| updateRole()       | ❌            | No role check (critical: only officers should change roles)        |
+| transitionStatus() | ❌            | No role check (critical: archiving/suspending members)             |
+| archive()          | ❌            | No role check                                                      |
+| changePassword()   | ❌            | Own password only (acceptable pattern)                             |
+| createNextOfKin()  | ❌            | Filters by ctx.groupId; no role check                              |
 
 **Context Usage**:
 
@@ -380,12 +384,13 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 - Phase 1 implementation (direct admin-only add)
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| listOrgStaff() | ✅ | withAdminDb only; super_admin route gate |
-| addOrgStaff() | ✅ | withAdminDb only; assertStaffCap |
-| changeOrgStaffRole() | ✅ | withAdminDb only |
-| archiveOrgStaff() | ✅ | withAdminDb only |
+
+| Operation            | Check Present | Details                                  |
+| -------------------- | ------------- | ---------------------------------------- |
+| listOrgStaff()       | ✅            | withAdminDb only; super_admin route gate |
+| addOrgStaff()        | ✅            | withAdminDb only; assertStaffCap         |
+| changeOrgStaffRole() | ✅            | withAdminDb only                         |
+| archiveOrgStaff()    | ✅            | withAdminDb only                         |
 
 **Context Usage**:
 
@@ -428,13 +433,14 @@ async transitionStatus(ctx: TenantContext, memberId: string, target: MemberStatu
 - Uses `recordApproval()` from `settlement-approvals.service` for dual-control
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| initiate() | ❌ | Validates bank account status; no role check |
-| approve() | ✅ | **Enforces maker-checker via recordApproval()** |
-| reject() | ✅ | **Enforces maker-checker via recordApproval()** |
-| getById() | ❌ | Filters by ctx.groupId only |
-| list() | ❌ | Filters by ctx.groupId only |
+
+| Operation  | Check Present | Details                                         |
+| ---------- | ------------- | ----------------------------------------------- |
+| initiate() | ❌            | Validates bank account status; no role check    |
+| approve()  | ✅            | **Enforces maker-checker via recordApproval()** |
+| reject()   | ✅            | **Enforces maker-checker via recordApproval()** |
+| getById()  | ❌            | Filters by ctx.groupId only                     |
+| list()     | ❌            | Filters by ctx.groupId only                     |
 
 **Context Usage**:
 
@@ -504,13 +510,14 @@ async initiate(ctx: TenantContext, input: InitiateSettlementInput): Promise<Sett
 - Threshold-based dual-control via `getEffectiveThreshold()`
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| initiateDisbursement() | ⚠️ | No role check; validates loan status if linked |
-| approve() | ✅ | **Enforces maker-checker**: `initiated_by !== ctx.userId` |
-| reject() | ✅ | **Enforces maker-checker**: `initiated_by !== ctx.userId` |
-| getById() | ❌ | Filters by ctx.groupId only |
-| list() | ❌ | Filters by ctx.groupId only |
+
+| Operation              | Check Present | Details                                                   |
+| ---------------------- | ------------- | --------------------------------------------------------- |
+| initiateDisbursement() | ⚠️            | No role check; validates loan status if linked            |
+| approve()              | ✅            | **Enforces maker-checker**: `initiated_by !== ctx.userId` |
+| reject()               | ✅            | **Enforces maker-checker**: `initiated_by !== ctx.userId` |
+| getById()              | ❌            | Filters by ctx.groupId only                               |
+| list()                 | ❌            | Filters by ctx.groupId only                               |
 
 **Context Usage**:
 
@@ -571,14 +578,15 @@ async initiateDisbursement(
 - Different from group-scoped services
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| getProfile() | ✅ | assertOrganizationCoordinator |
-| getBranding() | ✅ | assertOrganizationCoordinator |
-| setBranding() | ✅ | assertOrganizationCoordinator + assertWhiteLabelAccess |
-| listGroupSummaries() | ✅ | assertOrganizationCoordinator |
-| listGroupMembers() | ✅ | assertOrganizationCoordinator |
-| getAuditLog() | ✅ | assertOrganizationCoordinator |
+
+| Operation            | Check Present | Details                                                |
+| -------------------- | ------------- | ------------------------------------------------------ |
+| getProfile()         | ✅            | assertOrganizationCoordinator                          |
+| getBranding()        | ✅            | assertOrganizationCoordinator                          |
+| setBranding()        | ✅            | assertOrganizationCoordinator + assertWhiteLabelAccess |
+| listGroupSummaries() | ✅            | assertOrganizationCoordinator                          |
+| listGroupMembers()   | ✅            | assertOrganizationCoordinator                          |
+| getAuditLog()        | ✅            | assertOrganizationCoordinator                          |
 
 **Context Usage**:
 
@@ -612,15 +620,16 @@ async initiateDisbursement(
 - Uses `recordApproval()` for dual-control on activation
 
 **Authorization Checks**:
-| Operation | Check Present | Details |
-|-----------|--------------|---------|
-| create() | ❌ | Filters by ctx.groupId; no role check |
-| activate() | ✅ | **Enforces maker-checker via recordApproval()** |
-| reject() | ✅ | **Enforces maker-checker via recordApproval()** |
-| disable() | ⚠️ | Single-actor only (risk-reducing action) |
-| getById() | ❌ | Filters by ctx.groupId only |
-| listActive() | ❌ | Filters by ctx.groupId only |
-| list() | ❌ | Filters by ctx.groupId only |
+
+| Operation    | Check Present | Details                                         |
+| ------------ | ------------- | ----------------------------------------------- |
+| create()     | ❌            | Filters by ctx.groupId; no role check           |
+| activate()   | ✅            | **Enforces maker-checker via recordApproval()** |
+| reject()     | ✅            | **Enforces maker-checker via recordApproval()** |
+| disable()    | ⚠️            | Single-actor only (risk-reducing action)        |
+| getById()    | ❌            | Filters by ctx.groupId only                     |
+| listActive() | ❌            | Filters by ctx.groupId only                     |
+| list()       | ❌            | Filters by ctx.groupId only                     |
 
 **Context Usage**:
 

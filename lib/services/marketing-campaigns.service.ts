@@ -33,13 +33,7 @@ export interface Audience {
 }
 
 export type CampaignStatus =
-  | 'draft'
-  | 'pending_review'
-  | 'approved'
-  | 'rejected'
-  | 'sending'
-  | 'completed'
-  | 'cancelled';
+  'draft' | 'pending_review' | 'approved' | 'rejected' | 'sending' | 'completed' | 'cancelled';
 
 export interface Campaign {
   id: string;

@@ -170,36 +170,30 @@ function useAdminCommandGroups(query: string): CommandPaletteGroup[] {
   const resultsGroup = React.useMemo<CommandPaletteGroup | null>(() => {
     if (!results || debouncedQuery.trim().length < 2) return null;
     const commands: CommandPaletteCommand[] = [
-      ...results.organizations.map(
-        (o): CommandPaletteCommand => ({
-          id: `org-${o.id}`,
-          label: o.name,
-          hint: 'Organization',
-          icon: Building2,
-          keywords: `${o.registration_number ?? ''} ${o.type}`,
-          run: go(`/admin/organizations/${o.id}`),
-        }),
-      ),
-      ...results.groups.map(
-        (g): CommandPaletteCommand => ({
-          id: `group-${g.id}`,
-          label: g.name,
-          hint: 'Group',
-          icon: Building2,
-          keywords: `${g.group_code ?? ''} ${g.group_type}`,
-          run: go(`/admin/groups/${g.id}`),
-        }),
-      ),
-      ...results.members.map(
-        (m): CommandPaletteCommand => ({
-          id: `member-${m.id}`,
-          label: `${m.first_name} ${m.last_name}`,
-          hint: m.group_name ? `Member · ${m.group_name}` : 'Member',
-          icon: Users,
-          keywords: `${m.phone ?? ''} ${m.member_code ?? ''}`,
-          run: m.group_id ? go(`/admin/groups/${m.group_id}/members/${m.id}`) : go('/admin/users'),
-        }),
-      ),
+      ...results.organizations.map((o): CommandPaletteCommand => ({
+        id: `org-${o.id}`,
+        label: o.name,
+        hint: 'Organization',
+        icon: Building2,
+        keywords: `${o.registration_number ?? ''} ${o.type}`,
+        run: go(`/admin/organizations/${o.id}`),
+      })),
+      ...results.groups.map((g): CommandPaletteCommand => ({
+        id: `group-${g.id}`,
+        label: g.name,
+        hint: 'Group',
+        icon: Building2,
+        keywords: `${g.group_code ?? ''} ${g.group_type}`,
+        run: go(`/admin/groups/${g.id}`),
+      })),
+      ...results.members.map((m): CommandPaletteCommand => ({
+        id: `member-${m.id}`,
+        label: `${m.first_name} ${m.last_name}`,
+        hint: m.group_name ? `Member · ${m.group_name}` : 'Member',
+        icon: Users,
+        keywords: `${m.phone ?? ''} ${m.member_code ?? ''}`,
+        run: m.group_id ? go(`/admin/groups/${m.group_id}/members/${m.id}`) : go('/admin/users'),
+      })),
     ];
     return commands.length ? { heading: 'Search results', commands } : null;
   }, [results, debouncedQuery, go]);
