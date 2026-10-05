@@ -2,13 +2,15 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signUpUrl } from '@/lib/app-links';
-import { PLAN_MONTHLY_FEES, ORGANIZATION_PLAN_MONTHLY_FEES, CHANGISHA_PRICING } from '@/types/enums';
+import { CHANGISHA_PRICING, PLAN_MONTHLY_FEES } from '@/types/enums';
 import { btnOutline, btnPrimary } from './finanza';
 import { PRODUCT_PHOTOS } from './photos';
+import { CONTACT, whatsappHref } from './routes';
+
+const WHATSAPP_HREF = whatsappHref(CONTACT.phones[0], 'Hello Kitabu Yetu, I would like to know more for my group.');
 
 /**
  * The four product pillars rotate through the home hero so the platform is
@@ -20,41 +22,38 @@ const SLIDES = [
   {
     id: 'bookkeeper',
     product: 'Bookkeeper',
-    title: 'One group book, no more guesswork.',
-    subtitle:
-      'Members, contributions, savings, loans and welfare on one record that has to balance — for chamas, VSLAs, SACCOs and welfare groups.',
+    title: 'Every shilling. Every member. One ledger.',
+    subtitle: 'Contributions, loans and welfare that always balance — with M-Pesa payments recorded for you.',
     photo: PRODUCT_PHOTOS.bookkeeper,
-    // Each slide is a different billable product (kitabu_yetu vs
-    // chama_reminder vs the org-level ORGANIZATION_PLAN_MONTHLY_FEES vs
-    // Changi$ha's no-monthly-fee model) — this line used to read a single
-    // hardcoded chama_reminder price on every slide, understating
-    // Bookkeeper's real KES 150 starter price.
-    micro: `From KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Pay by M-Pesa · Built for Kenyan groups`,
+    cta: { label: 'Start your group book', href: signUpUrl('kitabu_yetu') },
+    note: `From KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Pay by M-Pesa · Cancel anytime`,
   },
   {
     id: 'chama-reminder',
     product: 'Chama Reminder / Kumbusha',
-    title: 'Every member reminded, on the phone they already use.',
-    subtitle: 'Contribution reminders, meeting notices and updates by SMS — no app for members to install.',
+    title: 'Contributions on time. No follow-up calls.',
+    subtitle: 'Automatic SMS reminders to every member’s phone. Nothing for members to install.',
     photo: PRODUCT_PHOTOS.chamaReminder,
-    micro: `From KES ${PLAN_MONTHLY_FEES.chama_reminder.starter}/month · Pay by M-Pesa · Built for Kenyan groups`,
+    cta: { label: 'Send your first reminder', href: signUpUrl('chama_reminder') },
+    note: `From KES ${PLAN_MONTHLY_FEES.chama_reminder.starter}/month · Works on any phone · Cancel anytime`,
   },
   {
     id: 'fundraise',
     product: 'Fundraise / Changi$ha',
-    title: 'Turn a shared idea into a funded project.',
-    subtitle: 'Create a campaign, track every contribution and keep project money separate from ordinary group funds.',
+    title: 'Raise it together. Track every shilling.',
+    subtitle: 'A shareable M-Pesa campaign page, kept separate from your group’s savings.',
     photo: PRODUCT_PHOTOS.fundraise,
-    // Changi$ha has no monthly fee at all — it's not in PLAN_MONTHLY_FEES.
-    micro: `No monthly fee · ${CHANGISHA_PRICING.platformFeePct}% platform fee, only when you withdraw`,
+    cta: { label: 'Start a campaign', href: '/start-campaign' },
+    note: `From KES ${PLAN_MONTHLY_FEES.changisha.starter} a month · ${CHANGISHA_PRICING.platformFeePct}% when you withdraw · Donors pay nothing extra`,
   },
   {
     id: 'enterprise',
     product: 'Enterprise',
-    title: 'See the whole portfolio and support every group.',
-    subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
+    title: 'Every group you support. One dashboard.',
+    subtitle: 'Portfolio reports, programme funding and disbursements — while each group keeps its own book.',
     photo: PRODUCT_PHOTOS.enterprise,
-    micro: `From KES ${ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString()}/month · Pay by M-Pesa · Built for Kenyan groups`,
+    cta: { label: 'Book an Enterprise demo', href: '/contact' },
+    note: 'Priced by the groups you oversee · Staff roles and audit log included',
   },
 ] as const;
 
@@ -179,14 +178,19 @@ export function HeroCarousel() {
                     </Title>
                     <p className="mb-8 text-lg leading-relaxed text-finanza-text">{slide.subtitle}</p>
                     <div className="flex flex-col gap-3 sm:flex-row">
-                      <a href={signUpUrl()} className={btnPrimary}>
-                        Get Started
+                      <a href={slide.cta.href} className={btnPrimary}>
+                        {slide.cta.label}
                       </a>
-                      <Link href="/contact" className={cn(btnOutline, 'bg-white/60')}>
-                        Talk to Us
-                      </Link>
+                      <a
+                        href={WHATSAPP_HREF}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={cn(btnOutline, 'bg-white/60')}
+                      >
+                        Chat on WhatsApp
+                      </a>
                     </div>
-                    <p className="mt-6 text-sm text-finanza-text">{slide.micro}</p>
+                    <p className="mt-6 text-sm text-finanza-text">{slide.note}</p>
                   </div>
                 </div>
               </div>

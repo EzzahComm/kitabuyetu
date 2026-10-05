@@ -112,19 +112,19 @@ export const PRODUCT_ITEMS: NavLink[] = [
   {
     label: 'Bookkeeper',
     href: ROUTES.bookkeeper,
-    description: 'Contributions, loans, welfare, shares and a real ledger.',
+    description: 'Contributions, loans and welfare — books that balance.',
   },
   {
     label: 'Chama Reminder / Kumbusha',
     href: ROUTES.chamaReminder,
-    description: 'SMS reminders and announcements, no ledger required.',
+    description: 'Automatic SMS reminders. Nothing to set up.',
   },
   {
     label: 'Fundraise / Changi$ha',
     href: ROUTES.fundraise,
-    description: 'Public campaigns and M-Pesa collections for a cause.',
+    description: 'M-Pesa fundraising, tracked to the shilling.',
   },
-  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Multi-group and multi-organization management.' },
+  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Every group you support, one dashboard.' },
 ];
 
 export const ECOSYSTEM_ITEMS: NavLink[] = [
@@ -147,7 +147,7 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 ];
 
 export const PRICING_ITEMS: NavLink[] = [
-  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
+  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Full group bookkeeping with M-Pesa.' },
   {
     label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,
@@ -156,7 +156,7 @@ export const PRICING_ITEMS: NavLink[] = [
   {
     label: 'Changi$ha',
     href: `${ROUTES.pricing}#changisha`,
-    description: 'No monthly fee — a small fee per withdrawal.',
+    description: 'Plans from KES 100 a month, plus a small fee per withdrawal.',
   },
   { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];

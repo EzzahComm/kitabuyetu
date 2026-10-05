@@ -29,7 +29,7 @@ export const metadata: Metadata = marketingMetadata({
   path: '/pricing',
   title: 'Chama App Pricing — One Price per Group',
   description:
-    'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising with no monthly fee.',
+    'One monthly price for the whole group, not per member, paid by M-Pesa. Plans for chamas, welfare groups and SMS reminders, and Changi$ha fundraising from KES 100 a month.',
 });
 
 /** Kitabu Yetu is the default product, so it needs no query string; Chama
@@ -121,41 +121,35 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
 const FAQS: [string, string][] = [
   [
     'Is M-Pesa included?',
-    'Yes. Every Kitabu Yetu plan includes the Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+    'Yes, on every plan. Members pay through a prompt on their phone or your PayBill, and payouts go straight to their M-Pesa.',
   ],
-  ['Can I bring my existing records?', 'Yes. Every plan supports bulk CSV import for members and past contributions.'],
+  [
+    'Can I bring my existing records?',
+    'Yes. Bring your members and past contributions in from a spreadsheet on any plan.',
+  ],
   [
     'How is our data kept private?',
-    "Data is stored on encrypted servers, and each group's records are isolated at the database level. One group can never read another's.",
+    'Your data is stored encrypted and locked to your group. No other group can ever see it.',
   ],
-  [
-    'Can we change plan later?',
-    'Yes. Pay for a different plan by M-Pesa at any time and it activates immediately. There is no lock-in period.',
-  ],
-  [
-    'What if we use up our SMS?',
-    'Nothing stops. The allowance renews each billing cycle; in between, buy top-up credits from your billing page.',
-  ],
+  ['Can we change plan later?', 'Yes. Pay for a different plan by M-Pesa and it switches on immediately. No contract.'],
+  ['What if we use up our SMS?', 'Nothing stops. Your SMS renew every month, and you can top up any time.'],
   [
     'Which product should we start with?',
-    'Chama Reminder if you only need to reach members. Kitabu Yetu when you also need to record and reconcile the money.',
+    'Chama Reminder if you only need to reach members. Bookkeeper if you also need to keep the money records.',
   ],
-  [
-    'Can we move from Chama Reminder to Kitabu Yetu?',
-    'Yes. Buy a Kitabu Yetu plan from your subscription page. Your group, members and message history carry over unchanged.',
-  ],
+  ['Can we move from Chama Reminder to Kitabu Yetu?', 'Yes, any time. Your group, members and messages carry over.'],
   [
     'What does Changi$ha cost?',
-    `No monthly fee. When the group withdraws raised funds, a standard ${CHANGISHA_PRICING.platformFeePct}% platform fee and Safaricom's M-Pesa transfer charge are deducted. Donors pay nothing extra.`,
+    `A monthly plan from KES ${PLAN_MONTHLY_FEES.changisha.starter} (Starter), ${PLAN_MONTHLY_FEES.changisha.growth} (Growth) or ${PLAN_MONTHLY_FEES.changisha.premium} (Premium) lets your group create and launch campaigns. When the group withdraws raised funds, a standard ${CHANGISHA_PRICING.platformFeePct}% platform fee and Safaricom's M-Pesa transfer charge are deducted. Donors pay nothing extra.`,
   ],
-  ['Is there a free plan?', 'No. Every plan is paid, and bought self-service by M-Pesa.'],
+  ['Is there a free plan?', 'No. Plans start from a low monthly price, paid by M-Pesa.'],
 ];
 
 export default function PricingPage() {
   return (
     <PageShell
       title="Pricing"
-      description="One price a month for the whole group — not per member. Paid by M-Pesa, no lock-in. Every price here is the price the system charges."
+      description="One price for the whole group — not per member. Pay by M-Pesa. No contract. No hidden fees."
       layout="sections"
     >
       <FinanzaSection labelledBy="kitabu-yetu-heading" className="pt-4 lg:pt-8">
@@ -163,12 +157,12 @@ export default function PricingPage() {
           id="kitabu-yetu-heading"
           pill="Bookkeeper"
           title={PRODUCT_LABEL.kitabu_yetu}
-          lede="The full book: double-entry accounting, contributions, loans, M-Pesa collection and reconciliation, member records and reports — SMS included."
+          lede="Contributions, loans, welfare, M-Pesa and reports — in books that always balance. SMS included."
           className="mb-10 max-w-3xl"
         />
         <PlanGrid product="kitabu_yetu" />
         <p className="mt-6 text-sm text-finanza-text">
-          Every plan includes a monthly SMS allowance. Used it up? Top up any time — sending never stops.
+          SMS included every month. Top up any time — sending never stops.
         </p>
       </FinanzaSection>
 
@@ -177,7 +171,7 @@ export default function PricingPage() {
           id="chama-reminder-heading"
           pill="SMS only · Kumbusha"
           title={PRODUCT_LABEL.chama_reminder}
-          lede={`Reminders, announcements and birthday greetings by SMS — no ledger to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} whenever you're ready; your members come with you.`}
+          lede={`SMS reminders and announcements — nothing to set up. Move to ${PRODUCT_LABEL.kitabu_yetu} any time; your members come with you.`}
           className="mb-10 max-w-3xl"
         />
         <PlanGrid product="chama_reminder" />
@@ -188,7 +182,7 @@ export default function PricingPage() {
           Changi$ha and Enterprise
         </h2>
         <div className="grid gap-6 lg:grid-cols-2">
-          {/* Changi$ha — priced per withdrawal, from CHANGISHA_PRICING (the withdrawal service's defaults). */}
+          {/* Changi$ha — a monthly plan (PLAN_MONTHLY_FEES.changisha) plus a per-withdrawal fee from CHANGISHA_PRICING. */}
           <section
             id="changisha"
             aria-labelledby="changisha-heading"
@@ -201,16 +195,20 @@ export default function PricingPage() {
               </h3>
             </div>
             <p className="font-display text-4xl font-bold text-finanza-dark">
-              {CHANGISHA_PRICING.platformFeePct}%
-              <span className="ml-2 text-base font-normal text-finanza-text">of each withdrawal</span>
+              From KES {PLAN_MONTHLY_FEES.changisha.starter}
+              <span className="ml-2 text-base font-normal text-finanza-text">a month</span>
             </p>
-            <p className="mt-2 text-finanza-text">No monthly fee. You pay only when you take money out.</p>
+            <p className="mt-2 text-finanza-text">
+              Growth KES {PLAN_MONTHLY_FEES.changisha.growth}, Premium KES {PLAN_MONTHLY_FEES.changisha.premium}. Plus{' '}
+              {CHANGISHA_PRICING.platformFeePct}% of each withdrawal.
+            </p>
             <ul className="mt-6 flex-1 space-y-2.5 text-[0.9375rem] text-finanza-text">
               {[
+                'A registered group with a chairperson, treasurer and secretary runs the campaign',
                 'Donors give by M-Pesa and pay nothing extra',
                 "Safaricom's M-Pesa transfer charge is passed on at cost",
                 `Minimum withdrawal KES ${CHANGISHA_PRICING.minWithdrawal.toLocaleString()}, to an M-Pesa number, paybill or till`,
-                'Every campaign is reviewed by Kitabu Yetu before it goes live',
+                'Every campaign checked by us before it goes live',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-2.5">
                   <Check aria-hidden="true" className="mt-0.5 h-4 w-4 shrink-0 text-brand-500" />
@@ -245,15 +243,15 @@ export default function PricingPage() {
             </div>
             <p className="font-display text-4xl font-bold">By agreement</p>
             <p className="mt-2 flex-1 text-brand-100/85">
-              For organizations managing many groups — portfolio dashboards, multi-group reporting and programme
-              management. Priced on the number of groups and members you oversee.
+              For organizations overseeing many groups — one dashboard, portfolio reports and programme funding. Priced
+              by the groups and members you oversee.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
                 href={ROUTES.contact}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-8 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100"
               >
-                Talk to us
+                Book a demo
               </Link>
               <Link
                 href={ROUTES.enterprise}
@@ -272,7 +270,7 @@ export default function PricingPage() {
             id="faq-heading"
             pill="FAQ"
             title="Pricing questions"
-            lede="Anything else? We answer on WhatsApp and email."
+            lede="Anything else? Ask us on WhatsApp or email."
           />
           <dl className="grid gap-4">
             {FAQS.map(([question, answer]) => (

@@ -235,8 +235,12 @@ export async function assertSubscriptionActive(req: NextRequest, auth: AuthConte
   if (required === 'open') return;
   if (EXEMPT_ROLES.includes(auth.role)) return;
 
+  // Changi$ha is an add-on to a group's own product: holding it alone does not open the member list or
+  // SMS Centre, so 'any' means any CORE product.
+  const holdsCore = (products: ReadonlySet<SubscriptionProduct>): boolean =>
+    products.has('kitabu_yetu') || products.has('chama_reminder');
   const satisfies = (products: ReadonlySet<SubscriptionProduct>): boolean =>
-    products.size > 0 && (required === 'any' || products.has(required));
+    products.size > 0 && (required === 'any' ? holdsCore(products) : products.has(required));
 
   const cached = entitlements.get(auth.groupId);
   if (cached && cached.expiresAt > Date.now() && satisfies(cached.products)) return;
@@ -246,7 +250,7 @@ export async function assertSubscriptionActive(req: NextRequest, auth: AuthConte
   const products = await loadActiveProducts(auth.groupId);
   if (products.size > 0) remember(auth.groupId, products);
 
-  if (products.size === 0) {
+  if (products.size === 0 || (required === 'any' && !holdsCore(products))) {
     throw new PaymentRequiredError('This group has no active subscription. Choose a plan and pay to restore access.');
   }
   if (!satisfies(products)) {

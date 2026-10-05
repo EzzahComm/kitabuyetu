@@ -34,19 +34,15 @@ import {
   btnPrimary,
 } from '@/components/marketing/finanza';
 import {
-  CallbackSection,
   CommunitiesSection,
-  CtaBand,
   CustomerPathsSection,
-  FaqSection,
-  LatestPostsSection,
-  LiveCampaignsSection,
-  KitabuFacts,
   MemberBenefitsSection,
-  ProductTabsSection,
-  TestimonialsSection,
-  TrustSection,
-} from '@/components/marketing/kitabu-sections';
+} from '@/components/marketing/sections/audience';
+import { CallbackSection, CtaBand } from '@/components/marketing/sections/cta';
+import { LatestPostsSection, LiveCampaignsSection } from '@/components/marketing/sections/live-content';
+import { KitabuFacts, ProductTabsSection } from '@/components/marketing/sections/products';
+import { TestimonialsSection } from '@/components/marketing/sections/testimonials';
+import { FaqSection, TrustSection } from '@/components/marketing/sections/trust';
 
 import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
 import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
@@ -102,60 +98,58 @@ const PARTNER_LOGOS = [
 ] as const;
 
 const PROMISES = [
-  { icon: Unlock, title: 'No lock-in period', body: 'Pay month to month, with no contract to break.' },
-  { icon: Smartphone, title: 'Pay by M-Pesa', body: 'Your subscription and your members’ contributions.' },
-  { icon: UsersRound, title: 'Built for Kenyan groups', body: 'Not a generic business tool adapted to fit.' },
+  { icon: Unlock, title: 'No contract', body: 'Pay monthly. Stop any time.' },
+  { icon: Smartphone, title: 'All by M-Pesa', body: 'Your subscription and your members’ contributions.' },
+  { icon: UsersRound, title: 'Made for chamas', body: 'Not a business tool squeezed to fit.' },
 ];
 
 /** Matched 1:1 by index, so the two columns read as a direct correction. */
 const TODAY = [
-  'Notebooks that only one person can read',
-  'Spreadsheets nobody trusts after a meeting argument',
-  "M-Pesa messages scattered across officials' phones",
-  'Manual calculations redone at every meeting',
-  'Reports that take days to put together',
-  'Balances members have to take on faith',
+  'A notebook only the treasurer can read',
+  "M-Pesa messages on five officials' phones",
+  'Recalculating at every meeting',
+  'Reports take days',
+  'Balances taken on faith',
 ];
 const WITH_KITABU = [
-  'One organized digital record everyone in office can see',
-  'Transparent finances the whole group can trust',
-  'Payments matched to members automatically',
-  'Calculations the system does for you',
-  'Reports ready in minutes, not days',
-  'Balances every member can check for themselves',
+  'One ledger every official can see',
+  'Payments matched automatically',
+  'The system does the maths',
+  'Reports in minutes',
+  'Every member checks their own',
 ];
 
 const PAYMENT_STEPS = [
-  { title: 'Members pay through M-Pesa', body: 'Contributions arrive the way members already send money.' },
-  { title: 'Payments are matched', body: 'Kitabu Yetu helps match each payment to the member who made it.' },
-  { title: 'Your books update', body: "The group's records reflect the payment — no evening of reconciliation." },
+  { title: 'Member pays by M-Pesa', body: 'The way they already send money.' },
+  { title: 'Payment is matched', body: 'Linked to the right member automatically.' },
+  { title: 'Books update', body: 'Balanced and confirmed by SMS. Done.' },
 ];
 
 const ECOSYSTEM = [
   {
     icon: Banknote,
     title: 'Funding',
-    body: 'Donors, development partners and funding for group projects.',
+    body: 'Donors and partners for group projects.',
   },
   {
     icon: ShieldCheck,
     title: 'Financial products',
-    body: 'Loans, insurance and other products for groups and members.',
+    body: 'Loans and insurance for groups and members.',
   },
   {
     icon: GraduationCap,
     title: 'Professional knowledge',
-    body: 'Practical guidance on finance, farming, investment and governance.',
+    body: 'Guidance on finance, farming and governance.',
   },
   {
     icon: Store,
     title: 'Markets & services',
-    body: "Markets, suppliers and services for your group's activities.",
+    body: 'Buyers, suppliers and services for your projects.',
   },
   {
     icon: FileText,
     title: 'Build your track record',
-    body: 'Clean records show what your group has built — and what it can do next.',
+    body: 'Clean records prove what your group can do.',
   },
 ];
 
@@ -209,15 +203,14 @@ export default function Home() {
                 id="about-heading"
                 className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
               >
-                Built for the groups Kenyans already organize.
+                Your group already works. Now the books will too.
               </h2>
               <p className="mb-4 leading-relaxed text-finanza-text">
-                Most groups already keep good records. The trouble is where they live: one cash book in one
-                person&apos;s handwriting, and an M-Pesa statement matched to names the night before a meeting.
+                The problem isn&apos;t discipline. It&apos;s one book in one person&apos;s handwriting, and M-Pesa
+                messages matched to names the night before a meeting.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu puts members, money and payments in one place, on a ledger that has to balance before it
-                saves.
+                Kitabu Yetu puts members, money and payments in one place — in books that always balance.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (
@@ -242,7 +235,7 @@ export default function Home() {
             id="problem-heading"
             align="center"
             pill="The Problem"
-            title="Your group already keeps records, but they aren't reliable."
+            title="Still running the group from a notebook?"
             className="mb-12"
           />
           <div className="grid gap-6 md:grid-cols-2">
@@ -282,14 +275,14 @@ export default function Home() {
               <FinanzaHeading
                 id="how-heading"
                 pill="How It Works"
-                title="From M-Pesa to your books."
-                lede="Payments and records work together. Members pay through M-Pesa and Kitabu Yetu helps match payments to members and update the group's records."
+                title="Member pays. Books update. Done."
+                lede="No evening of matching M-Pesa messages to names."
               />
               <div className="my-8">
-                <Emphasis>Less reconciling and guessing, more confidence.</Emphasis>
+                <Emphasis>Treasurers get their evenings back.</Emphasis>
               </div>
               <Link href="/how-it-works" className={btnPrimary}>
-                See How It Works
+                See it in action
               </Link>
             </div>
             <ol className="space-y-5">
@@ -335,8 +328,8 @@ export default function Home() {
               <FinanzaHeading
                 id="ecosystem-heading"
                 pill="Ecosystem"
-                title="From managing your group to growing it."
-                lede="The Kitabu Yetu Ecosystem connects organized groups to opportunities, knowledge and resources beyond their own savings."
+                title="Clean records open doors."
+                lede="Your track record connects you to funding, partners and markets beyond your savings."
               />
               <ul className="mt-8 space-y-6">
                 {ECOSYSTEM.map((item) => (
@@ -350,7 +343,7 @@ export default function Home() {
                 ))}
               </ul>
               <div className="my-8">
-                <Emphasis>Manage your group, build its track record and unlock its potential.</Emphasis>
+                <Emphasis>Run the group today. Grow it tomorrow.</Emphasis>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>

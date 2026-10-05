@@ -5,7 +5,7 @@ import { ArrowRight, Banknote, GraduationCap, HandCoins, Handshake, ShieldCheck,
 import type { LucideIcon } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { FinanzaHeading, FinanzaSection, IconBadge, btnPrimary } from '@/components/marketing/finanza';
-import { CtaBand } from '@/components/marketing/kitabu-sections';
+import { CtaBand } from '@/components/marketing/sections/cta';
 import { ROUTES } from '@/components/marketing/routes';
 import { withAdminDb } from '@/lib/db';
 import {

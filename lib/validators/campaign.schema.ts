@@ -78,39 +78,3 @@ export const DonateSchema = z.object({
   message: z.string().max(500).optional(),
   isAnonymous: z.boolean().optional(),
 });
-
-/**
- * Public, self-serve campaign creation — register_campaign() creates a new
- * group (the caller becomes its sole chairperson) and the campaign together,
- * already submitted for review. Combines CreateCampaignSchema's campaign
- * fields with the creator's own identity (mirrors RegisterOrganizationSchema)
- * and requires the payout destination up front (SetPayoutDestinationSchema is
- * optional-at-creation in the authenticated flow; a one-shot public form has
- * no later step to set it in).
- */
-export const RegisterCampaignSchema = z
-  .object({
-    firstName: z.string().trim().min(1).max(80),
-    lastName: z.string().trim().min(1).max(80),
-    phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-    password: z.string().min(8).max(100),
-    title: z.string().min(3).max(120),
-    story: z.string().min(20).max(10_000),
-    targetAmount: z.number().positive().max(50_000_000),
-    beneficiaryName: z.string().max(120).optional(),
-    beneficiaryConsentConfirmed: z.boolean().optional(),
-    coverImageUrl: z.string().url().optional(),
-    endsAt: z.string().datetime().optional(),
-    payout: SetPayoutDestinationSchema,
-  })
-  .superRefine((data, ctx) => {
-    if (data.beneficiaryName?.trim() && !data.beneficiaryConsentConfirmed) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ['beneficiaryConsentConfirmed'],
-        message: 'Confirm the beneficiary has agreed to be named publicly before adding a beneficiary name',
-      });
-    }
-  });
-
-export type RegisterCampaignInput = z.infer<typeof RegisterCampaignSchema>;

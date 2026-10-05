@@ -130,8 +130,11 @@ export default function MpesaPage() {
 
       <div className="flex flex-wrap gap-2 items-end">
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Type</label>
+          <label htmlFor="mpesa-filter-type" className="text-xs text-muted-foreground">
+            Type
+          </label>
           <select
+            id="mpesa-filter-type"
             value={type}
             onChange={(e) => {
               setType(e.target.value);
@@ -147,8 +150,11 @@ export default function MpesaPage() {
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Status</label>
+          <label htmlFor="mpesa-filter-status" className="text-xs text-muted-foreground">
+            Status
+          </label>
           <select
+            id="mpesa-filter-status"
             value={status}
             onChange={(e) => {
               setStatus(e.target.value);
@@ -164,8 +170,11 @@ export default function MpesaPage() {
           </select>
         </div>
         <div className="space-y-1">
-          <label className="text-xs text-muted-foreground">Phone</label>
+          <label htmlFor="mpesa-filter-phone" className="text-xs text-muted-foreground">
+            Phone
+          </label>
           <Input
+            id="mpesa-filter-phone"
             value={phone}
             onChange={(e) => {
               setPhone(e.target.value);
