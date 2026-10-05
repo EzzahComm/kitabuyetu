@@ -58,12 +58,13 @@ Every finding cites a file path and, where useful, a line number. No screens, AP
 Five route groups: `(auth)` (4 pages), `(dashboard)` (24 sub-routes — the deep, primary product surface: loans, members, contributions, mpesa, welfare, shares, dividends, treasury, accounting, billing, analytics, credit-scores, investments, reports, meetings, sms/whatsapp/email, data-import, organization, settings), `(admin)` (13 pages, superadmin backoffice), `(enterprise)` (3 real pages + 5 nav items marked `soon: true`), `(member)` (4 pages, mobile-first prototype).
 
 **Four separate navigation implementations, no shared abstraction**:
-| Portal | Component | Pattern |
-|---|---|---|
-| Dashboard | `components/layout/sidebar.tsx` | Fixed 260px, no collapse, no search, dark chrome, green accent |
-| Admin | `components/admin/sidebar.tsx` | Collapsible 60↔240px, inline nav-search, **red** accent, paired with a real ⌘K command palette |
-| Enterprise | inline array in `app/(enterprise)/layout.tsx` | Own `OrgSwitcher`, 3 sections, "Soon" pills for unbuilt items |
-| Member | `components/member/bottom-nav.tsx` | Fixed bottom tab bar, phone-width column, `max-w-md` even on desktop |
+
+| Portal     | Component                                     | Pattern                                                                                        |
+| ---------- | --------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Dashboard  | `components/layout/sidebar.tsx`               | Fixed 260px, no collapse, no search, dark chrome, green accent                                 |
+| Admin      | `components/admin/sidebar.tsx`                | Collapsible 60↔240px, inline nav-search, **red** accent, paired with a real ⌘K command palette |
+| Enterprise | inline array in `app/(enterprise)/layout.tsx` | Own `OrgSwitcher`, 3 sections, "Soon" pills for unbuilt items                                  |
+| Member     | `components/member/bottom-nav.tsx`            | Fixed bottom tab bar, phone-width column, `max-w-md` even on desktop                           |
 
 Each independently reimplements the same mobile drawer pattern (`fixed inset-0 lg:hidden` overlay + `translate-x` toggle) rather than sharing one primitive — meaning any future nav fix (e.g. an accessibility patch to the hamburger button) has to be applied four times.
 

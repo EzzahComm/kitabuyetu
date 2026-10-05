@@ -192,9 +192,7 @@ export function buildMonitoringDashboardPayload(input: {
       phone: tx.phone_number ?? '',
       amount: Number(tx.amount ?? 0),
       status: (tx.status === 'failed' ? 'failed' : tx.status === 'pending' ? 'pending' : 'success') as
-        | 'success'
-        | 'pending'
-        | 'failed',
+        'success' | 'pending' | 'failed',
       ref: tx.mpesa_receipt_number ?? tx.reference ?? tx.id,
       at: Date.parse(tx.created_at ?? new Date().toISOString()),
     })),

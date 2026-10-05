@@ -16,11 +16,7 @@ import { withDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 export type FundingSourceType =
-  | 'internal_savings'
-  | 'organization_allocation'
-  | 'external_grant'
-  | 'bank_loan'
-  | 'other';
+  'internal_savings' | 'organization_allocation' | 'external_grant' | 'bank_loan' | 'other';
 
 export interface GroupFundingSource {
   id: string;
