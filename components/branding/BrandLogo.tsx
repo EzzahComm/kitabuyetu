@@ -1,57 +1,44 @@
-import Image from 'next/image';
 import Link from 'next/link';
+import type { BrandTone } from '@/lib/ui/brand-mark';
 import { cn } from '@/lib/utils';
+import { BrandMark } from './BrandMark';
 
 interface BrandLogoProps {
-  /** Pixel height (and width — the source is square). Defaults to 36. */
+  /** Pixel height and width (the mark is square). Defaults to 36. */
   size?: number;
   /** Wrap in a Link to the given href. Omit to render plain. */
   href?: string;
-  /** Add eager-load + fetchPriority. Use for above-the-fold logos (navbar, auth hero). */
-  priority?: boolean;
+  /** Ground the mark sits on. Defaults to 'light'. */
+  tone?: BrandTone;
   /** Extra classes applied to the outer wrapper (Link if href set, else span). */
   className?: string;
-  /** Override the rendered alt text. */
+  /** Accessible name. Pass '' when adjacent text already says "Kitabu Yetu". */
   alt?: string;
 }
 
 /**
- * Kitabu Yetu logo image — the single source of truth for rendering the brand mark.
- * Use this anywhere the logo appears in the UI; do not import the PNG directly.
- *
- * The source asset is the full lockup (graphic + wordmark + tagline). At small sizes
- * the visual marks dominate; the wordmark/tagline become decorative. Consumers that
- * want a separate text wordmark next to the logo (e.g. navbar) can render their own
- * <span>Kitabu Yetu</span> alongside this component.
+ * The Kitabu Yetu mark on its own: the three-dot group above the open book.
+ * Use it where there's only room for an icon. For the mark with the wordmark
+ * (and optionally the tagline), use <BrandLockup />.
  */
 export function BrandLogo({
   size = 36,
   href,
-  priority = false,
+  tone = 'light',
   className,
-  alt = 'Kitabu Yetu Logo',
+  alt = 'Kitabu Yetu',
 }: BrandLogoProps): React.ReactElement {
-  const img = (
-    <Image
-      src="/brand/kitabu-yetu-logo.png"
-      alt={alt}
-      width={size}
-      height={size}
-      priority={priority}
-      sizes={`${size}px`}
-      className="object-contain"
-    />
-  );
+  const mark = <BrandMark size={size} tone={tone} title={href ? undefined : alt} />;
 
   if (href) {
     return (
-      <Link href={href} className={cn('inline-flex items-center', className)} aria-label={alt}>
-        {img}
+      <Link href={href} className={cn('inline-flex items-center', className)} aria-label={alt || undefined}>
+        {mark}
       </Link>
     );
   }
 
-  return <span className={cn('inline-flex items-center', className)}>{img}</span>;
+  return <span className={cn('inline-flex items-center', className)}>{mark}</span>;
 }
 
 export default BrandLogo;

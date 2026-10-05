@@ -22,10 +22,17 @@ import type { CampaignWithdrawalRow } from '@/lib/services/campaign-withdrawals.
 import { describePayoutDestination } from '@/lib/campaigns/payout-destination';
 
 /**
- * Withdrawal request + maker-checker approval, same shape as the treasury
- * page's SettlementsTab/VendorPaymentsTab — a second officer must approve
- * before anything reaches Daraja.
+ * Withdrawal request + approval. The requester's office counts as their
+ * sign-off; the other two of chairperson/treasurer/secretary must each approve,
+ * then Kitabu Yetu signs off, before anything reaches Daraja.
  */
+const ROLE_LABEL: Record<string, string> = {
+  chairperson: 'chairperson',
+  treasurer: 'treasurer',
+  secretary: 'secretary',
+};
+const roleList = (roles: string[]) => roles.map((r) => ROLE_LABEL[r] ?? r).join(', ');
+
 export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: string; amountRaised: string }) {
   const { toast } = useToast();
   const [requestOpen, setRequestOpen] = useState(false);
@@ -41,7 +48,10 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
   const onRequest = async () => {
     try {
       await requestMut.mutateAsync(Number(amount));
-      toast({ title: 'Withdrawal requested', description: 'Funds reserved — awaiting a second officer’s approval.' });
+      toast({
+        title: 'Withdrawal requested',
+        description: 'Funds reserved — the other two offices must approve, then Kitabu Yetu signs off.',
+      });
       setRequestOpen(false);
       setAmount('');
     } catch (e) {
@@ -97,7 +107,21 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               header: 'Status',
               render: (r: CampaignWithdrawalRow) => (
                 <div>
-                  <StatusPill status={r.status} size="sm" />
+                  <StatusPill
+                    status={r.status}
+                    size="sm"
+                    label={r.status === 'awaiting_platform' ? 'Awaiting Kitabu Yetu sign-off' : undefined}
+                  />
+                  {r.status === 'pending_approval' && r.approval_progress && (
+                    <p className="mt-0.5 max-w-[200px] text-[10px] text-muted-foreground">
+                      Requested by the{' '}
+                      {roleList(r.approval_progress.requested_by_role ? [r.approval_progress.requested_by_role] : [])}
+                      {r.approval_progress.approved_roles.length > 0 &&
+                        `; approved by ${roleList(r.approval_progress.approved_roles)}`}
+                      {r.approval_progress.remaining_roles.length > 0 &&
+                        `; waiting on ${roleList(r.approval_progress.remaining_roles)}`}
+                    </p>
+                  )}
                   {r.failure_reason && (
                     <ExpandableText lines={2} className="text-[10px] text-destructive mt-0.5 max-w-[180px]">
                       {r.failure_reason}
@@ -182,8 +206,8 @@ export function CampaignWithdrawals({ campaignId, amountRaised }: { campaignId: 
               ]
             : []
         }
-        warning="Approving sends this payout to M-Pesa immediately. It cannot be recalled."
-        confirmLabel="Approve & send"
+        warning="Your approval is one of three. Once the chairperson, treasurer and secretary have all signed off, Kitabu Yetu reviews it before any money is sent."
+        confirmLabel="Approve"
         onConfirm={async () => {
           if (approveTarget) await actionMut.mutateAsync({ withdrawalId: approveTarget.id, action: 'approve' });
         }}

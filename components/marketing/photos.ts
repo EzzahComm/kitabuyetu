@@ -39,11 +39,11 @@ export const PHOTOS: Record<
     alt: 'Four young women laughing together around a laptop on a coffee table',
     position: '50% 45%',
   },
-  /** A young member on her phone — reminders, M-Pesa, the member portal. */
+  /** A member checking their phone — reminders, M-Pesa, the member portal. */
   memberPhone: {
     src: heroTwoImg,
-    alt: 'A smiling young woman holding a smartphone',
-    position: '70% 40%',
+    alt: 'A young man checking his phone while crossing a street in Dar es Salaam',
+    position: '40% 55%',
   },
   /** A women's group official keeping the group book (VSLA / chama records). */
   vslaRecords: {
@@ -60,15 +60,14 @@ export const PHOTOS: Record<
   /** Paying by phone. */
   payments: {
     src: fundraiseImg,
-    alt: 'A customer holds a phone over a payment reader at a shop counter',
-    position: '60% 50%',
-    placeholder: true,
+    alt: 'A shopkeeper in Dar es Salaam smiling and holding her phone at her market stall',
+    position: '60% 30%',
   },
-  /** An organisation's staff reviewing a portfolio. */
+  /** Two people reaching an agreement — the organisation/Kitabu Yetu partnership. */
   organisations: {
     src: enterpriseImg,
-    alt: 'Two women talking at a conference table, one taking notes beside a laptop',
-    placeholder: true,
+    alt: 'Two people shaking hands in an office in Nairobi',
+    position: '55% 50%',
   },
 };
 

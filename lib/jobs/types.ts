@@ -6,6 +6,7 @@ export type JobType =
   | 'email_retry_failed' // Retry transiently-failed emails (every 5 min)
   | 'email_send' // Ad-hoc: send one templated email (replaces lib/queue's Redis email fan-out)
   | 'email_campaign_drain' // Drain due email_campaign_recipients rows for in-flight campaigns (every 5 min)
+  | 'newsletter_digest_drain' // Drain pending newsletter_digest_recipients rows for in-flight digests (every 5 min)
   | 'email_birthday' // Birthday emails (daily 07:00 UTC)
   | 'email_overdue_invoices' // Overdue invoice reminders (daily 09:00 UTC)
   | 'email_recurring_invoices' // Process recurring invoices (daily 06:00 UTC)
@@ -22,7 +23,8 @@ export type JobType =
   | 'governance_compute_metrics' // Populate governance_snapshots/health_scores/alerts for every active group (1st of month, 11:00 UTC)
   | 'cleanup_expired_tokens' // Remove expired refresh tokens (daily 02:00 UTC)
   | 'notify_loan_due_alerts' // Loan repayment due/overdue alerts (daily 06:00 UTC)
-  | 'notify_contribution_reminders' // Missed-contribution nudge (1st of month, 08:00 UTC)
+  | 'notify_contribution_reminders' // Monthly contribution/welfare balance + arrears SMS for groups with a configured contribution-plan.service.ts plan (1st of month, 08:00 UTC)
+  | 'notify_weekly_savings_update' // Weekly savings-update SMS to EVERY active member (total contributed, group total, outstanding vs weekly-contribution-default.service.ts's per-group/platform target) — unlike notify_contribution_reminders, not limited to groups with a configured plan (Monday 09:00 EAT)
   | 'sms_birthday_reminders' // Birthday SMS for opted-in groups (daily 07:00 UTC, alongside email_birthday)
   | 'outbox_dispatch' // Drain the transactional event_outbox (every 5 min)
   | 'payment_orphan_monitor' // Alert on completed payments stuck in allocation_status='received' (hourly)
@@ -43,6 +45,9 @@ export type JobType =
   | 'organization_sms_allowance_grant' // Grant each org's bundled SMS allowance on its plan's monthly anniversary (daily)
   | 'organization_report_export' // Ad-hoc: render + upload one organization report export (enqueued on demand or by a due schedule)
   | 'organization_report_schedules_process' // Fire due report_schedules rows (every 5 min, mirrors sms_process_schedules)
+  | 'admin_alert_deliver' // Ad-hoc: deliver one administrator SMS/email (retries with backoff)
+  | 'admin_alert_digest' // Send the aggregated admin activity digest (every 5 min, self-gated by window)
+  | 'system_health_check' // Check DB/Redis/jobs/SMS/callbacks and alert admins on failures (every 5 min)
   | 'cleanup_old_jobs'; // Prune completed/failed job_queue + stale job_logs rows (1st of month, 08:00 UTC)
 
 export interface Job {

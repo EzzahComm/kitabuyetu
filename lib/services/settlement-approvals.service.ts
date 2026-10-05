@@ -32,6 +32,8 @@ export interface RecordApprovalInput {
   initiatedBy: string;
   decision: SettlementDecision;
   reason?: string;
+  /** The approver's office, recorded for flows that need sign-off from specific offices (campaign withdrawals). */
+  approverRole?: string;
 }
 
 /**
@@ -47,13 +49,30 @@ export async function recordApproval(db: PoolClient, ctx: TenantContext, args: R
       `Maker-checker: the initiator cannot ${args.decision === 'approved' ? 'approve' : 'reject'} their own request`,
     );
   }
-  const { rows } = await db.query<{ id: string }>(
-    `INSERT INTO settlement_approvals
-       (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason)
-     VALUES ($1,$2,$3,$4,'officer',$5,$6)
-     RETURNING id`,
-    [args.subjectType, args.subjectId, ctx.groupId, ctx.userId, args.decision, args.reason ?? null],
-  );
+  const { rows } =
+    args.approverRole === undefined
+      ? await db.query<{ id: string }>(
+          `INSERT INTO settlement_approvals
+             (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason)
+           VALUES ($1,$2,$3,$4,'officer',$5,$6)
+           RETURNING id`,
+          [args.subjectType, args.subjectId, ctx.groupId, ctx.userId, args.decision, args.reason ?? null],
+        )
+      : await db.query<{ id: string }>(
+          `INSERT INTO settlement_approvals
+             (subject_type, subject_id, group_id, approver_id, approver_kind, decision, reason, approver_role)
+           VALUES ($1,$2,$3,$4,'officer',$5,$6,$7)
+           RETURNING id`,
+          [
+            args.subjectType,
+            args.subjectId,
+            ctx.groupId,
+            ctx.userId,
+            args.decision,
+            args.reason ?? null,
+            args.approverRole,
+          ],
+        );
 
   if (rows[0]) {
     await db.query(

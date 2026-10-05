@@ -2,17 +2,18 @@
  * Single source of truth for Kitabu Yetu brand constants used outside of
  * Tailwind/CSS — specifically transactional emails and server-rendered PDFs.
  *
- * UI components (navbar, footer, sidebars) use the canonical logo via
- * <BrandLogo /> and Tailwind tokens (`bg-brand-500`, `text-brand-blue-500`).
+ * UI components (navbar, footer, sidebars) use the logo components in
+ * components/branding/ (<BrandLockup />, <BrandLogo />) and Tailwind tokens (`bg-brand-500`, `text-brand-blue-500`).
  * Email + PDF rendering happens server-side and lands in opaque clients
  * (Gmail/Outlook/Adobe Reader), so they need raw hex + absolute URLs.
  */
 
 import { brandGreen, brandNavy, brandNeutral } from '@/lib/ui/brand-palette';
+import { BRAND_TAGLINE } from '@/lib/ui/brand-mark';
 
 export const BRAND = {
   name: 'Kitabu Yetu',
-  tagline: 'Build Vibrant Communities',
+  tagline: BRAND_TAGLINE,
 
   // Hex values sourced from lib/ui/brand-palette.ts (also consumed by
   // tailwind.config.ts and lib/ui/tokens.ts) — do not hand-copy shades here.
@@ -38,12 +39,11 @@ export const BRAND = {
 
 /**
  * Absolute URL to the logo, sized for embedding in emails (where relative
- * paths don't resolve). Points at a 144x144 raster (12.7KB) generated from
- * the 1024x1024 canonical master (1.43MB) by scripts/generate-icons.ts —
- * emails only ever render this at 36x36 or 72x72
- * (emails/components/layout.tsx, lib/email/templates/engine.ts), so every
- * recipient whose client loads images was downloading ~115x more image
- * data than the logo is ever displayed at (docs/audits/optimization-2026-09).
+ * paths don't resolve). Points at a 144x144 app-icon raster generated from
+ * lib/ui/brand-mark.ts by `npm run brand:assets`. Emails only ever render
+ * this at 36x36 or 72x72 (emails/components/layout.tsx,
+ * lib/email/templates/engine.ts), so 144 is retina-sharp without shipping a
+ * large master to every inbox (docs/audits/optimization-2026-09).
  */
 export function getBrandLogoUrl(): string {
   const base = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.vercel.app').replace(/\/$/, '');

@@ -17,7 +17,9 @@ import { toMpesaAmount } from '@/lib/utils/currency';
 import type { PlanType, SubscriptionProduct, BillingCycle } from '@/types/enums';
 import { notifyMember } from './notifications.service';
 import { billingService } from './billing.service';
-import { postContributionJournal, postSystemJournal } from './accounting.service';
+import { postContributionJournal } from './accounting.service';
+import { creditCampaignDonation } from './campaign-donation-ledger.service';
+import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
@@ -357,6 +359,25 @@ export async function handleSTKCallback(
         );
       }
 
+      if (stk) {
+        // Subscription payments failing is actionable; everything else rolls into the digest.
+        await recordActivityInTx(db, {
+          type: stk.purpose === 'subscription' ? ActivityEventType.PAYMENT_FAILED : ActivityEventType.MPESA_STK_FAILED,
+          dedupKey: `stk-failed:${cb.CheckoutRequestID}`,
+          group: { id: stk.group_id, name: '' },
+          transaction: {
+            id: stk.id,
+            reference: cb.CheckoutRequestID,
+            type: stk.purpose ?? 'STK push',
+            amount: Number(stk.amount),
+            currency: 'KES',
+            status: 'failed',
+          },
+          description: cb.ResultDesc,
+          metadata: { resultCode: cb.ResultCode, purpose: stk.purpose },
+        });
+      }
+
       const { rows: payRows } = await db.query<{ id: string; status: string }>(
         `UPDATE payments SET status='failed'
          WHERE mpesa_checkout_request_id=$1 AND status='pending'
@@ -612,6 +633,20 @@ export async function handleSTKCallback(
 
     // Audit: stk_request transitioned to completed (only on first transition)
     if (stkUpdateRows[0]) {
+      await recordActivityInTx(db, {
+        type: ActivityEventType.MPESA_STK_COMPLETED,
+        dedupKey: `stk-completed:${receipt}`,
+        group: { id: stkReq?.group_id ?? '', name: '' },
+        transaction: {
+          id: stkUpdateRows[0].id,
+          reference: receipt,
+          type: stkReq?.purpose ?? 'STK push',
+          amount,
+          currency: 'KES',
+          status: 'completed',
+        },
+        metadata: { purpose: stkReq?.purpose ?? null },
+      });
       await db.query(
         `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
          VALUES ($1, $2, $3, $4, $5, $6, $7)`,
@@ -806,6 +841,27 @@ async function activateSubscriptionFromSTK(db: PoolClient, stkReq: StkRequestRow
         product: stkReq.product,
         planType: stkReq.plan_type,
         paymentId: pay[0].id,
+      });
+
+      await recordActivityInTx(db, {
+        type: ActivityEventType.SUBSCRIPTION_CREATED,
+        dedupKey: `subscription:${in_.receipt}`,
+        group: { id: stkReq.group_id, name: '' },
+        transaction: {
+          id: pay[0].id,
+          reference: in_.receipt,
+          type: 'Subscription payment',
+          amount: in_.amount,
+          currency: 'KES',
+          status: 'active',
+        },
+        metadata: {
+          product: stkReq.product,
+          plan: stkReq.plan_type,
+          billingCycle: stkReq.billing_cycle ?? 'monthly',
+          paymentMethod: 'M-Pesa STK',
+          smsLines: [`Plan: ${stkReq.product} ${stkReq.plan_type}`],
+        },
       });
 
       // Audit: subscription successfully activated
@@ -1082,67 +1138,17 @@ async function applyCampaignDonationFromSTK(
     return;
   }
 
-  const { rows: donationRows } = await db.query<{ id: string }>(
-    `INSERT INTO campaign_donations
-       (campaign_id, group_id, donor_name, donor_phone, amount, message, is_anonymous, mpesa_receipt_number, status)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'completed')
-     ON CONFLICT (mpesa_receipt_number) DO NOTHING
-     RETURNING id`,
-    [
-      stkReq.campaign_id,
-      stkReq.group_id,
-      stkReq.donor_name,
-      in_.phone,
-      in_.amount.toFixed(2),
-      stkReq.donor_message,
-      stkReq.is_anonymous ?? false,
-      in_.receipt,
-    ],
-  );
-  const donationId = donationRows[0]?.id ?? null;
-  if (!donationId) return; // duplicate callback — nothing more to do
-
-  const { rows: campaignRows } = await db.query<{ title: string }>(
-    `UPDATE campaigns
-     SET    amount_raised = amount_raised + $2, updated_at = NOW()
-     WHERE  id = $1
-     RETURNING title`,
-    [stkReq.campaign_id, in_.amount.toFixed(2)],
-  );
-  const campaignTitle = campaignRows[0]?.title ?? 'campaign';
-
-  const journalEntryId = await postSystemJournal(
-    db,
-    stkReq.group_id,
-    null,
-    `Changi$ha donation — ${campaignTitle}`,
-    [
-      { accountCode: '1001', debit: in_.amount },
-      { accountCode: '4006', credit: in_.amount },
-    ],
-    { reference: in_.receipt, isTest: IS_SANDBOX },
-  );
-  if (journalEntryId) {
-    await db.query(`UPDATE campaign_donations SET journal_entry_id = $1 WHERE id = $2`, [journalEntryId, donationId]);
-  }
-
-  // Audit: donation settled from STK payment
-  await db.query(
-    `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, new_values)
-     VALUES ($1, $2, $3, $4, $5, $6)`,
-    [
-      stkReq.group_id,
-      null, // system-triggered via M-Pesa callback
-      'campaign_donation.settle',
-      'campaign_donation',
-      donationId,
-      JSON.stringify({
-        amount: in_.amount.toFixed(2),
-        mpesa_receipt_number: in_.receipt,
-        campaign_id: stkReq.campaign_id,
-      }),
-    ],
-  );
+  await creditCampaignDonation(db, {
+    campaignId: stkReq.campaign_id,
+    groupId: stkReq.group_id,
+    donorName: stkReq.donor_name,
+    donorPhone: in_.phone,
+    amount: in_.amount,
+    message: stkReq.donor_message,
+    isAnonymous: stkReq.is_anonymous ?? false,
+    receipt: in_.receipt,
+    channel: 'stk',
+  });
 }
 
 /**

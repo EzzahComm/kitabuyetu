@@ -12,3 +12,22 @@ import { resetCircuit } from '@/lib/sms/circuit-breaker';
 // unconditionally — cheap (an in-memory Map clear) and correct for files that
 // never touch SMS at all.
 afterEach(() => resetCircuit());
+
+// Admin activity alerting (lib/notifications) writes through its own database
+// connection and provider calls. Service unit tests script `withAdminDb` with
+// ordered mock results, so a real emitActivity would consume those and corrupt
+// the sequence. Stub the public barrel; the notifications' own tests import the
+// concrete modules (activity-notifier, digest, …) directly and are unaffected.
+jest.mock('@/lib/notifications', () => ({
+  ...jest.requireActual('@/lib/notifications/activity-events'),
+  emitActivity: jest.fn().mockResolvedValue({ recorded: true, duplicate: false, queued: 0 }),
+  emitWithdrawalEvent: jest.fn().mockResolvedValue(undefined),
+  recordActivityInTx: jest.fn().mockResolvedValue(undefined),
+  emitCampaignEvent: jest.fn().mockResolvedValue(undefined),
+  emitSmsBulkActivity: jest.fn().mockResolvedValue(undefined),
+  emitSmsManualSend: jest.fn().mockResolvedValue(undefined),
+  runAdminDigest: jest.fn(),
+  runSystemHealthCheck: jest.fn(),
+  noteServerError: jest.fn(),
+  deliverNotification: jest.fn(),
+}));

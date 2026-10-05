@@ -39,6 +39,7 @@ import type {
 import type { StkPushInput, B2CInput } from '@/lib/validators/mpesa.schema';
 import type {
   RegisterPayload,
+  RegisterOrganizationPayload,
   ChangePasswordPayload,
   CreateAdditionalGroupPayload,
 } from '@/lib/validators/auth.schema';
@@ -54,6 +55,7 @@ import type {
   CreateContributionPayload,
   UpdateContributionPayload,
   SetSavingsLimitsPayload,
+  SetContributionPlanPayload,
 } from '@/lib/validators/contribution.schema';
 import type {
   ApplyLoanPayload,
@@ -87,6 +89,8 @@ import type { EffectiveTemplate } from '@/lib/services/posting-templates.service
 import type { EffectiveLoanTerms } from '@/lib/services/loan-policy.service';
 import type { EffectiveFineSchedule } from '@/lib/services/fine-policy.service';
 import type { EffectiveSavingsLimits } from '@/lib/services/savings-policy.service';
+import type { EffectiveContributionPlan } from '@/lib/services/contribution-plan.service';
+import type { GroupRegistrationStatus } from '@/lib/services/group-registration.service';
 import type { MemberWalletSummary } from '@/lib/services/member-wallet.service';
 import type { PassbookEntry } from '@/lib/services/member-passbook.service';
 import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.schema';
@@ -114,6 +118,51 @@ import type {
 // ------------------------------------------------------------------
 // Auth
 // ------------------------------------------------------------------
+/**
+ * What a group sign-up adds to the login payload when a registration
+ * certificate was attached: whether it was saved, and why not. Absent when no
+ * certificate was attached.
+ */
+export interface SignupCertificateOutcome {
+  certificateUploaded?: boolean;
+  certificateNote?: string;
+}
+
+export type RegisterResult = LoginResponse & {
+  registrationFee: number;
+  groupCode?: string;
+  memberCode?: string;
+} & SignupCertificateOutcome;
+
+// No LoginResponse — register-organization issues no session token. The new
+// coordinator signs in separately via the mandatory-MFA backoffice flow.
+export interface RegisterOrganizationResult {
+  organizationId: string;
+  organizationName: string;
+  planType: string;
+  nextStep: 'enterprise_login';
+}
+
+export type CreateGroupResult = LoginResponse & {
+  groupCode: string;
+  memberCode: string;
+  groupStatus: string;
+  signupProduct: SubscriptionProduct;
+} & SignupCertificateOutcome;
+
+/**
+ * A sign-up body that also carries the registration certificate: multipart,
+ * the usual JSON under `payload` and the PDF under `certificate`. It rides with
+ * the sign-up request because a brand-new group cannot call any other tenant
+ * route yet (pending verification, then no subscription).
+ */
+function signupWithCertificate(body: unknown, certificate: File): FormData {
+  const form = new FormData();
+  form.append('payload', JSON.stringify(body));
+  form.append('certificate', certificate);
+  return form;
+}
+
 export const authApi = {
   // Identifier may be a phone (07XX… / +254…) or an email address. When the
   // member is in multiple groups, the response is NeedsGroupSelection and the
@@ -122,14 +171,11 @@ export const authApi = {
     api.post<LoginResult>('/auth/login', body),
 
   changePassword: (body: ChangePasswordPayload) => api.post<{ changed: boolean }>('/auth/change-password', body),
-  register: (body: RegisterPayload) =>
-    api.post<
-      LoginResponse & {
-        registrationFee: number;
-        groupCode?: string;
-        memberCode?: string;
-      }
-    >('/auth/register', body),
+  register: (body: RegisterPayload) => api.post<RegisterResult>('/auth/register', body),
+  registerOrganization: (body: RegisterOrganizationPayload) =>
+    api.post<RegisterOrganizationResult>('/auth/register-organization', body),
+  registerWithCertificate: (body: RegisterPayload, certificate: File) =>
+    api.upload<RegisterResult>('/auth/register', signupWithCertificate(body, certificate)),
 
   refresh: (refreshToken: string) => api.post<RefreshResponse>('/auth/refresh', { refreshToken }),
 
@@ -141,10 +187,9 @@ export const authApi = {
   // Found an additional group under the caller's EXISTING identity — the
   // authenticated counterpart to `register`, for a member who already has an
   // account and would otherwise 409 on their own phone number.
-  createGroup: (body: CreateAdditionalGroupPayload) =>
-    api.post<
-      LoginResponse & { groupCode: string; memberCode: string; groupStatus: string; signupProduct: SubscriptionProduct }
-    >('/auth/create-group', body),
+  createGroup: (body: CreateAdditionalGroupPayload) => api.post<CreateGroupResult>('/auth/create-group', body),
+  createGroupWithCertificate: (body: CreateAdditionalGroupPayload, certificate: File) =>
+    api.upload<CreateGroupResult>('/auth/create-group', signupWithCertificate(body, certificate)),
 
   logout: (refreshToken?: string) => api.post<void>('/auth/logout', { refreshToken }),
 
@@ -298,11 +343,29 @@ export const contributionsApi = {
   delete: (id: string) => api.delete<void>(`/contributions/${id}`),
   policy: () => api.get<EffectiveSavingsLimits>('/contributions/policy'),
   setPolicy: (body: SetSavingsLimitsPayload) => api.put<EffectiveSavingsLimits>('/contributions/policy', body),
+  plan: () => api.get<EffectiveContributionPlan>('/contributions/plan'),
+  setPlan: (body: SetContributionPlanPayload) => api.put<EffectiveContributionPlan>('/contributions/plan', body),
   remindNonContributors: () =>
     api.post<{ attempted: number; sent: number; skipped: number; failed: number }>(
       '/contributions/remind-non-contributors',
       {},
     ),
+};
+
+// ------------------------------------------------------------------
+// Group registration status (groups.is_government_registered — see
+// group-registration.service.ts). Entirely optional, never a sign-up
+// blocker — settable at registration or any time later from Settings.
+// ------------------------------------------------------------------
+export const groupRegistrationApi = {
+  get: () => api.get<GroupRegistrationStatus>('/settings/registration'),
+  setStatus: (body: { isGovernmentRegistered: boolean; registrationNumber?: string | null }) =>
+    api.put<GroupRegistrationStatus>('/settings/registration', body),
+  uploadCertificate: (file: File) => {
+    const formData = new FormData();
+    formData.append('certificate', file);
+    return api.upload<GroupRegistrationStatus>('/settings/registration/certificate', formData);
+  },
 };
 
 // ------------------------------------------------------------------

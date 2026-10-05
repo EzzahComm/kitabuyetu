@@ -8,6 +8,9 @@ import { CreateAdditionalGroupSchema } from '@/lib/validators/auth.schema';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError, NotFoundError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
+import { applyGroupSignupExtras } from '@/lib/services/group-signup-extras';
+import { certificateOutcome, checkCertificate, readSignupBody } from '@/lib/utils/signup-request';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -45,7 +48,13 @@ interface CreateAdditionalGroupResult {
 export async function POST(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
     try {
-      const input = CreateAdditionalGroupSchema.parse(await req.json());
+      // JSON, or multipart when the registrant attached a registration certificate.
+      const { body, certificateFile } = await readSignupBody(req);
+      const input = CreateAdditionalGroupSchema.parse(body);
+
+      // An unusable attachment never blocks creating the group (see /auth/register).
+      const certificateAttached = Boolean(input.isGovernmentRegistered && certificateFile && certificateFile.size > 0);
+      const attached = certificateAttached ? await checkCertificate(certificateFile) : {};
 
       const rpcPayload = {
         groupName: input.groupName,
@@ -62,12 +71,55 @@ export async function POST(req: NextRequest): Promise<Response> {
         product: input.product,
       };
 
-      const result = await withAdminDb(async (client) => {
+      const { result, permissions } = await withAdminDb(async (client) => {
         const { rows } = await client.query<{ create_additional_group: CreateAdditionalGroupResult }>(
           'SELECT create_additional_group($1::uuid, $2::jsonb) AS create_additional_group',
           [auth.userId, JSON.stringify(rpcPayload)],
         );
-        return rows[0].create_additional_group;
+        const rpc = rows[0].create_additional_group;
+        // Permissions resolved here too (RBAC activation, same lookup as
+        // login) — signAccessToken doesn't derive them itself, and omitting
+        // them leaves every withPermission check failing until the member's
+        // next login/refresh (see /auth/register's own fix for this).
+        const { rows: gm } = await client.query<{ permissions: string[] }>(
+          `SELECT COALESCE(r.permissions, '{}') AS permissions
+           FROM group_members gm
+           LEFT JOIN roles r ON r.id = gm.role_id
+           WHERE gm.group_id = $1 AND gm.member_id = $2`,
+          [rpc.group_id, rpc.member_id],
+        );
+        return { result: rpc, permissions: gm[0]?.permissions ?? [] };
+      });
+
+      // Same non-fatal optional writes as /auth/register.
+      const extras = await applyGroupSignupExtras(
+        {
+          product: result.signup_product,
+          groupId: result.group_id,
+          memberId: result.member_id,
+          role: result.group_role,
+          monthlyContribution: input.monthlyContribution,
+          welfareAmount: input.welfareAmount,
+          isGovernmentRegistered: input.isGovernmentRegistered,
+          registrationNumber: input.registrationNumber,
+          certificate: attached.certificate,
+        },
+        'create-group',
+      );
+
+      await emitActivity({
+        type: ActivityEventType.GROUP_CREATED,
+        dedupKey: `group-created:${result.group_id}`,
+        group: { id: result.group_id, name: result.group_name },
+        actor: {
+          userId: result.member_id,
+          name: `${result.first_name} ${result.last_name}`.trim(),
+          phone: result.phone,
+          email: result.email ?? undefined,
+          role: result.creator_role,
+        },
+        transaction: { id: result.group_id, reference: result.group_code, status: result.group_status },
+        metadata: { groupType: input.groupType, product: input.product, additionalGroup: true },
       });
 
       // New session for the freshly-created membership — same shape as
@@ -80,6 +132,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         role: result.group_role as MemberRole,
         personId: result.person_id,
         groupStatus: result.group_status,
+        permissions,
       });
       const { token: refreshToken } = signRefreshToken(result.member_id, 'tenant', result.group_id);
 
@@ -112,6 +165,9 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode: string;
         groupStatus: string;
         signupProduct: SubscriptionProduct;
+        /** Present only when a certificate was attached: whether it was saved, and why not. */
+        certificateUploaded?: boolean;
+        certificateNote?: string;
       } = {
         accessToken,
         refreshToken,
@@ -135,6 +191,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         memberCode: result.member_code,
         groupStatus: result.group_status,
         signupProduct: result.signup_product,
+        ...certificateOutcome(certificateAttached, attached.rejected, extras.certificateStored),
       };
 
       return created(response);

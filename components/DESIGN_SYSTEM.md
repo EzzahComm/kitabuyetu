@@ -11,15 +11,16 @@ every token and component rendered.
 
 ## Brand
 
-Derived from the Kitabu Yetu logo — **green + navy**, with orange reserved for alerts/actions.
+Derived from the Kitabu Yetu brand kit (logo v3) — **green + navy** in the app, the kit blue on the
+marketing site, with orange reserved for alerts/actions. Logo rules and tooling: [docs/BRANDING.md](../docs/BRANDING.md).
 
 | Role                      | Token                     | Hex       |
 | ------------------------- | ------------------------- | --------- |
-| Primary / CTAs / positive | `brand-500` / `--primary` | `#3CB043` |
+| Primary / CTAs / positive | `brand-500` / `--primary` | `#12A06B` |
 | Headings, sidebar, nav    | `brand-blue-500`          | `#0B3C88` |
-| Accent / hover tint       | `brand-50` / `--accent`   | `#EAF7EC` |
+| Accent / hover tint       | `brand-50` / `--accent`   | `#EAF8F1` |
 | Neutral surface           | `brand-neutral`           | `#F8FAFC` |
-| Alert / action accent     | `brandOrange` (tokens.ts) | `#F97316` |
+| Alert / action accent     | `brandOrange` (tokens.ts) | `#E8590C` |
 
 - **CSS / Tailwind components** use the HSL tokens in [`app/globals.css`](../app/globals.css)
   (`bg-primary`, `text-muted-foreground`, `border-border`, …) and the `brand` / `brand-blue`

@@ -4,8 +4,8 @@
  * BusinessBuyGoods for a till — and that a Daraja rejection releases the
  * reservation and marks the row failed rather than leaving money held.
  *
- * approve() query sequence: [tx] SELECT FOR UPDATE -> UPDATE approved ->
- * audit; [dispatch, admin] UPDATE processing RETURNING -> audit -> SELECT
+ * platformApprove() query sequence: [tx] SELECT FOR UPDATE -> INSERT
+ * backoffice approval -> UPDATE approved -> audit; [dispatch, admin] UPDATE processing RETURNING -> audit -> SELECT
  * title -> (Daraja) -> UPDATE originator_conversation_id; [getById] SELECT.
  */
 import { withAdminDb, withDb, withTransaction } from '@/lib/db';
@@ -16,8 +16,13 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
   withAdminDb: jest.fn(),
 }));
+jest.mock('@/lib/services/campaign-officer-notices.service', () => ({ notifyWithdrawalOfficers: jest.fn() }));
 jest.mock('@/lib/queue/qstash', () => ({ triggerDisbursementWatchdog: jest.fn() }));
 jest.mock('@/lib/services/settlement-approvals.service', () => ({ recordApproval: jest.fn() }));
+jest.mock('@/lib/services/campaign-officers.service', () => ({
+  ...jest.requireActual('@/lib/services/campaign-officers.service'),
+  assertCampaignOfficersComplete: jest.fn().mockResolvedValue(undefined),
+}));
 
 const initiateB2C = jest.fn();
 const initiateB2B = jest.fn();
@@ -41,10 +46,11 @@ beforeEach(() => {
 
 const noDestination = { payout_phone: null, payout_shortcode: null, payout_account: null, payout_payee_name: null };
 
-/** Queues the query results for approve() up to and including the dispatch claim. */
+/** Queues the query results for platformApprove() up to and including the dispatch claim. */
 function queueApproveUpTo(claimed: Record<string, unknown>) {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: claimed.id, requested_by: 'officer-2', status: 'pending_approval' }] })
+    .mockResolvedValueOnce({ rows: [{ id: claimed.id, group_id: 'grp-1', status: 'awaiting_platform' }] })
+    .mockResolvedValueOnce({ rows: [] }) // backoffice approval
     .mockResolvedValueOnce({ rows: [{ id: claimed.id, status: 'approved' }] }) // UPDATE approved
     .mockResolvedValueOnce({ rows: [] }) // audit
     .mockResolvedValueOnce({ rows: [claimed] }) // UPDATE processing RETURNING
@@ -54,18 +60,18 @@ function queueApproveUpTo(claimed: Record<string, unknown>) {
 
 const base = { id: 'cw-12345678-aaaa', group_id: 'grp-1', campaign_id: 'camp-1', net_amount: '927.00' };
 
-describe('approve() dispatch by payout destination', () => {
+describe('platformApprove() dispatch by payout destination', () => {
   it('a phone destination goes out as B2C BusinessPayment', async () => {
     queueApproveUpTo({ ...base, ...noDestination, payout_method: 'phone', payout_phone: '254712345678' });
     mockQuery.mockResolvedValue({ rows: [{ id: base.id, status: 'processing' }] }); // originator + getById
 
-    await campaignWithdrawalsService.approve(ctx, base.id);
+    await campaignWithdrawalsService.platformApprove('admin-1', base.id);
 
     expect(initiateB2B).not.toHaveBeenCalled();
     expect(initiateB2C).toHaveBeenCalledWith(
       expect.objectContaining({ phone: '254712345678', amount: 927, commandId: 'BusinessPayment' }),
     );
-    expect(mockQuery.mock.calls[6][1]).toEqual([base.id, 'orig-b2c']);
+    expect(mockQuery.mock.calls[7][1]).toEqual([base.id, 'orig-b2c']);
   });
 
   it('a paybill destination goes out as B2B BusinessPayBill with the business’s account number', async () => {
@@ -79,7 +85,7 @@ describe('approve() dispatch by payout destination', () => {
     });
     mockQuery.mockResolvedValue({ rows: [{ id: base.id, status: 'processing' }] });
 
-    await campaignWithdrawalsService.approve(ctx, base.id);
+    await campaignWithdrawalsService.platformApprove('admin-1', base.id);
 
     expect(initiateB2C).not.toHaveBeenCalled();
     expect(initiateB2B).toHaveBeenCalledWith({
@@ -91,7 +97,7 @@ describe('approve() dispatch by payout destination', () => {
       remarks: 'Changi$ha withdrawal — Medical appeal',
     });
     // The B2B OriginatorConversationID is what the B2B result callback correlates on.
-    expect(mockQuery.mock.calls[6][1]).toEqual([base.id, 'orig-b2b']);
+    expect(mockQuery.mock.calls[7][1]).toEqual([base.id, 'orig-b2b']);
   });
 
   it('a till destination goes out as B2B BusinessBuyGoods with a traceable reference', async () => {
@@ -104,7 +110,7 @@ describe('approve() dispatch by payout destination', () => {
     });
     mockQuery.mockResolvedValue({ rows: [{ id: base.id, status: 'processing' }] });
 
-    await campaignWithdrawalsService.approve(ctx, base.id);
+    await campaignWithdrawalsService.platformApprove('admin-1', base.id);
 
     expect(initiateB2B).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -132,11 +138,10 @@ describe('approve() dispatch by payout destination', () => {
       .mockResolvedValueOnce({ rows: [{ gross_amount: '1000.00' }] }) // re-read gross
       .mockResolvedValueOnce({ rows: [] }) // adjust (release)
       .mockResolvedValueOnce({ rows: [] }) // UPDATE failed
-      .mockResolvedValueOnce({ rows: [{ id: base.id, status: 'failed' }] }); // getById
+      .mockResolvedValue({ rows: [] });
 
-    const row = await campaignWithdrawalsService.approve(ctx, base.id);
+    await campaignWithdrawalsService.platformApprove('admin-1', base.id);
 
-    expect(row.status).toBe('failed');
     const release = mockQuery.mock.calls.find((c) => String(c[0]).includes('adjust_account_reserved_amount'));
     expect(release?.[1]).toEqual(['acct-1', '-1000.00']);
     const failed = mockQuery.mock.calls.find((c) => String(c[0]).includes("status = 'failed'"));

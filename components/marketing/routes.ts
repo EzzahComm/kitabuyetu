@@ -11,6 +11,7 @@
  * previous version of the footer shipped 10 dead links out of 16 (see its own
  * note in git history) — "the link works" is checked here, once.
  * ──────────────────────────────────────────────────────────────────────────── */
+import { DEPARTMENTS } from '@/lib/departments';
 
 export const ROUTES = {
   home: '/',
@@ -111,19 +112,19 @@ export const PRODUCT_ITEMS: NavLink[] = [
   {
     label: 'Bookkeeper',
     href: ROUTES.bookkeeper,
-    description: 'Contributions, loans, welfare, shares and a real ledger.',
+    description: 'Contributions, loans and welfare — books that balance.',
   },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: ROUTES.chamaReminder,
-    description: 'SMS reminders and announcements, no ledger required.',
+    description: 'Automatic SMS reminders. Nothing to set up.',
   },
   {
     label: 'Fundraise / Changi$ha',
     href: ROUTES.fundraise,
-    description: 'Public campaigns and M-Pesa collections for a cause.',
+    description: 'M-Pesa fundraising, tracked to the shilling.',
   },
-  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Multi-group and multi-organization management.' },
+  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Every group you support, one dashboard.' },
 ];
 
 export const ECOSYSTEM_ITEMS: NavLink[] = [
@@ -146,16 +147,16 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 ];
 
 export const PRICING_ITEMS: NavLink[] = [
-  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Contributions, loans, and ledger management.' },
+  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Full group bookkeeping with M-Pesa.' },
   {
-    label: 'Chama Reminder',
+    label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,
     description: 'SMS reminders and group announcements.',
   },
   {
     label: 'Changi$ha',
     href: `${ROUTES.pricing}#changisha`,
-    description: 'No monthly fee — a small fee per withdrawal.',
+    description: 'Plans from KES 100 a month, plus a small fee per withdrawal.',
   },
   { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
 ];
@@ -259,8 +260,12 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
  * number undialable. Build call links with telHref(), never by hand.
  */
 export const CONTACT = {
-  email: 'info@kitabuyetu.co.ke',
-  careersEmail: 'careers@kitabuyetu.co.ke',
+  email: DEPARTMENTS.general.email,
+  // Recruiting goes to the HR mailbox (there is no careers@ mailbox).
+  careersEmail: DEPARTMENTS.hr.email,
+  supportEmail: DEPARTMENTS.support.email,
+  billingEmail: DEPARTMENTS.billing.email,
+  enterpriseEmail: DEPARTMENTS.enterprise.email,
   phones: ['+254 182 625 807'],
   city: 'Nairobi, Kenya',
 } as const;

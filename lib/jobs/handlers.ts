@@ -5,9 +5,14 @@
  *   - Isolated: failures don't affect other jobs
  *   - Fast: Vercel Hobby functions time out at 10 s; keep handlers under 8 s
  */
+import { emitSmsBulkActivity } from '@/lib/notifications';
 import type { Job } from './types';
 import { pool } from '@/lib/db';
 import { normalizePhone } from '@/lib/utils/phone';
+import type { ContributionStatementRow } from '@/lib/sms/contribution-statement';
+import type { WeeklySavingsUpdateRow } from '@/lib/sms/weekly-savings-update';
+import { tickBudgetExhausted } from './deadline';
+import { toIsoWeekKey } from './week';
 
 export interface HandlerResult {
   message: string;
@@ -34,6 +39,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 
     case 'email_campaign_drain':
       return handleEmailCampaignDrain();
+
+    case 'newsletter_digest_drain':
+      return handleNewsletterDigestDrain();
 
     case 'email_birthday':
       return handleEmailBirthday();
@@ -98,6 +106,9 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     case 'notify_contribution_reminders':
       return handleContributionReminders(job);
 
+    case 'notify_weekly_savings_update':
+      return handleWeeklySavingsUpdate(job);
+
     case 'sms_birthday_reminders':
       return handleSmsBirthdayReminders(job);
 
@@ -118,6 +129,15 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
 
     case 'sms_trigger_fire':
       return handleSmsTriggerFire(job.payload);
+
+    case 'admin_alert_deliver':
+      return handleAdminAlertDeliver(job.payload);
+
+    case 'admin_alert_digest':
+      return handleAdminAlertDigest();
+
+    case 'system_health_check':
+      return handleSystemHealthCheck();
 
     case 'sms_low_balance_alert':
       return handleSmsLowBalanceAlert(job.payload);
@@ -222,6 +242,21 @@ async function handleEmailCampaignDrain(): Promise<HandlerResult> {
   const result = await drainCampaignRecipients();
   return {
     message: `Email campaign drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`,
+    ...result,
+  };
+}
+
+/**
+ * Drain a batch of pending newsletter_digest_recipients rows for in-flight
+ * digests — mirrors handleEmailCampaignDrain, but for the platform-level
+ * newsletter audience (lib/services/newsletter-digest.service.ts) instead of
+ * a group's own members.
+ */
+async function handleNewsletterDigestDrain(): Promise<HandlerResult> {
+  const { drainDigestRecipients } = await import('@/lib/services/newsletter-digest.service');
+  const result = await drainDigestRecipients();
+  return {
+    message: `Newsletter digest drain (${result.sent} sent, ${result.failed} failed of ${result.processed})`,
     ...result,
   };
 }
@@ -759,49 +794,164 @@ async function handleSmsBirthdayReminders(job: Job): Promise<HandlerResult> {
 }
 
 async function handleContributionReminders(job: Job): Promise<HandlerResult> {
-  const { renderTemplate } = await import('@/lib/sms/templates');
+  const { platformPaybill } = await import('@/lib/sms/templates');
   const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { buildStatementMessage } = await import('@/lib/sms/contribution-statement');
 
-  // Active members of active groups who recorded NO completed contribution
-  // in the previous calendar month. NOT EXISTS keeps the planner using
-  // idx_contributions_member_id (member_id, status, contribution_date is
-  // already covered well enough at our cardinality). gm.id doubles as the
-  // reminder's reference_id — a missed month has no row of its own to
-  // reference, so the stable membership row stands in, with the actual
-  // period folded into reminder_stage so each month is a distinct claim.
-  const { rows } = await pool.query<{
-    membership_id: string;
-    group_id: string;
-    member_id: string;
-    phone: string;
-    first_name: string;
-    group_name: string;
-    last_month: string;
-    period_key: string;
-  }>(
-    `SELECT gm.id AS membership_id,
-            gm.group_id,
-            gm.member_id,
-            m.phone,
-            m.first_name,
-            g.name AS group_name,
-            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'Mon YYYY') AS last_month,
-            to_char(date_trunc('month', CURRENT_DATE) - INTERVAL '1 month', 'YYYY-MM')  AS period_key
-       FROM group_members gm
-       JOIN members m ON m.id = gm.member_id
-       JOIN groups  g ON g.id = gm.group_id
-      WHERE gm.status = 'active'
-        AND g.status  = 'active'
-        AND m.phone IS NOT NULL AND m.phone <> ''
-        AND NOT EXISTS (
-          SELECT 1 FROM contributions c
-           WHERE c.group_id  = gm.group_id
-             AND c.member_id = gm.member_id
-             AND c.status    = 'completed'
-             AND c.contribution_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '1 month'
-             AND c.contribution_date <  date_trunc('month', CURRENT_DATE)
-        )
-      ORDER BY gm.group_id, gm.member_id
+  // Active members of active groups whose group has configured a
+  // contribution_plan policy (lib/services/contribution-plan.service.ts —
+  // monthlyContribution and/or welfareAmount > 0), and who are running a
+  // real balance: for each closed calendar month since the LATER of (their
+  // join date, the plan's effective_from — capped at 24 months back so an
+  // old plan doesn't manufacture years of phantom arrears), the shortfall
+  // between what the plan expects and what contributions/welfare_pool_
+  // contributions actually show as paid that month. A group that never
+  // configured amounts contributes zero rows here — the CTE's own filter
+  // excludes it before any per-member arithmetic runs.
+  const { rows } = await pool.query<ContributionStatementRow>(
+    `WITH plans AS (
+       SELECT p.group_id,
+              COALESCE((p.value->>'monthlyContribution')::numeric, 0) AS monthly_contribution,
+              COALESCE((p.value->>'welfareAmount')::numeric, 0)       AS welfare_amount,
+              p.effective_from
+         FROM policies p
+        WHERE p.is_active AND p.domain = 'contribution_plan' AND p.policy_key = 'amounts'
+          AND p.group_id IS NOT NULL
+          AND (COALESCE((p.value->>'monthlyContribution')::numeric, 0) > 0
+               OR COALESCE((p.value->>'welfareAmount')::numeric, 0) > 0)
+     ),
+     candidates AS (
+       SELECT gm.id AS membership_id, gm.group_id, gm.member_id, gm.membership_no, gm.joined_at,
+              m.phone, m.first_name, g.name AS group_name,
+              pl.monthly_contribution, pl.welfare_amount, pl.effective_from
+         FROM group_members gm
+         JOIN members m  ON m.id = gm.member_id
+         JOIN groups  g  ON g.id = gm.group_id
+         JOIN plans   pl ON pl.group_id = gm.group_id
+        WHERE gm.status = 'active'
+          AND g.status  = 'active'
+          AND m.phone IS NOT NULL AND m.phone <> ''
+     ),
+     bounds AS (
+       SELECT c.*,
+              GREATEST(
+                date_trunc('month', GREATEST(c.joined_at::timestamptz, c.effective_from)),
+                date_trunc('month', CURRENT_DATE) - INTERVAL '24 months'
+              ) AS start_month,
+              date_trunc('month', CURRENT_DATE) - INTERVAL '1 month' AS last_month
+         FROM candidates c
+     ),
+     months AS (
+       SELECT b.membership_id, gs.month_start
+         FROM bounds b
+         CROSS JOIN LATERAL generate_series(b.start_month, b.last_month, INTERVAL '1 month') AS gs(month_start)
+        WHERE b.start_month <= b.last_month
+     ),
+     contrib_paid AS (
+       SELECT member_id, group_id, date_trunc('month', contribution_date) AS month_start, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed'
+          AND group_id IN (SELECT group_id FROM plans)
+          AND contribution_date >= date_trunc('month', CURRENT_DATE) - INTERVAL '24 months'
+        GROUP BY 1, 2, 3
+     ),
+     welfare_paid AS (
+       SELECT member_id, group_id,
+              date_trunc('month', COALESCE(make_date(period_year, period_month, 1), created_at::date)) AS month_start,
+              SUM(amount) AS paid
+         FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+          AND created_at >= date_trunc('month', CURRENT_DATE) - INTERVAL '25 months'
+        GROUP BY 1, 2, 3
+     ),
+     -- Lifetime totals, deliberately UNCAPPED unlike contrib_paid/welfare_paid
+     -- above (those are windowed to keep the arrears scan bounded). This is a
+     -- display figure ("paid so far"), not an arrears input, so it should
+     -- reflect everything the member has ever paid into this group.
+     lifetime_contrib AS (
+       SELECT member_id, group_id, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed' AND group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1, 2
+     ),
+     lifetime_welfare AS (
+       SELECT member_id, group_id, SUM(amount) AS paid
+         FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1, 2
+     ),
+     -- Group-wide "balance" — deliberately the SIMPLE definition (money in
+     -- minus the platform's own charges), not a pull from the double-entry
+     -- accounting ledger (accounts/journal_entries): most groups using this
+     -- reminder job have never touched that module, and this figure only
+     -- needs to be roughly right, not audit-grade.
+     group_income AS (
+       SELECT group_id, SUM(amount) AS total FROM contributions
+        WHERE status = 'completed' AND group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1
+     ),
+     group_welfare_income AS (
+       SELECT group_id, SUM(amount) AS total FROM welfare_pool_contributions
+        WHERE group_id IN (SELECT group_id FROM plans)
+        GROUP BY 1
+     ),
+     -- credits_deducted - credits_from_allowance: only the PAID portion of
+     -- usage costs the group anything; allowance-covered sends are free.
+     -- Priced at the current sms_rate — this is an approximation for any
+     -- usage billed under a since-changed rate, acceptable for the same
+     -- "roughly right" reason as above.
+     group_sms_cost AS (
+       SELECT u.group_id, SUM(u.credits_deducted - u.credits_from_allowance) * COALESCE(MAX(s.sms_rate), 0) AS total
+         FROM sms_usage_logs u
+         LEFT JOIN subscriptions s ON s.group_id = u.group_id AND s.status = 'active'
+        WHERE u.group_id IN (SELECT group_id FROM plans) AND u.credits_deducted > 0
+        GROUP BY u.group_id
+     ),
+     -- Whole calendar months since the current subscription started (the
+     -- starting month itself counts as billed), at its current monthly_fee —
+     -- not a reconstruction of past plan changes. Calendar-month arithmetic
+     -- (date_trunc + age), not a fixed-seconds-per-month division: months are
+     -- 28-31 days, so a seconds-based approximation drifts depending on which
+     -- calendar months are actually elapsed.
+     group_subscription_cost AS (
+       SELECT group_id,
+              monthly_fee * (
+                EXTRACT(YEAR  FROM age(date_trunc('month', NOW()), date_trunc('month', started_at))) * 12
+              + EXTRACT(MONTH FROM age(date_trunc('month', NOW()), date_trunc('month', started_at)))
+              + 1
+              ) AS total
+         FROM subscriptions
+        WHERE status = 'active' AND group_id IN (SELECT group_id FROM plans)
+     )
+     SELECT b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name,
+            COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)::text AS outstanding_contribution,
+            COUNT(*) FILTER (WHERE b.monthly_contribution > 0 AND COALESCE(cp.paid, 0) < b.monthly_contribution)::int AS contribution_months,
+            COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0)::text AS outstanding_welfare,
+            COUNT(*) FILTER (WHERE b.welfare_amount > 0 AND COALESCE(wp.paid, 0) < b.welfare_amount)::int AS welfare_months,
+            -- lc/lw join one constant row per (member, group) onto every
+            -- per-month row produced by the months CTE above; MAX (not SUM)
+            -- collapses that back to the single lifetime figure instead of
+            -- multiplying it by however many months are in the arrears window.
+            COALESCE(MAX(lc.paid), 0)::text AS total_contributed,
+            COALESCE(MAX(lw.paid), 0)::text AS total_welfare_contributed,
+            -- Same MAX-collapse trick as lc/lw, keyed by group_id alone —
+            -- every member of the same group gets the identical figure.
+            (COALESCE(MAX(gi.total), 0) + COALESCE(MAX(gw.total), 0)
+             - COALESCE(MAX(gsc.total), 0) - COALESCE(MAX(gsub.total), 0))::text AS group_balance
+       FROM bounds b
+       JOIN months mo ON mo.membership_id = b.membership_id
+       LEFT JOIN contrib_paid cp ON cp.member_id = b.member_id AND cp.group_id = b.group_id AND cp.month_start = mo.month_start
+       LEFT JOIN welfare_paid wp ON wp.member_id = b.member_id AND wp.group_id = b.group_id AND wp.month_start = mo.month_start
+       LEFT JOIN lifetime_contrib lc ON lc.member_id = b.member_id AND lc.group_id = b.group_id
+       LEFT JOIN lifetime_welfare lw ON lw.member_id = b.member_id AND lw.group_id = b.group_id
+       LEFT JOIN group_income gi ON gi.group_id = b.group_id
+       LEFT JOIN group_welfare_income gw ON gw.group_id = b.group_id
+       LEFT JOIN group_sms_cost gsc ON gsc.group_id = b.group_id
+       LEFT JOIN group_subscription_cost gsub ON gsub.group_id = b.group_id
+      GROUP BY b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name
+     HAVING COALESCE(SUM(GREATEST(b.monthly_contribution - COALESCE(cp.paid, 0), 0)), 0)
+          + COALESCE(SUM(GREATEST(b.welfare_amount - COALESCE(wp.paid, 0), 0)), 0) > 0
+      ORDER BY b.group_id, b.member_id
       LIMIT 1000`,
   );
 
@@ -809,9 +959,8 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
     return { message: 'Contribution reminders: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
   }
 
-  const template =
-    'Dear {{first_name}}, our records show no contribution for {{group_name}} in {{last_month}}. ' +
-    'Kindly contribute when you can. Thank you.';
+  const paybill = platformPaybill();
+  const periodKey = new Date().toISOString().slice(0, 7); // YYYY-MM — re-sends monthly while arrears persist.
 
   let sent = 0,
     skipped = 0,
@@ -821,14 +970,10 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
       groupId: r.group_id,
       memberId: r.member_id,
       phone: r.phone,
-      body: renderTemplate(template, {
-        first_name: r.first_name,
-        group_name: r.group_name,
-        last_month: r.last_month,
-      }),
-      referenceType: 'contribution_reminder',
+      body: buildStatementMessage(r, paybill),
+      referenceType: 'contribution_statement',
       referenceId: r.membership_id,
-      reminderStage: `missing_contribution:${r.period_key}`,
+      reminderStage: `balance:${periodKey}`,
       jobExecutionId: job.id,
       // Phase 2b (docs/messaging/UNIFIED_MESSAGING_ARCHITECTURE.md Decision B):
       // bundled allowance now exists, so this real send-path bills.
@@ -846,6 +991,157 @@ async function handleContributionReminders(job: Job): Promise<HandlerResult> {
   return {
     message: `Contribution reminders processed (${rows.length} candidates)`,
     attempted: rows.length,
+    sent,
+    skipped,
+    failed,
+  };
+}
+
+async function handleWeeklySavingsUpdate(job: Job): Promise<HandlerResult> {
+  const { platformPaybill } = await import('@/lib/sms/templates');
+  const { sendOnce } = await import('@/lib/services/reminder.service');
+  const { buildWeeklySavingsUpdateMessage } = await import('@/lib/sms/weekly-savings-update');
+
+  // Unlike handleContributionReminders above, this reaches EVERY active
+  // member of EVERY active group — there is no "has this group configured a
+  // plan" filter. weekly_targets resolves the effective per-week target the
+  // same way configuration.service.ts's cascade would (group override wins
+  // over the platform-wide row seeded by migration 207), via DISTINCT ON +
+  // ORDER BY preferring the group-specific row when both exist.
+  const { rows } = await pool.query<WeeklySavingsUpdateRow>(
+    `WITH weekly_targets AS (
+       SELECT DISTINCT ON (g.id) g.id AS group_id, g.created_at AS group_created_at,
+              COALESCE((p.value->>'weeklyContribution')::numeric, 200) AS weekly_amount
+         FROM groups g
+         LEFT JOIN policies p
+           ON p.domain = 'weekly_contribution_default' AND p.policy_key = 'amount' AND p.is_active
+          AND (p.group_id = g.id OR p.group_id IS NULL)
+        WHERE g.status = 'active'
+        ORDER BY g.id, (p.group_id IS NOT NULL) DESC
+     ),
+     candidates AS (
+       SELECT gm.id AS membership_id, gm.group_id, gm.member_id, gm.membership_no, gm.joined_at,
+              m.phone, m.first_name, g.name AS group_name,
+              wt.weekly_amount, wt.group_created_at
+         FROM group_members gm
+         JOIN members m  ON m.id = gm.member_id
+         JOIN groups  g  ON g.id = gm.group_id
+         JOIN weekly_targets wt ON wt.group_id = gm.group_id
+        WHERE gm.status = 'active'
+          AND g.status  = 'active'
+          AND m.phone IS NOT NULL AND m.phone <> ''
+     ),
+     bounds AS (
+       SELECT c.*,
+              date_trunc('week', GREATEST(c.joined_at::timestamptz, c.group_created_at)) AS start_week,
+              date_trunc('week', CURRENT_DATE) - INTERVAL '1 week' AS last_week
+         FROM candidates c
+     ),
+     weeks AS (
+       SELECT b.membership_id, gs.week_start
+         FROM bounds b
+         CROSS JOIN LATERAL generate_series(b.start_week, b.last_week, INTERVAL '1 week') AS gs(week_start)
+        WHERE b.start_week <= b.last_week
+     ),
+     contrib_paid_by_week AS (
+       SELECT member_id, group_id, date_trunc('week', contribution_date) AS week_start, SUM(amount) AS paid
+         FROM contributions
+        WHERE status = 'completed'
+        GROUP BY 1, 2, 3
+     ),
+     -- Lifetime, gross, uncapped — never netted against SMS/subscription
+     -- costs (that netting is group_balance's job in contribution-statement.ts).
+     lifetime_contrib AS (
+       SELECT member_id, group_id, SUM(amount) AS total FROM contributions WHERE status = 'completed' GROUP BY 1, 2
+     ),
+     group_lifetime_contrib AS (
+       SELECT group_id, SUM(amount) AS total FROM contributions WHERE status = 'completed' GROUP BY 1
+     )
+     SELECT b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name,
+            COALESCE(SUM(GREATEST(b.weekly_amount - COALESCE(cp.paid, 0), 0)), 0)::text AS outstanding,
+            -- Same MAX-collapse as contribution-statement.ts's lc/lw: these
+            -- are constants per (member, group) or per group, joined onto
+            -- every per-week row the weeks CTE above produces.
+            COALESCE(MAX(lc.total), 0)::text AS total_contributed,
+            COALESCE(MAX(glc.total), 0)::text AS group_total_saved
+       FROM bounds b
+       JOIN weeks w ON w.membership_id = b.membership_id
+       LEFT JOIN contrib_paid_by_week cp ON cp.member_id = b.member_id AND cp.group_id = b.group_id AND cp.week_start = w.week_start
+       LEFT JOIN lifetime_contrib lc ON lc.member_id = b.member_id AND lc.group_id = b.group_id
+       LEFT JOIN group_lifetime_contrib glc ON glc.group_id = b.group_id
+      GROUP BY b.membership_id, b.group_id, b.member_id, b.phone, b.first_name, b.membership_no, b.group_name
+      ORDER BY b.group_id, b.member_id
+      LIMIT 2000`,
+  );
+
+  if (rows.length === 0) {
+    return { message: 'Weekly savings update: no candidates', attempted: 0, sent: 0, skipped: 0, failed: 0 };
+  }
+
+  const paybill = platformPaybill();
+  // ISO week, not calendar date — this must stay IDENTICAL across however
+  // many ticks it takes to drain one week's candidates (the continuation
+  // enqueued below reuses the same stage so sendOnce's own idempotency
+  // still applies; a date-based key here would silently re-arm every
+  // candidate's dedup the moment a run crossed midnight). Nairobi-shifted to
+  // match the week the scheduled trigger itself keyed on (lib/jobs/index.ts).
+  const weekKey = toIsoWeekKey(new Date(Date.now() + 3 * 60 * 60 * 1000));
+
+  // Unbounded loops over outbound SMS calls can exceed the job tick's own
+  // time budget well before the whole candidate list is reached — confirmed
+  // live 2026-10-03: this exact job got killed mid-loop at 22 of ~39
+  // candidates, left stuck in 'processing' until manually recovered. Same
+  // tickBudgetExhausted() guard already used by sms.service.ts's
+  // pollPendingDlrs/retryFailures loops for the identical reason (see
+  // lib/jobs/deadline.ts). Unlike those two — which are scheduled every 5
+  // minutes regardless, so "next tick" already retries whatever's left —
+  // this job only fires once a week, so stopping early must also enqueue
+  // its own continuation or the remaining candidates would silently wait a
+  // full week.
+  const SEND_CALL_BUDGET_MS = 21_000;
+  let stoppedEarly = false;
+
+  let sent = 0,
+    skipped = 0,
+    failed = 0,
+    attempted = 0;
+  for (const r of rows) {
+    if (tickBudgetExhausted(SEND_CALL_BUDGET_MS)) {
+      stoppedEarly = true;
+      break;
+    }
+    attempted++;
+    const result = await sendOnce({
+      groupId: r.group_id,
+      memberId: r.member_id,
+      phone: r.phone,
+      body: buildWeeklySavingsUpdateMessage(r, paybill),
+      referenceType: 'weekly_savings_update',
+      referenceId: r.membership_id,
+      reminderStage: `weekly:${weekKey}`,
+      jobExecutionId: job.id,
+      billingMode: 'billed',
+    });
+    if (result.sent) sent++;
+    else if (result.status === 'already_sent' || result.status === 'already_suppressed' || result.status === 'cooldown')
+      skipped++;
+    else failed++;
+  }
+
+  if (stoppedEarly) {
+    const { insertJob } = await import('./db');
+    // No dedup_key: this is a continuation of the SAME week's batch, not a
+    // second weekly trigger — sendOnce's own (referenceId, reminderStage)
+    // idempotency is what actually prevents re-sending to anyone already
+    // reached, exactly as it does across this job's normal weekly runs.
+    await insertJob('notify_weekly_savings_update', {}, { priority: 5 });
+  }
+
+  return {
+    message:
+      `Weekly savings update processed (${attempted} of ${rows.length} candidates)` +
+      (stoppedEarly ? ' — stopped early: tick budget, continuation enqueued' : ''),
+    attempted,
     sent,
     skipped,
     failed,
@@ -972,6 +1268,15 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
       });
     }
 
+    await emitSmsBulkActivity({
+      jobId,
+      groupId,
+      sentBy,
+      message,
+      recipients: phones.length,
+      chunks: chunks.length,
+      campaignId,
+    });
     return {
       message: `SMS bulk send chunked (${chunks.length} chunks published, ${phones.length} recipients)`,
       chunked: true,
@@ -999,6 +1304,16 @@ async function handleSmsBulkSend(payload: Record<string, unknown>, jobId: string
     dispatchBatchId: jobId,
   });
 
+  await emitSmsBulkActivity({
+    jobId,
+    groupId,
+    sentBy,
+    message,
+    recipients: phones.length,
+    sent: result.sent,
+    failed: result.failed,
+    campaignId,
+  });
   return {
     message: `SMS bulk send dispatched (${result.sent} sent, ${result.failed} failed)`,
     ...flattenResult(result),
@@ -1054,6 +1369,17 @@ async function handleMarketingCampaignSmsSend(payload: Record<string, unknown>, 
   });
 
   await completeMarketingCampaignSend(campaignId, result.sent, result.failed);
+  await emitSmsBulkActivity({
+    jobId,
+    groupId,
+    sentBy,
+    message,
+    recipients: phones.length,
+    sent: result.sent,
+    failed: result.failed,
+    campaignId,
+    kind: 'marketing',
+  });
 
   return {
     message: `Marketing campaign SMS dispatched (${result.sent} sent, ${result.failed} failed)`,
@@ -1435,4 +1761,25 @@ function flattenResult(value: unknown): Record<string, unknown> {
   if (value instanceof Error) return { error: value.message };
   if (typeof value === 'object') return value as Record<string, unknown>;
   return { result: value };
+}
+
+async function handleAdminAlertDeliver(payload: Record<string, unknown>): Promise<HandlerResult> {
+  const { deliverNotification } = await import('@/lib/notifications/notification-queue');
+  const deliveryId = String(payload.deliveryId ?? '');
+  if (!deliveryId) throw new Error('admin_alert_deliver: missing deliveryId');
+  // Throws on a retryable failure so the queue applies its exponential backoff.
+  const outcome = await deliverNotification(deliveryId, { throwOnRetry: true });
+  return { message: `Admin alert delivery ${outcome}`, outcome };
+}
+
+async function handleAdminAlertDigest(): Promise<HandlerResult> {
+  const { runAdminDigest } = await import('@/lib/notifications/digest');
+  const r = await runAdminDigest();
+  return { message: r.sent ? `Digest sent (${r.events} events)` : 'No digest due', ...r };
+}
+
+async function handleSystemHealthCheck(): Promise<HandlerResult> {
+  const { runSystemHealthCheck } = await import('@/lib/notifications/system-health');
+  const r = await runSystemHealthCheck();
+  return { message: r.failing.length ? `Failing: ${r.failing.join(', ')}` : 'All checks healthy', ...r };
 }

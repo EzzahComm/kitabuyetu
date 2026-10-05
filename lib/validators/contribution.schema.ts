@@ -38,10 +38,21 @@ export const SetSavingsLimitsSchema = z.object({
   gracePeriodDays: z.coerce.number().int().min(0),
 });
 
+// ContributionPlan 'amounts' — the group's flat expected monthly contribution
+// and welfare amount (contribution-plan.service.ts). Unlike SavingsPolicy's
+// min/max, these two ARE what notify_contribution_reminders uses to compute
+// each member's outstanding balance/arrears, so 0 genuinely means "this
+// group doesn't track that obligation" rather than "no limit".
+export const SetContributionPlanSchema = z.object({
+  monthlyContribution: z.coerce.number().min(0),
+  welfareAmount: z.coerce.number().min(0),
+});
+
 export type CreateContributionInput = z.infer<typeof CreateContributionSchema>;
 export type UpdateContributionInput = z.infer<typeof UpdateContributionSchema>;
 export type ContributionQueryInput = z.infer<typeof ContributionQuerySchema>;
 export type SetSavingsLimitsInput = z.infer<typeof SetSavingsLimitsSchema>;
+export type SetContributionPlanInput = z.infer<typeof SetContributionPlanSchema>;
 
 // Client request-body types. z.input, not z.infer: a field carrying
 // .default() is optional on the wire but present after parsing, so the
@@ -49,3 +60,4 @@ export type SetSavingsLimitsInput = z.infer<typeof SetSavingsLimitsSchema>;
 export type CreateContributionPayload = z.input<typeof CreateContributionSchema>;
 export type UpdateContributionPayload = z.input<typeof UpdateContributionSchema>;
 export type SetSavingsLimitsPayload = z.input<typeof SetSavingsLimitsSchema>;
+export type SetContributionPlanPayload = z.input<typeof SetContributionPlanSchema>;

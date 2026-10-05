@@ -13,6 +13,10 @@
  * mpesa-stk.service.ts's applyCampaignDonationFromSTK, not here — this module
  * only creates/reviews campaigns and reads them back.
  */
+import { randomInt } from 'crypto';
+import { assertCampaignOfficersComplete } from './campaign-officers.service';
+import { assertChangishaPlanActive } from './campaign-plan.service';
+import { emitCampaignEvent, ActivityEventType } from '@/lib/notifications';
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ForbiddenError, ValidationError } from '@/lib/utils/errors';
@@ -45,6 +49,8 @@ export interface Campaign extends PayoutFields {
   group_id: string;
   title: string;
   slug: string;
+  /** PayBill account number donors type to give directly, e.g. CH4K7M2Q. */
+  account_code: string;
   story: string;
   beneficiary_name: string | null;
   target_amount: string;
@@ -111,6 +117,20 @@ function slugify(title: string): string {
     .slice(0, 80);
 }
 
+// No 0/O/1/I: the code is read off a screen and typed into M-Pesa.
+const ACCOUNT_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+async function uniqueAccountCode(db: PoolClient): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    let code = 'CH';
+    // randomInt is uniform (no modulo bias) and cryptographically secure.
+    for (let i = 0; i < 6; i++) code += ACCOUNT_CODE_ALPHABET[randomInt(ACCOUNT_CODE_ALPHABET.length)];
+    const { rows } = await db.query('SELECT 1 FROM campaigns WHERE account_code = $1', [code]);
+    if (!rows[0]) return code;
+  }
+  throw new Error('Could not allocate a campaign account code');
+}
+
 async function uniqueSlug(db: PoolClient, title: string): Promise<string> {
   const base = slugify(title) || 'campaign';
   for (let attempt = 0; attempt < 20; attempt++) {
@@ -127,14 +147,19 @@ export const campaignsService = {
     assertOfficer(ctx);
     if (!(data.targetAmount > 0)) throw new ValidationError('Target amount must be positive');
 
-    return withTransaction(ctx, async (db) => {
+    const created = await withTransaction(ctx, async (db) => {
+      // A campaign's money is released with sign-off from the chairperson, treasurer and secretary,
+      // so the group must have all three before it can start one.
+      await assertCampaignOfficersComplete(db, ctx.groupId);
+      await assertChangishaPlanActive(db, ctx.groupId);
       const slug = await uniqueSlug(db, data.title);
+      const accountCode = await uniqueAccountCode(db);
 
       const { rows } = await db.query<Campaign>(
         `INSERT INTO campaigns
-           (group_id, title, slug, story, beneficiary_name, payout_phone, target_amount,
+           (group_id, title, slug, account_code, story, beneficiary_name, payout_phone, target_amount,
             cover_image_url, ends_at, created_by, status)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'draft')
+         VALUES ($1,$2,$3,$11,$4,$5,$6,$7,$8,$9,$10,'draft')
          RETURNING *`,
         [
           ctx.groupId,
@@ -147,6 +172,7 @@ export const campaignsService = {
           data.coverImageUrl ?? null,
           data.endsAt ?? null,
           ctx.userId,
+          accountCode,
         ],
       );
       const campaign = rows[0];
@@ -174,11 +200,13 @@ export const campaignsService = {
 
       return campaign;
     });
+    await emitCampaignEvent(created.id, ActivityEventType.CAMPAIGN_CREATED, { actorUserId: ctx.userId });
+    return created;
   },
 
   async submitForReview(ctx: TenantContext, campaignId: string): Promise<Campaign> {
     assertOfficer(ctx);
-    return withTransaction(ctx, async (db) => {
+    const submitted = await withTransaction(ctx, async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND group_id = $2 FOR UPDATE`,
         [campaignId, ctx.groupId],
@@ -194,6 +222,10 @@ export const campaignsService = {
           'Set where withdrawals are paid (an M-Pesa phone, paybill or till) before submitting for review',
         );
       }
+      // An officer may have left since the draft was created.
+      await assertCampaignOfficersComplete(db, ctx.groupId);
+      // The plan may have lapsed since the draft was created.
+      await assertChangishaPlanActive(db, ctx.groupId);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns SET status = 'pending_review', updated_at = NOW()
@@ -217,6 +249,8 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(submitted.id, ActivityEventType.CAMPAIGN_SUBMITTED, { actorUserId: ctx.userId });
+    return submitted;
   },
 
   /**
@@ -404,12 +438,16 @@ export const campaignsService = {
   },
 
   async approveCampaign(adminUserId: string, campaignId: string): Promise<Campaign> {
-    return withAdminDb(async (db) => {
+    const approved = await withAdminDb(async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND status = 'pending_review' FOR UPDATE`,
         [campaignId],
       );
       if (!existing[0]) throw new NotFoundError('Pending campaign', campaignId);
+
+      // Do not make a campaign public for a group that cannot release its funds under the three-office rule.
+      await assertCampaignOfficersComplete(db, existing[0].group_id);
+      await assertChangishaPlanActive(db, existing[0].group_id);
 
       const { rows: updated } = await db.query<Campaign>(
         `UPDATE campaigns
@@ -434,11 +472,13 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(campaignId, ActivityEventType.CAMPAIGN_APPROVED, { adminUserId });
+    return approved;
   },
 
   async rejectCampaign(adminUserId: string, campaignId: string, reason: string): Promise<Campaign> {
     if (!reason.trim()) throw new ValidationError('A rejection reason is required');
-    return withAdminDb(async (db) => {
+    const rejected = await withAdminDb(async (db) => {
       const { rows: existing } = await db.query<Campaign>(
         `SELECT * FROM campaigns WHERE id = $1 AND status = 'pending_review' FOR UPDATE`,
         [campaignId],
@@ -468,5 +508,7 @@ export const campaignsService = {
 
       return updated[0];
     });
+    await emitCampaignEvent(campaignId, ActivityEventType.CAMPAIGN_REJECTED, { adminUserId, reason });
+    return rejected;
   },
 };

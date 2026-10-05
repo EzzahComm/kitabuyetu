@@ -25,6 +25,7 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.profile.view',
   'organization.branding.manage',
   'organization.groups.view',
+  'organization.groups.manage',
   'organization.members.view',
   'organization.audit_logs.view',
   'organization.reports.view',
@@ -32,6 +33,11 @@ export const ORGANIZATION_PERMISSIONS = [
   'organization.reports.schedules.manage',
   'organization.dashboard.view',
   'organization.programs.manage',
+  // Distinct from organization.programs.manage, which is funding_programs
+  // (budget/disbursement config) — group_programs is the unrelated
+  // recruitment/membership "Programs" feature (migration 206).
+  'organization.group_programs.manage',
+  'organization.group_programs.view',
   'organization.disbursements.manage',
   'organization.wallet.view',
   'organization.sms.manage',

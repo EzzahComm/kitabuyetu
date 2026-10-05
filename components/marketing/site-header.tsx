@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronDown, Menu, X, ArrowRight, Mail, MapPin, Phone } from 'lucide-react';
-import { BrandLogo } from '@/components/branding/BrandLogo';
+import { BrandLockup } from '@/components/branding/BrandLockup';
 import { cn } from '@/lib/utils';
 import { displayFont } from './display-font';
 import { CONTACT, NAV_ITEMS, ROUTES, isNavGroup, telHref, type NavGroup } from './routes';
@@ -335,25 +335,8 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
               aria-label="Kitabu Yetu — home"
             >
-              <BrandLogo size={36} priority alt="" />
-              <span className="flex flex-col">
-                <span
-                  className={cn(
-                    'font-display text-[1.6rem] font-bold leading-none tracking-tight transition-colors lg:text-[1.85rem]',
-                    transparent ? 'text-white' : 'text-brand-500',
-                  )}
-                >
-                  Kitabu&nbsp;Yetu
-                </span>
-                <small
-                  className={cn(
-                    'mt-1.5 block max-w-[12rem] truncate text-[0.625rem] font-medium uppercase tracking-wide transition-colors sm:max-w-none sm:text-center lg:text-[0.6875rem]',
-                    transparent ? 'text-white/70' : 'text-finanza-text/70',
-                  )}
-                >
-                  Smart Group-Management Tools &bull; Build Vibrant Communities
-                </small>
-              </span>
+              {/* Over the hero photo the header is transparent, so the lockup takes the kit's dark-ground colourway. */}
+              <BrandLockup size={40} tone={transparent ? 'dark' : 'light'} tagline />
             </Link>
 
             {/* xl, not lg: the seven items need ~700px, so between 1024 and

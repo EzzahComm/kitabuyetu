@@ -10,6 +10,7 @@ import {
   CreditCard,
   Headphones,
   ScrollText,
+  BellRing,
   BarChart3,
   Flag,
   ShieldAlert,
@@ -25,9 +26,11 @@ import {
   Mail,
   Briefcase,
   UserPlus,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
+import { BrandWordmark } from '@/components/branding/BrandLockup';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 
 const NAV: PortalNavSection[] = [
@@ -57,6 +60,7 @@ const NAV: PortalNavSection[] = [
       { href: '/admin/ecosystem/partners', label: 'Partners', icon: Handshake },
       { href: '/admin/ecosystem/opportunities', label: 'Opportunities', icon: Store },
       { href: '/admin/ecosystem/applications', label: 'Applications', icon: ClipboardList },
+      { href: '/admin/organization-group-links', label: 'Group-Org Links', icon: Link2 },
       { href: '/admin/campaigns', label: 'Changi$ha', icon: HeartHandshake },
     ],
   },
@@ -73,6 +77,7 @@ const NAV: PortalNavSection[] = [
       { href: '/admin/support', label: 'Support Center', icon: Headphones },
       { href: '/admin/mpesa-unrouted', label: 'Unrouted Payments', icon: Wallet },
       { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
+      { href: '/admin/activity', label: 'Platform Activity', icon: BellRing },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: Flag },
       { href: '/admin/newsletter', label: 'Newsletter', icon: Mail },
     ],
@@ -112,9 +117,11 @@ export function AdminSidebar({ open, onClose }: AdminSidebarProps) {
           </Link>
         ) : (
           <Link href="/admin" className="flex items-center gap-2.5 min-w-0" aria-label="Kitabu Yetu admin home">
-            <BrandLogo size={28} alt="Kitabu Yetu" />
+            <BrandLogo size={28} alt="" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-foreground truncate leading-none">Kitabu Yetu</p>
+              <p className="truncate leading-none">
+                <BrandWordmark fontSize={15} />
+              </p>
               <p className="text-[10px] text-brand-blue-500 font-medium tracking-wide mt-0.5">ADMIN CONSOLE</p>
             </div>
           </Link>

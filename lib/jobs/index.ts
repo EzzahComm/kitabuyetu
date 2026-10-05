@@ -11,6 +11,7 @@ export type { Job, JobType, JobStatus, EnqueueOptions, ProcessResult } from './t
 import { insertJob } from './db';
 import type { JobType } from './types';
 import { withAdminDb } from '@/lib/db';
+import { toIsoWeekKey } from './week';
 
 /**
  * Inspect the current AFRICA/NAIROBI time and enqueue whichever time-based jobs
@@ -51,7 +52,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   const day = nairobiNow.getUTCDay(); // 0 = Sun … 6 = Sat
   const date = nairobiNow.getUTCDate();
   const dateStr = toDateStr(nairobiNow); // YYYY-MM-DD, Nairobi
-  const weekStr = toWeekStr(nairobiNow); // YYYY-WNN, Nairobi
+  const weekStr = toIsoWeekKey(nairobiNow); // YYYY-WNN, Nairobi
 
   // 5-minute bucket index (0–11 per hour). Unaffected by the shift: the offset
   // is whole hours, so minutes are identical either way.
@@ -95,6 +96,13 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // email_campaign_process.
   queued.email_campaign_drain = (await hasPendingCampaignRecipients())
     ? await safe('email_campaign_drain', {}, { priority: 5, dedup_key: 'email_campaign_drain' })
+    : null;
+
+  // Same claim-and-send idiom, for the platform-level newsletter digest
+  // (lib/services/newsletter-digest.service.ts) instead of a group's own
+  // email_campaigns — see that service's sendDigest()/drainDigestRecipients().
+  queued.newsletter_digest_drain = (await hasPendingDigestRecipients())
+    ? await safe('newsletter_digest_drain', {}, { priority: 5, dedup_key: 'newsletter_digest_drain' })
     : null;
 
   // ── Self-idempotent SMS sweeps: ONE outstanding row each, ever ────────────
@@ -155,6 +163,11 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
       dedup_key: 'sms_poll_dlr',
     },
   );
+
+  // Administrator alerting: aggregated activity digest and platform health.
+  // Constant dedup keys, like the sweeps above: at most one outstanding row each.
+  queued.admin_alert_digest = await safe('admin_alert_digest', {}, { priority: 4, dedup_key: 'admin_alert_digest' });
+  queued.system_health_check = await safe('system_health_check', {}, { priority: 9, dedup_key: 'system_health_check' });
 
   // Recovers SMS credit earmarks orphaned by a crash between the provider call
   // and the settle write. Low priority: correctness backstop, not time-critical.
@@ -351,6 +364,22 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
   }
 
+  // ── Monday 09:00 EAT — weekly savings-update SMS ──────────────
+  // A distinct hour from email_weekly_summary above so the two don't compete
+  // within the same tick. Unlike notify_contribution_reminders, this reaches
+  // EVERY active member of EVERY active group, not just groups with a
+  // configured contribution-plan.service.ts plan.
+  if (day === 1 && hour === 9 && fiveMinBucket === 0) {
+    queued.notify_weekly_savings_update = await safe(
+      'notify_weekly_savings_update',
+      {},
+      {
+        priority: 5,
+        dedup_key: `notify_weekly_savings_update:${weekStr}`,
+      },
+    );
+  }
+
   // ── Daily 02:00 EAT — cleanup + SMS money-trail reconciliation ─
   if (hour === 2 && fiveMinBucket === 0) {
     queued.cleanup_expired_tokens = await safe(
@@ -520,9 +549,11 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     );
 
     // ── 1st of month 08:00 EAT — contribution-reminders ──
-    // Nudge members who didn't contribute in the previous calendar
-    // month. Dedup keyed at month granularity so even repeated
-    // 5-min ticks within the same hour won't re-enqueue.
+    // SMS each member in arrears (per their group's configured
+    // contribution-plan.service.ts amounts) their outstanding
+    // contribution/welfare balance and where to pay. Dedup keyed at month
+    // granularity so even repeated 5-min ticks within the same hour won't
+    // re-enqueue.
     queued.notify_contribution_reminders = await safe(
       'notify_contribution_reminders',
       {},
@@ -626,6 +657,22 @@ async function hasDueEmailSchedule(): Promise<boolean> {
   }
 }
 
+async function hasPendingDigestRecipients(): Promise<boolean> {
+  try {
+    const { rows } = await withAdminDb((db) =>
+      db.query(
+        `SELECT 1 FROM newsletter_digest_recipients ndr
+         JOIN newsletter_digests nd ON nd.id = ndr.digest_id
+         WHERE ndr.status = 'pending' AND nd.status = 'sending'
+         LIMIT 1`,
+      ),
+    );
+    return rows.length > 0;
+  } catch {
+    return false;
+  }
+}
+
 async function hasPendingCampaignRecipients(): Promise<boolean> {
   try {
     const { rows } = await withAdminDb((db) =>
@@ -646,14 +693,4 @@ async function hasPendingCampaignRecipients(): Promise<boolean> {
 
 function toDateStr(d: Date): string {
   return d.toISOString().slice(0, 10); // YYYY-MM-DD
-}
-
-function toWeekStr(d: Date): string {
-  // ISO 8601 week number
-  const tmp = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
-  const dayOfWeek = tmp.getUTCDay() || 7;
-  tmp.setUTCDate(tmp.getUTCDate() + 4 - dayOfWeek);
-  const yearStart = new Date(Date.UTC(tmp.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil(((tmp.getTime() - yearStart.getTime()) / 86_400_000 + 1) / 7);
-  return `${tmp.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
 }

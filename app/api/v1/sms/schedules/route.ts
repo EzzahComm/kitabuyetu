@@ -1,8 +1,9 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { ScheduleCreateSchema, ScheduleUpdateSchema } from '@/lib/validators/sms.schema';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
 import { ok, notFound } from '@/lib/utils/response';
 
 // GET /api/v1/sms/schedules
@@ -57,6 +58,18 @@ export async function POST(req: NextRequest): Promise<Response> {
         ],
       ),
     );
+    await emitActivity({
+      type: ActivityEventType.SMS_SCHEDULED,
+      dedupKey: `smsschedule:${schedule.id}:created`,
+      group: { id: auth.groupId, name: '' },
+      actor: { userId: auth.userId },
+      transaction: { id: schedule.id, type: 'SMS schedule', status: input.isActive ? 'active' : 'inactive' },
+      metadata: {
+        name: input.name,
+        scheduleType: input.scheduleType,
+        messagePreview: (input.message ?? '').slice(0, 400),
+      },
+    });
     return ok(schedule, 201);
   });
 }

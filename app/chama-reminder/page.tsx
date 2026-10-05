@@ -1,15 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import {
-  IconMessages,
-  IconCalendarDot,
-  IconUsers,
-  IconPhone,
-  IconCircleCheck,
-  IconTrendingUp,
-  IconBell,
-  IconClock,
-} from '@tabler/icons-react';
+import { Bell, Calendar, CircleCheck, Clock, MessagesSquare, Phone, TrendingUp, Users } from 'lucide-react';
 
 import { Container } from '@/components/Container';
 import { SectionTitle } from '@/components/SectionTitle';
@@ -25,7 +16,7 @@ import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/chama-reminder',
-  title: 'Bulk SMS Reminders for Chamas & Welfare Groups',
+  title: 'Kumbusha — Bulk SMS Reminders for Chamas & Welfare Groups',
   description:
     'Automated SMS reminders for contributions, meetings and loan repayments, plus announcements, so every member of your chama or welfare group stays informed.',
 });
@@ -46,34 +37,33 @@ export default function ChamaReminderPage() {
         <Container className="pt-24 lg:pt-36">
           <div className="mx-auto max-w-3xl text-center">
             <p className="inline-block rounded-lg border border-brand-100 px-3 py-1 text-[0.9375rem] font-medium text-brand-500">
-              Chama Reminder
+              Chama Reminder · Kumbusha
             </p>
             <h1 className="mt-4 font-display text-[2.5rem] font-bold leading-[1.1] text-finanza-dark sm:text-5xl lg:text-6xl">
-              Keep the group moving <em className="not-italic text-brand-500">between meetings</em>.
+              Contributions on time. <em className="not-italic text-brand-500">No follow-up calls.</em>
             </h1>
             <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-finanza-text">
-              Contribution reminders, meeting notices, payment confirmations and announcements from one member list,
-              with no accounting setup needed.
+              Automatic SMS reminders and announcements to every member’s phone. Nothing to install, nothing to set up.
             </p>
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <Link
                 href={signUpUrl('chama_reminder')}
                 className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                Start with Chama Reminder
+                Send your first reminder
               </Link>
               <Link
                 href="/bookkeeper"
                 className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
-                Explore Bookkeeper
+                Need full bookkeeping?
               </Link>
             </div>
           </div>
         </Container>
 
-        <SectionTitle preTitle="Features" title="Everything for group communication">
-          Member management and SMS messaging, without the accounting complexity.
+        <SectionTitle preTitle="Features" title="Reach every member, every time">
+          Your member list and SMS — no bookkeeping needed.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -98,29 +88,28 @@ export default function ChamaReminderPage() {
           <div className="rounded-lg bg-brand-50/40 p-8 md:p-12">
             <div className="mx-auto max-w-2xl text-center">
               <h2 className="mb-4 font-display text-3xl font-bold text-finanza-dark">
-                Start with messaging, grow to full accounting
+                Start with reminders. Add bookkeeping later.
               </h2>
               <p className="mb-8 text-lg leading-relaxed text-finanza-text">
-                Chama Reminder is perfect for groups that only need to reach members. Upgrade to Bookkeeper whenever
-                your group is ready — everything comes with you.
+                Upgrade whenever you&apos;re ready. Your members and messages come with you.
               </p>
               <div className="mt-8 grid gap-6 md:grid-cols-2">
                 <div className="text-left">
                   <h3 className="mb-3 font-semibold text-brand-700">Start here (Chama Reminder)</h3>
                   <ul className="space-y-2 text-sm text-finanza-text">
-                    <li>✓ Member list &amp; contacts</li>
-                    <li>✓ SMS campaigns &amp; reminders</li>
-                    <li>✓ No accounting</li>
-                    <li>✓ Lower cost entry point</li>
+                    <li>✓ Member list</li>
+                    <li>✓ SMS reminders &amp; announcements</li>
+                    <li>✓ Nothing to set up</li>
+                    <li>✓ Lowest price</li>
                   </ul>
                 </div>
                 <div className="text-left">
                   <h3 className="mb-3 font-semibold text-brand-700">Grow here (Kitabu Yetu)</h3>
                   <ul className="space-y-2 text-sm text-finanza-text">
-                    <li>✓ Add Bookkeeper accounting</li>
+                    <li>✓ Add full bookkeeping</li>
                     <li>✓ Members &amp; history carry over</li>
-                    <li>✓ All messaging features stay</li>
-                    <li>✓ Pay-as-you-go upgrade</li>
+                    <li>✓ All messaging stays</li>
+                    <li>✓ Upgrade by M-Pesa, any time</li>
                   </ul>
                 </div>
               </div>
@@ -128,8 +117,8 @@ export default function ChamaReminderPage() {
           </div>
         </Container>
 
-        <SectionTitle preTitle="Pricing" title="Affordable messaging plans">
-          SMS included in every plan. Add more anytime with top-up credits.
+        <SectionTitle preTitle="Pricing" title="SMS included. Top up any time.">
+          One price for the whole group. Pay monthly by M-Pesa.
         </SectionTitle>
 
         <Container className="mb-20">
@@ -158,7 +147,7 @@ export default function ChamaReminderPage() {
                 <ul className="mb-6 flex-grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
-                      <IconCircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
+                      <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />
                       {feature}
                     </li>
                   ))}
@@ -178,7 +167,7 @@ export default function ChamaReminderPage() {
             ))}
           </div>
           <p className="mt-6 text-center text-sm text-finanza-text">
-            Every plan is paid and bought self-service by M-Pesa. See{' '}
+            Buy any plan yourself by M-Pesa. See{' '}
             <Link href="/pricing" className="font-medium text-brand-700 hover:underline">
               full pricing
             </Link>{' '}
@@ -187,9 +176,7 @@ export default function ChamaReminderPage() {
         </Container>
 
         <Container className="mb-20">
-          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">
-            Perfect for groups that need to reach members
-          </h2>
+          <h2 className="mb-12 text-center font-display text-3xl font-bold text-finanza-dark">What groups send</h2>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {useCases.map((useCase) => (
               <div
@@ -205,12 +192,12 @@ export default function ChamaReminderPage() {
         </Container>
 
         <Cta
-          title="Connect with your group"
-          subtitle="Simple SMS messaging for groups that just need to reach members."
-          note="Move to Kitabu Yetu anytime to add accounting — no re-setup needed."
-          footnote="No lock-in period · Pay by M-Pesa · Free migration to Bookkeeper"
+          title="Stop chasing contributions."
+          subtitle="Set your reminders once. They go out on their own."
+          note="Add bookkeeping any time — no re-setup."
+          footnote="Month to month · Pay by M-Pesa · Free move to Bookkeeper"
           primary={{
-            text: 'Get started with Chama Reminder',
+            text: 'Send your first reminder',
             href: signUpUrl('chama_reminder'),
           }}
           secondary={{ text: 'Compare with Bookkeeper', href: '/bookkeeper' }}
@@ -224,58 +211,56 @@ export default function ChamaReminderPage() {
 const coreFeatures = [
   {
     title: 'Member list',
-    description:
-      'Names, phone numbers and groups in one place. Ready to message without rebuilding the list every time.',
-    icon: <IconUsers size={24} />,
+    description: 'Names and numbers in one place, ready to message.',
+    icon: <Users size={24} />,
   },
   {
     title: 'SMS campaigns',
-    description: 'One-time messages or scheduled campaigns. Send to individuals, groups or the whole membership.',
-    icon: <IconMessages size={24} />,
+    description: 'Send now or schedule — to one member or everyone.',
+    icon: <MessagesSquare size={24} />,
   },
   {
     title: 'Message templates',
-    description: 'Create templates with variables (name, amount, date) and reuse them for consistency.',
-    icon: <IconBell size={24} />,
+    description: 'Personalised with each member’s name, amount and date.',
+    icon: <Bell size={24} />,
   },
   {
     title: 'Scheduled reminders',
-    description:
-      'Set messages to go out at specific times. Contribution reminders, meeting notices, birthday greetings.',
-    icon: <IconClock size={24} />,
+    description: 'Contribution reminders, meeting notices and birthday greetings — on time, every time.',
+    icon: <Clock size={24} />,
   },
   {
     title: 'Delivery tracking',
-    description: 'See which messages were delivered, read failure reports and retry failed sends.',
-    icon: <IconCircleCheck size={24} />,
+    description: 'See what was delivered and resend what wasn’t.',
+    icon: <CircleCheck size={24} />,
   },
   {
     title: 'Simple pricing',
-    description: 'Pay once. Monthly SMS allowance included. Buy top-ups only when you need them.',
-    icon: <IconTrendingUp size={24} />,
+    description: 'SMS included every month. Top up only when you need to.',
+    icon: <TrendingUp size={24} />,
   },
 ];
 
 const keepMembersInformed = {
-  title: 'Keep members in the loop',
-  desc: 'Reminders that go out on time, messages that reach everyone, and a member list you control.',
+  title: 'Every member, in the loop',
+  desc: 'Reminders that never forget.',
   image: PHOTOS.memberPhone.src,
   imageAlt: PHOTOS.memberPhone.alt,
   bullets: [
     {
       title: 'A member list that is yours',
-      desc: 'Names, numbers and groups in one place, ready to message without rebuilding every time.',
-      icon: <IconUsers size={24} />,
+      desc: 'Names and numbers, always ready to message.',
+      icon: <Users size={24} />,
     },
     {
       title: 'Reminders that go out on time',
-      desc: "Scheduled campaigns and message templates, so the reminder doesn't depend on someone remembering.",
-      icon: <IconClock size={24} />,
+      desc: 'Scheduled once, sent automatically — no one has to remember.',
+      icon: <Clock size={24} />,
     },
     {
       title: 'Move to Bookkeeper when ready',
-      desc: 'Buy a Kitabu Yetu plan and your chart of accounts is set up; group, members and message history carry over.',
-      icon: <IconTrendingUp size={24} />,
+      desc: 'Upgrade any time. Your members and messages come with you.',
+      icon: <TrendingUp size={24} />,
     },
   ],
 };
@@ -303,32 +288,32 @@ const plans = PLAN_COPY.chama_reminder.map((plan) => {
 const useCases = [
   {
     name: 'Contribution reminders',
-    description: 'Remind members when contributions are due. Automatic or scheduled messages.',
+    description: 'Sent automatically before every due date.',
     icon: '📱',
   },
   {
     name: 'Birthday greetings',
-    description: 'Celebrate members with automated birthday SMS messages on their special day.',
+    description: 'Every member greeted on their day.',
     icon: '🎂',
   },
   {
     name: 'Meeting notices',
-    description: 'Send meeting schedules, venues and agenda to all members at once.',
+    description: 'Date, venue and agenda to everyone at once.',
     icon: '📅',
   },
   {
     name: 'Payment confirmations',
-    description: 'Confirm receipt of payments and balance updates to members immediately.',
+    description: 'Members know their payment arrived.',
     icon: '✅',
   },
   {
     name: 'Group announcements',
-    description: 'Share important news, policy changes and opportunities with the group.',
+    description: 'News and decisions, to everyone at once.',
     icon: '📢',
   },
   {
     name: 'Loan reminders',
-    description: 'Notify loan recipients about repayment schedules and due dates.',
+    description: 'Repayment due dates, before they’re missed.',
     icon: '💳',
   },
 ];

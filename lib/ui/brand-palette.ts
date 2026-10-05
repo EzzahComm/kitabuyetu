@@ -15,21 +15,29 @@
  * (Tailwind classes, `lib/ui/tokens.ts`, `lib/brand.ts`) flow from it.
  */
 
-/** Primary green — built around the logo's vibrant #3CB043 leaf/people mark. */
+/**
+ * Primary green — the brand kit's #12A06B (logo v3, 2026-10-01; replaced
+ * the retired raster logo's brighter leaf green). Kit anchors: 600 is the "Kitabu" wordmark on
+ * light grounds, 300/400 the wordmark and dots on navy, 200 the mark on blue.
+ */
 export const brandGreen = {
-  50: '#EAF7EC', // light accent
-  100: '#D2EFD7',
-  200: '#A8DFB1',
-  300: '#7CCC89',
-  400: '#56BC65',
-  500: '#3CB043', // ← canonical brand green
-  600: '#2F9335',
-  700: '#287629',
-  800: '#1F5C22',
-  900: '#143F18',
+  50: '#EAF8F1', // light accent
+  100: '#CDF5E3',
+  200: '#8CF2C6', // kit: people dots on blue
+  300: '#3FD59A', // kit: "Kitabu" on navy
+  400: '#2CC98B', // kit: people dots on navy
+  500: '#12A06B', // ← canonical brand green (kit)
+  600: '#0E9462', // kit: "Kitabu" on light
+  700: '#0B7A51',
+  800: '#085F3F',
+  900: '#05412B',
 } as const;
 
-/** Primary navy — built around the logo's deep #0B3C88 book/wordmark. */
+/**
+ * App navy — headings and body copy in the authenticated app. Built around the
+ * retired raster logo's book colour; logo v3 itself uses the Finanza blue and
+ * navy (lib/ui/finanza-palette.ts), so this scale is a UI token, not a logo colour.
+ */
 export const brandNavy = {
   50: '#E7EEF8',
   100: '#C6D5ED',
@@ -56,12 +64,12 @@ export const brandNavy = {
  * since nothing references them.)
  */
 export const brandOrange = {
-  50: '#FFF4ED',
-  100: '#FFE6D5',
-  300: '#FDA572',
-  500: '#F97316',
-  600: '#EA580C',
-  700: '#C2410C',
+  50: '#FEF1E9',
+  100: '#FCDCC8',
+  300: '#F5975C',
+  500: '#E8590C', // ← kit orange: the centre dot and "Yetu"
+  600: '#C74A08',
+  700: '#A13C06',
 } as const;
 
 /**

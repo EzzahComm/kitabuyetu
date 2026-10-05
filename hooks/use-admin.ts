@@ -65,12 +65,22 @@ import type {
 import type { getCountyAggregation, getWardAggregation } from '@/lib/services/admin-geography.service';
 import type { listNewsletterSubscribers, getNewsletterStats } from '@/lib/services/newsletter.service';
 import type {
+  NewsletterDigest,
+  MarketingTemplateKey,
+  MarketingTemplateSummary,
+} from '@/lib/services/newsletter-digest.service';
+import type {
   createEmployee,
   listEmployees,
   getEmployeeById,
   updateEmployee,
   terminateEmployee,
 } from '@/lib/services/hr.service';
+import type {
+  listOnboardingTasks,
+  addOnboardingTask,
+  updateOnboardingTask,
+} from '@/lib/services/hr-onboarding.service';
 import type {
   listApplications,
   getApplicationById,
@@ -178,6 +188,11 @@ type TerminateEmployeeResult = Awaited<ReturnType<typeof terminateEmployee>>;
 type CreateEmployeeInput = Parameters<typeof createEmployee>[1];
 type UpdateEmployeeInput = Parameters<typeof updateEmployee>[2];
 type TerminateEmployeeInput = Parameters<typeof terminateEmployee>[2];
+type OnboardingTaskList = Awaited<ReturnType<typeof listOnboardingTasks>>;
+type AddOnboardingTaskResult = Awaited<ReturnType<typeof addOnboardingTask>>;
+type UpdateOnboardingTaskResult = Awaited<ReturnType<typeof updateOnboardingTask>>;
+type AddOnboardingTaskInput = Parameters<typeof addOnboardingTask>[2];
+type UpdateOnboardingTaskInput = Parameters<typeof updateOnboardingTask>[2];
 type ApplicationList = Awaited<ReturnType<typeof listApplications>>;
 type ApplicationDetail = Awaited<ReturnType<typeof getApplicationById>>;
 type UpdateApplicationStageResult = Awaited<ReturnType<typeof updateApplicationStage>>;
@@ -359,6 +374,27 @@ export function useUpdateMemberProfile() {
     onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: ['admin', 'member', vars.memberId] });
       qc.invalidateQueries({ queryKey: ['admin', 'group', vars.groupId] });
+    },
+  });
+}
+
+/** Add a member to a group from the backoffice — see createGroupMember. */
+export interface CreateGroupMemberInput {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth?: string;
+  role?: 'member' | 'secretary' | 'treasurer' | 'chairperson';
+}
+
+export function useCreateGroupMember() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ groupId, ...body }: CreateGroupMemberInput & { groupId: string }) =>
+      adminFetch<unknown>(`/api/admin/groups/${groupId}/members`, { method: 'POST', json: body }),
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'groups', vars.groupId, 'members'] });
+      qc.invalidateQueries({ queryKey: ['admin', 'groups', vars.groupId] });
     },
   });
 }
@@ -809,6 +845,26 @@ export function useRegisterC2BUrls() {
   });
 }
 
+/** The platform-wide weekly contribution target every group is measured against unless it sets its own override. */
+export function useWeeklyContributionDefault() {
+  return useQuery({
+    queryKey: ['admin', 'config', 'weekly-contribution-default'],
+    queryFn: () => adminFetch<{ weeklyContribution: number }>('/api/admin/config/weekly-contribution-default'),
+  });
+}
+
+export function useSetWeeklyContributionDefault() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (weeklyContribution: number) =>
+      adminFetch<{ weeklyContribution: number }>('/api/admin/config/weekly-contribution-default', {
+        method: 'PUT',
+        json: { weeklyContribution },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'config', 'weekly-contribution-default'] }),
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Audit logs
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1046,6 +1102,50 @@ export function useNewsletterSubscribers() {
   });
 }
 
+export function useNewsletterDigests() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'digests'],
+    queryFn: () => adminFetch<NewsletterDigest[]>('/api/admin/newsletter/digest'),
+  });
+}
+
+export function useMarketingTemplates() {
+  return useQuery({
+    queryKey: ['admin', 'newsletter', 'templates'],
+    queryFn: () => adminFetch<MarketingTemplateSummary[]>('/api/admin/newsletter/digest/templates'),
+  });
+}
+
+export function useComposeNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (templateKey: MarketingTemplateKey) =>
+      adminFetch<NewsletterDigest>('/api/admin/newsletter/digest', { method: 'POST', json: { templateKey } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useUpdateNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, subject, htmlBody }: { id: string; subject: string; htmlBody: string }) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}`, {
+        method: 'PATCH',
+        json: { subject, htmlBody },
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
+export function useSendNewsletterDigest() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}/send`, { method: 'POST' }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
+  });
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 // HR (Phase 11 — employee records)
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1094,6 +1194,38 @@ export function useTerminateEmployee(id: string) {
     mutationFn: (data: TerminateEmployeeInput) =>
       adminFetch<TerminateEmployeeResult>(`/api/admin/hr/employees/${id}/terminate`, { method: 'POST', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
+  });
+}
+
+export function useOnboardingTasks(employeeId: string) {
+  return useQuery({
+    queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'],
+    queryFn: () => adminFetch<OnboardingTaskList>(`/api/admin/hr/employees/${employeeId}/onboarding`),
+    enabled: !!employeeId,
+  });
+}
+
+export function useAddOnboardingTask(employeeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: AddOnboardingTaskInput) =>
+      adminFetch<AddOnboardingTaskResult>(`/api/admin/hr/employees/${employeeId}/onboarding`, {
+        method: 'POST',
+        json: data,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'] }),
+  });
+}
+
+export function useUpdateOnboardingTask(employeeId: string, taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateOnboardingTaskInput) =>
+      adminFetch<UpdateOnboardingTaskResult>(`/api/admin/hr/employees/${employeeId}/onboarding/${taskId}`, {
+        method: 'PATCH',
+        json: data,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'] }),
   });
 }
 

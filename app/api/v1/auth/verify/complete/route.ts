@@ -27,6 +27,7 @@ interface MembershipRow {
   email: string | null;
   platform_role: string;
   officer_role: string | null;
+  permissions: string[];
 }
 
 const OTP_ERROR_COPY: Record<string, string> = {
@@ -55,12 +56,14 @@ export async function POST(req: NextRequest): Promise<Response> {
                   g.group_code, g.name AS group_name,
                   m.first_name, m.last_name, m.phone, m.email,
                   m.platform_role, m.session_version,
-                  go.role AS officer_role
+                  go.role AS officer_role,
+                  COALESCE(r.permissions, '{}') AS permissions
              FROM group_members gm
              JOIN groups  g  ON g.id = gm.group_id
              JOIN members m  ON m.id = gm.member_id
              LEFT JOIN group_officers go
                ON go.group_id = gm.group_id AND go.member_id = gm.member_id AND go.removed_at IS NULL
+             LEFT JOIN roles r ON r.id = gm.role_id
             WHERE gm.member_id = $1 AND gm.group_id = $2`,
           [auth.userId, auth.groupId],
         );
@@ -79,6 +82,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         membershipNo: row.membership_no,
         authVersion: row.auth_version,
         sessionVersion: row.session_version,
+        permissions: row.permissions,
       });
       const { token: refreshToken } = signRefreshToken(auth.userId, 'tenant', auth.groupId, row.session_version);
       const rtHash = hashToken(refreshToken);

@@ -1,22 +1,15 @@
-import {
-  IconBrandFacebook,
-  IconBrandInstagram,
-  IconBrandLinkedin,
-  IconBrandWhatsapp,
-  IconBrandX,
-  IconBrandYoutube,
-  type Icon,
-} from '@tabler/icons-react';
+import { Facebook, Instagram, Linkedin, Youtube, type LucideIcon } from 'lucide-react';
+import { WhatsAppLogo, XLogo } from './brand-icons';
 import { cn } from '@/lib/utils';
 import { SOCIAL_LINKS, type SocialLink, type SocialPlatform } from './routes';
 
-const ICONS: Record<SocialPlatform, Icon> = {
-  facebook: IconBrandFacebook,
-  x: IconBrandX,
-  linkedin: IconBrandLinkedin,
-  instagram: IconBrandInstagram,
-  youtube: IconBrandYoutube,
-  whatsapp: IconBrandWhatsapp,
+const ICONS: Record<SocialPlatform, LucideIcon> = {
+  facebook: Facebook,
+  x: XLogo,
+  linkedin: Linkedin,
+  instagram: Instagram,
+  youtube: Youtube,
+  whatsapp: WhatsAppLogo,
 };
 
 const VARIANT: Record<'nav' | 'footer' | 'card', string> = {
@@ -61,12 +54,12 @@ export function SocialLinks({ variant, className, only, links: source = SOCIAL_L
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                 )}
               >
-                <Glyph aria-hidden="true" size={16} stroke={1.75} />
+                <Glyph aria-hidden="true" size={16} strokeWidth={1.75} />
               </a>
             ) : (
               // No profile URL yet: keep the template's icon row, but never as a dead link.
               <span aria-hidden="true" className={cn(base, 'cursor-default')}>
-                <Glyph size={16} stroke={1.75} />
+                <Glyph size={16} strokeWidth={1.75} />
               </span>
             )}
           </li>

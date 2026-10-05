@@ -64,22 +64,22 @@ export const PAIN_POINTS: PainPoint[] = [
   {
     icon: BookMarked,
     title: 'The paper book',
-    body: 'One cash book, one bag, one person’s handwriting. Lose the book — or just a page — and the group loses its own history.',
+    body: 'One book, one person’s handwriting. Lose a page and the group loses its history.',
   },
   {
     icon: Table2,
     title: 'The spreadsheet',
-    body: 'Fine until the group grows. Then three officers need the same file at once, and nobody is certain which copy is the real one.',
+    body: 'Three officers, three copies — and nobody sure which one is right.',
   },
   {
     icon: ArrowLeftRight,
     title: 'Reconciliation night',
-    body: 'The treasurer sits with an M-Pesa statement and a list of names the evening before every meeting, matching payments line by line.',
+    body: 'The night before every meeting, the treasurer matches M-Pesa messages to names, line by line.',
   },
   {
     icon: EyeOff,
     title: 'Nobody can see the balance',
-    body: 'Members learn where their savings stand once a month, if the meeting happens, from someone reading figures out loud.',
+    body: 'Members only hear their balance when someone reads it out at the meeting.',
   },
 ];
 
@@ -99,37 +99,37 @@ export const CAPABILITIES: Capability[] = [
   {
     icon: PiggyBank,
     title: 'Savings and contributions',
-    body: 'Contributions recorded as they arrive and split across savings, welfare and loan repayment by rules your group sets once.',
+    body: 'Recorded as they arrive and split into savings, welfare and loan repayment — by rules you set once.',
   },
   {
     icon: Landmark,
     title: 'Loans',
-    body: 'Applications, approvals, disbursement, repayment schedules and running balances — with a second approver required above your threshold.',
+    body: 'Apply, approve, pay out and track repayments. Big loans need a second approver.',
   },
   {
     icon: Users,
     title: 'Members',
-    body: 'One register of who is in, what role they hold, what they have paid and what they owe. Bring your existing list in from a spreadsheet.',
+    body: 'Who’s in, their role, what they’ve paid and what they owe. Bring your list from a spreadsheet.',
   },
   {
     icon: Smartphone,
     title: 'M-Pesa',
-    body: 'Collect by STK push or PayBill and pay out by B2C, on Safaricom’s official Daraja API — not a workaround.',
+    body: 'Collect through a payment prompt or your PayBill, and pay out straight to members’ M-Pesa.',
   },
   {
     icon: Sprout,
     title: 'Income-generating activities and investments',
-    body: 'Record what the group puts into a business, a piece of land, rental property or a fixed deposit — then track the income it brings in, the costs of running it, and whether it is actually ahead once both are counted.',
+    body: 'Land, rentals, a shop or a fixed deposit — see what each earns, what it costs and whether it’s paying off.',
   },
   {
     icon: BarChart3,
     title: 'Reports',
-    body: 'Trial balance, member statements, contribution and loan reports — generated from the ledger rather than retyped into one.',
+    body: 'Member statements, contribution and loan reports — ready in minutes, never retyped.',
   },
   {
     icon: BookOpen,
     title: 'Member passbook',
-    body: 'Every member signs in to see their own contributions, loan balance and savings goals, without waiting for the next meeting.',
+    body: 'Every member checks their own savings, loan and goals — any time, not just at meetings.',
   },
 ];
 
@@ -147,22 +147,22 @@ export const VALUE_PILLARS: Capability[] = [
   {
     icon: Users,
     title: 'Members',
-    body: 'Keep one up-to-date register of your members, their roles and their financial activity.',
+    body: 'One up-to-date list of members, roles and what each has paid.',
   },
   {
     icon: PiggyBank,
     title: 'Money',
-    body: 'Track savings, contributions, loans, welfare, shares, dividends, income-generating activities and investments in one place.',
+    body: 'Savings, loans, welfare, shares and investments in one place.',
   },
   {
     icon: Smartphone,
     title: 'Payments',
-    body: 'Connect M-Pesa collections and repayments directly to your group’s records.',
+    body: 'M-Pesa payments go straight into your records.',
   },
   {
     icon: BarChart3,
     title: 'Reports',
-    body: 'Get statements and reports without rebuilding the numbers every month.',
+    body: 'Statements and reports without redoing the maths.',
   },
 ];
 
@@ -185,14 +185,14 @@ export interface ShowcaseItem {
 export const SHOWCASE: ShowcaseItem[] = [
   {
     eyebrow: 'Keep the books',
-    title: 'A real ledger under a screen your treasurer',
-    emphasis: 'can actually use',
-    body: 'Kitabu Yetu is double-entry accounting underneath — the same discipline an auditor expects — with none of the accounting vocabulary on the surface.',
+    title: 'Books an auditor trusts,',
+    emphasis: 'screens a treasurer enjoys',
+    body: 'Proper accounting underneath. Plain language on top.',
     points: [
       'Members, savings, contributions, loans, welfare, shares and dividends',
       'Income-generating activities and investments — income, running costs and net performance',
-      'Journals posted automatically as money moves',
-      'Fiscal periods you can close so the past stops changing',
+      'Every payment recorded automatically',
+      'Close the month so past records can’t change',
     ],
     visual: 'ledger',
     href: ROUTES.bookkeeper,
@@ -200,14 +200,14 @@ export const SHOWCASE: ShowcaseItem[] = [
   },
   {
     eyebrow: 'Move the money',
-    title: 'Collection and payout on',
-    emphasis: 'Safaricom’s own API',
-    body: 'Money in and money out both run through Daraja, so the payment and the record of the payment are the same event rather than two things you hope agree.',
+    title: 'Money in and out,',
+    emphasis: 'straight through M-Pesa',
+    body: 'The payment and the record happen together — so they always agree.',
     points: [
-      'STK push prompts sent straight to a member’s phone',
+      'A payment prompt straight to the member’s phone',
       'PayBill payments matched by the member’s membership number',
-      'B2C payouts for loans, welfare and dividends',
-      'The M-Pesa transaction fee captured on every transaction',
+      'Loans, welfare and dividends paid out to M-Pesa',
+      'M-Pesa charges recorded on every transaction',
     ],
     visual: 'payment',
   },
@@ -215,7 +215,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     eyebrow: 'Know your numbers',
     title: 'The answer to “where do we stand?”',
     emphasis: 'in one screen',
-    body: 'Balances, contributions, outstanding loans and welfare all read from the same ledger, so the report and the meeting agree.',
+    body: 'Balances, loans and welfare from one source — so the report and the meeting agree.',
     points: [
       'Member statements and full transaction history',
       'Contribution, loan and welfare reports',
@@ -228,7 +228,7 @@ export const SHOWCASE: ShowcaseItem[] = [
     eyebrow: 'Keep everyone in the loop',
     title: 'Members hear from the group,',
     emphasis: 'not from rumour',
-    body: 'Contribution confirmations, reminders and announcements go out from the same system that holds the money, so the message and the balance never disagree.',
+    body: 'Confirmations, reminders and announcements sent from the same place the money is kept.',
     points: [
       'SMS confirmations, reminders and announcements',
       'WhatsApp and email for groups that prefer them',
@@ -243,9 +243,9 @@ export const SHOWCASE: ShowcaseItem[] = [
     eyebrow: 'Grow the group’s money',
     title: 'Shares, dividends and the activities',
     emphasis: 'that earn for the group',
-    body: 'A group is more than its savings pot. Track share capital and dividends, and record the businesses, land, rentals and projects the group puts money into — what they earn, what they cost to run, and whether they are actually ahead.',
+    body: 'Track shares and dividends, plus every project the group invests in — and whether it’s paying off.',
     points: [
-      'A share ledger with holdings, transactions and PDF certificates',
+      'Share records with printable certificates',
       'Dividends allocated across real holdings, not estimated',
       'Income-generating activities and investments: farming, poultry, rentals, water projects, shops',
       'Returns and running costs recorded against each one',
@@ -275,27 +275,27 @@ export interface Step {
 export const STEPS: Step[] = [
   {
     title: 'Create',
-    body: 'Register your group in a few minutes. It gets its own chart of accounts and its own M-Pesa account reference, set up for you.',
+    body: 'Register in minutes. Your books and M-Pesa reference are set up for you.',
   },
   {
     title: 'Organize',
-    body: 'Add members one at a time or import the register you already keep. Set roles — chairperson, treasurer, secretary — and the rules your group runs by.',
+    body: 'Add members or import your list. Assign chair, treasurer and secretary.',
   },
   {
     title: 'Set your rules',
-    body: 'Configure contributions, loans, welfare and the rest — contribution splits, loan schedules, dividend allocations and reminders then run themselves instead of being redone by hand every cycle.',
+    body: 'Set contributions, loans and welfare once. Splits, schedules and reminders then run themselves.',
   },
   {
     title: 'Start recording',
-    body: 'Record contributions, payments, loans, welfare and everything else the group does — by hand where you need to, automatically where M-Pesa can do it for you.',
+    body: 'Record cash by hand. M-Pesa payments record themselves.',
   },
   {
-    title: 'Digital ledger',
-    body: 'Collect contributions and repayments digitally, and watch them post themselves to a ledger that always balances.',
+    title: 'Always balanced',
+    body: 'Every shilling lands in books that always add up.',
   },
   {
     title: 'Grow',
-    body: 'Connect to the wider Kitabu Yetu ecosystem — organizations overseeing many groups, donors backing real projects, and programs built for qualifying groups.',
+    body: 'Use your track record to reach partners, donors and programmes.',
   },
 ];
 
@@ -323,29 +323,29 @@ export const ROLES: RoleCard[] = [
   {
     icon: UserRound,
     title: 'Members',
-    body: 'See your own contributions, loan balance and savings goals, and pay from your phone.',
+    body: 'Check your savings and loan, and pay from your phone.',
     href: ROUTES.memberApp,
     linkText: 'Member portal',
   },
   {
     icon: Wallet,
     title: 'Treasurers',
-    body: 'Record and reconcile money in and out — and answer “has she paid?” without opening a statement.',
+    body: 'Answer “has she paid?” in seconds — no statement needed.',
   },
   {
     icon: ClipboardList,
     title: 'Secretaries',
-    body: 'Keep the register, the meetings and the records that go with them in the same place as the money.',
+    body: 'Register, meetings and minutes — next to the money.',
   },
   {
     icon: ShieldCheck,
     title: 'Chairpersons',
-    body: 'The group’s administrator. Approve loans and payouts, set the rules, and watch the group’s financial health.',
+    body: 'Approve loans and payouts, set the rules, see the group’s health.',
   },
   {
     icon: Building2,
     title: 'Organizations and networks',
-    body: 'NGOs, funders and umbrella bodies get their own portal, with a portfolio view across every group they support and the programs they fund.',
+    body: 'One portal for every group and programme you support.',
     href: ROUTES.orgPortal,
     linkText: 'Enterprise portal',
   },
@@ -374,15 +374,15 @@ export interface FlowStep {
 export const PAYMENT_FLOW: FlowStep[] = [
   {
     label: 'Member pays',
-    body: 'An STK prompt straight to their phone, or your PayBill quoting their membership number. Anyone can pay for a member — a spouse, a child, a well-wisher — and it still lands in the right place.',
+    body: 'A payment prompt on their phone, or your PayBill with their member number. Anyone can pay on their behalf.',
   },
   {
     label: 'Payment is matched',
-    body: 'Safaricom’s Daraja callback is verified before anything is written down, then matched to the member by their membership number or the STK request that started it.',
+    body: 'Each payment is checked with M-Pesa, then matched to the right member automatically.',
   },
   {
     label: 'The records update',
-    body: 'Split into savings, welfare and loan repayment by the rules your group set once, posted to the ledger with Safaricom’s fee, and confirmed to the member — balances and reports current the same moment.',
+    body: 'Split by your rules, recorded, and confirmed to the member by SMS — instantly.',
   },
 ];
 
@@ -402,32 +402,32 @@ export const CONTROLS: Control[] = [
   {
     icon: KeyRound,
     title: 'Role-based access',
-    body: 'Chairperson, treasurer, secretary and member each see and do only what their role allows.',
+    body: 'Everyone sees and does only what their role allows.',
   },
   {
     icon: GitBranch,
-    title: 'Two people, not one',
-    body: 'Payouts, loan write-offs and manual journal entries need a second, different approver above your threshold.',
+    title: 'Two approvers',
+    body: 'Large payouts and write-offs need a second official’s sign-off.',
   },
   {
     icon: ScrollText,
-    title: 'A full audit trail',
-    body: 'Who changed what, and when — logged and reviewable, not just the money movements.',
+    title: 'Every change recorded',
+    body: 'Who changed what, and when — always on record.',
   },
   {
     icon: Building2,
-    title: 'Isolated per group',
-    body: 'Your members, contributions and books are enforced private to your group by the database itself, not only by the app.',
+    title: 'Private to your group',
+    body: 'No other group can ever see your members or money.',
   },
   {
     icon: Lock,
     title: 'Two-factor for staff',
-    body: 'Backoffice and organization staff sign in with a one-time code, never a password alone.',
+    body: 'Staff sign in with a one-time code, not just a password.',
   },
   {
     icon: Coins,
-    title: 'Official M-Pesa integration',
-    body: 'Payments run on Safaricom’s Daraja API — not a screen-scraped or unofficial workaround.',
+    title: 'Real M-Pesa',
+    body: 'Payments go straight through M-Pesa — no middlemen, no workarounds.',
   },
 ];
 
@@ -450,13 +450,13 @@ export const RESOURCES: ResourceCard[] = [
   {
     kind: 'Product',
     title: 'Kitabu Yetu Bookkeeper',
-    body: 'What the full book covers: contributions, loans, welfare, shares and an audit-ready ledger.',
+    body: 'Contributions, loans, welfare and shares — books that always balance.',
     href: ROUTES.bookkeeper,
   },
   {
     kind: 'Product',
     title: 'Chama Reminder',
-    body: 'Just the messaging — reminders, announcements and birthday greetings, with no ledger to set up.',
+    body: 'SMS reminders and announcements. Nothing to set up.',
     href: ROUTES.chamaReminder,
   },
   {
@@ -480,7 +480,7 @@ export const RESOURCES: ResourceCard[] = [
   {
     kind: 'Reference',
     title: 'Documentation',
-    body: 'API and integration reference for developers building against Kitabu Yetu.',
+    body: 'Technical reference for developers.',
     href: ROUTES.docs,
   },
   {
@@ -510,11 +510,11 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: BookOpen,
     title: 'Bookkeeper',
-    body: 'The core platform: digital group administration and financial management, built on a real double-entry ledger.',
+    body: 'Run your whole group — members, money and reports — in books that always balance.',
     points: [
       'Contributions, loans, welfare and shares',
-      'M-Pesa collection and payout on Daraja',
-      'Statements, reports and an audit trail',
+      'Collect and pay out by M-Pesa',
+      'Statements, reports and a record of every change',
     ],
     href: ROUTES.bookkeeper,
     linkText: 'Explore Bookkeeper',
@@ -522,8 +522,8 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   },
   {
     icon: MessageSquareText,
-    title: 'Chama Reminder',
-    body: 'Communication and engagement for groups that want the messaging without setting up the full ledger.',
+    title: 'Chama Reminder / Kumbusha',
+    body: 'Keep members informed and contributions on time — no bookkeeping needed.',
     points: [
       'Contribution and meeting reminders',
       'Group announcements by SMS',
@@ -536,7 +536,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Gift,
     title: 'Fundraise / Changi$ha',
-    body: 'Public fundraising campaigns for groups and community causes, collected by M-Pesa and reviewed by Kitabu Yetu before they go live.',
+    body: 'Public M-Pesa campaigns for causes and projects, checked by us before they go live.',
     points: [
       'Shareable campaign pages with a running total',
       'Donations by M-Pesa, recorded automatically',
@@ -551,11 +551,11 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Briefcase,
     title: 'Enterprise',
-    body: 'For institutions managing multiple groups or programs — centralized oversight without losing any group’s own book.',
+    body: 'Oversee many groups and programmes from one place — each keeps its own book.',
     points: [
       'Multi-group and multi-organization dashboards',
       'Programs, funding and disbursements to the groups you back',
-      'Organization-level reports, audit log and API keys',
+      'Organization reports and a full audit log',
     ],
     href: ROUTES.enterprise,
     linkText: 'Explore Enterprise',
@@ -590,42 +590,42 @@ export const WHY_KITABU_YETU: ValueProp[] = [
   {
     icon: Layers,
     title: 'Digital Administration',
-    body: 'One shared, audit-ready book replaces the paper ledger and the treasurer’s personal M-Pesa statement.',
+    body: 'One shared book replaces the notebook and the treasurer’s phone.',
   },
   {
     icon: ShieldCheck,
     title: 'Financial Transparency',
-    body: 'Every member sees their own contributions and loan balance, from a ledger everyone reads the same way.',
+    body: 'Every member sees their own numbers.',
   },
   {
     icon: Zap,
     title: 'Automated Communication',
-    body: 'Reminders, confirmations and announcements go out on their own, from the system that holds the money.',
+    body: 'Reminders and confirmations go out on their own.',
   },
   {
     icon: Smartphone,
     title: 'Cashless Collections',
-    body: 'Contributions and repayments move by M-Pesa — STK push or your own PayBill — on Safaricom’s own API.',
+    body: 'Contributions and repayments by M-Pesa — prompt or PayBill.',
   },
   {
     icon: Send,
     title: 'Seamless Disbursements',
-    body: 'Loans, welfare and dividend payouts move the same way collections do, with the same controls.',
+    body: 'Loans, welfare and dividends paid straight to M-Pesa.',
   },
   {
     icon: BarChart3,
     title: 'Better Reporting',
-    body: 'Statements and reports are generated from the ledger itself, never retyped into a second document.',
+    body: 'Reports in minutes, never retyped.',
   },
   {
     icon: GitBranch,
     title: 'Greater Accountability',
-    body: 'Role-based access and a second approver above your threshold, on every payout and write-off.',
+    body: 'Roles for every official and two approvers for big payouts.',
   },
   {
     icon: Network,
     title: 'Connected Communities',
-    body: 'A group’s book connects outward — to the organizations, donors and programs in the wider ecosystem.',
+    body: 'Your records open doors to partners, donors and programmes.',
   },
 ];
 
@@ -650,28 +650,28 @@ export const ECOSYSTEM_PILLARS: EcosystemPillar[] = [
   {
     icon: Building2,
     title: 'Multigroup Organizations',
-    body: 'NGOs, federations and umbrella bodies get one login and a portfolio view across every group and branch they run.',
+    body: 'One login for every group and branch you run.',
     href: ROUTES.ecosystemOrganizations,
     status: 'live',
   },
   {
     icon: Heart,
     title: 'Donors',
-    body: 'Development partners and funders discover, support and monitor the groups and projects they back.',
+    body: 'Funders find, back and follow group projects.',
     href: ROUTES.ecosystemDonors,
     status: 'vision',
   },
   {
     icon: Store,
     title: 'Marketplace',
-    body: 'Groups and organizations connect with relevant products, services, suppliers and financial partners.',
+    body: 'Products, suppliers and financial partners for groups.',
     href: ROUTES.ecosystemMarketplace,
     status: 'vision',
   },
   {
     icon: Megaphone,
     title: 'Programs',
-    body: 'Enterprises, NGOs and donors announce and manage grants, opportunities and interventions for qualifying groups.',
+    body: 'Grants and opportunities for qualifying groups.',
     href: ROUTES.ecosystemPrograms,
     status: 'vision',
   },
@@ -706,32 +706,32 @@ export const ENTERPRISE_FEATURES: EnterpriseFeature[] = [
   {
     icon: Building2,
     title: 'Every group in one account',
-    body: 'Bring the groups you support under a single organization login, each keeping its own officers, its own ledger and its own members.',
+    body: 'One login for all your groups — each keeps its own officers, books and members.',
   },
   {
     icon: BarChart3,
     title: 'Organization dashboard',
-    body: 'Group activity and contribution volume across the portfolio, read from the same ledgers the groups themselves use.',
+    body: 'Activity and contributions across your portfolio, from the groups’ own books.',
   },
   {
     icon: Megaphone,
     title: 'Programs',
-    body: 'Set up programs with their own budget and criteria, and track which of your groups are enrolled in each.',
+    body: 'Set budgets and criteria, and track which groups are enrolled.',
   },
   {
     icon: Send,
     title: 'Funding and disbursements',
-    body: 'Move money out to the groups you back — with a budget, a tranche it draws from, and a second approver before it leaves.',
+    body: 'Send funds to your groups against a budget, with a second approver.',
   },
   {
     icon: ScrollText,
     title: 'Audit log and access control',
-    body: 'Organization staff sign in with a one-time code, hold defined roles, and every action they take is recorded.',
+    body: 'Staff roles, one-time-code sign-in, and every action recorded.',
   },
   {
     icon: Layers,
     title: 'Reports and your own branding',
-    body: 'Budget variance across your programs, spend broken down by donor, and your organization’s own logo and colours on what it sends out.',
+    body: 'Budget vs actual, spend by donor, and your own logo on what you send.',
   },
 ];
 
@@ -755,8 +755,8 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
   {
     icon: Users,
     eyebrow: 'I run a group',
-    title: 'One place for your members, your money and your records.',
-    body: 'Manage members, savings, contributions, loans, welfare, shares and investments — and collect by M-Pesa without reconciling it by hand.',
+    title: 'Your members, money and meetings — sorted.',
+    body: 'Savings, loans, welfare and M-Pesa in one ledger. No more reconciling by hand.',
     audience: ['Chamas', 'Welfare groups', 'Investment clubs', 'SACCOs', 'VSLAs', 'Community groups'],
     href: ROUTES.startGroup,
     linkText: 'Start your group',
@@ -764,8 +764,8 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
   {
     icon: Network,
     eyebrow: 'I manage many groups',
-    title: 'One connected view across every group you support.',
-    body: 'Bring your groups under one organization account, run programs and funding, and report across the portfolio — without flattening any group’s own book.',
+    title: 'See every group. Report in minutes.',
+    body: 'One account for all your groups, programmes and funding — each group keeps its own book.',
     audience: ['NGOs', 'CBOs', 'Federations', 'SACCO networks', 'Development programs', 'Institutions'],
     href: ROUTES.enterprise,
     linkText: 'Explore Enterprise',
@@ -787,32 +787,32 @@ export const MEMBER_BENEFITS: MemberBenefit[] = [
   {
     icon: PiggyBank,
     title: 'What they have saved',
-    body: 'Running contribution and savings totals, updated the moment a payment is confirmed.',
+    body: 'Savings totals, updated the moment they pay.',
   },
   {
     icon: Landmark,
     title: 'What they still owe',
-    body: 'Loan balance, the repayment schedule, and what falls due next.',
+    body: 'Loan balance and the next payment due.',
   },
   {
     icon: BookOpen,
     title: 'Their own passbook',
-    body: 'The full history of their transactions, in one place they can scroll back through.',
+    body: 'Every transaction, any time.',
   },
   {
     icon: ScrollText,
     title: 'Statements they can keep',
-    body: 'A member statement they can pull themselves, rather than requesting it at a meeting.',
+    body: 'Download it themselves — no need to ask.',
   },
   {
     icon: Coins,
     title: 'Savings goals',
-    body: 'A target they set, and how close their own contributions have brought them to it.',
+    body: 'Set a target and watch progress.',
   },
   {
     icon: Smartphone,
     title: 'Paying from their phone',
-    body: 'An STK prompt to contribute or repay, without leaving the app or asking for the PayBill.',
+    body: 'A payment prompt on their phone to contribute or repay.',
   },
 ];
 
@@ -847,26 +847,23 @@ export const IMPACT_STATS: ImpactStat[] = [
 export const HOME_FAQS: [question: string, answer: string][] = [
   [
     'Which product should we start with?',
-    'Chama Reminder if you only need to reach members. Kitabu Yetu when you also need to record and reconcile the money.',
+    'Chama Reminder if you only need to reach members. Bookkeeper if you also need to keep the money records.',
   ],
   [
     'Is M-Pesa included?',
-    'Yes. Every Kitabu Yetu plan includes the Safaricom Daraja integration — STK push prompts, PayBill (C2B) collections and B2C payouts.',
+    'Yes, on every plan. Members pay through a prompt on their phone or your PayBill, and payouts go straight to their M-Pesa.',
   ],
   [
     'Can members pay by something other than M-Pesa?',
-    'Yes. Record cash, bank or cheque contributions in the ledger — M-Pesa is the only channel that posts automatically.',
+    'Yes. Record cash, bank or cheque by hand. M-Pesa payments record themselves.',
   ],
   [
     'Can we bring in our existing records?',
-    'Yes. Every plan supports bulk CSV import for members and past contributions.',
+    'Yes. Bring your members and past contributions in from a spreadsheet on any plan.',
   ],
   [
     "Can another group see our group's records?",
-    "No. Each group's records are isolated by the database itself, not just by the app's screens.",
+    'No. Your records are locked to your group — no one else can see them.',
   ],
-  [
-    'Is there a free plan or a lock-in?',
-    'Neither. Every plan is paid by M-Pesa, month to month, and you can change plan at any time.',
-  ],
+  ['Is there a free plan or a lock-in?', 'Neither. Pay monthly by M-Pesa and change or stop any time.'],
 ];

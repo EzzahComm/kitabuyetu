@@ -15,6 +15,8 @@ import {
   Menu,
   Building2,
   Receipt,
+  ClipboardList,
+  Link2,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
@@ -54,6 +56,11 @@ const NAV: PortalNavSection[] = [
     title: 'Operations',
     items: [
       { href: '/enterprise/members', label: 'Members', icon: Users2 },
+      { href: '/enterprise/groups', label: 'Groups', icon: Link2 },
+      // Recruitment/membership programs (migration 206) — groups apply or
+      // are invited. Unrelated to Funding Portal's own "programs"
+      // (funding_programs, a budget concept) just above.
+      { href: '/enterprise/programs', label: 'Programs', icon: ClipboardList },
       { href: '/enterprise/disbursements', label: 'Disbursements', icon: Banknote },
       // Deliberately separate from Funding Portal: that page is the org's
       // CAPITAL wallet (donor contributions, grants, disbursements) — SMS
@@ -67,14 +74,13 @@ const NAV: PortalNavSection[] = [
   {
     title: 'Developer & Brand',
     items: [
-      // soon: true — the page is 100% client-side mock (app/(enterprise)/_data.ts:
-      // generate() mints fake ky_live_* keys from Math.random, nothing is ever
-      // sent to a server, and no api_keys/webhooks table exists in any
-      // migration). Shipping it un-gated let a coordinator generate and copy a
-      // credential that looks real but does nothing — any customer who tried
-      // to use it got an unexplained failure with no server-side trace
-      // (docs/audits/optimization-2026-09).
-      { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound, soon: true },
+      // The page is 100% client-side mock (app/(enterprise)/_data.ts: generate()
+      // mints fake ky_live_* keys from Math.random, nothing is sent to a server,
+      // and no api_keys/webhooks table exists in any migration). Marking as
+      // `soon: true` and disabling the link prevents customers from landing on
+      // a screen that looks real but generates useless fake credentials
+      // (docs/audits/UI_NAVIGATION_ANALYTICS_AUDIT.md §5.3).
+      { href: '#', label: 'API & Webhooks', icon: KeyRound, soon: true, disabled: true },
       { href: '/enterprise/branding', label: 'White-label', icon: Palette },
       { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText },
     ],

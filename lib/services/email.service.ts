@@ -1,3 +1,4 @@
+import { departmentEmail } from '@/lib/departments';
 import { sendEmailWithFallback, type EmailPayload, type EmailResult } from '@/lib/email/provider';
 import { renderTemplate, wrapWithBranding, loadBranding } from '@/lib/email/templates/engine';
 import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
@@ -36,17 +37,20 @@ export async function sendTemplatedEmail(opts: SendTemplatedOptions): Promise<Em
     return { subject: String(opts.vars.subject ?? 'Kitabu Yetu'), html: wrapWithBranding(body, branding) };
   });
 
+  const category = categorize(opts.templateKey);
   return sendEmailWithFallback({
     to: opts.to,
     subject,
     html,
     from: opts.from,
-    replyTo: opts.replyTo,
+    // Replies reach the responsible department. The From address stays the one
+    // mailbox the SMTP account is authorised to send as.
+    replyTo: opts.replyTo ?? replyToForCategory(category),
     attachments: opts.attachments,
     groupId: opts.groupId ?? undefined,
     userId: opts.userId,
     templateKey: opts.templateKey,
-    category: categorize(opts.templateKey),
+    category,
     referenceId: opts.referenceId,
     referenceType: opts.referenceType,
   });
@@ -190,6 +194,13 @@ export async function queueAnnouncement(opts: {
 }
 
 // Categorize template for email_logs.category
+/** Department mailbox that should receive replies to mail of this category. */
+function replyToForCategory(category: string): string | undefined {
+  if (category === 'billing') return departmentEmail('billing');
+  if (category === 'auth' || category === 'contact') return departmentEmail('support');
+  return undefined;
+}
+
 function categorize(key: string): string {
   if (key.startsWith('invoice') || key.startsWith('payment') || key.startsWith('receipt')) return 'billing';
   if (key.startsWith('loan')) return 'loan';

@@ -11,7 +11,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "icons": "tsx scripts/generate-icons.ts",
+    "brand:assets": "tsx scripts/brand/generate-brand-assets.ts",
+    "brand:check": "tsx scripts/brand/check-brand.ts",
     "email": "email dev --dir emails --port 3030",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -49,7 +50,6 @@
     "@sentry/node": "^10.73.0",
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.116.0",
-    "@tabler/icons-react": "^3.34.1",
     "@tanstack/react-query": "^5.51.1",
     "@upstash/qstash": "^2.11.3",
     "@upstash/redis": "^1.38.0",
@@ -63,12 +63,11 @@
     "clsx": "^2.1.1",
     "csv-parse": "^7.0.2",
     "exceljs": "^4.4.0",
-    "framer-motion": "^13.2.0",
     "jose": "^5.6.3",
     "jsonwebtoken": "^9.0.2",
     "lucide-react": "^0.411.0",
     "marked": "^18.0.13",
-    "next": "^16.2.6",
+    "next": "^16.3.8",
     "next-themes": "^0.3.0",
     "nodemailer": "^10.0.10",
     "otplib": "^13.4.0",
@@ -101,10 +100,13 @@
     "prettier": "^3.8.3",
     "react-email": "^6.5.0",
     "sharp": "^0.35.4",
-    "tsx": "^4.16.2",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.3"
   },
   "workspaces": [
     "packages/*"
-  ]
+  ],
+  "overrides": {
+    "uuid": "^11.1.1"
+  }
 }

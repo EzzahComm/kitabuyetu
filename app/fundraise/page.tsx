@@ -2,9 +2,9 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { PageShell } from '@/components/marketing/page-shell';
 import { FinanzaHeading, FinanzaSection } from '@/components/marketing/finanza';
-import { CtaBand } from '@/components/marketing/kitabu-sections';
+import { CtaBand } from '@/components/marketing/sections/cta';
 import { ROUTES } from '@/components/marketing/routes';
-import { CHANGISHA_PRICING } from '@/types/enums';
+import { CHANGISHA_PRICING, PLAN_MONTHLY_FEES } from '@/types/enums';
 import { campaignsService, type Campaign } from '@/lib/services/campaigns.service';
 import { CampaignCard } from '@/components/marketing/campaign-card';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
@@ -18,19 +18,26 @@ export const metadata: Metadata = marketingMetadata({
 
 export const dynamic = 'force-dynamic';
 
-/** Mirrors the real lifecycle in campaigns.service: draft → review → active → withdraw. */
+/**
+ * Mirrors the real money flow: donations are STK-pushed to the platform
+ * paybill (daraja.service SHORTCODE) and held on the group's 4006 Changi$ha
+ * account; withdrawals go to the campaign's payout destination (phone, paybill
+ * or till — lib/campaigns/payout-destination.ts) after maker-checker approval
+ * by two group officials and then Kitabu Yetu's own sign-off
+ * (campaign-withdrawals.service, migration 203).
+ */
 const STEPS = [
   {
     title: 'Create it',
-    body: "From your group's account, write the story, set a target and the M-Pesa number that will receive the funds.",
+    body: 'Tell the story, set a target and choose where funds go: an M-Pesa number, PayBill or till.',
   },
   {
-    title: 'We review it',
-    body: 'Kitabu Yetu checks every campaign before it goes public, so donors know it is genuine.',
+    title: 'We check it',
+    body: 'Every campaign is checked before it goes public, so donors know it’s genuine.',
   },
   {
-    title: 'Share and withdraw',
-    body: 'Share the link. Donations arrive by M-Pesa and show on the page; withdraw to M-Pesa as funds come in.',
+    title: 'Share and release',
+    body: 'Donations show on the page as they arrive. Funds are released after two officials and Kitabu Yetu approve.',
   },
 ];
 
@@ -60,7 +67,7 @@ export default async function FundraisePage() {
   return (
     <PageShell
       title="Changi$ha"
-      description="Raise money for a cause, a project or a member in need — by M-Pesa, in the open, with every shilling recorded."
+      description="Raise it together. Track every shilling. By M-Pesa, in the open."
       layout="sections"
     >
       <FinanzaSection labelledBy="campaigns-heading" className="pt-4 lg:pt-8">
@@ -93,7 +100,7 @@ export default async function FundraisePage() {
             id="past-heading"
             pill="Past Fundraisers"
             title="What communities have raised"
-            lede="Finished campaigns stay here, with what they raised, so every shilling stays on the record."
+            lede="Finished campaigns stay on record — every shilling."
             className="mb-10 max-w-3xl"
           />
           <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
@@ -128,12 +135,19 @@ export default async function FundraisePage() {
       </FinanzaSection>
 
       <CtaBand
-        title="Raising money for your group?"
-        subtitle={`No monthly fee. A standard ${CHANGISHA_PRICING.platformFeePct}% platform fee plus the M-Pesa charge, only when you withdraw.`}
-        footnote="Donors pay nothing extra · Every campaign reviewed before it goes live"
+        title="Raising money for a cause?"
+        subtitle={`Plans from KES ${PLAN_MONTHLY_FEES.changisha.starter} a month, plus ${CHANGISHA_PRICING.platformFeePct}% and the M-Pesa charge when you withdraw.`}
+        footnote="Donors pay nothing extra · Every campaign checked before it goes live"
         showPlanPrices={false}
-        primary={{ label: 'See Pricing', href: `${ROUTES.pricing}#changisha` }}
+        primary={{ label: 'Start a campaign', href: '/start-campaign' }}
       />
+      <p className="pb-12 text-center text-sm text-finanza-text">
+        Already running a group?{' '}
+        <Link href={ROUTES.pricing + '#changisha'} className="font-medium text-brand-500 hover:underline">
+          See pricing
+        </Link>{' '}
+        or sign in to create a campaign from your dashboard.
+      </p>
     </PageShell>
   );
 }

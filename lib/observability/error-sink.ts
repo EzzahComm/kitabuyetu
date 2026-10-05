@@ -85,6 +85,8 @@ async function getSentry(): Promise<SentryModule | false> {
  * into an unlogged crash.
  */
 export function reportError(message: string, context: Record<string, unknown>): void {
+  // Feed the admin error-spike detector (independent of Sentry being configured).
+  void import('@/lib/notifications/system-health').then((m) => m.noteServerError()).catch(() => {});
   // Cheap enough to sit on the error path: one env read when disabled.
   if (resolved === false) return;
   if (resolved === null && !process.env.SENTRY_DSN) {

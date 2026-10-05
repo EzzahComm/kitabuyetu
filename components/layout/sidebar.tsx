@@ -3,83 +3,124 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  IconLayoutDashboard,
-  IconUsers,
-  IconCreditCard,
-  IconBuildingBank,
-  IconBook,
-  IconMessage,
-  IconChartBar,
-  IconSettings,
-  IconReceipt,
-  IconMail,
-  IconHeart,
-  IconTrendingUp,
-  IconCalendar,
-  IconVault,
-  IconCoins,
-  IconGauge,
-  IconUpload,
-  IconDeviceMobile,
-  IconWallet,
-  IconDots,
-  IconAddressBook,
-  IconSpeakerphone,
-  IconBolt,
-  IconTimeline,
-  IconChartDots,
-} from '@tabler/icons-react';
+  BookOpen,
+  Building,
+  Calendar,
+  BarChart3,
+  ScatterChart,
+  ClipboardList,
+  Coins,
+  Contact,
+  CreditCard,
+  Ellipsis,
+  Gauge,
+  GitCommitVertical,
+  Heart,
+  Landmark,
+  LayoutDashboard,
+  Mail,
+  Megaphone,
+  MessageSquare,
+  Receipt,
+  Settings,
+  Smartphone,
+  TrendingUp,
+  Upload,
+  Users,
+  Vault,
+  Wallet,
+  Zap,
+} from 'lucide-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
-import { BrandLogo } from '@/components/branding/BrandLogo';
-import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
+import { useHasPermission } from '@/lib/auth/use-permission';
+import { BrandLockup } from '@/components/branding/BrandLockup';
+import { PortalSidebar, type PortalNavItem, type PortalNavSection } from '@/components/shared/portal-sidebar';
 import { GroupSwitcher } from './group-switcher';
 
-// "Simple First" primary nav (SIMPLIFICATION_AND_RBAC_AUDIT.md §3): 7 primary
-// items max, with Finance and More as collapsible groups (portal-sidebar.tsx's
-// `children` primitive) rather than separate titled sections — replaces the
-// old 4-section (Money/Insights/Engage) flat-20-item layout.
-const NAV: PortalNavSection[] = [
+/** Local-only field: a nav item with `requires` is rendered disabled (same
+ *  treatment as `soon`, minus the badge) for anyone lacking that permission —
+ *  it never reaches PortalSidebar, which has no permission concept. */
+type ConfigNavItem = Omit<PortalNavItem, 'children'> & {
+  requires?: string;
+  children?: ConfigNavItem[];
+};
+interface ConfigNavSection {
+  title: string | null;
+  items: ConfigNavItem[];
+}
+
+// Navigation reorganized by user intent (SIMPLIFICATION_AND_RBAC_AUDIT.md §5.1):
+// - 7 primary items max
+// - Finance (6 core items) + Engage (outreach/community) + Advanced (power users)
+//   + Settings (config) as collapsible groups
+// - Replaces the old 4-section (Money/Insights/Engage) flat-20-item layout, and the
+//   cluttered 15-item "More" menu that forced scrolling
+const NAV: ConfigNavSection[] = [
   {
     title: null,
     items: [
-      { href: '/dashboard', label: 'Dashboard', icon: IconLayoutDashboard },
-      { href: '/members', label: 'Members', icon: IconUsers },
-      { href: '/contributions', label: 'Contributions', icon: IconCreditCard },
-      { href: '/loans', label: 'Loans', icon: IconBuildingBank },
+      { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+      { href: '/members', label: 'Members', icon: Users },
+      { href: '/contributions', label: 'Contributions', icon: CreditCard },
+      { href: '/loans', label: 'Loans', icon: Landmark },
       {
         href: '#',
         label: 'Finance',
-        icon: IconWallet,
+        icon: Wallet,
         children: [
-          { href: '/mpesa', label: 'M-Pesa', icon: IconDeviceMobile },
-          { href: '/treasury', label: 'Treasury', icon: IconVault },
-          { href: '/welfare', label: 'Welfare', icon: IconHeart },
-          { href: '/shares', label: 'Shares', icon: IconCoins },
-          { href: '/dividends', label: 'Dividends', icon: IconReceipt },
-          { href: '/accounting', label: 'Accounting', icon: IconBook },
+          // M-Pesa and Treasury both read from the mpesa.view-gated
+          // transactions/balance endpoints — member/secretary roles never
+          // hold that permission (verified against roles.permissions), so
+          // the link is disabled rather than leading to a 403 on arrival.
+          { href: '/mpesa', label: 'M-Pesa', icon: Smartphone, requires: 'mpesa.view' },
+          { href: '/treasury', label: 'Treasury', icon: Vault, requires: 'mpesa.view' },
+          { href: '/welfare', label: 'Welfare', icon: Heart },
+          { href: '/shares', label: 'Shares', icon: Coins },
+          { href: '/dividends', label: 'Dividends', icon: Receipt },
+          { href: '/accounting', label: 'Accounting', icon: BookOpen, requires: 'accounting.manage' },
         ],
       },
-      { href: '/reports', label: 'Reports', icon: IconChartBar },
+      { href: '/reports', label: 'Reports', icon: BarChart3 },
       {
         href: '#',
-        label: 'More',
-        icon: IconDots,
+        label: 'Engage',
+        icon: Megaphone,
         children: [
-          { href: '/meetings', label: 'Meetings', icon: IconCalendar },
-          { href: '/crm', label: 'Contacts', icon: IconAddressBook },
-          { href: '/crm/pipeline', label: 'Pipeline', icon: IconTimeline },
-          { href: '/marketing', label: 'Marketing', icon: IconSpeakerphone },
-          { href: '/marketing/automation', label: 'Automation', icon: IconBolt },
-          { href: '/marketing/analytics', label: 'Marketing analytics', icon: IconChartDots },
-          { href: '/sms', label: 'SMS', icon: IconMessage },
-          { href: '/whatsapp', label: 'WhatsApp', icon: IconMessage },
-          { href: '/email', label: 'Email', icon: IconMail },
-          { href: '/investments', label: 'Investments', icon: IconTrendingUp },
-          { href: '/credit-scores', label: 'Credit scores', icon: IconGauge },
-          { href: '/analytics', label: 'Analytics', icon: IconChartBar },
-          { href: '/data-import', label: 'Data import', icon: IconUpload },
-          { href: '/billing', label: 'Billing', icon: IconReceipt },
-          { href: '/settings', label: 'Settings', icon: IconSettings },
+          { href: '/meetings', label: 'Meetings', icon: Calendar },
+          // Recruitment/membership programs an organization runs (migration
+          // 206) — distinct from the public /ecosystem/programs campaign
+          // pages and from the org-side Funding Portal's own "programs"
+          // (funding_programs, a budget concept).
+          { href: '/programs', label: 'Programs', icon: ClipboardList },
+          { href: '/crm', label: 'Contacts', icon: Contact },
+          { href: '/crm/pipeline', label: 'Pipeline', icon: GitCommitVertical },
+          { href: '/marketing', label: 'Marketing', icon: Megaphone },
+          { href: '/marketing/automation', label: 'Automation', icon: Zap },
+          { href: '/marketing/analytics', label: 'Marketing analytics', icon: ScatterChart },
+          { href: '/sms', label: 'SMS', icon: MessageSquare },
+          { href: '/whatsapp', label: 'WhatsApp', icon: MessageSquare },
+          { href: '/email', label: 'Email', icon: Mail },
+        ],
+      },
+      {
+        href: '#',
+        label: 'Advanced',
+        icon: Gauge,
+        children: [
+          { href: '/investments', label: 'Investments', icon: TrendingUp, requires: 'investments.view' },
+          { href: '/credit-scores', label: 'Credit scores', icon: Gauge },
+          { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+          { href: '/data-import', label: 'Data import', icon: Upload },
+        ],
+      },
+      {
+        href: '#',
+        label: 'Settings',
+        icon: Settings,
+        children: [
+          { href: '/billing', label: 'Billing', icon: Receipt },
+          { href: '/settings', label: 'Settings', icon: Settings },
+          { href: '/settings/organization', label: 'Organization', icon: Building },
         ],
       },
     ],
@@ -91,9 +132,29 @@ interface SidebarProps {
   onClose: () => void;
 }
 
+// Every `requires` value used in NAV above needs its own hook call (rules of
+// hooks forbid calling useHasPermission in a loop), resolved into this map.
+function usePermissionMap(): Record<string, boolean> {
+  return {
+    'mpesa.view': useHasPermission('mpesa.view'),
+    'accounting.manage': useHasPermission('accounting.manage'),
+    'investments.view': useHasPermission('investments.view'),
+  };
+}
+
+function resolveNav(sections: ConfigNavSection[], granted: Record<string, boolean>): PortalNavSection[] {
+  const resolveItem = (item: ConfigNavItem): PortalNavItem => ({
+    ...item,
+    disabled: item.disabled || (item.requires ? !granted[item.requires] : false),
+    children: item.children?.map(resolveItem),
+  });
+  return sections.map((s) => ({ ...s, items: s.items.map(resolveItem) }));
+}
+
 export function Sidebar({ open, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuth();
+  const granted = usePermissionMap();
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
 
@@ -102,7 +163,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
   // portal at /enterprise/funding, where the rest of the organization surface
   // lives — this is the GROUP portal, and a funder's view of their programs
   // was never a group-scoped screen.
-  const sections = NAV;
+  const sections = resolveNav(NAV, granted);
 
   return (
     <PortalSidebar
@@ -114,11 +175,7 @@ export function Sidebar({ open, onClose }: SidebarProps) {
       isActive={isActive}
       logo={() => (
         <Link href="/dashboard" className="flex items-center gap-2 min-w-0" aria-label="Kitabu Yetu dashboard">
-          {/* Logo on light tile so the PNG's white background reads cleanly against bg-gray-900 */}
-          <div className="w-8 h-8 rounded-lg bg-white p-0.5 flex items-center justify-center shrink-0">
-            <BrandLogo size={28} alt="Kitabu Yetu" />
-          </div>
-          <span className="font-bold text-sm truncate">Kitabu Yetu</span>
+          <BrandLockup size={28} tone="dark" />
         </Link>
       )}
       preNav={isTenantUser(user) ? <GroupSwitcher /> : null}

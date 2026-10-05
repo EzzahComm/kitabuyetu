@@ -13,6 +13,7 @@ import { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { NotFoundError, ValidationError, ConflictError } from '@/lib/utils/errors';
 import type { CreateEmployeeInput, UpdateEmployeeInput, TerminateEmployeeInput } from '@/lib/validators/hr.schema';
+import { seedOnboardingTasks } from './hr-onboarding.service';
 
 export type EmploymentType = 'full_time' | 'part_time' | 'contract' | 'intern';
 export type EmploymentStatus = 'active' | 'on_leave' | 'suspended' | 'terminated';
@@ -106,6 +107,7 @@ async function createEmployeeWith(db: PoolClient, actorId: string, data: CreateE
     ],
   );
   const employee = rows[0];
+  await seedOnboardingTasks(db, employee.id, employee.hire_date);
   await logHrAudit(db, actorId, 'hr_employee.create', employee.id, null, employee);
   return employee;
 }

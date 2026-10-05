@@ -10,6 +10,9 @@ import { normalizePhone } from '@/lib/utils/phone';
 import { created, handleError, errorResponse } from '@/lib/utils/response';
 import { AppError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { emitActivity, ActivityEventType } from '@/lib/notifications';
+import { applyGroupSignupExtras } from '@/lib/services/group-signup-extras';
+import { certificateOutcome, checkCertificate, readSignupBody } from '@/lib/utils/signup-request';
 import type { LoginResponse } from '@/types/api.types';
 import type { MemberRole, PlatformRole, SubscriptionProduct } from '@/types/enums';
 
@@ -46,10 +49,16 @@ interface RegisterGroupResult {
 export async function POST(req: NextRequest): Promise<Response> {
   let stage: Stage = 'parse_body';
   try {
-    const body = await req.json();
+    // JSON, or multipart when the registrant attached a registration certificate.
+    const { body, certificateFile } = await readSignupBody(req);
 
     stage = 'validate_input';
     const input = RegisterSchema.parse(body);
+
+    // An unusable attachment never blocks sign-up: registration data is optional
+    // and can be supplied later, so a bad file is dropped and reported back.
+    const certificateAttached = Boolean(input.isGovernmentRegistered && certificateFile && certificateFile.size > 0);
+    const attached = certificateAttached ? await checkCertificate(certificateFile) : {};
 
     stage = 'normalize_phone';
     const phone = normalizePhone(input.phone);
@@ -88,7 +97,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     };
 
     stage = 'call_register_group_rpc';
-    const { result, membershipNo } = await withAdminDb(async (client) => {
+    const { result, membershipNo, permissions } = await withAdminDb(async (client) => {
       const { rows } = await client.query<{ register_group: RegisterGroupResult }>(
         'SELECT register_group($1::jsonb) AS register_group',
         [JSON.stringify(rpcPayload)],
@@ -96,11 +105,68 @@ export async function POST(req: NextRequest): Promise<Response> {
       const rpc = rows[0].register_group;
       // The Membership Number is allocated by the group_members INSERT trigger
       // (migration 056) inside the RPC; the RPC's JSONB result predates it.
-      const { rows: gm } = await client.query<{ membership_no: string }>(
-        `SELECT membership_no FROM group_members WHERE group_id = $1 AND member_id = $2`,
+      // Permissions are resolved here too (RBAC activation, same lookup as
+      // login) — signAccessToken doesn't derive them itself, and omitting
+      // them leaves every withPermission check failing with "Missing
+      // permission" until the member's next login/refresh.
+      const { rows: gm } = await client.query<{ membership_no: string; permissions: string[] }>(
+        `SELECT gm.membership_no, COALESCE(r.permissions, '{}') AS permissions
+         FROM group_members gm
+         LEFT JOIN roles r ON r.id = gm.role_id
+         WHERE gm.group_id = $1 AND gm.member_id = $2`,
         [rpc.group_id, rpc.member_id],
       );
-      return { result: rpc, membershipNo: gm[0]?.membership_no ?? null };
+      return { result: rpc, membershipNo: gm[0]?.membership_no ?? null, permissions: gm[0]?.permissions ?? [] };
+    });
+
+    // Optional contribution plan + registration details (number, certificate):
+    // separate non-fatal writes after the RPC's own transaction has committed.
+    const extras = await applyGroupSignupExtras(
+      {
+        product: input.product,
+        groupId: result.group_id,
+        memberId: result.member_id,
+        role: result.group_role,
+        monthlyContribution: input.monthlyContribution,
+        welfareAmount: input.welfareAmount,
+        isGovernmentRegistered: input.isGovernmentRegistered,
+        registrationNumber: input.registrationNumber,
+        certificate: attached.certificate,
+      },
+      'register',
+    );
+
+    // Administrator alerts (after the registration transaction committed). Never
+    // includes the password or any credential; the phone/email are the
+    // registrant's own contact details, needed to follow up.
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? null;
+    await emitActivity({
+      type: ActivityEventType.USER_REGISTERED,
+      dedupKey: `register:${result.member_id}`,
+      actor: {
+        userId: result.member_id,
+        name: `${input.firstName} ${input.lastName}`.trim(),
+        email: email ?? undefined,
+        phone,
+        role: result.creator_role,
+      },
+      group: { id: result.group_id, name: result.group_name },
+      ipAddress: clientIp,
+      userAgent: req.headers.get('user-agent'),
+      metadata: {
+        product: input.product,
+        groupType: input.groupType,
+        registrationMethod: 'Web sign-up',
+        smsLines: [`Phone: ${phone}`, `Product: ${input.product}`],
+      },
+    });
+    await emitActivity({
+      type: ActivityEventType.GROUP_CREATED,
+      dedupKey: `group-created:${result.group_id}`,
+      group: { id: result.group_id, name: result.group_name },
+      actor: { userId: result.member_id, role: result.creator_role },
+      transaction: { id: result.group_id, reference: result.group_code, status: result.group_status },
+      metadata: { groupType: input.groupType, product: input.product },
     });
 
     stage = 'sign_tokens';
@@ -113,6 +179,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       role: result.group_role as MemberRole,
       personId: result.person_id,
       groupStatus: result.group_status,
+      permissions,
     });
     // Pin the new group to the refresh token (audit C-1) — registration's
     // session must revalidate THIS membership on refresh, same as login.
@@ -146,6 +213,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       membershipNo?: string;
       groupStatus: string;
       signupProduct: SubscriptionProduct;
+      /** Present only when a certificate was attached: whether it was saved, and why not. */
+      certificateUploaded?: boolean;
+      certificateNote?: string;
     } = {
       accessToken,
       refreshToken,
@@ -176,6 +246,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // distinguishing a standalone Chama Reminder signup from an unpaid
       // Kitabu Yetu one.
       signupProduct: input.product,
+      ...certificateOutcome(certificateAttached, attached.rejected, extras.certificateStored),
     };
 
     return created(response);

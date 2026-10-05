@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { withAdminDb } from '@/lib/db';
 import { DatabaseError, type PoolClient } from 'pg';
 import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -1133,6 +1134,99 @@ export async function listGroupMembers(groupId: string, params: { page: number; 
     ]);
 
     return { items: data.rows, total: parseInt(count.rows[0].total, 10), page, limit };
+  });
+}
+
+export interface CreateGroupMemberInput {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  dateOfBirth?: string;
+  role?: string;
+}
+
+/**
+ * Add a member to a group from the backoffice — the one gap a support/ops
+ * admin had: the member table above was read-only, and the two tenant-facing
+ * add-member forms ((dashboard)/members, (reminder)/reminder/members) are
+ * only reachable by signing in AS the group. Mirrors members.service.ts's
+ * create() (same existing-phone-reuse and member-cap rules), but via
+ * withAdminDb like every other function in this file — not withTransaction,
+ * which sets tenant RLS locals keyed to an acting member that an admin
+ * actor isn't.
+ */
+export async function createGroupMember(groupId: string, input: CreateGroupMemberInput, adminId: string) {
+  const { normalizePhone } = await import('@/lib/utils/phone');
+  const { linkMemberToGroup } = await import('./group-membership');
+  const { BCRYPT_ROUNDS, generateTempPassword } = await import('./members.service');
+  const bcrypt = (await import('bcryptjs')).default;
+
+  return withAdminDb(async (db: PoolClient) => {
+    const { rows: sub } = await db.query<{ unlimited: boolean; cap: number | null }>(
+      `SELECT bool_or(max_members IS NULL) AS unlimited, MAX(max_members) AS cap
+       FROM subscriptions WHERE group_id = $1 AND status = 'active'`,
+      [groupId],
+    );
+    const cap = sub[0]?.cap;
+    if (sub[0]?.unlimited === false && cap !== null && cap !== undefined) {
+      const { rows: count } = await db.query<{ count: string }>(
+        `SELECT COUNT(*) AS count FROM group_members WHERE group_id = $1 AND is_active = true`,
+        [groupId],
+      );
+      if (parseInt(count[0].count, 10) >= cap) {
+        throw new ValidationError(`This group has reached its member limit of ${cap}.`);
+      }
+    }
+
+    const phone = normalizePhone(input.phone);
+    const existing = await db.query<{ id: string }>('SELECT id FROM members WHERE phone = $1', [phone]);
+    let memberId: string;
+
+    if (existing.rows[0]) {
+      memberId = existing.rows[0].id;
+      const inGroup = await db.query<{ id: string }>(
+        'SELECT id FROM group_members WHERE group_id = $1 AND member_id = $2',
+        [groupId, memberId],
+      );
+      if (inGroup.rows[0]) throw new ConflictError('Member already belongs to this group');
+    } else {
+      const passwordHash = await bcrypt.hash(generateTempPassword(), BCRYPT_ROUNDS);
+      memberId = crypto.randomUUID();
+      await db.query(
+        `INSERT INTO members (id, phone, password_hash, first_name, last_name, date_of_birth)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [memberId, phone, passwordHash, input.firstName, input.lastName, input.dateOfBirth ?? null],
+      );
+    }
+
+    const link = await linkMemberToGroup(db, {
+      memberId,
+      groupId,
+      role: input.role ?? 'member',
+      invitedBy: adminId,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phone,
+      dateOfBirth: input.dateOfBirth,
+    });
+
+    const { rows } = await db.query(
+      'SELECT id, first_name, last_name, phone, date_of_birth FROM members WHERE id = $1',
+      [memberId],
+    );
+
+    await db.query(
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
+       VALUES ($1, $2, 'member.create', 'member', $3, NULL, $4::jsonb)`,
+      [
+        groupId,
+        adminId,
+        memberId,
+        JSON.stringify({ first_name: input.firstName, last_name: input.lastName, phone, status: 'created' }),
+      ],
+    );
+
+    return { member: rows[0], membershipNo: link.membershipNo };
   });
 }
 

@@ -1,18 +1,24 @@
 import { ImageResponse } from 'next/og';
+import { brandGreen } from '@/lib/ui/brand-palette';
+import { BRAND_TONES, MARK_DOTS, MARK_PAGES, MARK_VIEWBOX } from '@/lib/ui/brand-mark';
+import { finanzaDark } from '@/lib/ui/finanza-palette';
 
 /**
  * The site-wide OG/Twitter card, served at /opengraph-image. Next attaches this
  * file-convention image to `/` only; the root layout and every marketing page
  * reference it explicitly (OG_FALLBACK in components/marketing/page-metadata.ts).
  *
- * Colours are the real tokens from lib/ui/brand-palette.ts, not eyeballed —
- * this is the one social-preview surface no design tool touches, so it has
- * to be right without visual review.
+ * The mark and every colour come from lib/ui/brand-mark.ts and the palettes, not
+ * eyeballed. This is the one social-preview surface no design tool touches, so
+ * it has to be right without visual review. It sits on the kit navy, so it uses
+ * the kit's dark-ground colourway.
  */
 export const runtime = 'edge';
 export const alt = 'Kitabu Yetu — Simple books. Stronger groups.';
 export const size = { width: 1200, height: 630 };
 export const contentType = 'image/png';
+
+const tone = BRAND_TONES.dark;
 
 export default function Image() {
   return new ImageResponse(
@@ -23,33 +29,25 @@ export default function Image() {
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        backgroundColor: '#04162F', // brand-blue-900
+        backgroundColor: finanzaDark.DEFAULT,
         backgroundImage:
-          'repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(60,176,67,0.07) 39px, rgba(60,176,67,0.07) 40px)',
+          'repeating-linear-gradient(to bottom, transparent 0, transparent 39px, rgba(18,160,107,0.08) 39px, rgba(18,160,107,0.08) 40px)',
         padding: '84px',
         fontFamily: 'sans-serif',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div
-          style={{
-            width: 14,
-            height: 14,
-            borderRadius: 9999,
-            backgroundColor: '#56BC65', // brand-400
-            display: 'flex',
-          }}
-        />
-        <span
-          style={{
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: 4,
-            textTransform: 'uppercase',
-            color: '#7CCC89', // brand-300
-          }}
-        >
-          Kitabu Yetu
+      <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+        <svg width="64" height="64" viewBox={MARK_VIEWBOX}>
+          {MARK_DOTS.map((d) => (
+            <circle key={`${d.cx}-${d.cy}`} cx={d.cx} cy={d.cy} r={d.r} fill={tone[d.fill]} />
+          ))}
+          {MARK_PAGES.map((p) => (
+            <path key={p.fill} d={p.d} fill={tone[p.fill]} />
+          ))}
+        </svg>
+        <span style={{ display: 'flex', fontSize: 40, fontWeight: 800, letterSpacing: 1 }}>
+          <span style={{ color: tone.wordKitabu }}>Kitabu</span>
+          <span style={{ color: tone.wordYetu, marginLeft: 12 }}>Yetu</span>
         </span>
       </div>
 
@@ -60,7 +58,7 @@ export default function Image() {
             fontSize: 78,
             fontWeight: 500,
             fontStyle: 'italic',
-            color: '#56BC65', // brand-400
+            color: brandGreen[300],
             lineHeight: 1.05,
           }}
         >

@@ -47,7 +47,7 @@ type Action = 'allocate' | 'activate_subscription' | 'dismiss';
  *  (PRODUCT_REFERENCE in plan-purchase.tsx) — a payment carrying one of
  *  these almost certainly started as a subscription attempt, so default the
  *  dialog to "Activate subscription" instead of "Allocate" for these. */
-const SUBSCRIPTION_REFS = new Set(['SUBSCRIPT', 'REMINDER']);
+const SUBSCRIPTION_REFS = new Set(['SUBSCRIPT', 'REMINDER', 'CHANGISHA']);
 
 /**
  * Staff/super_admin queue for M-Pesa payments the C2B router couldn't place.
