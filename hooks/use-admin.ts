@@ -383,6 +383,7 @@ export interface CreateGroupMemberInput {
   firstName: string;
   lastName: string;
   phone: string;
+  nationalId: string;
   dateOfBirth?: string;
   role?: 'member' | 'secretary' | 'treasurer' | 'chairperson';
 }
