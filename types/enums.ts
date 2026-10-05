@@ -19,14 +19,7 @@ export const PRODUCT_LABEL: Record<SubscriptionProduct, string> = {
 };
 export type ContributionStatus = 'pending' | 'completed' | 'failed' | 'cancelled' | 'overdue';
 export type LoanStatus =
-  | 'pending'
-  | 'approved'
-  | 'rejected'
-  | 'disbursed'
-  | 'active'
-  | 'completed'
-  | 'defaulted'
-  | 'written_off';
+  'pending' | 'approved' | 'rejected' | 'disbursed' | 'active' | 'completed' | 'defaulted' | 'written_off';
 export type PaymentMethod = 'mpesa' | 'cash' | 'bank_transfer' | 'cheque' | 'standing_order';
 export type PaymentStatus = 'pending' | 'completed' | 'failed' | 'refunded' | 'reversed';
 export type MemberRole = 'chairperson' | 'treasurer' | 'secretary' | 'member';
@@ -85,14 +78,7 @@ export type OrganizationAccessLevel = 'read' | 'report';
 // register_organization()'s own validation: organizationType is required,
 // with no fallback).
 export type OrganizationType =
-  | 'bank'
-  | 'sacco'
-  | 'foundation'
-  | 'ngo'
-  | 'government'
-  | 'cooperative'
-  | 'faith_based'
-  | 'other';
+  'bank' | 'sacco' | 'foundation' | 'ngo' | 'government' | 'cooperative' | 'faith_based' | 'other';
 
 export const ORGANIZATION_TYPE_LABELS: Record<OrganizationType, string> = {
   sacco: 'SACCO',

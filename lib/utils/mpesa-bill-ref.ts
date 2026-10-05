@@ -23,14 +23,7 @@
  */
 
 export type BillRefKind =
-  | 'contribution'
-  | 'loan_repayment'
-  | 'welfare'
-  | 'investment'
-  | 'subscription'
-  | 'share'
-  | 'invoice'
-  | 'unknown';
+  'contribution' | 'loan_repayment' | 'welfare' | 'investment' | 'subscription' | 'share' | 'invoice' | 'unknown';
 
 export interface RoutingDecision {
   kind: BillRefKind;

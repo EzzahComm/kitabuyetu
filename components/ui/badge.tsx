@@ -4,15 +4,7 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 type BadgeVariant =
-  | 'default'
-  | 'primary'
-  | 'secondary'
-  | 'success'
-  | 'warning'
-  | 'error'
-  | 'destructive'
-  | 'outline'
-  | 'slate';
+  'default' | 'primary' | 'secondary' | 'success' | 'warning' | 'error' | 'destructive' | 'outline' | 'slate';
 
 type BadgeSize = 'sm' | 'md';
 

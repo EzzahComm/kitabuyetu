@@ -52,8 +52,7 @@ export async function registerC2BUrls(version?: C2BApiVersion): Promise<C2BRegis
 // ─── C2B Validation (payment architecture §3.2) ──────────────────────────────
 
 export type C2BValidationVerdict =
-  | { accept: true }
-  | { accept: false; reason: 'bad_account' | 'unknown_account' | 'membership_inactive' };
+  { accept: true } | { accept: false; reason: 'bad_account' | 'unknown_account' | 'membership_inactive' };
 
 /**
  * Pre-payment account validation — Safaricom calls this BEFORE completing a

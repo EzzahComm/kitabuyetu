@@ -36,7 +36,7 @@ export const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS ?? '10', 10);
  * silent; if welcome-on-import is ever wanted it should be an explicit,
  * opt-in choice made at import time.
  */
-async function emitMemberRegisteredEvent(
+export async function emitMemberRegisteredEvent(
   memberId: string,
   groupId: string,
   member: { firstName: string; lastName: string; membershipNo: string },
@@ -51,11 +51,24 @@ async function emitMemberRegisteredEvent(
     // an empty string, i.e. "You have joined  on Kitabu Yetu", so it has to be
     // fetched and passed explicitly. withAdminDb because this runs after the
     // tenant transaction has already closed.
-    const groupName = await withAdminDb((db) =>
+    // `product` lets the trigger rules pick product-appropriate wording: a
+    // reminder-only group must not be told it joined "on Kitabu Yetu". Same
+    // rule as postLoginPath — reminder-only means no Kitabu Yetu subscription
+    // AND (a Chama Reminder one, or none yet but it signed up for Chama Reminder).
+    const group = await withAdminDb((db) =>
       db
-        .query<{ name: string }>('SELECT name FROM groups WHERE id = $1', [groupId])
-        .then((r) => r.rows[0]?.name ?? null),
+        .query<{ name: string; reminder_only: boolean }>(
+          `SELECT g.name,
+                  (NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.group_id = g.id AND s.status = 'active' AND s.product = 'kitabu_yetu')
+                   AND (EXISTS (SELECT 1 FROM subscriptions s WHERE s.group_id = g.id AND s.status = 'active' AND s.product = 'chama_reminder')
+                        OR (NOT EXISTS (SELECT 1 FROM subscriptions s WHERE s.group_id = g.id AND s.status = 'active')
+                            AND g.signup_product = 'chama_reminder'))) AS reminder_only
+           FROM groups g WHERE g.id = $1`,
+          [groupId],
+        )
+        .then((r) => r.rows[0] ?? null),
     );
+    const groupName = group?.name ?? null;
     if (!groupName) {
       const { logger } = await import('@/lib/logger');
       logger.warn('[members] skipping welcome — group not found', { groupId, memberId });
@@ -74,6 +87,7 @@ async function emitMemberRegisteredEvent(
         first_name: member.firstName,
         last_name: member.lastName,
         group_name: groupName,
+        product: group?.reminder_only ? 'chama_reminder' : 'kitabu_yetu',
         // The SHORT per-group number (e.g. NC000078), not the long platform
         // member_code (KY000000300004) — this is the one a member is asked to
         // quote at a meeting, and the long form would push the SMS past one

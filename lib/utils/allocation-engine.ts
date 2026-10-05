@@ -18,14 +18,7 @@
  */
 
 export type PaymentProduct =
-  | 'savings'
-  | 'loan_repayment'
-  | 'welfare'
-  | 'share'
-  | 'investment'
-  | 'fine'
-  | 'registration'
-  | 'subscription';
+  'savings' | 'loan_repayment' | 'welfare' | 'share' | 'investment' | 'fine' | 'registration' | 'subscription';
 
 export interface OpenPaymentRequest {
   id: string;

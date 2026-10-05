@@ -22,7 +22,7 @@ export const CreateMemberSchema = z.object({
   firstName: z.string().min(2).max(100),
   lastName: z.string().min(2).max(100),
   email: z.string().email().optional().nullable(),
-  nationalId: z.string().max(20).optional().nullable(),
+  nationalId: z.string().trim().min(5, 'National ID number is required').max(20),
   dateOfBirth: z.string().date().optional().nullable(),
   gender: z.enum(['male', 'female', 'other', 'prefer_not_to_say']).optional().nullable(),
   address: z.string().max(500).optional().nullable(),

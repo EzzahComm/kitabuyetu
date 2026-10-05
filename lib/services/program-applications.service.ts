@@ -16,13 +16,7 @@ import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from '@
 import { emitActivity, ActivityEventType } from '@/lib/notifications';
 
 export type ProgramApplicationStatus =
-  | 'draft'
-  | 'submitted'
-  | 'under_review'
-  | 'additional_information_requested'
-  | 'accepted'
-  | 'declined'
-  | 'withdrawn';
+  'draft' | 'submitted' | 'under_review' | 'additional_information_requested' | 'accepted' | 'declined' | 'withdrawn';
 
 export interface ProgramApplicationRow {
   id: string;

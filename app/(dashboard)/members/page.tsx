@@ -45,7 +45,7 @@ const schema = z.object({
     .optional()
     .or(z.literal('')),
   email: z.string().email().optional().or(z.literal('')),
-  nationalId: z.string().optional(),
+  nationalId: z.string().trim().min(5, 'National ID number is required').max(20),
   occupation: z.string().max(150).optional().or(z.literal('')),
   countyId: z.string().uuid('Pick a county').optional().or(z.literal('')),
   role: z.enum(['member', 'secretary', 'treasurer', 'chairperson']),
@@ -368,6 +368,7 @@ export default function MembersPage() {
               <div className="space-y-1">
                 <Label>National ID</Label>
                 <Input {...register('nationalId')} />
+                {errors.nationalId && <p className="text-xs text-destructive">{errors.nationalId.message}</p>}
               </div>
               <div className="space-y-1">
                 <Label>

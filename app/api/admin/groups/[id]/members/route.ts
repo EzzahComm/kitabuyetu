@@ -28,6 +28,7 @@ const createSchema = z.object({
   firstName: z.string().trim().min(2, 'Enter a first name'),
   lastName: z.string().trim().min(2, 'Enter a last name'),
   phone: z.string().trim().refine(isValidKenyanPhone, 'Enter a valid Kenyan phone number'),
+  nationalId: z.string().trim().min(5, 'National ID number is required').max(20),
   dateOfBirth: z.string().optional().or(z.literal('')),
   role: z.enum(['member', 'secretary', 'treasurer', 'chairperson']).optional(),
 });

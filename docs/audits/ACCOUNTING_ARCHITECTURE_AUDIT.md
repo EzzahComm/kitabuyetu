@@ -32,15 +32,16 @@ Set against that foundation, the audit's central question — **do Loans, Saving
 **Where accounting actually happens:** everywhere else, independently. `grep -ln "journal_entries|journal_lines" lib/services/*.ts` returns exactly six files: `accounting.service.ts` (the unused shared API), `contributions.service.ts`, `loans.service.ts`, `mpesa.service.ts`, `organization-finance.service.ts`, and `reallocations.service.ts`. None of the five domain files call `accountingService.createJournalEntry` — each hand-rolls its own `INSERT INTO journal_entries` / `INSERT INTO journal_lines`.
 
 **Service boundaries found:**
-| Conceptual engine | Actual implementation | Status |
-|---|---|---|
-| Posting engine | `accounting.service.ts` functions — used only by the manual "Accounting" screen | Exists, but bypassed by every automated flow |
-| Journal engine | None — six independent raw-SQL implementations | Not centralized |
-| Ledger engine | `journal_entries`/`journal_lines` tables + two DB triggers | Solid where reached |
-| Account engine | `accounts` table, per-group chart, seeded defaults | Solid |
-| Balance engine | `update_account_balance()` trigger, denormalized `accounts.balance` | Solid, trigger-guaranteed |
-| Reporting engine | `accounting.service.ts` trial balance/P&L (real aggregation), balance sheet (real but unreachable/buggy — see §12) | Partial |
-| Reconciliation engine | M-Pesa-transaction-matching jobs + GL-internal balance-drift job | Real, but never reaches external cash or the organization layer |
+
+| Conceptual engine     | Actual implementation                                                                                              | Status                                                          |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------- |
+| Posting engine        | `accounting.service.ts` functions — used only by the manual "Accounting" screen                                    | Exists, but bypassed by every automated flow                    |
+| Journal engine        | None — six independent raw-SQL implementations                                                                     | Not centralized                                                 |
+| Ledger engine         | `journal_entries`/`journal_lines` tables + two DB triggers                                                         | Solid where reached                                             |
+| Account engine        | `accounts` table, per-group chart, seeded defaults                                                                 | Solid                                                           |
+| Balance engine        | `update_account_balance()` trigger, denormalized `accounts.balance`                                                | Solid, trigger-guaranteed                                       |
+| Reporting engine      | `accounting.service.ts` trial balance/P&L (real aggregation), balance sheet (real but unreachable/buggy — see §12) | Partial                                                         |
+| Reconciliation engine | M-Pesa-transaction-matching jobs + GL-internal balance-drift job                                                   | Real, but never reaches external cash or the organization layer |
 
 **Modular or tightly coupled?** Neither, cleanly — it is **fragmented**. Each domain service is internally cohesive but the accounting concern is copy-pasted across them rather than factored out, which is a different failure mode than tight coupling: there's no single choke point to hook a fix into, so a bug fixed in one posting function (e.g., migration 027's fix for the balance-bypass bug) does not automatically protect the other five raw-SQL posting sites.
 

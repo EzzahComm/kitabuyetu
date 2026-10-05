@@ -287,7 +287,7 @@ SELECT cron.alter_job(
 - [ ] Ensure `MPESA_CALLBACK_BASE_URL` is your production Vercel URL (HTTPS, no trailing slash)
 - [ ] Register callback URL (one-time): `POST /api/v1/mpesa/register-urls` with your Bearer token
 - [ ] Vercel deployment IPs are dynamic — do NOT whitelist Vercel IPs at Safaricom.  
-       Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).
+      Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).
 
 ---
 

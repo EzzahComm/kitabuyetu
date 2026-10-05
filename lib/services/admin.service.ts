@@ -192,9 +192,7 @@ export function buildMonitoringDashboardPayload(input: {
       phone: tx.phone_number ?? '',
       amount: Number(tx.amount ?? 0),
       status: (tx.status === 'failed' ? 'failed' : tx.status === 'pending' ? 'pending' : 'success') as
-        | 'success'
-        | 'pending'
-        | 'failed',
+        'success' | 'pending' | 'failed',
       ref: tx.mpesa_receipt_number ?? tx.reference ?? tx.id,
       at: Date.parse(tx.created_at ?? new Date().toISOString()),
     })),
@@ -1141,6 +1139,7 @@ export interface CreateGroupMemberInput {
   firstName: string;
   lastName: string;
   phone: string;
+  nationalId: string;
   dateOfBirth?: string;
   role?: string;
 }
@@ -1158,10 +1157,10 @@ export interface CreateGroupMemberInput {
 export async function createGroupMember(groupId: string, input: CreateGroupMemberInput, adminId: string) {
   const { normalizePhone } = await import('@/lib/utils/phone');
   const { linkMemberToGroup } = await import('./group-membership');
-  const { BCRYPT_ROUNDS, generateTempPassword } = await import('./members.service');
+  const { BCRYPT_ROUNDS, generateTempPassword, emitMemberRegisteredEvent } = await import('./members.service');
   const bcrypt = (await import('bcryptjs')).default;
 
-  return withAdminDb(async (db: PoolClient) => {
+  const result = await withAdminDb(async (db: PoolClient) => {
     const { rows: sub } = await db.query<{ unlimited: boolean; cap: number | null }>(
       `SELECT bool_or(max_members IS NULL) AS unlimited, MAX(max_members) AS cap
        FROM subscriptions WHERE group_id = $1 AND status = 'active'`,
@@ -1193,9 +1192,9 @@ export async function createGroupMember(groupId: string, input: CreateGroupMembe
       const passwordHash = await bcrypt.hash(generateTempPassword(), BCRYPT_ROUNDS);
       memberId = crypto.randomUUID();
       await db.query(
-        `INSERT INTO members (id, phone, password_hash, first_name, last_name, date_of_birth)
-         VALUES ($1, $2, $3, $4, $5, $6)`,
-        [memberId, phone, passwordHash, input.firstName, input.lastName, input.dateOfBirth ?? null],
+        `INSERT INTO members (id, phone, password_hash, first_name, last_name, national_id, date_of_birth)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [memberId, phone, passwordHash, input.firstName, input.lastName, input.nationalId, input.dateOfBirth ?? null],
       );
     }
 
@@ -1207,6 +1206,7 @@ export async function createGroupMember(groupId: string, input: CreateGroupMembe
       firstName: input.firstName,
       lastName: input.lastName,
       phone,
+      nationalId: input.nationalId,
       dateOfBirth: input.dateOfBirth,
     });
 
@@ -1228,6 +1228,16 @@ export async function createGroupMember(groupId: string, input: CreateGroupMembe
 
     return { member: rows[0], membershipNo: link.membershipNo };
   });
+
+  // After the commit, same as members.service create(): the welcome SMS is a
+  // courtesy and must never roll back the member. Never throws.
+  await emitMemberRegisteredEvent(result.member.id, groupId, {
+    firstName: input.firstName,
+    lastName: input.lastName,
+    membershipNo: result.membershipNo,
+  });
+
+  return result;
 }
 
 /**

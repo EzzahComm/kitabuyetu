@@ -249,14 +249,14 @@ Drop the `cap_` prefix. It would create a second organization-finance domain sit
 
 All six were put to the founder with recommendations and trade-offs; every one came back as the recommended option. **Phase 1 is unblocked.**
 
-| #       | Decision                      | Resolution                                                                                                                                                                                 |
+| # | Decision | Resolution |
 | ------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
-| **D1**  | Capital model                 | **Liability.** An allocation is a debt the group owes the organization. `pass_through` stays reserved in the CHECK constraint, unimplemented.                                              |
-| **D5**  | Member visibility (Kenya DPA) | **Pseudonymous code only.** Organizations see `member_code`/`membership_no` plus financial data — never a name or contact detail.                                                          |
-| **D-A** | Money movement                | **Service-layer transactions.** Keep `withAdminDb`/`withTransaction`; the spec's "single atomic Postgres RPC" non-negotiable is overridden, deliberately and on the record.                |
-| **D-B** | Balances                      | **Keep counters + rebuild/assert.** Existing counters stay; add `rebuild_organization_capital_balances()` + a nightly reconciliation job writing drift to `capital_reconciliation_alerts`. |
-| **D-C** | Authorization                 | **Permission strings on the live RBAC.** `capital.*` permissions on `roles.permissions`; `org_role` stays `lead                                                                            | staff`. The `field_officer` decision is NOT reversed. |
-| **D-F** | Organization types            | **Keep the existing enum.** No `ADD VALUE` migration (non-transactional, irreversible).                                                                                                    |
+| **D1** | Capital model | **Liability.** An allocation is a debt the group owes the organization. `pass_through` stays reserved in the CHECK constraint, unimplemented. |
+| **D5** | Member visibility (Kenya DPA) | **Pseudonymous code only.** Organizations see `member_code`/`membership_no` plus financial data — never a name or contact detail. |
+| **D-A** | Money movement | **Service-layer transactions.** Keep `withAdminDb`/`withTransaction`; the spec's "single atomic Postgres RPC" non-negotiable is overridden, deliberately and on the record. |
+| **D-B** | Balances | **Keep counters + rebuild/assert.** Existing counters stay; add `rebuild_organization_capital_balances()` + a nightly reconciliation job writing drift to `capital_reconciliation_alerts`. |
+| **D-C** | Authorization | **Permission strings on the live RBAC.** `capital.*` permissions on `roles.permissions`; `org_role` stays `lead                                                                            | staff`. The `field_officer` decision is NOT reversed. |
+| **D-F** | Organization types | **Keep the existing enum.** No `ADD VALUE` migration (non-transactional, irreversible). |
 
 Mechanical corrections already ruled and needing no decision: `numeric(15,2)` (D4), `flat|reducing_balance` (D3), `members(id)` not `auth.users` (D-E), interest rate as `numeric(5,2)` percentage.
 

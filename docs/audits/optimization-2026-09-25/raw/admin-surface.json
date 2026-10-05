@@ -1,0 +1,45 @@
+{
+  "dimension": "admin-surface",
+  "findings": [
+    {
+      "title": "HR employees admin list has no pagination or row cap — unconditional SELECT *",
+      "category": "NEW",
+      "severity": "MEDIUM",
+      "file": "lib/services/hr.service.ts",
+      "line": 120,
+      "evidence": "listEmployees() (lines 120-149) runs `SELECT * FROM hr_employees ${where} ORDER BY first_name, last_name` with no LIMIT/OFFSET and returns every matching row. Its caller, GET /api/admin/hr/employees (app/api/admin/hr/employees/route.ts), forwards only status/department/search filters from the query string — it never reads or passes a page/limit param, so there is no way to bound the result even client-side. Compare with the 11 admin list routes PR #162 fixed on 2026-09-20 (organizations, support, users, groups, mpesa/unrouted, audit-logs, organization/{groups,wallet,members,audit-logs}, governance/alerts), which all now call lib/utils/pagination.ts's parsePagination() and clamp page>=1 / 1<=limit<=100. hr.service.ts (created in commit 6b8805c, 'Phase 11: HRM foundation', 2026-09-20 15:52, the same day as but before PR #162 merged at 19:26) never adopted that pattern. Additionally, app/(admin)/admin/hr/page.tsx calls the `useEmployees` hook twice per page render — once for the active filter and once unconditionally with `{status: 'active'}` to populate the 'manager' dropdown — so a single page load issues two unbounded full-table reads. DB access to confirm current hr_employees row count was not available this session (see summary); this finding is based on static code analysis of the query and route, not a live reproduction.",
+      "impact": "As headcount grows, every /admin/hr page load (and the underlying employee-picker dropdown reused elsewhere) pulls and serializes the entire hr_employees table with no ceiling — exactly the defect class (unbounded admin list query) the 2026-09 audit spent PR #162 closing everywhere else. Currently low risk because the table is new and presumably small, but there is no code path today that would let it self-limit before that stops being true, and the duplicate fetch on every /admin/hr load doubles the cost immediately.",
+      "recommendation": "Add page/limit params to GET /api/admin/hr/employees using the existing parsePagination() utility (same as the other 11 fixed admin routes), add LIMIT/OFFSET plus a COUNT(*) to listEmployees(), and give the manager-dropdown query its own light-weight endpoint (id/name only, or capped) instead of re-running the full unbounded employee list a second time per page load."
+    },
+    {
+      "title": "Careers admin applications list has no pagination or row cap — unconditional SELECT *",
+      "category": "NEW",
+      "severity": "MEDIUM",
+      "file": "lib/services/careers.service.ts",
+      "line": 112,
+      "evidence": "listApplications() (lines 112-136) runs `SELECT * FROM job_applications ${where} ORDER BY created_at DESC` with no LIMIT/OFFSET. Its caller, GET /api/admin/careers/applications (app/api/admin/careers/applications/route.ts), only forwards jobSlug/stage filters — no page/limit parameter exists anywhere in the request or response shape. careers.service.ts was created in commit c061649 ('Phase 12 groundwork: job application pipeline', 2026-09-20 17:22), after hr.service.ts and before PR #162 merged the same evening; it repeats the identical unbounded-list pattern PR #162 was fixing elsewhere in the same admin surface at almost the same time.",
+      "impact": "job_applications is fed by public candidates applying to job postings (careers.service.ts's submitApplication path). Volume was likely suppressed by the Phase 13 bug (marketplace application form missing an auth header, unrelated table but same era) but nothing bounds this table's growth going forward, and the admin applications queue has no cap on how many rows it will try to return and render in one response.",
+      "recommendation": "Add page/limit query params via parsePagination(), thread them into listApplications(), and add LIMIT/OFFSET + a COUNT(*) query, matching the pattern already used by the 11 other admin list routes."
+    },
+    {
+      "title": "Newsletter admin subscriber list has no pagination or row cap — unconditional SELECT *",
+      "category": "NEW",
+      "severity": "MEDIUM",
+      "file": "lib/services/newsletter.service.ts",
+      "line": 71,
+      "evidence": "listNewsletterSubscribers() (lines 71-80) runs `SELECT * FROM newsletter_subscribers ORDER BY subscribed_at DESC` (or the activeOnly variant) with no LIMIT/OFFSET. Its only caller, GET /api/admin/newsletter (app/api/admin/newsletter/route.ts), takes no query params at all — it just does `Promise.all([listNewsletterSubscribers(), getNewsletterStats()])` on every request and returns the full subscriber list plus stats in one payload. newsletter.service.ts was created in commit aac2ce2 ('Phase 10: CMS SEO completion + newsletter capture pipeline', 2026-09-20 14:43), which also added the marketing-site lead-capture form this table now receives public submissions from.",
+      "impact": "Unlike the HR/careers tables above (which grow only from internal admin actions or a low-volume careers page), newsletter_subscribers is fed directly by public, self-serve sign-up on the marketing site with no admin gate on volume — it is the table in this group most likely to already hold, or soon hold, a row count large enough to make this endpoint slow or memory-heavy, and the /admin/newsletter page has no way to page through it even if it wanted to.",
+      "recommendation": "Same fix as the other two: parsePagination() + LIMIT/OFFSET + COUNT(*) on listNewsletterSubscribers(), and keep getNewsletterStats() (which is already a pure aggregate, not row-returning) as the unbounded call it's fine to leave as-is."
+    },
+    {
+      "title": "Ecosystem admin partner/opportunity/application lists have no pagination — pre-existing gap PR #162 didn't reach",
+      "category": "MISSED",
+      "severity": "MEDIUM",
+      "file": "lib/services/ecosystem.service.ts",
+      "line": 164,
+      "evidence": "Three admin list functions in ecosystem.service.ts return unbounded full-table scans with no LIMIT/OFFSET: listPartners() (lines 164-179, `SELECT * FROM ecosystem_partners ... ORDER BY name`), listAllOpportunities() (lines 321-326, `SELECT * FROM ecosystem_opportunities ORDER BY created_at DESC`), and listAllApplications() (lines 570-587, `SELECT * FROM ecosystem_opportunity_applications ... ORDER BY created_at DESC`). Their callers — GET /api/admin/ecosystem/partners, /api/admin/ecosystem/opportunities, and /api/admin/ecosystem/applications — accept no page/limit parameter (opportunities and partners take no query params at all; applications takes only a status filter). ecosystem.service.ts was created in commit 82cf497 ('feat(phase-8): Ecosystem foundation', 2026-09-18 15:27), two days before PR #162 ('fix(admin): admin-surface audit fixes — fan-out, pagination, N+1 pool exhaustion') merged into main on 2026-09-20 at 19:26. The admin-surface audit that produced PR #162 was branched from a point (2026-09-15) before Phase 8 existed, so it's plausible the auditor's working tree never had these three routes in view, but they were live on main for two full days before that PR closed and were not included in its fix set.",
+      "impact": "Identical defect class to what PR #162 fixed on 12 other admin routes (unbounded admin list query, no way to bound result size), on tables that grow with every partner onboarded, opportunity published, and marketplace application submitted through Phase 13's now-fixed application flow — meaning application volume through this exact table is expected to increase now that the auth-header bug blocking submissions is fixed.",
+      "recommendation": "Extend the same parsePagination()-based fix to all three: add page/limit handling in the three route.ts files and LIMIT/OFFSET + COUNT(*) in listPartners(), listAllOpportunities(), and listAllApplications()."
+    }
+  ]
+}
