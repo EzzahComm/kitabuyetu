@@ -100,7 +100,7 @@ export function ComposeTab() {
             <select
               id="compose-load-template"
               aria-label="Load template"
-              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-ring"
               value={templateId}
               onChange={(e) => handleTemplateSelect(e.target.value)}
             >
@@ -119,7 +119,7 @@ export function ComposeTab() {
             </label>
             <textarea
               id="compose-message"
-              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-2 focus:ring-ring"
               rows={5}
               placeholder="Type your message…"
               value={message}
@@ -167,7 +167,7 @@ export function ComposeTab() {
             </div>
             {target === 'custom' && (
               <textarea
-                className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-2 focus:ring-ring"
                 rows={4}
                 placeholder="Enter phone numbers, one per line or comma-separated (254…)"
                 value={phones}

@@ -44,12 +44,12 @@ export function NewsletterSignupForm({ source, className, appearance = 'default'
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             aria-label="Email address"
-            className="h-14 w-full rounded-lg border-0 bg-white pl-4 pr-32 text-[0.9375rem] text-finanza-dark placeholder:text-finanza-text/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-300"
+            className="h-14 w-full rounded-lg border-0 bg-white pl-4 pr-32 text-[0.9375rem] text-finanza-dark placeholder:text-finanza-text/60 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-300"
           />
           <button
             type="submit"
             disabled={subscribe.isPending}
-            className="absolute bottom-2 right-2 top-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-70"
+            className="absolute bottom-2 right-2 top-2 rounded-lg bg-brand-500 px-4 text-sm font-medium text-white transition-colors hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-300 disabled:opacity-70"
           >
             {subscribe.isPending ? 'Signing up…' : 'Sign up'}
           </button>

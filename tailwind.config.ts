@@ -23,7 +23,7 @@ const scaleColors = (name: string, scale: Scale) =>
 const MARKETING_SCOPE = 'html:has([data-marketing-theme])';
 
 const config: Config = {
-  darkMode: ['class'],
+  darkMode: 'class',
 
   /*
    * IMPORTANT:

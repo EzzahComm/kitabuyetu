@@ -151,7 +151,7 @@ export function CommunitiesSection({ id }: { id?: string }) {
             delay={i * 150}
             className="flex flex-col overflow-hidden rounded-lg border border-brand-100 bg-white"
           >
-            <div className="relative aspect-[16/10]">
+            <div className="relative aspect-16/10">
               <Image
                 src={community.photo.src}
                 alt={community.photo.alt}

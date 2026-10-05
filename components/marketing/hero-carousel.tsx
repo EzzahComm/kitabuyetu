@@ -61,7 +61,7 @@ const SLIDES = [
 const ROTATION_MS = 5000;
 
 const edgeControl =
-  'absolute top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center bg-brand-500 text-white transition-colors hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-300 lg:flex';
+  'absolute top-1/2 z-20 hidden h-12 w-12 -translate-y-1/2 items-center justify-center bg-brand-500 text-white transition-colors hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-300 lg:flex';
 
 /**
  * Finanza's header carousel: caption on a lavender wave to the left, photo to
@@ -134,7 +134,7 @@ export function HeroCarousel() {
               )}
             >
               {/* Photo: full width on phones, the right half (under the wave) on desktop. */}
-              <div className="relative order-2 aspect-[4/3] lg:absolute lg:inset-y-0 lg:right-0 lg:aspect-auto lg:w-[58%]">
+              <div className="relative order-2 aspect-4/3 lg:absolute lg:inset-y-0 lg:right-0 lg:aspect-auto lg:w-[58%]">
                 <Image
                   src={slide.photo.src}
                   alt={slide.photo.alt}
@@ -151,7 +151,7 @@ export function HeroCarousel() {
               {/* The template's lavender wave, drawn over the photo's left edge. */}
               <svg
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 left-0 z-[1] hidden h-full w-[58%] lg:block"
+                className="pointer-events-none absolute inset-y-0 left-0 z-1 hidden h-full w-[58%] lg:block"
                 viewBox="0 0 800 640"
                 preserveAspectRatio="none"
               >
@@ -165,7 +165,7 @@ export function HeroCarousel() {
                 />
               </svg>
 
-              <div className="relative z-[2] order-1 flex items-center py-12 lg:py-20">
+              <div className="relative z-2 order-1 flex items-center py-12 lg:py-20">
                 <div className="mx-auto w-full max-w-[82rem] px-5 sm:px-8 lg:px-10">
                   {/* Narrow enough to stay on the lavender at every width: the wave's edge sits
                       at ~46% of the viewport at mid-height. */}
@@ -219,7 +219,7 @@ export function HeroCarousel() {
             aria-label={`Show ${slide.product}`}
             aria-current={i === index ? 'true' : undefined}
             className={cn(
-              'h-2.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+              'h-2.5 rounded-full transition-all duration-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
               i === index ? 'w-8 bg-brand-500' : 'w-2.5 bg-brand-200 hover:bg-brand-300',
             )}
           />
@@ -229,7 +229,7 @@ export function HeroCarousel() {
             type="button"
             onClick={() => setPaused((v) => !v)}
             aria-label={paused ? 'Resume slideshow' : 'Pause slideshow'}
-            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full text-brand-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="ml-1 flex h-7 w-7 items-center justify-center rounded-full text-brand-500 hover:bg-brand-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             {paused ? (
               <Play aria-hidden="true" className="h-3.5 w-3.5" />

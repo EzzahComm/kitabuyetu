@@ -98,7 +98,7 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
             step="1"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-hidden focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>
         <label className="block text-sm font-medium text-finanza-dark">
@@ -109,7 +109,7 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
             placeholder="07XX XXX XXX"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-hidden focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>
         <label className="block text-sm font-medium text-finanza-dark">
@@ -118,7 +118,7 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
             type="text"
             value={donorName}
             onChange={(e) => setDonorName(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-hidden focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>
         <label className="block text-sm font-medium text-finanza-dark">
@@ -127,7 +127,7 @@ export function CampaignDonateForm({ slug }: CampaignDonateFormProps) {
             rows={2}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
-            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-none focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
+            className="mt-1.5 w-full rounded-md border border-brand-100 px-3 py-2.5 text-sm outline-hidden focus:border-brand-500 focus:ring-2 focus:ring-brand-200"
           />
         </label>
         <label className="flex items-center gap-2 text-sm text-finanza-text">

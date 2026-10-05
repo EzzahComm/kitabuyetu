@@ -41,7 +41,7 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
           width={521}
           height={521}
           alt={data.imageAlt}
-          className="aspect-[4/3] w-full rounded-lg object-cover"
+          className="aspect-4/3 w-full rounded-lg object-cover"
           placeholder="blur"
         />
       </div>
@@ -83,7 +83,7 @@ interface BenefitProps {
 function Benefit(props: BenefitProps) {
   return (
     <div className="mt-6 flex items-start gap-4">
-      <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-brand-500">
+      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-brand-500">
         {React.cloneElement(props.icon, {
           className: 'h-5 w-5 text-white',
         })}

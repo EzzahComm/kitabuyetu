@@ -108,7 +108,7 @@ export default function ContactPage() {
                   href={whatsappHref(phone)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-6 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
                 >
                   <WhatsAppLogo aria-hidden="true" size={20} />
                   Chat on WhatsApp

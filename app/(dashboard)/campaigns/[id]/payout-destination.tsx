@@ -79,7 +79,7 @@ export function PayoutDestinationEditor({ campaignId, campaign }: { campaignId: 
             <label
               key={m.value}
               className={cn(
-                'flex cursor-pointer flex-col rounded-md border p-3 text-sm transition-colors has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring',
+                'flex cursor-pointer flex-col rounded-md border p-3 text-sm transition-colors has-focus-visible:ring-2 has-focus-visible:ring-ring',
                 method === m.value ? 'border-primary bg-primary/5' : 'hover:bg-muted/50',
               )}
             >

@@ -23,7 +23,7 @@ export function WalletCard({ savings, shares, thisMonth, loanBalance, memberNo }
   const mask = (v: number) => (hidden ? '•••••' : formatKES(v));
 
   return (
-    <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue-600 to-brand-blue-800 p-5 text-white shadow-lg">
+    <div className="relative overflow-hidden rounded-2xl bg-linear-to-br from-brand-blue-600 to-brand-blue-800 p-5 text-white shadow-lg">
       {/* soft decorative orb */}
       <div
         className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-brand-500/20 blur-2xl"
@@ -51,11 +51,11 @@ export function WalletCard({ savings, shares, thisMonth, loanBalance, memberNo }
       </div>
 
       <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm">
+        <div className="rounded-xl bg-white/10 p-3 backdrop-blur-xs">
           <p className="text-[11px] text-white/60">Shares</p>
           <p className="money mt-0.5 text-base font-semibold">{mask(shares)}</p>
         </div>
-        <div className="rounded-xl bg-white/10 p-3 backdrop-blur-sm">
+        <div className="rounded-xl bg-white/10 p-3 backdrop-blur-xs">
           <p className="text-[11px] text-white/60">Loan balance</p>
           <p className="money mt-0.5 text-base font-semibold">{mask(loanBalance)}</p>
         </div>

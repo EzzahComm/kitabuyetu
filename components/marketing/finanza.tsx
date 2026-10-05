@@ -16,7 +16,7 @@ import { Reveal } from './reveal';
  * ──────────────────────────────────────────────────────────────────────────── */
 
 const focusRing =
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2';
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2';
 
 /** `.btn.btn-primary.py-3.px-5` */
 export const btnPrimary = cn(
@@ -33,7 +33,7 @@ export const btnOutline = cn(
 /** A white button for use on a primary-coloured band. */
 export const btnOnPrimary = cn(
   'inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-8 py-3 text-base font-medium text-brand-500 transition-colors duration-500 hover:bg-brand-100',
-  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-500',
+  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-brand-500',
 );
 
 /** The template's 95% primary wash over its circle-and-dot pattern (`.facts`, `.callback::before`). */
@@ -242,7 +242,7 @@ export function FeatureBox({ icon: Icon, title, children, href, linkText = 'Read
       {href && (
         <Link
           href={href}
-          className="mt-4 inline-flex items-center gap-1.5 font-medium text-brand-500 transition-colors duration-500 after:absolute after:inset-0 after:rounded-lg group-hover:text-white focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-300"
+          className="mt-4 inline-flex items-center gap-1.5 font-medium text-brand-500 transition-colors duration-500 after:absolute after:inset-0 after:rounded-lg group-hover:text-white focus-visible:outline-hidden focus-visible:after:ring-2 focus-visible:after:ring-brand-300"
         >
           {linkText} <span aria-hidden="true">→</span>
           <span className="sr-only"> about {title}</span>

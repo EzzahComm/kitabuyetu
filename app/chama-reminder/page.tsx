@@ -48,13 +48,13 @@ export default function ChamaReminderPage() {
             <div className="mt-9 flex flex-wrap justify-center gap-3">
               <Link
                 href={signUpUrl('chama_reminder')}
-                className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-md bg-brand-600 px-7 py-3 text-base font-semibold text-white transition-colors hover:bg-brand-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Send your first reminder
               </Link>
               <Link
                 href="/bookkeeper"
-                className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center gap-2 rounded-md border border-brand-100 px-7 py-3 text-base font-medium text-finanza-dark transition-colors hover:bg-brand-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Need full bookkeeping?
               </Link>
@@ -144,7 +144,7 @@ export default function ChamaReminderPage() {
 
                 <p className="mb-6 text-sm text-finanza-text">{plan.sms}</p>
 
-                <ul className="mb-6 flex-grow space-y-3">
+                <ul className="mb-6 grow space-y-3">
                   {plan.features.map((feature) => (
                     <li key={feature} className="flex items-start gap-2 text-sm text-finanza-text">
                       <CircleCheck size={18} aria-hidden="true" className="mt-0.5 shrink-0 text-brand-600" />

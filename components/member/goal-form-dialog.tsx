@@ -63,7 +63,7 @@ export function GoalFormDialog({ open, onOpenChange, goal, onSubmit }: GoalFormD
           <DialogTitle>{isEdit ? 'Edit goal' : 'New savings goal'}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit(submit)} className="space-y-3">
-          <div className="grid grid-cols-[4rem,1fr] gap-3">
+          <div className="grid grid-cols-[4rem_1fr] gap-3">
             <div className="space-y-1">
               <Label htmlFor="emoji">Icon</Label>
               <Input id="emoji" {...register('emoji')} className="text-center text-lg" />

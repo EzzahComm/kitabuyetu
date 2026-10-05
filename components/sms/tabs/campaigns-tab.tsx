@@ -72,7 +72,7 @@ export function CampaignsTab() {
               </label>
               <input
                 id="campaign-name"
-                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-ring"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Campaign name"

@@ -234,7 +234,7 @@ export function EnrollForm({
         <Button type="button" variant="ghost" onClick={onBack} className={cn('flex-1', t.buttonGhost)}>
           Back
         </Button>
-        <Button type="submit" disabled={submitting} className={cn('flex-[2]', t.button)}>
+        <Button type="submit" disabled={submitting} className={cn('flex-2', t.button)}>
           {submitting ? 'Verifying…' : 'Confirm and enrol'}
         </Button>
       </div>
@@ -284,7 +284,7 @@ export function VerifyForm({
         <Button type="button" variant="ghost" onClick={onBack} className={cn('flex-1', t.buttonGhost)}>
           Back
         </Button>
-        <Button type="submit" disabled={submitting} className={cn('flex-[2]', t.button)}>
+        <Button type="submit" disabled={submitting} className={cn('flex-2', t.button)}>
           {submitting ? 'Verifying…' : 'Sign in'}
         </Button>
       </div>

@@ -50,7 +50,7 @@ export function ToastContainer() {
   );
 
   const getIcon = (type: ToastType) => {
-    const iconProps = { size: 20, className: 'flex-shrink-0' };
+    const iconProps = { size: 20, className: 'shrink-0' };
     switch (type) {
       case 'success':
         return <Check {...iconProps} className="text-success-600 dark:text-success-400" />;
@@ -110,7 +110,7 @@ export function ToastContainer() {
             </div>
             <button
               onClick={() => removeToast(toast.id)}
-              className="flex-shrink-0 hover:opacity-70 transition-opacity"
+              className="shrink-0 hover:opacity-70 transition-opacity"
               aria-label="Close"
             >
               <X size={18} />

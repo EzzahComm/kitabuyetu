@@ -75,7 +75,7 @@ export function TemplatesTab() {
               </label>
               <input
                 id="template-key-snake-case"
-                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-ring"
                 value={key}
                 onChange={(e) => setKey(e.target.value.toLowerCase().replace(/\s/g, '_'))}
                 placeholder="my_template"
@@ -87,7 +87,7 @@ export function TemplatesTab() {
               </label>
               <input
                 id="template-display-name"
-                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                className="w-full text-sm border rounded-lg px-3 py-2 focus:outline-hidden focus:ring-2 focus:ring-ring"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="My Template"
@@ -119,7 +119,7 @@ export function TemplatesTab() {
               Body <span className="text-muted-foreground">(use {'{{variable}}'} for placeholders)</span>
             </label>
             <textarea
-              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-ring"
+              className="w-full text-sm border rounded-lg px-3 py-2 resize-none focus:outline-hidden focus:ring-2 focus:ring-ring"
               rows={4}
               value={body}
               onChange={(e) => setBody(e.target.value)}

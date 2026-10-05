@@ -316,7 +316,7 @@ export default function MeetingDetailPage() {
                       onClick={() => toggleImplemented(r)}
                       aria-label={r.implemented ? 'Mark as outstanding' : 'Mark as implemented'}
                       aria-pressed={r.implemented}
-                      className="mt-0.5 shrink-0 rounded focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="mt-0.5 shrink-0 rounded focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {r.implemented ? (
                         <CheckCircle2 size={18} className="text-green-600" />

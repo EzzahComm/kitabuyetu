@@ -103,7 +103,7 @@ function PlanGrid({ product }: { product: SubscriptionProduct }) {
             <Link
               href={isSelfServe ? registerHref(product) : ROUTES.contact}
               className={cn(
-                'mt-7 inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-2.5 font-medium transition-colors duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+                'mt-7 inline-flex min-h-11 items-center justify-center rounded-lg px-5 py-2.5 font-medium transition-colors duration-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-offset-2',
                 featured
                   ? 'bg-white text-brand-500 hover:bg-brand-100 focus-visible:ring-white focus-visible:ring-offset-brand-500'
                   : 'border border-brand-500 text-brand-500 hover:bg-brand-500 hover:text-white focus-visible:ring-brand-500',

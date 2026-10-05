@@ -29,7 +29,7 @@ function Outline({ headings }: { headings: LegalHeading[] }) {
         <li key={heading.id}>
           <a
             href={`#${heading.id}`}
-            className="block rounded-sm py-1 leading-snug text-finanza-text transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="block rounded-sm py-1 leading-snug text-finanza-text transition-colors hover:text-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             {heading.text}
           </a>

@@ -110,7 +110,7 @@ export default function GoalsPage() {
         />
       ) : (
         <>
-          <div className="rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 p-4 text-white">
+          <div className="rounded-2xl bg-linear-to-br from-brand-500 to-brand-700 p-4 text-white">
             <p className="text-sm text-white/80">Total saved across goals</p>
             <p className="money mt-1 text-3xl font-bold">{formatKES(totalSaved)}</p>
             <p className="mt-0.5 text-xs text-white/70">of {formatKES(totalTarget)} target</p>

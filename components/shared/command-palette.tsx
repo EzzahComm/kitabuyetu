@@ -130,7 +130,7 @@ export function createCommandPalette(openEventName: string, useGroups: (query: s
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Search or jump to…"
-              className="h-12 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="h-12 flex-1 bg-transparent text-sm outline-hidden placeholder:text-muted-foreground"
               aria-label="Command palette search"
             />
             <kbd className="hidden select-none rounded border bg-muted px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground sm:inline">

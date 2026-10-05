@@ -71,7 +71,7 @@ export default function AboutPage() {
             <Image
               src={PHOTOS.vslaReading.src}
               alt={PHOTOS.vslaReading.alt}
-              className="aspect-[4/3] w-full rounded-lg object-cover"
+              className="aspect-4/3 w-full rounded-lg object-cover"
               sizes="(max-width: 1023px) 100vw, 50vw"
               placeholder="blur"
             />

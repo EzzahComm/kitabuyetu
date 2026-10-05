@@ -86,7 +86,7 @@ export function CtaBand({
             </a>
             <Link
               href={ROUTES.contact}
-              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
             >
               Talk to us
             </Link>

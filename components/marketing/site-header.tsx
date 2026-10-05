@@ -115,7 +115,7 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
         aria-expanded={open}
         aria-haspopup="menu"
         className={cn(
-          'flex items-center gap-1.5 rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+          'flex items-center gap-1.5 rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
           transparent ? 'text-white/80 hover:text-white' : 'text-finanza-text hover:text-brand-500',
           (active || open) && (transparent ? 'text-white' : 'text-brand-500'),
         )}
@@ -134,7 +134,7 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
           <div
             role="menu"
             aria-label={group.label}
-            className="origin-top rounded-lg border border-brand-100 bg-white py-2 shadow-xl shadow-finanza-dark/[0.08] motion-safe:animate-fade-up"
+            className="origin-top rounded-lg border border-brand-100 bg-white py-2 shadow-xl shadow-finanza-dark/8 motion-safe:animate-fade-up"
           >
             {group.items.map((item) => {
               const current = item.href === pathname;
@@ -146,7 +146,7 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
                   aria-current={current ? 'page' : undefined}
                   onClick={() => setOpen(false)}
                   className={cn(
-                    'block px-4 py-2.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500',
+                    'block px-4 py-2.5 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500',
                     current ? 'bg-brand-500' : 'hover:bg-brand-50',
                   )}
                 >
@@ -185,7 +185,7 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
         type="button"
         onClick={() => setExpanded((v) => !v)}
         aria-expanded={expanded}
-        className="flex w-full items-center justify-between py-3.5 text-base font-medium text-finanza-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+        className="flex w-full items-center justify-between py-3.5 text-base font-medium text-finanza-text focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
       >
         {group.label}
         <ChevronDown
@@ -200,7 +200,7 @@ function MobileNavGroup({ group, onNavigate }: { group: NavGroup; onNavigate: ()
               <Link
                 href={item.href}
                 onClick={onNavigate}
-                className="block rounded-md px-3 py-2.5 text-[0.9375rem] text-finanza-text hover:bg-brand-50 hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                className="block rounded-md px-3 py-2.5 text-[0.9375rem] text-finanza-text hover:bg-brand-50 hover:text-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
               >
                 {item.label}
               </Link>
@@ -224,14 +224,14 @@ function TopBar() {
           </span>
           <a
             href={`mailto:${CONTACT.email}`}
-            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <Mail aria-hidden="true" className="h-4 w-4 text-brand-500" />
             {CONTACT.email}
           </a>
           <a
             href={telHref(CONTACT.phones[0])}
-            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+            className="flex items-center gap-2 rounded-sm transition-colors hover:text-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
           >
             <Phone aria-hidden="true" className="h-4 w-4 text-brand-500" />
             {CONTACT.phones[0]}
@@ -309,7 +309,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
           other pages reachable only by tabbing through the whole menu. */}
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-finanza-dark focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand-500"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-60 focus:rounded-md focus:bg-white focus:px-4 focus:py-2.5 focus:text-sm focus:font-semibold focus:text-finanza-dark focus:shadow-lg focus:outline-hidden focus:ring-2 focus:ring-brand-500"
       >
         Skip to content
       </a>
@@ -332,7 +332,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
             <Link
               href="/"
               onClick={() => setOpen(false)}
-              className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
+              className="flex shrink-0 items-center gap-2.5 rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent"
               aria-label="Kitabu Yetu — home"
             >
               {/* Over the hero photo the header is transparent, so the lockup takes the kit's dark-ground colourway. */}
@@ -358,7 +358,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                         href={entry.href}
                         aria-current={active ? 'page' : undefined}
                         className={cn(
-                          'block rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
+                          'block rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
                           transparent ? 'text-white/80 hover:text-white' : 'text-finanza-text hover:text-brand-500',
                           active && (transparent ? 'text-white' : 'text-brand-500'),
                         )}
@@ -375,7 +375,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               <Link
                 href={ROUTES.signIn}
                 className={cn(
-                  'rounded-lg px-4 py-2.5 text-[0.9375rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
+                  'rounded-lg px-4 py-2.5 text-[0.9375rem] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 focus-visible:ring-offset-transparent',
                   transparent
                     ? 'text-white/85 hover:bg-white/10 hover:text-white'
                     : 'text-finanza-text hover:bg-brand-50 hover:text-brand-500',
@@ -385,7 +385,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               </Link>
               <Link
                 href={ROUTES.startGroup}
-                className="group inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-[0.9375rem] font-medium text-white transition-colors duration-300 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="group inline-flex items-center gap-2 rounded-lg bg-brand-500 px-5 py-2.5 text-[0.9375rem] font-medium text-white transition-colors duration-300 hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Get started
                 <ArrowRight className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
@@ -399,7 +399,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               aria-expanded={open}
               aria-controls="site-menu"
               className={cn(
-                '-mr-2 rounded-lg border p-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 xl:hidden',
+                '-mr-2 rounded-lg border p-2 transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 xl:hidden',
                 transparent
                   ? 'border-white/30 text-white hover:bg-white/10'
                   : 'border-finanza-dark/10 text-finanza-text hover:bg-brand-50',
@@ -435,7 +435,7 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
                       onClick={() => setOpen(false)}
                       aria-current={active ? 'page' : undefined}
                       className={cn(
-                        'flex items-center justify-between py-3.5 text-base font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500',
+                        'flex items-center justify-between py-3.5 text-base font-medium focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500',
                         active ? 'text-brand-500' : 'text-finanza-text',
                       )}
                     >
@@ -450,14 +450,14 @@ export function SiteHeader({ variant = 'solid' }: SiteHeaderProps) {
               <Link
                 href={ROUTES.startGroup}
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center justify-center rounded-lg bg-brand-500 px-5 py-3.5 text-base font-medium text-white hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Get started
               </Link>
               <Link
                 href={ROUTES.signIn}
                 onClick={() => setOpen(false)}
-                className="inline-flex items-center justify-center rounded-lg border border-brand-500 px-5 py-3.5 text-base font-medium text-brand-500 hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="inline-flex items-center justify-center rounded-lg border border-brand-500 px-5 py-3.5 text-base font-medium text-brand-500 hover:bg-brand-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Sign in
               </Link>

@@ -93,7 +93,7 @@ export function StatCard({
         onClick={onClick}
         className={cn(
           'rounded-lg border bg-card text-card-foreground shadow-sm w-full text-left',
-          'transition-colors hover:border-brand-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+          'transition-colors hover:border-brand-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
           className,
         )}
       >

@@ -27,7 +27,7 @@ export function FounderCard() {
         </div>
         <SocialLinks variant="card" links={FOUNDER_SOCIAL_LINKS} className="relative z-10" />
       </div>
-      <div className="relative z-[2] mx-auto aspect-square w-full overflow-hidden rounded-lg bg-white">
+      <div className="relative z-2 mx-auto aspect-square w-full overflow-hidden rounded-lg bg-white">
         <Image
           src={founderPhoto}
           alt="Polycap Wanyonyi, Founder of Kitabu Yetu"
@@ -50,12 +50,12 @@ export function JoinTeamCard() {
         </p>
         <Link
           href={ROUTES.careers}
-          className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-brand-100 px-4 py-2 text-sm font-medium text-brand-500 transition-colors hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+          className="relative z-10 inline-flex items-center gap-1.5 rounded-lg bg-brand-100 px-4 py-2 text-sm font-medium text-brand-500 transition-colors hover:bg-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
         >
           See open roles <ArrowRight aria-hidden="true" className="h-4 w-4" />
         </Link>
       </div>
-      <div className="relative z-[2] flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-lg bg-brand-50 p-8 text-center">
+      <div className="relative z-2 flex aspect-square w-full flex-col items-center justify-center gap-4 rounded-lg bg-brand-50 p-8 text-center">
         <UsersRound aria-hidden="true" className="h-14 w-14 text-brand-500" />
         <p className="max-w-xs leading-relaxed text-finanza-text">
           Engineers, accountants and designers building in Nairobi, close to the groups we serve. Want to join them?

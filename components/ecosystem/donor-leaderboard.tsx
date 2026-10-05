@@ -68,7 +68,7 @@ export function DonorLeaderboard({ organizationId, limit = 10 }: DonorLeaderboar
               className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition"
             >
               <div className="flex items-center gap-4 flex-1">
-                <div className="flex-shrink-0 w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+                <div className="shrink-0 w-8 h-8 bg-linear-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
                   {index + 1}
                 </div>
 
@@ -99,7 +99,7 @@ export function DonorLeaderboard({ organizationId, limit = 10 }: DonorLeaderboar
                 </div>
               </div>
 
-              <div className="text-right flex-shrink-0">
+              <div className="text-right shrink-0">
                 <p className="font-bold text-green-600">KES {donor.total_donated.toLocaleString()}</p>
               </div>
             </div>

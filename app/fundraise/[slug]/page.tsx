@@ -59,7 +59,7 @@ export default async function CampaignPage({ params }: CampaignPageProps) {
       crumbs={[{ label: 'Changi$ha', href: '/fundraise' }]}
       description={campaign.beneficiary_name ? `Benefiting ${campaign.beneficiary_name}` : undefined}
     >
-      <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-brand-50">
+      <div className="not-prose relative mb-8 aspect-16/9 w-full overflow-hidden rounded-lg bg-brand-50">
         {campaign.cover_image_url ? (
           <Image
             src={campaign.cover_image_url}
