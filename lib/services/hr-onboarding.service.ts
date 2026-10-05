@@ -141,10 +141,9 @@ export async function updateOnboardingTask(
   data: UpdateOnboardingTaskInput,
 ): Promise<OnboardingTask> {
   return withAdminDb(async (db) => {
-    const { rows: existingRows } = await db.query<OnboardingTask>(
-      `SELECT * FROM hr_onboarding_tasks WHERE id = $1`,
-      [taskId],
-    );
+    const { rows: existingRows } = await db.query<OnboardingTask>(`SELECT * FROM hr_onboarding_tasks WHERE id = $1`, [
+      taskId,
+    ]);
     if (!existingRows.length) throw new NotFoundError('Onboarding task', taskId);
     const before = existingRows[0];
 
@@ -163,7 +162,17 @@ export async function updateOnboardingTask(
            completed_by  = CASE WHEN $7 AND NOT $8 THEN $9::uuid WHEN NOT $7 THEN NULL ELSE completed_by END,
            updated_at    = NOW()
        WHERE id = $1 RETURNING *`,
-      [taskId, nextStatus, dueDateProvided, data.dueDate ?? null, notesProvided, data.notes ?? null, nowDone, wasDone, actorId],
+      [
+        taskId,
+        nextStatus,
+        dueDateProvided,
+        data.dueDate ?? null,
+        notesProvided,
+        data.notes ?? null,
+        nowDone,
+        wasDone,
+        actorId,
+      ],
     );
     const task = rows[0];
     await logOnboardingAudit(db, actorId, 'hr_onboarding_task.update', taskId, before, task);
