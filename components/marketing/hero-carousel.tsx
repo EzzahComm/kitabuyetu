@@ -190,7 +190,7 @@ export function HeroCarousel() {
                         Chat on WhatsApp
                       </a>
                     </div>
-                    <p className="mt-6 text-sm text-finanza-text">{slide.note}</p>
+                    <p className="mt-6 text-sm italic text-brand-500">{slide.note}</p>
                   </div>
                 </div>
               </div>
