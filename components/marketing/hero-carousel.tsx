@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { signUpUrl } from '@/lib/app-links';
-import { PLAN_MONTHLY_FEES } from '@/types/enums';
+import { PLAN_MONTHLY_FEES, ORGANIZATION_PLAN_MONTHLY_FEES, CHANGISHA_PRICING } from '@/types/enums';
 import { btnOutline, btnPrimary } from './finanza';
 import { PRODUCT_PHOTOS } from './photos';
 
@@ -24,6 +24,12 @@ const SLIDES = [
     subtitle:
       'Members, contributions, savings, loans and welfare on one record that has to balance — for chamas, VSLAs, SACCOs and welfare groups.',
     photo: PRODUCT_PHOTOS.bookkeeper,
+    // Each slide is a different billable product (kitabu_yetu vs
+    // chama_reminder vs the org-level ORGANIZATION_PLAN_MONTHLY_FEES vs
+    // Changi$ha's no-monthly-fee model) — this line used to read a single
+    // hardcoded chama_reminder price on every slide, understating
+    // Bookkeeper's real KES 150 starter price.
+    micro: `From KES ${PLAN_MONTHLY_FEES.kitabu_yetu.starter}/month · Pay by M-Pesa · Built for Kenyan groups`,
   },
   {
     id: 'chama-reminder',
@@ -31,6 +37,7 @@ const SLIDES = [
     title: 'Every member reminded, on the phone they already use.',
     subtitle: 'Contribution reminders, meeting notices and updates by SMS — no app for members to install.',
     photo: PRODUCT_PHOTOS.chamaReminder,
+    micro: `From KES ${PLAN_MONTHLY_FEES.chama_reminder.starter}/month · Pay by M-Pesa · Built for Kenyan groups`,
   },
   {
     id: 'fundraise',
@@ -38,6 +45,8 @@ const SLIDES = [
     title: 'Turn a shared idea into a funded project.',
     subtitle: 'Create a campaign, track every contribution and keep project money separate from ordinary group funds.',
     photo: PRODUCT_PHOTOS.fundraise,
+    // Changi$ha has no monthly fee at all — it's not in PLAN_MONTHLY_FEES.
+    micro: `No monthly fee · ${CHANGISHA_PRICING.platformFeePct}% platform fee, only when you withdraw`,
   },
   {
     id: 'enterprise',
@@ -45,6 +54,7 @@ const SLIDES = [
     title: 'See the whole portfolio and support every group.',
     subtitle: 'Give organizations one accountable view across programmes, groups, members and financial activity.',
     photo: PRODUCT_PHOTOS.enterprise,
+    micro: `From KES ${ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString()}/month · Pay by M-Pesa · Built for Kenyan groups`,
   },
 ] as const;
 
@@ -176,10 +186,7 @@ export function HeroCarousel() {
                         Talk to Us
                       </Link>
                     </div>
-                    <p className="mt-6 text-sm text-finanza-text">
-                      From KES {PLAN_MONTHLY_FEES.chama_reminder.starter}/month · Pay by M-Pesa · Built for Kenyan
-                      groups
-                    </p>
+                    <p className="mt-6 text-sm text-finanza-text">{slide.micro}</p>
                   </div>
                 </div>
               </div>
