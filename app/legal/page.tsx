@@ -59,7 +59,7 @@ export default function LegalPage() {
                 )}
                 <Link
                   href={item.href}
-                  className="mt-5 inline-flex items-center gap-1.5 font-medium text-brand-500 after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:ring-2 focus-visible:after:ring-brand-500"
+                  className="mt-5 inline-flex items-center gap-1.5 font-medium text-brand-500 after:absolute after:inset-0 after:rounded-lg focus-visible:outline-hidden focus-visible:after:ring-2 focus-visible:after:ring-brand-500"
                 >
                   Read {item.label} <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Link>
@@ -80,7 +80,7 @@ export default function LegalPage() {
           </div>
           <a
             href={`mailto:${CONTACT.email}`}
-            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-500 px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+            className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-lg bg-brand-500 px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
             <Mail aria-hidden="true" className="h-4 w-4" />
             {CONTACT.email}

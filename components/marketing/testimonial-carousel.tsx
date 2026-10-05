@@ -85,7 +85,7 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
       <div
         ref={trackRef}
         onScroll={onScroll}
-        className="relative -mx-3 flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="relative -mx-3 flex snap-x snap-mandatory overflow-x-auto scroll-smooth scrollbar-none [&::-webkit-scrollbar]:hidden"
       >
         {items.map((item, i) => (
           <figure
@@ -99,11 +99,11 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
               className={cn(
                 'relative mb-[60px] rounded-lg border border-brand-100 bg-white px-6 pb-8 pt-12 text-finanza-text',
                 // The template's speech-bubble tail: a lavender triangle with a white one inset over it.
-                "before:absolute before:-bottom-[60px] before:left-1/2 before:-translate-x-1/2 before:border-[30px] before:border-transparent before:border-t-brand-100 before:content-['']",
-                "after:absolute after:-bottom-[59px] after:left-1/2 after:-translate-x-1/2 after:border-[30px] after:border-transparent after:border-t-white after:content-['']",
+                "before:absolute before:bottom-[-60px] before:left-1/2 before:-translate-x-1/2 before:border-30 before:border-transparent before:border-t-brand-100 before:content-['']",
+                "after:absolute after:bottom-[-59px] after:left-1/2 after:-translate-x-1/2 after:border-30 after:border-transparent after:border-t-white after:content-['']",
               )}
             >
-              <span className="absolute -top-[30px] left-1/2 flex h-[60px] w-[60px] -translate-x-1/2 items-center justify-center rounded-full border border-brand-100 bg-white">
+              <span className="absolute top-[-30px] left-1/2 flex h-[60px] w-[60px] -translate-x-1/2 items-center justify-center rounded-full border border-brand-100 bg-white">
                 <Quote aria-hidden="true" className="h-7 w-7 fill-brand-500 text-brand-500" />
               </span>
               <p className="text-[1.0625rem] leading-relaxed">{item.quote}</p>
@@ -145,7 +145,7 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
               aria-label={`Show testimonials, page ${i + 1} of ${pages}`}
               aria-current={i === page ? 'true' : undefined}
               className={cn(
-                'relative h-[30px] w-[30px] rounded-full border transition-colors duration-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+                'relative h-[30px] w-[30px] rounded-full border transition-colors duration-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                 i === page ? 'border-brand-500' : 'border-brand-100',
               )}
             >
@@ -163,7 +163,7 @@ export function TestimonialCarousel({ items }: { items: Testimonial[] }) {
               type="button"
               onClick={() => setPaused((v) => !v)}
               aria-label={paused ? 'Resume automatic scrolling' : 'Pause automatic scrolling'}
-              className="ml-2 flex h-[30px] w-[30px] items-center justify-center rounded-full text-brand-500 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="ml-2 flex h-[30px] w-[30px] items-center justify-center rounded-full text-brand-500 transition-colors hover:bg-brand-50 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               {paused ? (
                 <Play aria-hidden="true" className="h-4 w-4" />

@@ -30,7 +30,7 @@ export default function EnterpriseLoginPage() {
     useBackofficeLogin('organization', '/enterprise');
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white to-brand-50 px-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-white to-brand-50 px-4">
       <div className="w-full max-w-md space-y-4">
         <div className="flex items-center justify-between text-sm text-brand-blue-900/60">
           <Link href="/login" className="inline-flex items-center gap-1 hover:text-brand-blue-900">

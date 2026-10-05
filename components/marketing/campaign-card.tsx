@@ -27,9 +27,9 @@ export function CampaignCard({ campaign, ended = false }: { campaign: CampaignSu
   return (
     <Link
       href={`/fundraise/${campaign.slug}`}
-      className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+      className="group flex h-full flex-col overflow-hidden rounded-lg border border-brand-100 bg-white transition-colors duration-300 hover:border-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
     >
-      <div className="relative aspect-[16/9] w-full overflow-hidden bg-brand-50">
+      <div className="relative aspect-16/9 w-full overflow-hidden bg-brand-50">
         {/* alt="" — the card link already carries the title. Campaigns without a cover get a registry photo. */}
         {campaign.cover_image_url ? (
           <Image
@@ -38,7 +38,7 @@ export function CampaignCard({ campaign, ended = false }: { campaign: CampaignSu
             fill
             className={cn(
               'object-cover transition-transform duration-500 group-hover:scale-105',
-              ended && 'grayscale-[40%]',
+              ended && 'grayscale-40',
             )}
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
           />
@@ -49,7 +49,7 @@ export function CampaignCard({ campaign, ended = false }: { campaign: CampaignSu
             fill
             className={cn(
               'object-cover transition-transform duration-500 group-hover:scale-105',
-              ended && 'grayscale-[40%]',
+              ended && 'grayscale-40',
             )}
             style={{ objectPosition: photo.position }}
             sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"

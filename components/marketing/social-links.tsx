@@ -51,7 +51,7 @@ export function SocialLinks({ variant, className, only, links: source = SOCIAL_L
                 aria-label={label}
                 className={cn(
                   base,
-                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
+                  'focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2',
                 )}
               >
                 <Glyph aria-hidden="true" size={16} strokeWidth={1.75} />

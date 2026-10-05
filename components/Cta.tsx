@@ -42,12 +42,12 @@ export const Cta = (props: Readonly<CtaProps>) => {
         className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-6 rounded-lg px-7 py-10 text-white lg:flex-nowrap lg:px-12 lg:py-12"
         style={patternBandStyle}
       >
-        <div className="flex-grow text-center lg:text-left">
+        <div className="grow text-center lg:text-left">
           <h2 className="font-display text-2xl font-bold text-white lg:text-[2rem]">{title}</h2>
           <p className="mt-2 text-lg text-white/90">{subtitle}</p>
           {note && <p className="mt-3 text-white/85">{note}</p>}
         </div>
-        <div className="w-full flex-shrink-0 text-center lg:w-auto">
+        <div className="w-full shrink-0 text-center lg:w-auto">
           <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:justify-center">
             <Link href={primary.href} className={btnOnPrimary}>
               {primary.text}
@@ -55,7 +55,7 @@ export const Cta = (props: Readonly<CtaProps>) => {
             {secondary && (
               <Link
                 href={secondary.href}
-                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="inline-flex min-h-12 items-center justify-center rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
               >
                 {secondary.text}
               </Link>

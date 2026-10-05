@@ -89,7 +89,7 @@ export function ProgramProgressCard({ program, showCta = true, onDonate }: Progr
         {showCta && program.status === 'active' && (
           <button
             onClick={onDonate}
-            className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition"
+            className="w-full bg-linear-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-medium py-2 px-4 rounded-lg transition"
           >
             Support This Program
           </button>

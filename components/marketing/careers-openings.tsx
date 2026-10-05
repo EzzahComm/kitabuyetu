@@ -8,7 +8,7 @@ import { departmentLabel, employmentLabel } from './careers-labels';
 import { CONTACT } from './routes';
 
 const fieldClass =
-  'mt-2 w-full rounded-lg border border-brand-100 bg-white px-4 py-3 font-normal text-finanza-dark outline-none transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
+  'mt-2 w-full rounded-lg border border-brand-100 bg-white px-4 py-3 font-normal text-finanza-dark outline-hidden transition-colors focus:border-brand-500 focus:ring-2 focus:ring-brand-100';
 
 /**
  * Filters client-side rather than via searchParams round-trips — careers
@@ -76,7 +76,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
             <li key={job.slug}>
               <Link
                 href={`/careers/${job.slug}`}
-                className="group flex flex-col gap-4 rounded-lg border border-brand-100 p-5 transition-colors duration-500 hover:border-brand-500 hover:bg-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 sm:flex-row sm:items-center sm:justify-between"
+                className="group flex flex-col gap-4 rounded-lg border border-brand-100 p-5 transition-colors duration-500 hover:border-brand-500 hover:bg-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 sm:flex-row sm:items-center sm:justify-between"
               >
                 <span>
                   <span className="block font-display text-xl font-semibold text-finanza-dark transition-colors duration-500 group-hover:text-white">
@@ -122,7 +122,7 @@ export function CareersOpenings({ jobs }: { jobs: Job[] }) {
           {jobs.length === 0 && (
             <a
               href={`mailto:${CONTACT.careersEmail}`}
-              className="mt-5 inline-flex items-center gap-1.5 font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="mt-5 inline-flex items-center gap-1.5 font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               Introduce yourself <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
             </a>

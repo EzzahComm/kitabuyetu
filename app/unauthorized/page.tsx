@@ -37,7 +37,7 @@ export default function UnauthorizedPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-brand-50 to-brand-100 p-4">
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-brand-50 to-brand-100 p-4">
       <div className="w-full max-w-md text-center">
         <BrandLogo size={72} href="/" alt="Kitabu Yetu" className="justify-center mb-6" />
         <div className="rounded-2xl border bg-background p-8 shadow-sm">

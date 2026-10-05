@@ -93,7 +93,7 @@ export default async function JobPage({ params }: JobPageProps) {
           <div>
             <Link
               href={ROUTES.careers}
-              className="inline-flex items-center gap-1.5 rounded-sm font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+              className="inline-flex items-center gap-1.5 rounded-sm font-medium text-brand-500 hover:text-brand-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden="true" />
               All open positions
@@ -126,7 +126,7 @@ export default async function JobPage({ params }: JobPageProps) {
               </dl>
               <a
                 href="#apply"
-                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-500 px-6 py-3 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+                className="mt-6 inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-brand-500 px-6 py-3 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
               >
                 Apply for this role
               </a>

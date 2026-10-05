@@ -192,7 +192,7 @@ export default function Home() {
               <Image
                 src={PHOTOS.vslaRecords.src}
                 alt={PHOTOS.vslaRecords.alt}
-                className="aspect-[4/3] w-full rounded-lg object-cover"
+                className="aspect-4/3 w-full rounded-lg object-cover"
                 sizes="(max-width: 1023px) 100vw, 50vw"
                 placeholder="blur"
               />
@@ -318,7 +318,7 @@ export default function Home() {
                 <Image
                   src={PHOTOS.youthTech.src}
                   alt={PHOTOS.youthTech.alt}
-                  className="aspect-[4/3] w-full rounded-lg object-cover"
+                  className="aspect-4/3 w-full rounded-lg object-cover"
                   sizes="(max-width: 1023px) 100vw, 50vw"
                   placeholder="blur"
                 />

@@ -90,7 +90,7 @@ async function MarketplacePage() {
                 <li key={o.id}>
                   <Link
                     href={`/ecosystem/marketplace/${o.id}`}
-                    className="group flex h-full flex-col rounded-lg border border-brand-100 bg-white p-6 transition-colors duration-300 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500"
+                    className="group flex h-full flex-col rounded-lg border border-brand-100 bg-white p-6 transition-colors duration-300 hover:border-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500"
                   >
                     <div className="mb-4 flex items-center justify-between gap-3">
                       {offerType && <IconBadge icon={offerType.icon} />}

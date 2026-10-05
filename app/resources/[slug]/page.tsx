@@ -280,7 +280,7 @@ export default async function PostPage({ params }: PostPageProps) {
   return (
     <PageShell title={post.title} description={post.excerpt} crumbs={[{ label: 'Blog', href: '/resources' }]}>
       <StructuredData post={post} url={url} coverImageUrl={coverImageUrl} />
-      <div className="not-prose relative mb-8 aspect-[16/9] w-full overflow-hidden rounded-lg bg-brand-50/60">
+      <div className="not-prose relative mb-8 aspect-16/9 w-full overflow-hidden rounded-lg bg-brand-50/60">
         {coverImageUrl ? (
           <Image
             src={coverImageUrl}

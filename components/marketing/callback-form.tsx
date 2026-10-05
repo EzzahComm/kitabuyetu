@@ -15,7 +15,7 @@ interface CallbackFormProps {
 }
 
 const inputClass =
-  'peer w-full rounded-lg border border-brand-100 bg-white px-3 pb-2 pt-6 text-finanza-dark placeholder-transparent transition-colors focus:border-brand-300 focus:outline-none focus:ring-4 focus:ring-brand-500/25';
+  'peer w-full rounded-lg border border-brand-100 bg-white px-3 pb-2 pt-6 text-finanza-dark placeholder-transparent transition-colors focus:border-brand-300 focus:outline-hidden focus:ring-4 focus:ring-brand-500/25';
 const labelClass =
   'pointer-events-none absolute left-3 top-2 text-xs text-finanza-text transition-all peer-placeholder-shown:top-4 peer-placeholder-shown:text-base peer-focus:top-2 peer-focus:text-xs';
 
@@ -122,7 +122,7 @@ export function CallbackForm({ variant = 'callback', className }: CallbackFormPr
         <button
           type="submit"
           value="whatsapp"
-          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-500 px-6 py-3.5 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg bg-brand-500 px-6 py-3.5 font-medium text-white transition-colors duration-500 hover:bg-brand-600 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
           <WhatsAppLogo aria-hidden="true" size={20} />
           Send on WhatsApp
@@ -130,7 +130,7 @@ export function CallbackForm({ variant = 'callback', className }: CallbackFormPr
         <button
           type="submit"
           value="email"
-          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border border-brand-500 px-6 py-3.5 font-medium text-brand-500 transition-colors duration-500 hover:bg-brand-500 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
+          className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-lg border border-brand-500 px-6 py-3.5 font-medium text-brand-500 transition-colors duration-500 hover:bg-brand-500 hover:text-white focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
         >
           <Mail aria-hidden="true" className="h-5 w-5" />
           Send by email

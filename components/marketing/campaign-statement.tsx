@@ -112,7 +112,7 @@ export function CampaignStatement({ statement }: { statement: PublicCampaignStat
               <li key={`${s.givenAt}-${i}`} className="flex items-start justify-between gap-4 px-4 py-3">
                 <div className="min-w-0">
                   <p className="font-medium text-finanza-dark">{s.name ?? 'Anonymous supporter'}</p>
-                  {s.message && <p className="mt-0.5 break-words text-sm text-finanza-text">{s.message}</p>}
+                  {s.message && <p className="mt-0.5 wrap-break-word text-sm text-finanza-text">{s.message}</p>}
                   <p className="mt-0.5 text-xs text-finanza-text">{date(s.givenAt)}</p>
                 </div>
                 <p className="shrink-0 font-semibold text-finanza-dark">{kes(s.amount)}</p>

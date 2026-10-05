@@ -307,7 +307,7 @@ export default async function CareersPage() {
               </a>
               <Link
                 href={ROUTES.aboutTeam}
-                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white px-8 py-3 font-medium text-white transition-colors duration-500 hover:bg-white/10 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-white"
               >
                 Meet the team <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>

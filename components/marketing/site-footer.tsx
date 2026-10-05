@@ -13,7 +13,7 @@ const LINK_COLUMNS = FOOTER_COLUMNS.filter((column) => column !== LEGAL);
 
 const headingClass = 'mb-5 font-display text-xl font-semibold text-white';
 const linkClass =
-  'group inline-flex items-start gap-2 rounded-sm text-[0.9375rem] text-brand-100/85 transition-all duration-300 hover:tracking-[0.02em] hover:text-brand-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400';
+  'group inline-flex items-start gap-2 rounded-sm text-[0.9375rem] text-brand-100/85 transition-all duration-300 hover:tracking-[0.02em] hover:text-brand-400 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-400';
 
 function LinkColumn({ column }: { column: FooterColumn }) {
   return (
@@ -45,7 +45,7 @@ export function SiteFooter() {
             <div className="lg:col-span-4 xl:col-span-3">
               <Link
                 href={ROUTES.home}
-                className="mb-5 inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4 focus-visible:ring-offset-finanza-dark"
+                className="mb-5 inline-flex items-center gap-2.5 rounded-sm focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-400 focus-visible:ring-offset-4 focus-visible:ring-offset-finanza-dark"
                 aria-label="Kitabu Yetu — home"
               >
                 <BrandLockup size={48} tone="dark" tagline />

@@ -226,7 +226,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
 
             {/* Status action buttons (visible to caller with manage rights;
                 RLS will reject the request server-side if not authorised). */}
-            <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 shrink-0">
               {m.phone && (
                 <Button size="sm" onClick={() => setStkOpen(true)}>
                   <Smartphone size={14} className="mr-1" /> Request payment

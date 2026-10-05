@@ -19,7 +19,7 @@ interface TabsProps {
 }
 
 const panelClass =
-  'data-[state=inactive]:hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 motion-safe:data-[state=active]:animate-fade-up';
+  'data-[state=inactive]:hidden focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 motion-safe:data-[state=active]:animate-fade-up';
 
 /**
  * Finanza's service tabs (`.service .nav-pills`): a column of bordered buttons
@@ -37,7 +37,7 @@ export function ServiceTabs({ tabs, label, className }: TabsProps) {
           <TabsPrimitive.Trigger
             key={tab.value}
             value={tab.value}
-            className="group flex w-full items-center rounded-lg border border-brand-100 bg-white p-5 text-left font-display text-lg font-semibold text-finanza-dark transition-colors duration-500 hover:border-brand-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 data-[state=active]:border-brand-500 data-[state=active]:bg-brand-500 data-[state=active]:text-white lg:p-6"
+            className="group flex w-full items-center rounded-lg border border-brand-100 bg-white p-5 text-left font-display text-lg font-semibold text-finanza-dark transition-colors duration-500 hover:border-brand-500 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 data-[state=active]:border-brand-500 data-[state=active]:bg-brand-500 data-[state=active]:text-white lg:p-6"
           >
             {tab.label}
           </TabsPrimitive.Trigger>
@@ -66,7 +66,7 @@ export function StoryTabs({ tabs, label, className }: TabsProps) {
           <TabsPrimitive.Trigger
             key={tab.value}
             value={tab.value}
-            className="-mb-px rounded-t-lg border border-transparent px-4 py-2 font-medium text-brand-500 transition-colors hover:text-brand-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 data-[state=active]:border-brand-100 data-[state=active]:border-b-white data-[state=active]:bg-white data-[state=active]:text-finanza-dark"
+            className="-mb-px rounded-t-lg border border-transparent px-4 py-2 font-medium text-brand-500 transition-colors hover:text-brand-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-brand-500 data-[state=active]:border-brand-100 data-[state=active]:border-b-white data-[state=active]:bg-white data-[state=active]:text-finanza-dark"
           >
             {tab.label}
           </TabsPrimitive.Trigger>
