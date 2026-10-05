@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { PageHeader } from '@/components/shared/page-header';
+import { OnboardingChecklist } from '@/components/hr/onboarding-checklist';
 import { useEmployee, useEmployees, useUpdateEmployee, useTerminateEmployee } from '@/hooks/use-admin';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
@@ -280,6 +281,8 @@ export default function HrEmployeeDetailPage() {
           </Card>
         </div>
       </div>
+
+      <OnboardingChecklist employeeId={employee.id} />
     </div>
   );
 }

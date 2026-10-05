@@ -77,6 +77,11 @@ import type {
   terminateEmployee,
 } from '@/lib/services/hr.service';
 import type {
+  listOnboardingTasks,
+  addOnboardingTask,
+  updateOnboardingTask,
+} from '@/lib/services/hr-onboarding.service';
+import type {
   listApplications,
   getApplicationById,
   updateApplicationStage,
@@ -183,6 +188,11 @@ type TerminateEmployeeResult = Awaited<ReturnType<typeof terminateEmployee>>;
 type CreateEmployeeInput = Parameters<typeof createEmployee>[1];
 type UpdateEmployeeInput = Parameters<typeof updateEmployee>[2];
 type TerminateEmployeeInput = Parameters<typeof terminateEmployee>[2];
+type OnboardingTaskList = Awaited<ReturnType<typeof listOnboardingTasks>>;
+type AddOnboardingTaskResult = Awaited<ReturnType<typeof addOnboardingTask>>;
+type UpdateOnboardingTaskResult = Awaited<ReturnType<typeof updateOnboardingTask>>;
+type AddOnboardingTaskInput = Parameters<typeof addOnboardingTask>[2];
+type UpdateOnboardingTaskInput = Parameters<typeof updateOnboardingTask>[2];
 type ApplicationList = Awaited<ReturnType<typeof listApplications>>;
 type ApplicationDetail = Awaited<ReturnType<typeof getApplicationById>>;
 type UpdateApplicationStageResult = Awaited<ReturnType<typeof updateApplicationStage>>;
@@ -1163,6 +1173,38 @@ export function useTerminateEmployee(id: string) {
     mutationFn: (data: TerminateEmployeeInput) =>
       adminFetch<TerminateEmployeeResult>(`/api/admin/hr/employees/${id}/terminate`, { method: 'POST', json: data }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees'] }),
+  });
+}
+
+export function useOnboardingTasks(employeeId: string) {
+  return useQuery({
+    queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'],
+    queryFn: () => adminFetch<OnboardingTaskList>(`/api/admin/hr/employees/${employeeId}/onboarding`),
+    enabled: !!employeeId,
+  });
+}
+
+export function useAddOnboardingTask(employeeId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: AddOnboardingTaskInput) =>
+      adminFetch<AddOnboardingTaskResult>(`/api/admin/hr/employees/${employeeId}/onboarding`, {
+        method: 'POST',
+        json: data,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'] }),
+  });
+}
+
+export function useUpdateOnboardingTask(employeeId: string, taskId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: UpdateOnboardingTaskInput) =>
+      adminFetch<UpdateOnboardingTaskResult>(`/api/admin/hr/employees/${employeeId}/onboarding/${taskId}`, {
+        method: 'PATCH',
+        json: data,
+      }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'hr', 'employees', employeeId, 'onboarding'] }),
   });
 }
 

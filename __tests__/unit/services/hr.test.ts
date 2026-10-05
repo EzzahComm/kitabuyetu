@@ -30,16 +30,20 @@ const validInput = {
 
 describe('createEmployee', () => {
   it('generates a KY-EMP-#### number from the sequence and logs an audit entry', async () => {
+    mockQuery.mockResolvedValue({ rows: [] }); // default: covers the onboarding checklist seed inserts
     mockQuery.mockResolvedValueOnce({ rows: [{ n: '7' }] }); // nextval
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'e1', employee_number: 'KY-EMP-0007' }] }); // insert
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log
+    mockQuery.mockResolvedValueOnce({
+      rows: [{ id: 'e1', employee_number: 'KY-EMP-0007', hire_date: validInput.hireDate }],
+    }); // insert
 
     const result = await createEmployee('admin-1', validInput);
 
     expect(result.employee_number).toBe('KY-EMP-0007');
     const insertCall = mockQuery.mock.calls[1];
     expect(insertCall[1][1]).toBe('KY-EMP-0007');
-    const auditCall = mockQuery.mock.calls[2];
+    // Last call is the audit log — the onboarding checklist seed inserts run between the employee
+    // insert and the audit log (see createEmployeeWith), so its position isn't a fixed index.
+    const auditCall = mockQuery.mock.calls[mockQuery.mock.calls.length - 1];
     expect(auditCall[1][0]).toBe('admin-1');
     expect(auditCall[1][1]).toBe('hr_employee.create');
   });
