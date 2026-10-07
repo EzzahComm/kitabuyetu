@@ -4,14 +4,14 @@ Scope: how Kitabu Yetu classifies money movements into the group ledger, platfor
 
 ## 1. Existing architecture (verified)
 
-| Layer | Where | Notes |
-|---|---|---|
-| Chart of accounts | `accounts` (migration 004), seeded by `DEFAULT_ACCOUNTS` in `lib/services/accounting.service.ts` | Per group. Income `4001`–`4006`, expense `5001`–`5004`. |
-| Double-entry journal | `journal_entries` / `journal_lines` (004; `entry_date` added in 091) | Posted entries only feed P&L and balance sheet. |
-| Posting templates | `lib/services/posting-templates.service.ts` (`DEFAULT_TEMPLATES`) | Event → debit/credit lines. Missing accounts are skipped with a warning, never fail the business transaction. |
-| Group P&L | `accountingService.getProfitAndLoss` | Sums all `income` and `expense` accounts over posted lines in the period. |
-| Platform billing | `subscriptions`, `billing_accounts`, `invoices`, `payments` (005), `organization_billing_accounts` (051) | Separate from the group ledger. |
-| Group analytics | `lib/services/analytics.service.ts` | Reads `contributions`, `loans`, `loan_repayments`, `welfare_*` directly, not the journal. |
+| Layer                | Where                                                                                                    | Notes                                                                                                         |
+| -------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Chart of accounts    | `accounts` (migration 004), seeded by `DEFAULT_ACCOUNTS` in `lib/services/accounting.service.ts`         | Per group. Income `4001`–`4006`, expense `5001`–`5004`.                                                       |
+| Double-entry journal | `journal_entries` / `journal_lines` (004; `entry_date` added in 091)                                     | Posted entries only feed P&L and balance sheet.                                                               |
+| Posting templates    | `lib/services/posting-templates.service.ts` (`DEFAULT_TEMPLATES`)                                        | Event → debit/credit lines. Missing accounts are skipped with a warning, never fail the business transaction. |
+| Group P&L            | `accountingService.getProfitAndLoss`                                                                     | Sums all `income` and `expense` accounts over posted lines in the period.                                     |
+| Platform billing     | `subscriptions`, `billing_accounts`, `invoices`, `payments` (005), `organization_billing_accounts` (051) | Separate from the group ledger.                                                                               |
+| Group analytics      | `lib/services/analytics.service.ts`                                                                      | Reads `contributions`, `loans`, `loan_repayments`, `welfare_*` directly, not the journal.                     |
 
 ## 2. Findings
 
@@ -29,6 +29,7 @@ The joining fee is group revenue, collected when a new member joins. Per the pro
 - The STK path for `purpose: 'registration'` is deliberately a no-op (group verification is OTP-based, not paid). That is unchanged.
 
 **Change:**
+
 - New posting template `registration_fee`: `DR 1001 Cash and M-Pesa` / `CR 4003 Registration Fees`.
 - `dispatchProduct` gains a `registration` case → `applyRegistrationFeeFromC2B`.
 - Idempotent per M-Pesa receipt: skips if a posted journal already references the receipt.
@@ -62,17 +63,17 @@ Treasury transfers and refund/reversal linkage were not audited in this pass. De
 
 ## 3. Target classification model (Phase 2 plan)
 
-| Transaction | Owner | Group P&L | Platform billing | Notes |
-|---|---|---|---|---|
-| Member contribution | Group | Income (contributions) | No | Subtype needed (F6). |
-| Registration fee (joining) | Group | Income `4003` | No | Implemented (F2). |
-| Fine paid | Group | Income `4004` (target `4007`) | No | F3. |
-| Loan interest | Group | Income `4002` | No | Already separate. |
-| Loan principal repayment | Group | Balance sheet only | No | Already on `1101`. |
-| Group expense | Group | Expense `5001` | No | Categories in F7. |
-| Platform subscription | Group (expense `5003`) | Expense | Yes (billing tables) | Owner decision; see F1 caveat. |
-| Changi$ha donation | Campaign | Not income until decided | No | F4. |
-| Internal transfer | Same entity | Not income or expense | No | Balance movement only. |
+| Transaction                | Owner                  | Group P&L                     | Platform billing     | Notes                          |
+| -------------------------- | ---------------------- | ----------------------------- | -------------------- | ------------------------------ |
+| Member contribution        | Group                  | Income (contributions)        | No                   | Subtype needed (F6).           |
+| Registration fee (joining) | Group                  | Income `4003`                 | No                   | Implemented (F2).              |
+| Fine paid                  | Group                  | Income `4004` (target `4007`) | No                   | F3.                            |
+| Loan interest              | Group                  | Income `4002`                 | No                   | Already separate.              |
+| Loan principal repayment   | Group                  | Balance sheet only            | No                   | Already on `1101`.             |
+| Group expense              | Group                  | Expense `5001`                | No                   | Categories in F7.              |
+| Platform subscription      | Group (expense `5003`) | Expense                       | Yes (billing tables) | Owner decision; see F1 caveat. |
+| Changi$ha donation         | Campaign               | Not income until decided      | No                   | F4.                            |
+| Internal transfer          | Same entity            | Not income or expense         | No                   | Balance movement only.         |
 
 ## 4. Verification
 
