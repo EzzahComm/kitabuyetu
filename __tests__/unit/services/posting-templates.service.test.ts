@@ -49,6 +49,22 @@ beforeEach(() => {
 const ctx = { groupId: 'g1', userId: 'user-1', role: 'treasurer', organizationId: 'org-1' };
 
 describe('buildTemplateLines', () => {
+  it('books a member registration fee as GROUP revenue (4003), not platform or other income', () => {
+    const lines = buildTemplateLines(DEFAULT_TEMPLATES.registration_fee, { amount: 300 });
+    expect(lines).toEqual([
+      { accountCode: '1001', debit: 300 },
+      { accountCode: '4003', credit: 300 },
+    ]);
+  });
+
+  it('books an SMS credit top-up as a group expense (5002), whoever paid', () => {
+    const lines = buildTemplateLines(DEFAULT_TEMPLATES.sms_topup_expense, { amount: 1000 });
+    expect(lines).toEqual([
+      { accountCode: '5002', debit: 1000 },
+      { accountCode: '1001', credit: 1000 },
+    ]);
+  });
+
   it('maps a single-amount template to debit/credit lines', () => {
     const lines = buildTemplateLines(DEFAULT_TEMPLATES.share_purchase, { amount: 500 });
     expect(lines).toEqual([

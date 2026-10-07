@@ -6,6 +6,7 @@ import {
   getRevenueTrend,
   getRiskDashboardData,
   getMonitoringDashboardData,
+  getProductRevenueBreakdown,
 } from '@/lib/services/admin.service';
 
 export const dynamic = 'force-dynamic';
@@ -17,6 +18,11 @@ export function GET(req: NextRequest) {
 
     if (widget === 'revenue_trend') {
       const data = await getRevenueTrend();
+      return ok(data);
+    }
+
+    if (widget === 'product_revenue') {
+      const data = await getProductRevenueBreakdown();
       return ok(data);
     }
 
