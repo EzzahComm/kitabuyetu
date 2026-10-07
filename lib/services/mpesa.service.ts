@@ -31,6 +31,7 @@ export {
   type StkCallbackBody,
   type StkCallbackResult,
   handleSTKCallback,
+  runStkPostCommitEffects,
 } from './mpesa-stk.service';
 
 export {
