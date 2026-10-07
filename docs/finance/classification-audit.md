@@ -25,19 +25,12 @@ Per product direction, these are group expenses whoever paid the M-Pesa:
 
 The billing tables (`invoices`, `payments`, `sms_credits`) remain the platform-side record.
 
-### F2 — Group registration fee revenue was never posted (fixed)
+### F2 — Group membership (registration) fees are group revenue (implemented)
 
-The joining fee is group revenue, collected when a new member joins. Per the product owner it belongs to the group, like fines.
+A registration is membership in a group. Its fee is group revenue, `DR 1001 Cash and M-Pesa` / `CR 4003 Registration Fees`, through the `registration_fee` template. Two paths post it:
 
-- `fulfilMatchingRequest` / `dispatchProduct` treated `registration` as an unknown product. It was routed to the treasurer's unrouted queue (`c2bToUnrouted`), so the group ledger never received the income.
-- The STK path for `purpose: 'registration'` is deliberately a no-op (group verification is OTP-based, not paid). That is unchanged.
-
-**Change:**
-
-- New posting template `registration_fee`: `DR 1001 Cash and M-Pesa` / `CR 4003 Registration Fees`.
-- `dispatchProduct` gains a `registration` case → `applyRegistrationFeeFromC2B`.
-- Idempotent per M-Pesa receipt: skips if a posted journal already references the receipt.
-- The event is added to the posting-policy validator enum so it can be overridden in the Policies UI.
+- **PayBill joining fee** (`registration` product, via an open payment request): `dispatchProduct` → `applyRegistrationFeeFromC2B`. Idempotent per M-Pesa receipt.
+- **STK invoice payment with `purpose = 'registration'`**: the invoice-bound block in `mpesa-stk.service.ts` selects `registration_fee` instead of `subscription_payment`.
 
 ### F3 — Fines are posted to generic "Other Income" (not changed)
 

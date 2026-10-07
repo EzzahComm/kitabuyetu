@@ -620,13 +620,18 @@ export async function handleSTKCallback(
       // path posted. System-posted (created_by NULL): no authenticated
       // officer initiated this, Safaricom's callback did.
       // SMS top-ups are booked by addSmsCredits as sms_topup_expense, not here.
+      // Group membership (registration) is group revenue (4003); product plans
+      // (subscription) are group expenses (5003).
       if (stkReq?.group_id && stkReq.purpose !== 'sms_topup') {
+        const isRegistration = stkReq.purpose === 'registration';
         await postTemplatedJournal(
           db,
           stkReq.group_id,
           null,
-          'subscription_payment',
-          `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
+          isRegistration ? 'registration_fee' : 'subscription_payment',
+          isRegistration
+            ? `Group membership fee — invoice ${payRows[0].invoice_id}`
+            : `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
           { amount },
           { reference: receipt },
         );
