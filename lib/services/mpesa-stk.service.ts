@@ -20,7 +20,6 @@ import { billingService } from './billing.service';
 import { postContributionJournal } from './accounting.service';
 import { creditCampaignDonation } from './campaign-donation-ledger.service';
 import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
-import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
 import {
@@ -614,22 +613,11 @@ export async function handleSTKCallback(
         detail: { product: 'invoice', invoiceId: payRows[0].invoice_id },
       });
 
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the STK-driven billing path
-      // (the one most subscription payments actually go through) previously
-      // had no GL trace at all — only the manual billingService.recordPayment
-      // path posted. System-posted (created_by NULL): no authenticated
-      // officer initiated this, Safaricom's callback did.
-      if (stkReq?.group_id) {
-        await postTemplatedJournal(
-          db,
-          stkReq.group_id,
-          null,
-          'subscription_payment',
-          `Platform subscription payment — invoice ${payRows[0].invoice_id}`,
-          { amount },
-          { reference: receipt },
-        );
-      }
+      // Platform subscription money is Kitabu Yetu revenue, not the group's
+      // operating expense or cash movement. It is recorded in the billing
+      // tables (invoices/payments) and deliberately NOT posted to the group
+      // ledger: the STK is paid to the platform shortcode, not the group's
+      // account. See docs/finance/classification-audit.md.
     }
 
     const { rows: stkUpdateRows } = await db.query<{ id: string; status: string }>(

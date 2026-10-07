@@ -66,6 +66,7 @@ export type PostingEvent =
   | 'settlement_sweep'
   | 'vendor_payment'
   | 'fine_collection'
+  | 'registration_fee'
   | 'campaign_withdrawal'
   | 'member_payout';
 
@@ -207,6 +208,15 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     lines: [
       { accountCode: '1001', side: 'debit', amount: 'amount' },
       { accountCode: '4004', side: 'credit', amount: 'amount' },
+    ],
+  },
+  // Member joining fee collected by the group (PayBill, purpose 'registration').
+  // This is GROUP revenue, not platform billing: it credits the group's own
+  // 4003 Registration Fees income account, like fines and contributions.
+  registration_fee: {
+    lines: [
+      { accountCode: '1001', side: 'debit', amount: 'amount' },
+      { accountCode: '4003', side: 'credit', amount: 'amount' },
     ],
   },
   // Changi$ha withdrawal monetization. Three pairs, not two — unlike
