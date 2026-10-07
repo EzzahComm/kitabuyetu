@@ -5,17 +5,17 @@ group ledger and the member ledger.
 
 ## Investigation summary — what existed, what was reused
 
-| Concern | Existing implementation (authoritative) | Used how |
-| --- | --- | --- |
-| Moving money out | `disbursement_requests` + `disbursements.service.ts` (B2C spine, migration 066): balance lock, `reserved_amount`, idempotency key, dispatch, callback settlement | Extended — member disbursements are rows on the same table |
-| M-Pesa B2C | `mpesa-b2c.service.ts` `initiateB2C` / `handleB2CResult` | Unchanged path; callback now also posts the member journal |
-| Group ledger | `journal_entries` / `journal_lines` via `postSystemJournal`, posting templates (`posting-templates.service.ts`) | New `member_payout` template, remappable per group |
-| Member ledger | No separate table: member balances are derived (`computeMemberFinancialSnapshot`), history is the passbook union (`member-passbook.service.ts`) | Both now read the disbursement row — no second ledger introduced |
-| Approvals ledger | `settlement_approvals` (vendor payments, settlements, Changi$ha) | Treasurer and Kitabu Yetu decisions recorded here |
-| Office check | `group_members.role` via `getOfficerRole` (Changi$ha, migration 212) | Same live office lookup |
-| Platform sign-off | Changi$ha `awaiting_platform` stage + `/api/admin/*` super-admin routes | Same pattern |
-| Notifications | SMS trigger engine (`emitBusinessEvent`, deduplicated per rule + event id) | Three new events, emitted only after commit |
-| Audit | `audit_logs` | Every transition |
+| Concern           | Existing implementation (authoritative)                                                                                                                          | Used how                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Moving money out  | `disbursement_requests` + `disbursements.service.ts` (B2C spine, migration 066): balance lock, `reserved_amount`, idempotency key, dispatch, callback settlement | Extended — member disbursements are rows on the same table       |
+| M-Pesa B2C        | `mpesa-b2c.service.ts` `initiateB2C` / `handleB2CResult`                                                                                                         | Unchanged path; callback now also posts the member journal       |
+| Group ledger      | `journal_entries` / `journal_lines` via `postSystemJournal`, posting templates (`posting-templates.service.ts`)                                                  | New `member_payout` template, remappable per group               |
+| Member ledger     | No separate table: member balances are derived (`computeMemberFinancialSnapshot`), history is the passbook union (`member-passbook.service.ts`)                  | Both now read the disbursement row — no second ledger introduced |
+| Approvals ledger  | `settlement_approvals` (vendor payments, settlements, Changi$ha)                                                                                                 | Treasurer and Kitabu Yetu decisions recorded here                |
+| Office check      | `group_members.role` via `getOfficerRole` (Changi$ha, migration 212)                                                                                             | Same live office lookup                                          |
+| Platform sign-off | Changi$ha `awaiting_platform` stage + `/api/admin/*` super-admin routes                                                                                          | Same pattern                                                     |
+| Notifications     | SMS trigger engine (`emitBusinessEvent`, deduplicated per rule + event id)                                                                                       | Three new events, emitted only after commit                      |
+| Audit             | `audit_logs`                                                                                                                                                     | Every transition                                                 |
 
 Defect found while investigating: a non-loan B2C payout (the spine's documented "any future group→member payout")
 posted **no** group journal — cash left 1001 with only the Safaricom fee booked — and never touched the
@@ -68,13 +68,13 @@ left, so the row is marked completed and flagged rather than lost.
 
 ## API
 
-| Route | Who |
-| --- | --- |
-| `GET/POST /api/v1/member-payouts` | officers (`member_payouts.manage`); POST: chairperson/secretary |
-| `GET/POST /api/v1/member-payouts/:id` | detail + audit; `approve`/`reject` treasurer, `cancel` initiator |
-| `GET /api/v1/member-payouts/eligibility?memberId=` | form pre-flight |
-| `GET/POST /api/v1/member-payouts/reconciliation` | officers |
-| `GET /api/admin/member-payouts`, `POST …/:id/approve`, `POST …/:id/reject` | super_admin |
+| Route                                                                      | Who                                                              |
+| -------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `GET/POST /api/v1/member-payouts`                                          | officers (`member_payouts.manage`); POST: chairperson/secretary  |
+| `GET/POST /api/v1/member-payouts/:id`                                      | detail + audit; `approve`/`reject` treasurer, `cancel` initiator |
+| `GET /api/v1/member-payouts/eligibility?memberId=`                         | form pre-flight                                                  |
+| `GET/POST /api/v1/member-payouts/reconciliation`                           | officers                                                         |
+| `GET /api/admin/member-payouts`, `POST …/:id/approve`, `POST …/:id/reject` | super_admin                                                      |
 
 UI: `/payouts` (group), `/admin/disbursements` (Kitabu Yetu). Members see completed and in-progress disbursements
 in their passbook.
