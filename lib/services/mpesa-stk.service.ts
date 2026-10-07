@@ -23,7 +23,13 @@ import { recordActivityInTx, ActivityEventType } from '@/lib/notifications';
 import { postTemplatedJournal } from './posting-templates.service';
 import { initiateStkPush as _stkPush, assertSafaricomIp } from './daraja.service';
 import { lookupPaymentAccount, isPaymentEligible } from './mpesa-payment-accounts.service';
-import { IS_SANDBOX, logPaymentEvent, emitOutbox, markSpineAllocated } from './mpesa-spine.service';
+import {
+  IS_SANDBOX,
+  logPaymentEvent,
+  emitOutbox,
+  markSpineAllocated,
+  emitPaymentReceiptEvent,
+} from './mpesa-spine.service';
 import {
   type StkRequestRow,
   type FulfilmentInput,
@@ -504,19 +510,10 @@ export async function handleSTKCallback(
   const phone = safeNormalizePhone(String(getItem('PhoneNumber') ?? '')) ?? UNKNOWN_PAYER_PHONE;
 
   const result = await withAdminDb(async (db) => {
-    // 1. Idempotency: if this receipt is already completed, no-op.
-    const { rows: existingRows } = await db.query<{ id: string; status: string }>(
-      `SELECT id, status FROM payments
-       WHERE mpesa_receipt_number=$1 OR mpesa_checkout_request_id=$2
-       LIMIT 1`,
-      [receipt, cb.CheckoutRequestID],
-    );
-    const existing = existingRows[0];
-    if (existing?.status === 'completed') {
-      return { paymentId: existing.id, alreadyDone: true };
-    }
-
-    // 2. Lock the STK request row (FOR UPDATE) so duplicate callbacks serialise.
+    // 1. Lock the STK request row FIRST so duplicate callbacks serialise. The
+    //    idempotency check below must run under this lock: checked before it,
+    //    two concurrent deliveries both saw 'pending' and the second re-ran
+    //    fulfilment after the first committed (double-applying loan money).
     const { rows: stkRows } = await db.query<StkRequestRow>(
       `SELECT id, group_id, purpose, invoice_id, loan_repayment_id,
               account_reference, amount, plan_type, product, billing_cycle,
@@ -527,6 +524,18 @@ export async function handleSTKCallback(
       [cb.CheckoutRequestID],
     );
     const stkReq = stkRows[0] ?? null;
+
+    // 2. Idempotency: if this receipt is already completed, no-op.
+    const { rows: existingRows } = await db.query<{ id: string; status: string }>(
+      `SELECT id, status FROM payments
+       WHERE mpesa_receipt_number=$1 OR mpesa_checkout_request_id=$2
+       LIMIT 1`,
+      [receipt, cb.CheckoutRequestID],
+    );
+    const existing = existingRows[0];
+    if (existing?.status === 'completed') {
+      return { paymentId: existing.id, alreadyDone: true };
+    }
 
     // 3. Mark payments / invoices / m-pesa rows completed.
     const { rows: payRows } = await db.query<{ id: string; invoice_id: string | null; status: string }>(
@@ -715,6 +724,60 @@ export async function handleSTKCallback(
   };
 }
 
+// ─── STK post-commit effects ──────────────────────────────────────────────────
+
+/**
+ * Side effects of a confirmed STK payment that run AFTER the money transaction
+ * committed: SMS top-up crediting and the member's payment receipt. Shared by
+ * the live callback route and the DLQ replay, so a callback recovered by replay
+ * still credits and still notifies. Safe to re-run: addSmsCredits is
+ * exactly-once per payment_id (migration 137) and receipt emits are
+ * exactly-once per (rule, paymentId).
+ */
+export async function runStkPostCommitEffects(paymentId: string, amount: number): Promise<void> {
+  const payment = await withAdminDb(async (db) => {
+    const { rows } = await db.query<{ group_id: string; invoice_id: string | null }>(
+      'SELECT group_id, invoice_id FROM payments WHERE id=$1',
+      [paymentId],
+    );
+    return rows[0] ?? null;
+  });
+  if (!payment) return;
+
+  const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
+
+  // The STK request's purpose is authoritative for top-ups. Must NOT be gated
+  // on payment.invoice_id: the billing page never sends one for a top-up, and
+  // that gate once silently credited nothing for every real top-up. The
+  // invoice-line ILIKE match survives only for legacy rows with no purpose.
+  const isTopup = await withAdminDb(async (db) => {
+    const { rows: stkRows } = await db.query<{ purpose: string | null }>(
+      `SELECT s.purpose
+       FROM   mpesa_stk_requests s
+       JOIN   payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
+       WHERE  p.id = $1
+       LIMIT  1`,
+      [paymentId],
+    );
+    const purpose = stkRows[0]?.purpose ?? null;
+    if (purpose !== null) return purpose === 'sms_topup';
+
+    if (!payment.invoice_id) return false;
+    const { rows } = await db.query<{ description: string }>(
+      `SELECT ii.description FROM invoice_items ii
+       WHERE ii.invoice_id=$1 AND ii.description ILIKE '%sms%' LIMIT 1`,
+      [payment.invoice_id],
+    );
+    return !!rows[0];
+  });
+  if (isTopup) {
+    await billingService.addSmsCredits(ctx, amount, paymentId);
+  }
+
+  // Never throws; notification failure cannot affect the committed payment.
+  await emitPaymentReceiptEvent(paymentId);
+}
+
 // ─── STK fulfilment helpers ───────────────────────────────────────────────────
 
 /**
@@ -748,10 +811,9 @@ async function fulfilStkCallback(db: PoolClient, stkReq: StkRequestRow, in_: Ful
     return;
   }
 
-  // sms_topup is fulfilled by processFulfillment() in the callback route
-  // rather than here, and `registration` has no domain action (group
-  // verification is email/OTP-based, not paid). Both are deliberate; see
-  // app/api/v1/mpesa/callback/route.ts.
+  // sms_topup is fulfilled post-commit by runStkPostCommitEffects() rather
+  // than here, and `registration` has no domain action (group verification is
+  // email/OTP-based, not paid). Both are deliberate.
 }
 
 /**

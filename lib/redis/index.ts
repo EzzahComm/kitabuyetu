@@ -123,7 +123,14 @@ export async function cacheMpesaStatus(
   status: 'pending' | 'completed' | 'failed',
   ttlSeconds = 300,
 ): Promise<void> {
-  await redis.set(k(keys.mpesaStatus(checkoutRequestId)), status, { ex: ttlSeconds });
+  // Fail-open: callers write this AFTER the payment committed, so a Redis error
+  // must not abort them (it used to skip the receipt SMS). The DB stays the
+  // source of truth — the status route reads it whenever the cache isn't terminal.
+  try {
+    await redis.set(k(keys.mpesaStatus(checkoutRequestId)), status, { ex: ttlSeconds });
+  } catch (err) {
+    logger.warn('[redis] M-Pesa status cache write failed', { checkoutRequestId, err: String(err) });
+  }
 }
 
 export async function getMpesaStatus(checkoutRequestId: string): Promise<'pending' | 'completed' | 'failed' | null> {

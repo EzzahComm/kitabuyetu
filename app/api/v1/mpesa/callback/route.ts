@@ -4,12 +4,10 @@ import {
   logMpesaCallback,
   markCallbackProcessed,
   markCallbackError,
-  emitPaymentReceiptEvent,
+  runStkPostCommitEffects,
   type StkCallbackBody,
 } from '@/lib/services/mpesa.service';
-import { billingService } from '@/lib/services/billing.service';
 import { isSafaricomIp, isValidCallbackToken } from '@/lib/services/daraja.service';
-import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 export const dynamic = 'force-dynamic';
@@ -67,7 +65,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     try {
       const result = await handleSTKCallback(body, callerIp);
       if (result.success && result.paymentId && result.amount) {
-        await processFulfillment(result.paymentId, result.amount, result.mpesaReceiptNumber);
+        await runStkPostCommitEffects(result.paymentId, result.amount);
       }
       if (callbackId) await markCallbackProcessed(callbackId);
     } catch (err) {
@@ -82,67 +80,6 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 // Config escape hatch: set MPESA_DURABLE_ACK=false to restore the legacy
 // unconditional 200-ack (e.g. while diagnosing audit-table issues).
 const DURABLE_ACK = process.env.MPESA_DURABLE_ACK !== 'false';
-
-async function processFulfillment(paymentId: string, amount: number, _receipt: string | null): Promise<void> {
-  const payment = await withAdminDb(async (db) => {
-    const { rows } = await db.query<{
-      group_id: string;
-      invoice_id: string | null;
-      mpesa_phone: string | null;
-    }>('SELECT group_id, invoice_id, mpesa_phone FROM payments WHERE id=$1', [paymentId]);
-    return rows[0] ?? null;
-  });
-  if (!payment) return;
-
-  const ctx = { userId: 'system', groupId: payment.group_id, role: 'chairperson' };
-
-  // Credit SMS balance if this was an SMS top-up payment. The STK request's
-  // purpose enum is authoritative — it's set explicitly at initiation and
-  // can't drift the way invoice-item wording can. The description ILIKE match
-  // survives only as a fallback for legacy rows initiated without a purpose.
-  //
-  // This must NOT be gated on payment.invoice_id. It was until 2026-08-12, and
-  // since the billing page never sends an invoiceId for a top-up (and
-  // generateInvoice() has no callers) that gate was always false: every real
-  // top-up took the money and credited nothing. Crediting is safe to run
-  // unconditionally here because addSmsCredits is exactly-once per payment_id
-  // (migration 137) — required, since this whole function re-runs on every
-  // replayed callback.
-  const isTopup = await withAdminDb(async (db) => {
-    const { rows: stkRows } = await db.query<{ purpose: string | null }>(
-      `SELECT s.purpose
-       FROM   mpesa_stk_requests s
-       JOIN   payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
-       WHERE  p.id = $1
-       LIMIT  1`,
-      [paymentId],
-    );
-    const purpose = stkRows[0]?.purpose ?? null;
-    if (purpose !== null) return purpose === 'sms_topup';
-
-    // Legacy fallback: no purpose recorded — infer from the invoice line.
-    // Only reachable for rows predating the purpose column, which are also the
-    // only ones that could carry an invoice_id here.
-    if (!payment.invoice_id) return false;
-    const { rows } = await db.query<{ description: string }>(
-      `SELECT ii.description FROM invoice_items ii
-       WHERE ii.invoice_id=$1 AND ii.description ILIKE '%sms%' LIMIT 1`,
-      [payment.invoice_id],
-    );
-    return !!rows[0];
-  });
-  if (isTopup) {
-    await billingService.addSmsCredits(ctx, amount, paymentId);
-  }
-
-  // Receipt SMS (payment architecture §8 / audit M-2): the shared emitter
-  // names the group, Membership Number, product, and updated balance when
-  // the payment allocated to a membership; invoice/top-up payments keep the
-  // basic vars (unresolved placeholders are stripped). Notification is
-  // decided by sms_trigger_rules; emits are idempotent per (rule, paymentId),
-  // so a replayed callback cannot send a second receipt.
-  await emitPaymentReceiptEvent(paymentId);
-}
 
 function getCallerIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? '0.0.0.0';

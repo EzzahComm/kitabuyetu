@@ -6,7 +6,7 @@
 
 import { withAdminDb } from '@/lib/db';
 import { assertSafaricomIp } from './daraja.service';
-import { handleSTKCallback, type StkCallbackBody } from './mpesa-stk.service';
+import { handleSTKCallback, runStkPostCommitEffects, type StkCallbackBody } from './mpesa-stk.service';
 import { handleC2BConfirmation, type C2BCallbackBody } from './mpesa-c2b.service';
 
 /**
@@ -78,7 +78,13 @@ export async function replayUnprocessedCallbacks(): Promise<{
     const ip = row.caller_ip ?? '0.0.0.0';
     try {
       if (row.callback_type === 'stk_push') {
-        await handleSTKCallback(row.body as StkCallbackBody, ip, { skipIpCheck: true });
+        // Same post-commit effects as the live route: without them a replayed
+        // callback completed the payment but never credited a top-up or sent
+        // the receipt.
+        const result = await handleSTKCallback(row.body as StkCallbackBody, ip, { skipIpCheck: true });
+        if (result.success && result.paymentId && result.amount) {
+          await runStkPostCommitEffects(result.paymentId, result.amount);
+        }
       } else {
         await handleC2BConfirmation(row.body as C2BCallbackBody, ip, { skipIpCheck: true });
       }
