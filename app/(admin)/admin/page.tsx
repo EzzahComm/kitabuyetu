@@ -60,7 +60,9 @@ export default function AdminDashboardPage() {
   const o = stats?.organizations ?? {};
   const m = stats?.members ?? {};
   const s = stats?.subscriptions ?? {};
-  const r = stats?.revenue ?? {};
+  // Platform revenue only (subscription-linked). Absent for roles without
+  // finance access, so the fallback is typed explicitly.
+  const r: { total?: string; this_month?: string; this_week?: string } = stats?.revenue ?? {};
   const t = stats?.tickets ?? {};
 
   const mrr = parseFloat(s.mrr ?? '0');
