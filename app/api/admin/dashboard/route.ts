@@ -7,15 +7,20 @@ import {
   getRiskDashboardData,
   getMonitoringDashboardData,
 } from '@/lib/services/admin.service';
+import { canViewPlatformFinance, redactPlatformStatsForRole } from '@/lib/services/platform-revenue-classification';
+import { ForbiddenError } from '@/lib/utils/errors';
 
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest) {
-  return withPlatformRole(req, ['super_admin', 'support'], async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async (ctx) => {
     const url = new URL(req.url);
     const widget = url.searchParams.get('widget');
 
     if (widget === 'revenue_trend') {
+      if (!canViewPlatformFinance(ctx.platformRole)) {
+        throw new ForbiddenError('Revenue trend is restricted to super_admin');
+      }
       const data = await getRevenueTrend();
       return ok(data);
     }
@@ -31,6 +36,6 @@ export function GET(req: NextRequest) {
     }
 
     const data = await getPlatformStats();
-    return ok(data);
+    return ok(redactPlatformStatsForRole(data, ctx.platformRole));
   });
 }

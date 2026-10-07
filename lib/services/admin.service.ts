@@ -9,6 +9,12 @@ import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
 import { IS_SANDBOX, markSpineAllocated, logPaymentEvent, spinePaymentId } from './mpesa-spine.service';
 import { billingService } from './billing.service';
+import {
+  PAYMENT_OWNER_TOTALS_SQL,
+  PLATFORM_RECENT_PAYMENTS_SQL,
+  PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL,
+  PLATFORM_REVENUE_TREND_SQL,
+} from './platform-revenue-classification';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -209,8 +215,9 @@ export async function getPlatformStats() {
   // this cache exists to absorb (docs/audits/optimization-2026-09).
   return cached(keys.cache('platform-stats', 'platform'), 150, () =>
     withAdminDb(async (db: PoolClient) => {
-      const [groups, organizations, members, subscriptions, revenue, tickets, activity] = await Promise.all([
-        db.query(`
+      const [groups, organizations, members, subscriptions, revenueByProductPlan, ownerTotals, tickets, activity] =
+        await Promise.all([
+          db.query(`
         SELECT
           COUNT(*)                                              AS total,
           COUNT(*) FILTER (WHERE onboarding_status = 'active') AS active,
@@ -218,21 +225,21 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.groups
       `),
-        db.query(`
+          db.query(`
         SELECT
           COUNT(*)                                  AS total,
           COUNT(*) FILTER (WHERE is_active = true)  AS active,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.organizations
       `),
-        db.query(`
+          db.query(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE is_active = true) AS active,
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.members
       `),
-        db.query(`
+          db.query(`
         SELECT
           COUNT(*) FILTER (WHERE status = 'active')     AS active_subscriptions,
           COUNT(*) FILTER (WHERE status = 'expired')    AS expired_subscriptions,
@@ -242,15 +249,12 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
         FROM public.subscriptions
       `),
-        db.query(`
-        SELECT
-          COALESCE(SUM(amount), 0) AS total_collected,
-          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '30 days' THEN amount ELSE 0 END), 0) AS this_month,
-          COALESCE(SUM(CASE WHEN created_at >= NOW() - INTERVAL '7 days'  THEN amount ELSE 0 END), 0) AS this_week
-        FROM public.payments
-        WHERE status = 'completed'
-      `),
-        db.query(`
+          // Platform revenue = subscription-linked payments only, attributed by
+          // product and plan. Group collections and unclassified money are
+          // reported separately so they never inflate Kitabu Yetu's revenue.
+          db.query(PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL),
+          db.query(PAYMENT_OWNER_TOTALS_SQL),
+          db.query(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE status = 'open')        AS open,
@@ -258,7 +262,7 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE sla_breach_at < NOW() AND status NOT IN ('resolved','closed')) AS sla_breached
         FROM public.support_tickets
       `),
-        db.query(`
+          db.query(`
         SELECT
           al.action, al.resource_type AS table_name, al.created_at,
           g.name AS group_name
@@ -267,14 +271,33 @@ export async function getPlatformStats() {
         ORDER BY al.created_at DESC
         LIMIT 10
       `),
-      ]);
+        ]);
+
+      const byProductPlan = revenueByProductPlan.rows;
+      const sumOf = (field: 'total' | 'this_month' | 'this_week') =>
+        byProductPlan.reduce((s, r) => s + Number(r[field] ?? 0), 0).toFixed(2);
+
+      const owners = Object.fromEntries(
+        ownerTotals.rows.map((r: { owner: string; total: string; transactions: string }) => [
+          r.owner,
+          { total: r.total, transactions: r.transactions },
+        ]),
+      );
 
       return {
         groups: groups.rows[0],
         organizations: organizations.rows[0],
         members: members.rows[0],
         subscriptions: subscriptions.rows[0],
-        revenue: revenue.rows[0],
+        revenue: {
+          total: sumOf('total'),
+          this_month: sumOf('this_month'),
+          this_week: sumOf('this_week'),
+          byProductPlan,
+          // Non-platform money, shown for reconciliation only — never revenue.
+          groupCollections: owners.group ?? { total: '0', transactions: '0' },
+          unclassified: owners.unclassified ?? { total: '0', transactions: '0' },
+        },
         tickets: tickets.rows[0],
         recentActivity: activity.rows,
       };
@@ -288,18 +311,9 @@ export async function getPlatformStats() {
 export async function getRevenueTrend() {
   return cached(keys.cache('revenue-trend', 'platform'), 120, () =>
     withAdminDb(async (db: PoolClient) => {
-      const { rows } = await db.query(`
-      SELECT
-        TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') AS month,
-        DATE_TRUNC('month', created_at)                       AS month_date,
-        COALESCE(SUM(amount), 0)                             AS revenue,
-        COUNT(*)                                              AS transactions
-      FROM public.payments
-      WHERE status = 'completed'
-        AND created_at >= NOW() - INTERVAL '6 months'
-      GROUP BY DATE_TRUNC('month', created_at)
-      ORDER BY month_date ASC
-    `);
+      // Platform revenue only, by month and product. Group collections are
+      // excluded here; they are reported through getPlatformStats.
+      const { rows } = await db.query(PLATFORM_REVENUE_TREND_SQL);
       return rows;
     }),
   );
@@ -1339,19 +1353,14 @@ export async function getBillingOverview() {
         FROM public.subscriptions
       `),
       db.query(`
-        SELECT plan_type AS plan, COUNT(*) AS count,
+        SELECT product, plan_type AS plan, COUNT(*) AS count,
           COALESCE(SUM(monthly_fee), 0) AS revenue
         FROM public.subscriptions WHERE status = 'active'
-        GROUP BY plan_type ORDER BY revenue DESC
+        GROUP BY product, plan_type ORDER BY revenue DESC
       `),
-      db.query(`
-        SELECT p.id, p.amount, p.status, p.payment_method, p.created_at,
-               g.name AS group_name, i.invoice_number
-        FROM public.payments p
-        LEFT JOIN public.groups g ON g.id = p.group_id
-        LEFT JOIN public.invoices i ON i.id = p.invoice_id
-        ORDER BY p.created_at DESC LIMIT 20
-      `),
+      // Platform billing only: subscription and SMS top-up payments. Group
+      // collections are not billing revenue and must not appear in this list.
+      db.query(PLATFORM_RECENT_PAYMENTS_SQL),
       db.query(`
         SELECT i.id, i.invoice_number,
                (i.total_amount - COALESCE(i.paid_amount, 0)) AS amount_due,
