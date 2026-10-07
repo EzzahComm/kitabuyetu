@@ -1219,7 +1219,7 @@ async function applyCampaignDonationFromSTK(
  * Only fires for payment-collection purposes (contribution / loan repayment);
  * billing flows (registration, subscription, sms_topup) have their own UX.
  */
-async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<void> {
+export async function sendStkFallback(stk: FailedStkRow, resultCode: number): Promise<void> {
   if (stk.purpose && !['contribution', 'loan_repayment'].includes(stk.purpose)) return;
 
   const member = await withAdminDb((db) =>

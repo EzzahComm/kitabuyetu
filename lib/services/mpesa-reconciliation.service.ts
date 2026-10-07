@@ -12,6 +12,7 @@ import { queryStkStatus as _stkQuery } from './daraja.service';
 import { postContributionJournal } from './accounting.service';
 import { IS_SANDBOX } from './mpesa-spine.service';
 import { routeToUnrouted, type StkRequestRow as AllocationStkRequestRow } from './mpesa-allocation.service';
+import { sendStkFallback } from './mpesa-stk.service';
 import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
 
 export interface ReconciliationResult {
@@ -192,7 +193,7 @@ export async function runReconciliation(
         const newStatus = stkQueryOutcome(statusRes.resultCode);
         if (!newStatus) continue;
 
-        await withAdminDb(async (db) => {
+        const settled = await withAdminDb(async (db) => {
           // Lock the STK row so a late callback and this sweep can't both fulfil.
           const { rows: full } = await db.query<ReconStkRow>(
             `SELECT id, checkout_request_id, group_id, purpose, loan_repayment_id,
@@ -202,10 +203,15 @@ export async function runReconciliation(
           );
           const row = full[0];
 
-          await db.query(`UPDATE mpesa_stk_requests SET status=$1, completed_at=NOW() WHERE id=$2`, [
-            newStatus,
-            req.id,
-          ]);
+          // Guarded on 'pending': a callback that settled the row after the
+          // scan above already did the work (and sent any SMS) — touch nothing.
+          const { rows: moved } = await db.query(
+            `UPDATE mpesa_stk_requests SET status=$1, completed_at=NOW()
+             WHERE id=$2 AND status='pending' RETURNING id`,
+            [newStatus, req.id],
+          );
+          if (!moved[0]) return null;
+
           await db.query(
             `UPDATE payments SET status=$1
              WHERE mpesa_checkout_request_id=$2 AND status='pending'`,
@@ -217,8 +223,21 @@ export async function runReconciliation(
           if (newStatus === 'completed' && row) {
             await fulfilReconciledContribution(db, row);
           }
+          return row ?? null;
         });
-        await cacheMpesaStatus(req.checkout_request_id, newStatus as 'completed' | 'failed');
+        if (!settled) {
+          details.push({ id: req.id, action: 'already_settled', code: statusRes.resultCode });
+          continue;
+        }
+        await cacheMpesaStatus(req.checkout_request_id, newStatus);
+
+        // Same PayBill nudge the live failure callback sends; first transition
+        // only (the guarded UPDATE above), and never allowed to fail the sweep.
+        if (newStatus === 'failed') {
+          await sendStkFallback(settled, Number(statusRes.resultCode)).catch((err) =>
+            logger.error('[mpesa] reconcile STK fallback SMS failed', { err: String(err) }),
+          );
+        }
         resolved++;
         details.push({ id: req.id, action: `resolved_${newStatus}`, code: statusRes.resultCode });
       } catch {
