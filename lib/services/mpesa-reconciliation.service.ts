@@ -127,6 +127,19 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
   logger.warn('[mpesa] reconcile self-healed a lost contribution callback', { stkId: row.id, contributionId });
 }
 
+/**
+ * Maps an STK Push Query ResultCode to a terminal status, or null while the
+ * request is still in flight. 1032 is "cancelled by user" — terminal — and was
+ * once mistaken for "in process", leaving cancelled requests pending forever.
+ * In-flight is 4999 or no ResultCode; Daraja also answers HTTP 500
+ * (500.001.1001) while processing, which throws and is retried next run.
+ */
+export function stkQueryOutcome(resultCode: string | number | null | undefined): 'completed' | 'failed' | null {
+  const code = resultCode == null ? '' : String(resultCode).trim();
+  if (code === '' || code === '4999') return null;
+  return code === '0' ? 'completed' : 'failed';
+}
+
 export async function runReconciliation(
   groupId: string | null,
   initiatedBy: string | null,
@@ -176,10 +189,8 @@ export async function runReconciliation(
         const statusRes = await _stkQuery(req.checkout_request_id);
         mismatches++;
 
-        const isDone = statusRes.resultCode !== '1032'; // 1032 = request in process
-        if (!isDone) continue;
-
-        const newStatus = statusRes.resultCode === '0' ? 'completed' : 'failed';
+        const newStatus = stkQueryOutcome(statusRes.resultCode);
+        if (!newStatus) continue;
 
         await withAdminDb(async (db) => {
           // Lock the STK row so a late callback and this sweep can't both fulfil.
