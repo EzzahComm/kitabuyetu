@@ -144,6 +144,29 @@ describe('runReconciliation — STK Push Query outcomes', () => {
     expect(notifyMember).not.toHaveBeenCalled();
   });
 
+  it('self-heals a paid contribution prompt and links the contribution to its payment', async () => {
+    const paid = await seedStale(groupId, 'contrib_paid', '0', {
+      purpose: 'contribution',
+      phone: memberPhone,
+      accountReference: 'CONTRIB',
+    });
+
+    await runReconciliation(groupId, null);
+
+    const [row] = await rawQuery<{ payment_id: string; contribution_payment_id: string | null }>(
+      `SELECT p.id AS payment_id, c.payment_id AS contribution_payment_id
+       FROM mpesa_stk_requests s
+       JOIN payments p ON p.mpesa_checkout_request_id = s.checkout_request_id
+       JOIN contributions c ON c.id = s.contribution_id
+       WHERE s.checkout_request_id = $1`,
+      [paid],
+    );
+    expect(row).toBeDefined();
+    // Without this link the self-healed contribution is real money in the
+    // ledger that payment-level reporting reads as unclassified.
+    expect(row.contribution_payment_id).toBe(row.payment_id);
+  });
+
   it('sends the PayBill fallback SMS once for a cancelled contribution prompt', async () => {
     await seedStale(groupId, 'contrib_cancelled', '1032', {
       purpose: 'contribution',

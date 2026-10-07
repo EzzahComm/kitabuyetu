@@ -98,20 +98,23 @@ describe('STK contribution allocation pipeline', () => {
     });
     expect(result.success).toBe(true);
 
-    const [payment] = await rawQuery<{ status: string; allocation_status: string }>(
-      `SELECT status, allocation_status FROM payments WHERE mpesa_checkout_request_id=$1`,
+    const [payment] = await rawQuery<{ id: string; status: string; allocation_status: string }>(
+      `SELECT id, status, allocation_status FROM payments WHERE mpesa_checkout_request_id=$1`,
       [checkoutRequestId],
     );
     expect(payment.status).toBe('completed');
     expect(payment.allocation_status).toBe('allocated');
 
-    const contributions = await rawQuery<{ id: string; amount: string; status: string }>(
-      `SELECT id, amount, status FROM contributions WHERE mpesa_receipt_number=$1`,
+    const contributions = await rawQuery<{ id: string; amount: string; status: string; payment_id: string | null }>(
+      `SELECT id, amount, status, payment_id FROM contributions WHERE mpesa_receipt_number=$1`,
       [receipt],
     );
     expect(contributions).toHaveLength(1);
     expect(contributions[0].status).toBe('completed');
     expect(parseFloat(contributions[0].amount)).toBeCloseTo(amount, 2);
+    // The contribution must link back to its spine payment, or the money is in
+    // the ledger but unattributable at payment level.
+    expect(contributions[0].payment_id).toBe(payment.id);
 
     const journalLines = await rawQuery<{ entry_date: string; debit: string; credit: string }>(
       `SELECT jl.entry_date, jl.debit, jl.credit
