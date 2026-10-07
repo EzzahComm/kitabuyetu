@@ -32,6 +32,9 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+// Google tag (gtag.js) — must stay the only Google tag on every page.
+const GOOGLE_TAG_ID = 'G-7BM93MVBVY';
+
 const TAGLINE = BRAND_TAGLINE;
 const LONG_DESCRIPTION = `Kitabu Yetu — ${BRAND_TAGLINE}. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.`;
 
@@ -107,6 +110,19 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Google tag (gtag.js) */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', '${GOOGLE_TAG_ID}');`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${dmMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
         <SpeedInsights />
