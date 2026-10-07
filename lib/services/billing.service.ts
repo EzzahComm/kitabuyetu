@@ -741,6 +741,18 @@ export const billingService = {
       );
       if (!inserted[0]) return null;
 
+      // Group expense. Posted only when the ledger insert above actually
+      // happened, so a replayed callback posts nothing extra.
+      await postTemplatedJournal(
+        client,
+        ctx.groupId,
+        ctx.userId,
+        'sms_topup_expense',
+        `SMS credit top-up${paymentId ? ` — payment ${paymentId}` : ''}`,
+        { amount: amountKes },
+        { reference: paymentId ?? undefined },
+      );
+
       const { rows: after } = await client.query<{ sms_credits: string }>(
         `UPDATE billing_accounts SET sms_credits = sms_credits + $1 WHERE group_id = $2
          RETURNING sms_credits`,

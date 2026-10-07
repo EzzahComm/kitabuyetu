@@ -619,7 +619,8 @@ export async function handleSTKCallback(
       // had no GL trace at all — only the manual billingService.recordPayment
       // path posted. System-posted (created_by NULL): no authenticated
       // officer initiated this, Safaricom's callback did.
-      if (stkReq?.group_id) {
+      // SMS top-ups are booked by addSmsCredits as sms_topup_expense, not here.
+      if (stkReq?.group_id && stkReq.purpose !== 'sms_topup') {
         await postTemplatedJournal(
           db,
           stkReq.group_id,

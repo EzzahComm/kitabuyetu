@@ -67,6 +67,7 @@ export type PostingEvent =
   | 'vendor_payment'
   | 'fine_collection'
   | 'registration_fee'
+  | 'sms_topup_expense'
   | 'campaign_withdrawal'
   | 'member_payout';
 
@@ -217,6 +218,13 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
     lines: [
       { accountCode: '1001', side: 'debit', amount: 'amount' },
       { accountCode: '4003', side: 'credit', amount: 'amount' },
+    ],
+  },
+  // SMS credit top-up. A group expense regardless of who paid the M-Pesa.
+  sms_topup_expense: {
+    lines: [
+      { accountCode: '5002', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
     ],
   },
   // Changi$ha withdrawal monetization. Three pairs, not two — unlike

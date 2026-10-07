@@ -15,11 +15,15 @@ Scope: how Kitabu Yetu classifies money movements into the group ledger, platfor
 
 ## 2. Findings
 
-### F1 — Platform subscriptions are a group expense (confirmed; no change)
+### F1 — Platform subscriptions and SMS top-ups are group expenses (implemented)
 
-Per the product owner, subscription payments are group expenses. They stay posted as `DR 5003 Platform Subscription (expense)` / `CR 1001 Cash and M-Pesa`, from both the STK callback (`mpesa-stk.service.ts`) and `billing.service.ts` `recordPayment`. The billing tables (`invoices`, `payments`) continue to track platform-side revenue separately.
+Per product direction, these are group expenses whoever paid the M-Pesa:
 
-Open caveat for the owner: the subscription STK is pushed to the platform shortcode, so the group's `1001` may be credited for money that did not pass through the group's account. If the payer is the group, this is correct. If the payer is an individual, reconcile against the platform shortcode before relying on group cash.
+- **Subscription plans:** `DR 5003 Platform Subscription` / `CR 1001 Cash and M-Pesa`, posted by `subscription_payment` from the STK callback (invoice-bound payments) and `billing.recordPayment`.
+- **SMS credit top-ups:** `DR 5002 SMS Expenses` / `CR 1001 Cash and M-Pesa`, posted by the new `sms_topup_expense` template inside `billingService.addSmsCredits`, after the exactly-once `sms_credits` insert. A replayed STK callback that credits nothing therefore posts nothing.
+- Previously, STK top-ups with an invoice were booked to `5003` by the invoice-bound block. That block now skips `purpose = 'sms_topup'`.
+
+The billing tables (`invoices`, `payments`, `sms_credits`) remain the platform-side record.
 
 ### F2 — Group registration fee revenue was never posted (fixed)
 

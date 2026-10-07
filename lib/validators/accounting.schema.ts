@@ -95,6 +95,7 @@ export const SetPostingTemplateSchema = z.object({
     'dividend_payment',
     'subscription_payment',
     'registration_fee',
+    'sms_topup_expense',
     'loan_writeoff',
     'loan_disbursement',
     'loan_repayment',
