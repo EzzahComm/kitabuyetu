@@ -310,6 +310,6 @@ export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
     label: 'Polycap Wanyonyi on LinkedIn',
     href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167',
   },
-  { platform: 'x', label: 'Polycap Wanyonyi on X', href: null },
+  { platform: 'x', label: 'Polycap Wanyonyi on X', href: 'https://x.com/KitabuYetu' },
   { platform: 'facebook', label: 'Polycap Wanyonyi on Facebook', href: null },
 ];
