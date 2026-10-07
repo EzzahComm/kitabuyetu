@@ -296,7 +296,7 @@ export interface SocialLink {
  */
 export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
-  { platform: 'x', label: 'X (Twitter)', href: null },
+  { platform: 'x', label: 'X (Twitter)', href: 'https://x.com/KitabuYetu' },
   { platform: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167' },
   { platform: 'instagram', label: 'Instagram', href: null },
   { platform: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@KitabuYetu' },
@@ -310,6 +310,6 @@ export const FOUNDER_SOCIAL_LINKS: SocialLink[] = [
     label: 'Polycap Wanyonyi on LinkedIn',
     href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167',
   },
-  { platform: 'x', label: 'Polycap Wanyonyi on X', href: null },
+  { platform: 'x', label: 'Polycap Wanyonyi on X', href: 'https://x.com/KitabuYetu' },
   { platform: 'facebook', label: 'Polycap Wanyonyi on Facebook', href: null },
 ];
