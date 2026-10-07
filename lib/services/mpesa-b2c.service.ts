@@ -14,6 +14,7 @@ import { initiateB2C as _b2c, assertSafaricomIp } from './daraja.service';
 import { IS_SANDBOX } from './mpesa-spine.service';
 import { computeB2CCharge, insertMpesaCharge, postStandaloneChargeJournal } from './mpesa-charges.service';
 import { notifyDisbursementCallback } from '@/lib/queue/qstash';
+import { postMemberPayoutJournal, notifyMemberPayout } from './member-payouts.service';
 
 // ─── B2C ─────────────────────────────────────────────────────────────────────
 
@@ -184,6 +185,9 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
   const r = body.Result;
   const rawBody = JSON.stringify(body);
 
+  // Set inside the transaction, acted on only after it commits (see below).
+  let completedMemberPayoutId: string | null = null;
+
   const watchdogNotify = await withAdminDb(async (db): Promise<WatchdogNotifyInfo | undefined> => {
     // Capture the B2C row early — we need group_id and loan_id later.
     const { rows: b2cRows } = await db.query<{
@@ -336,17 +340,36 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
             },
           });
         }
-      } else if (charge > 0 && b2c.mpesa_transaction_id) {
-        // Non-loan B2C (welfare payout, dividend): the disbursement journal
-        // is posted by its own module, but the Safaricom fee still needs to
-        // hit the books. Post a standalone charge entry.
-        await postStandaloneChargeJournal(db, {
-          groupId: b2c.group_id,
-          amount: charge,
-          reference: receipt ?? r.OriginatorConversationID,
-          mpesaTransactionId: b2c.mpesa_transaction_id,
-          chargeType: 'b2c',
-        });
+      } else {
+        // Group → member payout (migration 218): post the group journal and
+        // link it to the payout row in THIS transaction, so the group ledger
+        // and the member's ledger (which reads the same row) settle together.
+        // The fee is folded into that entry. 'not_member_payout' falls
+        // through to the standalone fee below.
+        const memberPayout = b2c.disbursement_request_id
+          ? await postMemberPayoutJournal(db, {
+              disbursementRequestId: b2c.disbursement_request_id,
+              charge,
+              receipt,
+              mpesaTransactionId: b2c.mpesa_transaction_id,
+            })
+          : 'not_member_payout';
+        if (memberPayout === 'posted' && b2c.disbursement_request_id) {
+          completedMemberPayoutId = b2c.disbursement_request_id;
+        }
+
+        if (memberPayout === 'not_member_payout' && charge > 0 && b2c.mpesa_transaction_id) {
+          // Non-loan B2C (welfare payout, dividend): the disbursement journal
+          // is posted by its own module, but the Safaricom fee still needs to
+          // hit the books. Post a standalone charge entry.
+          await postStandaloneChargeJournal(db, {
+            groupId: b2c.group_id,
+            amount: charge,
+            reference: receipt ?? r.OriginatorConversationID,
+            mpesaTransactionId: b2c.mpesa_transaction_id,
+            chargeType: 'b2c',
+          });
+        }
       }
 
       // Disbursement spine (B2C audit C1/C4): the money left for real —
@@ -369,6 +392,9 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
   if (watchdogNotify) {
     await notifyDisbursementCallback('disbursement', watchdogNotify.rowId, watchdogNotify.eventData);
   }
+  // Member disbursement: tell the member/officers only once the money AND the
+  // ledgers have committed. Never throws; deduplicated by disbursement id.
+  if (completedMemberPayoutId) await notifyMemberPayout(completedMemberPayoutId, 'completed');
 }
 
 /**

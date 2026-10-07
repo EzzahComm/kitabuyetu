@@ -66,7 +66,8 @@ export type PostingEvent =
   | 'settlement_sweep'
   | 'vendor_payment'
   | 'fine_collection'
-  | 'campaign_withdrawal';
+  | 'campaign_withdrawal'
+  | 'member_payout';
 
 export interface TemplateLine {
   accountCode: string;
@@ -226,6 +227,22 @@ export const DEFAULT_TEMPLATES: Record<PostingEvent, PostingTemplate> = {
       { accountCode: '1001', side: 'credit', amount: 'platformFee' },
       { accountCode: '5001', side: 'debit', amount: 'mpesaCharge' },
       { accountCode: '1001', side: 'credit', amount: 'mpesaCharge' },
+    ],
+  },
+  // Group → member payout over B2C (migration 218; member-payouts.service.ts).
+  // The amount-role debit is 4001 Member Contributions because that is where
+  // postContributionJournal books a contribution by default — a payout of the
+  // member's money reverses that same account, so the group's books and the
+  // member's balance (contributions − savings withdrawals) move together. A
+  // group whose contribution splits route savings to 2101 Member Savings
+  // remaps this line to 2101 via setGroupOverride. The 'charge' pair is the
+  // Safaricom B2C fee the group bears on top (same shape as loan_disbursement).
+  member_payout: {
+    lines: [
+      { accountCode: '4001', side: 'debit', amount: 'amount' },
+      { accountCode: '1001', side: 'credit', amount: 'amount' },
+      { accountCode: '5001', side: 'debit', amount: 'charge' },
+      { accountCode: '1001', side: 'credit', amount: 'charge' },
     ],
   },
 };

@@ -22,7 +22,8 @@ import type { PoolClient } from 'pg';
 import type { TenantContext } from '@/lib/db';
 import { ForbiddenError } from '@/lib/utils/errors';
 
-export type SettlementSubjectType = 'bank_account' | 'settlement' | 'vendor_payment' | 'campaign_withdrawal';
+export type SettlementSubjectType =
+  'bank_account' | 'settlement' | 'vendor_payment' | 'campaign_withdrawal' | 'member_payout';
 export type SettlementDecision = 'approved' | 'rejected';
 
 export interface RecordApprovalInput {

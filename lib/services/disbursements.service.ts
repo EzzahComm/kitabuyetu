@@ -23,10 +23,34 @@ import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/erro
 import { logger } from '@/lib/logger';
 import { getEffectiveThreshold } from './approval-policy.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
+import { resolveMemberPayoutRecipient } from './member-balances.service';
+
+export type PayoutPurpose = 'savings_withdrawal' | 'merry_go_round' | 'other';
+export type PayoutMethod = 'mpesa' | 'cash' | 'bank_transfer';
+
+/** A member disbursement (migration 218). Workflow and office rules live in member-payouts.service.ts. */
+export interface MemberPayoutSpec {
+  memberId: string;
+  purpose: PayoutPurpose;
+  description: string;
+  notes?: string | null;
+  paymentMethod: PayoutMethod;
+  paymentReference?: string | null;
+  /** The initiator's live office — re-verified by the migration-218 trigger. */
+  initiatorRole: 'chairperson' | 'secretary';
+}
 
 export interface InitiateDisbursementInput {
   loanId?: string;
-  phone: string;
+  /**
+   * Group → member disbursement (migration 218). When set, the phone is
+   * ALWAYS the member's registered number (resolved inside the transaction)
+   * — `phone` is ignored, so a payout can never be redirected to another
+   * number — and the row always parks pending the treasurer's approval.
+   */
+  member?: MemberPayoutSpec;
+  /** Required unless `member` is set. */
+  phone?: string;
   amount: number;
   commandId?: 'BusinessPayment' | 'SalaryPayment' | 'PromotionPayment';
   occasion: string;
@@ -37,6 +61,16 @@ export interface DisbursementRow {
   id: string;
   group_id: string;
   loan_id: string | null;
+  member_id: string | null;
+  group_membership_id: string | null;
+  payout_purpose: PayoutPurpose | null;
+  purpose_description: string | null;
+  notes: string | null;
+  payment_method: PayoutMethod | null;
+  payment_reference: string | null;
+  initiated_by_role: string | null;
+  journal_entry_id: string | null;
+  reference: string;
   cash_account_id: string;
   phone: string;
   amount: string;
@@ -63,6 +97,10 @@ export const disbursementsService = {
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
       throw new ValidationError('A valid idempotency key is required');
     }
+    if (input.member && input.loanId) {
+      throw new ValidationError('A disbursement is either a loan disbursement or a member payout, not both');
+    }
+    if (!input.member && !input.phone) throw new ValidationError('A recipient phone is required');
 
     const { row, alreadyExisted } = await withTransaction(ctx, async (db) => {
       // Idempotency (C2): the same key for this group always returns the
@@ -92,12 +130,19 @@ export const disbursementsService = {
       // — a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
+      // A bank-transfer member disbursement draws on 1002 Bank Account; every
+      // other disbursement on 1001 Cash and M-Pesa.
+      const sourceCode = input.member?.paymentMethod === 'bank_transfer' ? '1002' : '1001';
       const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
-        `SELECT * FROM lock_group_cash_account($1, '1001')`,
-        [ctx.groupId],
+        `SELECT * FROM lock_group_cash_account($1, $2)`,
+        [ctx.groupId, sourceCode],
       );
       if (!acctRows[0]) {
-        throw new ValidationError('Group has no active Cash/M-Pesa account (1001) to disburse from');
+        throw new ValidationError(
+          sourceCode === '1002'
+            ? 'Group has no active Bank Account (1002) to disburse from'
+            : 'Group has no active Cash/M-Pesa account (1001) to disburse from',
+        );
       }
       const cashAccountId = acctRows[0].id;
       const available = parseFloat(acctRows[0].balance) - parseFloat(acctRows[0].reserved_amount);
@@ -105,9 +150,29 @@ export const disbursementsService = {
         throw new ValidationError(`Insufficient available balance (KES ${available.toFixed(2)} available)`);
       }
 
+      // Member payout: resolve the recipient AFTER the cash lock above — that
+      // lock serializes every disbursement in the group, so the withdrawable-
+      // savings check below can't be raced by a concurrent withdrawal.
+      let recipient: Awaited<ReturnType<typeof resolveMemberPayoutRecipient>> = null;
+      if (input.member) {
+        recipient = await resolveMemberPayoutRecipient(db, ctx.groupId, input.member.memberId);
+        if (!recipient) throw new NotFoundError('Active group member', input.member.memberId);
+        if (!recipient.phone && input.member.paymentMethod === 'mpesa') {
+          throw new ValidationError(`${recipient.fullName} has no registered phone number to pay to`);
+        }
+        if (input.member.purpose === 'savings_withdrawal' && input.amount > recipient.withdrawableSavings) {
+          throw new ValidationError(
+            `Amount exceeds ${recipient.fullName}'s withdrawable savings (KES ${recipient.withdrawableSavings.toFixed(2)})`,
+          );
+        }
+      }
+      const phone = input.member ? (recipient?.phone ?? '') : (input.phone as string);
+
       // Maker-checker threshold (C3).
       const threshold = await getEffectiveThreshold(db, 'group_disbursement_threshold', { groupId: ctx.groupId });
-      const requiresApproval = input.amount > threshold;
+      // A member disbursement always waits for the treasurer (and then Kitabu
+      // Yetu) — member-payouts.service.ts owns those stages.
+      const requiresApproval = !!input.member || input.amount > threshold;
 
       // Reserve (C1/C4): earmark the funds now, before Daraja is ever called
       // — including during the approval-pending window, so a second pending
@@ -119,21 +184,31 @@ export const disbursementsService = {
       const { rows: inserted } = await db.query<DisbursementRow>(
         `INSERT INTO disbursement_requests
            (idempotency_key, group_id, loan_id, cash_account_id, phone, amount,
-            command_id, occasion, status, requires_approval, initiated_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+            command_id, occasion, status, requires_approval, initiated_by,
+            member_id, group_membership_id, payout_purpose, purpose_description, notes,
+            payment_method, payment_reference, initiated_by_role)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19)
          RETURNING *`,
         [
           input.idempotencyKey,
           ctx.groupId,
           input.loanId ?? null,
           cashAccountId,
-          input.phone,
+          phone,
           input.amount.toFixed(2),
           input.commandId ?? 'BusinessPayment',
           input.occasion,
           requiresApproval ? 'pending_approval' : 'approved',
           requiresApproval,
           ctx.userId,
+          recipient?.memberId ?? null,
+          recipient?.groupMembershipId ?? null,
+          input.member?.purpose ?? null,
+          input.member?.description ?? null,
+          input.member?.notes ?? null,
+          input.member?.paymentMethod ?? null,
+          input.member?.paymentReference ?? null,
+          input.member?.initiatorRole ?? null,
         ],
       );
       const disbursement = inserted[0];
@@ -154,6 +229,10 @@ export const disbursementsService = {
             status: disbursement.status,
             requires_approval: disbursement.requires_approval,
             loan_id: disbursement.loan_id,
+            member_id: disbursement.member_id ?? null,
+            payout_purpose: disbursement.payout_purpose ?? null,
+            payment_method: disbursement.payment_method ?? null,
+            reference: disbursement.reference,
           }),
         ],
       );
@@ -181,6 +260,7 @@ export const disbursementsService = {
         [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Pending disbursement', id);
+      assertNotMemberPayout(rows[0]);
       if (rows[0].initiated_by === ctx.userId) {
         throw new ForbiddenError('Maker-checker: the initiator cannot approve their own disbursement');
       }
@@ -226,6 +306,7 @@ export const disbursementsService = {
         [id, ctx.groupId],
       );
       if (!existing[0]) throw new NotFoundError('Pending disbursement', id);
+      assertNotMemberPayout(existing[0]);
 
       const prev = existing[0];
 
@@ -273,7 +354,19 @@ export const disbursementsService = {
     });
   },
 
-  async list(ctx: TenantContext, params: { page: number; limit: number; status?: string }) {
+  async list(
+    ctx: TenantContext,
+    params: {
+      page: number;
+      limit: number;
+      status?: string;
+      kind?: 'loan' | 'member_payout';
+      memberId?: string;
+      initiatedBy?: string;
+      from?: string;
+      to?: string;
+    },
+  ) {
     return withDb(ctx, async (db) => {
       const conds: string[] = ['dr.group_id = $1'];
       const vals: unknown[] = [ctx.groupId];
@@ -281,6 +374,24 @@ export const disbursementsService = {
       if (params.status) {
         conds.push(`dr.status = $${i++}`);
         vals.push(params.status);
+      }
+      if (params.kind === 'member_payout') conds.push('dr.member_id IS NOT NULL');
+      if (params.kind === 'loan') conds.push('dr.loan_id IS NOT NULL');
+      if (params.memberId) {
+        conds.push(`dr.member_id = $${i++}`);
+        vals.push(params.memberId);
+      }
+      if (params.initiatedBy) {
+        conds.push(`dr.initiated_by = $${i++}`);
+        vals.push(params.initiatedBy);
+      }
+      if (params.from) {
+        conds.push(`dr.created_at >= $${i++}::date`);
+        vals.push(params.from);
+      }
+      if (params.to) {
+        conds.push(`dr.created_at < ($${i++}::date + 1)`);
+        vals.push(params.to);
       }
       const where = conds.join(' AND ');
       const offset = (params.page - 1) * params.limit;
@@ -293,11 +404,14 @@ export const disbursementsService = {
       );
       const { rows } = await db.query(
         `SELECT dr.*, l.principal_amount, m.first_name || ' ' || m.last_name AS borrower_name,
+                pm.first_name || ' ' || pm.last_name AS recipient_name, pgm.membership_no AS recipient_membership_no,
                 im.first_name || ' ' || im.last_name AS initiated_by_name,
                 am.first_name || ' ' || am.last_name AS approved_by_name
          FROM   disbursement_requests dr
          LEFT JOIN loans l    ON l.id = dr.loan_id
          LEFT JOIN members m  ON m.id = l.member_id
+         LEFT JOIN members pm ON pm.id = dr.member_id
+         LEFT JOIN group_members pgm ON pgm.id = dr.group_membership_id
          LEFT JOIN members im ON im.id = dr.initiated_by
          LEFT JOIN members am ON am.id = dr.approved_by
          WHERE  ${where}
@@ -315,6 +429,17 @@ export const disbursementsService = {
     });
   },
 };
+
+/**
+ * Member disbursements are decided by the treasurer and then Kitabu Yetu
+ * (member-payouts.service.ts), never by this generic second-officer path —
+ * otherwise any payouts.manage holder could bypass both stages.
+ */
+function assertNotMemberPayout(row: DisbursementRow): void {
+  if (row.member_id) {
+    throw new ForbiddenError('Member disbursements are approved by the treasurer and Kitabu Yetu, not here');
+  }
+}
 
 /**
  * Stuck-payout monitor (B2C audit C5/F13): a 'dispatched' row older than the
@@ -380,7 +505,7 @@ export async function findStuckDisbursements(): Promise<{
  * marked failed — a stuck 'dispatched' row means Safaricom accepted the
  * request and a result callback is genuinely pending.
  */
-async function dispatchDisbursement(id: string): Promise<void> {
+export async function dispatchDisbursement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
     const { rows } = await db.query<{
       id: string;

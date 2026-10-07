@@ -4,7 +4,8 @@
  * email), this shows the member's FULL history including their own
  * pending/failed attempts, paginated.
  *
- * v1 covers contributions + loan repayments + loan disbursements — the
+ * v1 covers contributions + loan repayments + loan disbursements (plus
+ * group → member payouts, migration 218) — the
  * three highest-volume, routine transaction types. Dividends/share
  * transactions/fines/welfare are a deliberate, documented follow-up: they
  * already have GL postings via postTemplatedJournal (see the accounting-
@@ -15,7 +16,7 @@ import { withDb, type TenantContext } from '@/lib/db';
 import type { PaginatedResult } from '@/types/db.types';
 import type { MemberPassbookQueryInput } from '@/lib/validators/member-passbook.schema';
 
-export type TxnType = 'contribution' | 'loan_repayment' | 'loan_disbursement';
+export type TxnType = 'contribution' | 'loan_repayment' | 'loan_disbursement' | 'member_payout';
 export type TxnStatus = 'success' | 'pending' | 'failed';
 export type TxnMethod = 'mpesa' | 'cash';
 
@@ -100,6 +101,22 @@ export async function listMyPassbook(
              mpesa_receipt_number AS ref
       FROM loans
       WHERE group_id = $1 AND member_id = $2 AND disbursed_at IS NOT NULL
+      UNION ALL
+      -- Group → member disbursements (migration 218): the member-side entry
+      -- of the member_payout journal, carrying the same KY-DIS reference.
+      -- Rejected/cancelled requests never moved money and are not shown.
+      SELECT id, 'member_payout'::text AS type,
+             COALESCE(purpose_description, 'Disbursement')::text AS label,
+             amount, 'out'::text AS direction,
+             (CASE WHEN status = 'completed' THEN 'completed'
+                   WHEN status = 'failed' THEN 'failed'
+                   ELSE 'pending' END)::text AS db_status,
+             payment_method::text AS db_method,
+             COALESCE(completed_at, created_at)::date::text AS txn_date,
+             reference AS ref
+      FROM disbursement_requests
+      WHERE group_id = $1 AND member_id = $2
+        AND status::text NOT IN ('rejected', 'cancelled')
     `;
 
     const directionFilter = direction ? 'WHERE direction = $3' : '';
