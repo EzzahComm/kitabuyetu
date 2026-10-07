@@ -15,16 +15,11 @@ Scope: how Kitabu Yetu classifies money movements into the group ledger, platfor
 
 ## 2. Findings
 
-### F1 — Platform subscription payments were posted into the group ledger (fixed)
+### F1 — Platform subscriptions are a group expense (confirmed; no change)
 
-`DR 5003 Platform Subscription (expense)` / `CR 1001 Cash and M-Pesa` was posted from two paths:
+Per the product owner, subscription payments are group expenses. They stay posted as `DR 5003 Platform Subscription (expense)` / `CR 1001 Cash and M-Pesa`, from both the STK callback (`mpesa-stk.service.ts`) and `billing.service.ts` `recordPayment`. The billing tables (`invoices`, `payments`) continue to track platform-side revenue separately.
 
-- `mpesa-stk.service.ts` (STK callback for invoice-bound payments)
-- `billing.service.ts` `recordPayment`
-
-Both paths paid Kitabu Yetu, not the group. The STK request uses the single platform shortcode (`SHORTCODE`), so group funds were never the source. The effect was that a platform charge reduced a group's recorded cash and appeared as a group operating expense.
-
-**Change:** both postings are removed. Platform revenue stays in the billing tables.
+Open caveat for the owner: the subscription STK is pushed to the platform shortcode, so the group's `1001` may be credited for money that did not pass through the group's account. If the payer is the group, this is correct. If the payer is an individual, reconcile against the platform shortcode before relying on group cash.
 
 ### F2 — Group registration fee revenue was never posted (fixed)
 
@@ -65,30 +60,7 @@ Group expenses post to `5001 Administrative Expenses` only. Category sub-account
 
 Treasury transfers and refund/reversal linkage were not audited in this pass. Deferred.
 
-## 3. Historical reclassification (report only, not executed)
-
-Subscription postings made before this change remain in the ledger. Do not delete them automatically. Review this report first, then decide between a reversing entry per journal or a reclassification to a platform-owned account.
-
-```sql
--- Historical platform-subscription postings that hit a group ledger.
-SELECT je.id              AS journal_entry_id,
-       je.group_id,
-       je.entry_date,
-       je.reference       AS receipt_or_invoice_ref,
-       je.description,
-       jl.debit           AS amount_kes
-FROM journal_entries je
-JOIN journal_lines jl ON jl.journal_entry_id = je.id
-JOIN accounts a       ON a.id = jl.account_id
-WHERE je.status = 'posted'
-  AND je.description LIKE 'Platform subscription payment%'
-  AND a.account_code = '5003'
-ORDER BY je.entry_date, je.group_id;
-```
-
-Recommended treatment per row: post a reversing journal (`DR 1001` / `CR 5003`) with a reference to the original entry, so the original stays auditable. Do not edit or delete the original.
-
-## 4. Target classification model (Phase 2 plan)
+## 3. Target classification model (Phase 2 plan)
 
 | Transaction | Owner | Group P&L | Platform billing | Notes |
 |---|---|---|---|---|
@@ -98,11 +70,11 @@ Recommended treatment per row: post a reversing journal (`DR 1001` / `CR 5003`) 
 | Loan interest | Group | Income `4002` | No | Already separate. |
 | Loan principal repayment | Group | Balance sheet only | No | Already on `1101`. |
 | Group expense | Group | Expense `5001` | No | Categories in F7. |
-| Platform subscription | Platform | Not posted | Yes | Implemented (F1). |
+| Platform subscription | Group (expense `5003`) | Expense | Yes (billing tables) | Owner decision; see F1 caveat. |
 | Changi$ha donation | Campaign | Not income until decided | No | F4. |
 | Internal transfer | Same entity | Not income or expense | No | Balance movement only. |
 
-## 5. Verification
+## 4. Verification
 
 - `npx tsc --noEmit`: clean.
 - `npx eslint` on changed files: clean.

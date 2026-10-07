@@ -23,6 +23,7 @@ import {
 import { logger } from '@/lib/logger';
 import type { Subscription, Invoice, Payment, BillingAccount } from '@/types/db.types';
 import type { RecordManualPaymentInput } from '@/lib/validators/billing.schema';
+import { postTemplatedJournal } from './posting-templates.service';
 
 /**
  * Round to the 2 decimal places every SMS-credit balance column stores.
@@ -253,6 +254,16 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
  */
 function actorId(userId: string | undefined): string | null {
   return userId && UUID_RE.test(userId) ? userId : null;
+}
+
+/**
+ * Whether this group has a general ledger at all. Only a Chama-Reminder-only
+ * group does not (migration 140), so this is true for every group that predates
+ * that migration.
+ */
+async function hasChartOfAccounts(client: PoolClient, groupId: string): Promise<boolean> {
+  const { rows } = await client.query(`SELECT 1 FROM accounts WHERE group_id = $1 LIMIT 1`, [groupId]);
+  return rows.length > 0;
 }
 
 /**
@@ -627,12 +638,28 @@ export const billingService = {
         );
       }
 
-      // Platform subscription payments are Kitabu Yetu billing revenue. They
-      // stay in the billing tables and are not posted to the group ledger, so
-      // they never reach group cash, expenses or the group dashboard.
-      // (The 5003 Platform Subscription account is no longer posted to; kept
-      // in the chart for historical entries until the reclassification report
-      // in docs/finance/classification-audit.md has been reviewed.)
+      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
+      // Subscription expense account was previously dead code — no payment
+      // path ever posted to it.
+      //
+      // Skipped for a group with no chart of accounts (migration 140). This is
+      // reachable: /api/v1/billing is outside the subscription lock, so a
+      // Chama-Reminder-only group can record a payment here, and the template
+      // needs accounts 1001 and 5003 — it would fail with an account-codes
+      // error that says nothing about the real cause. Recording the payment
+      // still matters to such a group; posting a journal it has no ledger for
+      // does not.
+      if (await hasChartOfAccounts(client, ctx.groupId)) {
+        await postTemplatedJournal(
+          client,
+          ctx.groupId,
+          ctx.userId,
+          'subscription_payment',
+          `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
+          { amount: data.amount },
+          { reference: rows[0].id },
+        );
+      }
 
       return rows[0];
     });
