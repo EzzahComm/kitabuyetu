@@ -49,17 +49,18 @@ to contributions, loan repayments, welfare, or share transactions) and
 everything else are reported separately as reconciliation totals, never as
 revenue.
 
-### F2 — `invoice_id` is not a platform-revenue marker (rule rejected)
+### F2 — Invoice-settling payments are platform revenue (owner decision, fixed)
 
-`invoices` is shared. `billing.service.generateInvoice` bills a group
-(platform billing via `billing_accounts`), but `payment_accounts` with
-`kind = 'invoice'` also resolves to `invoices` (`mpesa-payment-accounts.service.ts`
-line 66) and carries group money. An invoice-based rule would misclassify group
-collections as revenue, so it was not used. Invoice-linked payments fall into
-`unclassified`.
+The owner confirmed that invoices are billed by Kitabu Yetu to groups or
+organizations. An invoice-linked payment is therefore platform revenue, and it
+is attributed to the `invoices` stream. The rule requires
+`invoices.billing_account_id IS NOT NULL`. Payments that also belong to a group
+product row or to a subscription/SMS top-up are counted once, in the first
+matching stream.
 
-**Open decision:** confirm who owns invoices issued through `payment_accounts`
-before any invoice-linked revenue is counted.
+Earlier, `invoice_id` was not used as a marker, because `payment_accounts`
+with `kind = 'invoice'` also resolves to `invoices` (`mpesa-payment-accounts.service.ts`
+line 66). That was the open question, and the owner's answer resolves it.
 
 ### F3 — Support role could read platform finance (fixed)
 
@@ -104,7 +105,7 @@ split (`byProductPlan`, `by_product`).
 | `app/api/admin/dashboard/route.ts`                                | Revenue trend restricted to super_admin. Default stats redacted for support.                                                                                                                                                                                          |
 | `app/api/admin/billing/route.ts`                                  | super_admin only.                                                                                                                                                                                                                                                     |
 | `app/(admin)/admin/page.tsx`                                      | Typed revenue fallback (the value now comes from a classified shape).                                                                                                                                                                                                 |
-| `__tests__/unit/services/platform-revenue-classification.test.ts` | New. 9 tests covering classification rules, product/plan attribution, finance access, and redaction.                                                                                                                                                                  |
+| `__tests__/unit/services/platform-revenue-classification.test.ts` | New. 12 tests covering classification rules (subscription, SMS top-up, invoice), no-double-count, product/plan attribution, finance access, and redaction.                                                                                                            |
 | `docs/audits/PLATFORM_DASHBOARD_ACCESS_AUDIT_2026-10-07.md`       | This document.                                                                                                                                                                                                                                                        |
 
 **Response-shape change:** `stats.revenue` keys changed from `total_collected`
@@ -113,18 +114,24 @@ to `total`. The only consumer is the admin overview page, which reads
 `total_collected` from the admin payload.
 
 **Verification:** `tsc --noEmit` clean; eslint clean on changed files;
-Prettier clean; `admin-dashboard.test.ts` and the new test file pass (11/11).
+Prettier clean; `admin-dashboard.test.ts` and the new test file pass (14/14).
+The SQL has not been run against a live database.
 
 ---
 
 ## 4. Known limits of the platform revenue number
 
-- **Understated.** SMS credit top-ups and other platform fees have no
-  definitive marker in `payments`. Until one exists, they appear under
-  `unclassified`, and platform revenue will be low for those streams.
-- **Outstanding receivables** (`getBillingOverview.outstanding`) still read
-  from `invoices`, which has the shared-ownership issue in F2. Labelled as
-  billing until F2 is resolved.
+- **Revenue streams.** Platform revenue has three streams, each attributed
+  with its own product key:
+  - `subscription` — by `kitabu_yetu`, `chama_reminder`, `changisha` and plan.
+  - `sms_credits` — SMS top-ups, group (`sms_credits`) and organization
+    (`organization_sms_credits`), keyed on `payment_id`.
+  - `invoices` — payments settling a platform invoice (F2).
+- **Not yet verified against a live database.** The SQL is built from shared
+  constants and has been checked by unit tests on its structure only. Run it
+  against a database before relying on the numbers.
+- **Outstanding receivables** (`getBillingOverview.outstanding`) read `invoices`
+  as platform billing, per the owner's answer in F2.
 
 ---
 
@@ -146,10 +153,10 @@ These are open and were not built in this change:
 - Integration tests against a live database for the new SQL, and a production
   build run.
 
-**Decisions needed from the owner:**
+**Decisions:**
 
-1. Confirm invoice ownership for `payment_accounts` invoices (F2).
-2. Confirm whether SMS credit top-ups should be platform revenue, and how they
-   should be marked.
-3. Confirm whether platform support should see group-level operational counts
+1. **Resolved:** invoices are billed to groups or organizations, so
+   invoice-settling payments are platform revenue (F2).
+2. **Resolved:** SMS credit top-ups are platform revenue (`sms_credits` stream).
+3. **Open:** whether platform support should see group-level operational counts
    (current behavior, unchanged) or only ticket data.

@@ -9,7 +9,12 @@ import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
 import { IS_SANDBOX, markSpineAllocated, logPaymentEvent, spinePaymentId } from './mpesa-spine.service';
 import { billingService } from './billing.service';
-import { PAYMENT_OWNER_TOTALS_SQL, PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL } from './platform-revenue-classification';
+import {
+  PAYMENT_OWNER_TOTALS_SQL,
+  PLATFORM_RECENT_PAYMENTS_SQL,
+  PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL,
+  PLATFORM_REVENUE_TREND_SQL,
+} from './platform-revenue-classification';
 
 export interface RiskDashboardPayload {
   summary: {
@@ -308,41 +313,7 @@ export async function getRevenueTrend() {
     withAdminDb(async (db: PoolClient) => {
       // Platform revenue only, by month and product. Group collections are
       // excluded here; they are reported through getPlatformStats.
-      // One row per month (the chart contract); each row carries the product
-      // split in `byProduct`.
-      const { rows } = await db.query(`
-      WITH platform AS (
-        SELECT DATE_TRUNC('month', p.created_at) AS month_date, p.amount, s.product
-        FROM public.payments p
-        JOIN LATERAL (
-          SELECT s.product FROM public.subscriptions s
-          WHERE s.payment_id = p.id
-          ORDER BY s.created_at DESC
-          LIMIT 1
-        ) s ON true
-        WHERE p.status = 'completed'
-          AND p.created_at >= NOW() - INTERVAL '6 months'
-      ),
-      monthly AS (
-        SELECT month_date, SUM(amount) AS revenue, COUNT(*) AS transactions
-        FROM platform GROUP BY month_date
-      ),
-      by_product AS (
-        SELECT month_date, product, SUM(amount) AS total
-        FROM platform GROUP BY month_date, product
-      )
-      SELECT
-        TO_CHAR(m.month_date, 'Mon YYYY')  AS month,
-        m.month_date                       AS month_date,
-        COALESCE(m.revenue, 0)             AS revenue,
-        m.transactions                     AS transactions,
-        COALESCE(
-          (SELECT json_object_agg(b.product, b.total) FROM by_product b WHERE b.month_date = m.month_date),
-          '{}'::json
-        )                                  AS by_product
-      FROM monthly m
-      ORDER BY m.month_date ASC
-    `);
+      const { rows } = await db.query(PLATFORM_REVENUE_TREND_SQL);
       return rows;
     }),
   );
@@ -1387,23 +1358,9 @@ export async function getBillingOverview() {
         FROM public.subscriptions WHERE status = 'active'
         GROUP BY product, plan_type ORDER BY revenue DESC
       `),
-      // Platform billing only: subscription-linked payments. Group collections
-      // are not billing revenue and must not appear in this list.
-      db.query(`
-        SELECT p.id, p.amount, p.status, p.payment_method, p.created_at,
-               g.name AS group_name, i.invoice_number,
-               s.product, s.plan_type AS plan
-        FROM public.payments p
-        JOIN LATERAL (
-          SELECT s.product, s.plan_type FROM public.subscriptions s
-          WHERE s.payment_id = p.id
-          ORDER BY s.created_at DESC
-          LIMIT 1
-        ) s ON true
-        LEFT JOIN public.groups g ON g.id = p.group_id
-        LEFT JOIN public.invoices i ON i.id = p.invoice_id
-        ORDER BY p.created_at DESC LIMIT 20
-      `),
+      // Platform billing only: subscription and SMS top-up payments. Group
+      // collections are not billing revenue and must not appear in this list.
+      db.query(PLATFORM_RECENT_PAYMENTS_SQL),
       db.query(`
         SELECT i.id, i.invoice_number,
                (i.total_amount - COALESCE(i.paid_amount, 0)) AS amount_due,
