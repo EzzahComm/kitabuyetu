@@ -4,6 +4,9 @@ import { useToast } from './use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import type { StkPushInput } from '@/lib/validators/mpesa.schema';
 
+// Safaricom's STK prompt itself expires in ~60s; leave room for a slow callback.
+const POLL_TIMEOUT_MS = 120_000;
+
 /**
  * The STK push → prompt → poll → settle loop, as one reusable state machine.
  *
@@ -45,6 +48,24 @@ export function useStkCheckout(onCompleted: (amount: number) => void) {
       toast({ variant: 'destructive', title: 'Payment failed', description: 'M-Pesa payment was not completed' });
     }
   }, [mpesaStatus, amount, onCompleted, toast]);
+
+  // Stop polling after a bounded wait, but never call it a failure: a late
+  // callback (or reconciliation) still completes the payment server-side.
+  // The dialog closes rather than re-showing the Pay button, which would invite
+  // a second charge while the first may still be landing.
+  useEffect(() => {
+    if (!polling) return;
+    const timer = setTimeout(() => {
+      setPolling(false);
+      setOpen(false);
+      toast({
+        title: 'Still confirming your payment',
+        description:
+          'M-Pesa has not confirmed yet. If you entered your PIN, the payment will update here shortly — refresh in a minute.',
+      });
+    }, POLL_TIMEOUT_MS);
+    return () => clearTimeout(timer);
+  }, [polling, toast]);
 
   /** Open the dialog for a purchase. Nothing is sent until the user confirms. */
   const start = useCallback((next: Omit<StkPushInput, 'phone'>) => {

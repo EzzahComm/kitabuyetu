@@ -8,7 +8,7 @@ import { ok, errorResponse } from '@/lib/utils/response';
 /**
  * Poll the status of an STK Push request.
  * Frontend polls this every 3 seconds while waiting for the user to enter PIN.
- * Redis cache avoids hammering the DB for every poll.
+ * Terminal statuses are served from Redis; pending reads the indexed DB row.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   return withAuth(req, async (auth) => {
@@ -17,9 +17,12 @@ export async function GET(req: NextRequest): Promise<Response> {
       return errorResponse('checkoutRequestId query param is required', 'VALIDATION_ERROR', 422);
     }
 
-    // Try Redis cache first (fast path)
-    const cached = await getMpesaStatus(checkoutRequestId);
-    if (cached) {
+    // Only a terminal cached status may short-circuit. A cached 'pending'
+    // (written at initiation, 5-min TTL) used to mask a payment the DB already
+    // had as completed — via DLQ replay, reconciliation, or a failed cache
+    // write — leaving the UI spinning for minutes.
+    const cached = await getMpesaStatus(checkoutRequestId).catch(() => null);
+    if (cached === 'completed' || cached === 'failed') {
       return ok({ status: cached, checkoutRequestId });
     }
 
