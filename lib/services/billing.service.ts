@@ -742,11 +742,13 @@ export const billingService = {
       if (!inserted[0]) return null;
 
       // Group expense. Posted only when the ledger insert above actually
-      // happened, so a replayed callback posts nothing extra.
+      // happened, so a replayed callback posts nothing extra. System-driven
+      // top-ups carry a non-UUID actor ('system'), which must not reach
+      // journal_entries.created_by, so actorId() maps those to null.
       await postTemplatedJournal(
         client,
         ctx.groupId,
-        ctx.userId,
+        actorId(ctx.userId),
         'sms_topup_expense',
         `SMS credit top-up${paymentId ? ` — payment ${paymentId}` : ''}`,
         { amount: amountKes },
