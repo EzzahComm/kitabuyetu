@@ -205,8 +205,8 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
       `INSERT INTO payments
          (group_id, invoice_id, amount, payment_method, status,
           mpesa_checkout_request_id, mpesa_merchant_request_id, mpesa_phone,
-          channel, initiated_by)
-       VALUES ($1,$2,$3,'mpesa','pending',$4,$5,$6,'stk',$7)
+          channel, initiated_by, product, plan_type)
+       VALUES ($1,$2,$3,'mpesa','pending',$4,$5,$6,'stk',$7,$8,$9)
        ON CONFLICT (mpesa_checkout_request_id) DO NOTHING
        RETURNING id`,
       [
@@ -217,6 +217,9 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
         res.merchantRequestId,
         phone,
         params.initiatedBy ?? null,
+        // Product and plan only describe a product subscription purchase.
+        params.purpose === 'subscription' ? (params.product ?? null) : null,
+        params.purpose === 'subscription' ? (params.planType ?? null) : null,
       ],
     );
     const paymentId = payRows[0]?.id ?? null;

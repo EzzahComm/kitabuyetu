@@ -285,6 +285,52 @@ export async function getPlatformStats() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Revenue trend (last 6 months)
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Platform revenue and subscription book split by product and plan
+ * (kitabu_yetu | chama_reminder × starter | growth | enterprise).
+ *
+ * `collected` is completed payments tagged with a product (migration 219).
+ * Registration, SMS top-up, PayBill and manual payments carry no product and
+ * are reported separately as `untagged`, so the breakdown never mixes them in.
+ */
+export async function getProductRevenueBreakdown() {
+  return cached(keys.cache('product-revenue', 'platform'), 120, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [collected, untagged, book] = await Promise.all([
+        db.query(`
+        SELECT product, plan_type,
+               COUNT(*)                                                       AS payment_count,
+               COALESCE(SUM(amount), 0)                                       AS total_collected,
+               COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'), 0) AS collected_30d
+        FROM public.payments
+        WHERE status = 'completed' AND product IS NOT NULL
+        GROUP BY product, plan_type
+        ORDER BY product, plan_type
+      `),
+        db.query(`
+        SELECT COUNT(*) AS payment_count, COALESCE(SUM(amount), 0) AS total_collected
+        FROM public.payments
+        WHERE status = 'completed' AND product IS NULL
+      `),
+        db.query(`
+        SELECT product, plan_type,
+               COUNT(*)                          AS active_subscriptions,
+               COALESCE(SUM(monthly_fee), 0)     AS mrr
+        FROM public.subscriptions
+        WHERE status = 'active'
+        GROUP BY product, plan_type
+        ORDER BY product, plan_type
+      `),
+      ]);
+      return {
+        collected: collected.rows,
+        untagged: untagged.rows[0],
+        subscriptionBook: book.rows,
+      };
+    }),
+  );
+}
+
 export async function getRevenueTrend() {
   return cached(keys.cache('revenue-trend', 'platform'), 120, () =>
     withAdminDb(async (db: PoolClient) => {
