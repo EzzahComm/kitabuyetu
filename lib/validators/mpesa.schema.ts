@@ -48,3 +48,60 @@ export const B2CSchema = z.object({
 });
 
 export type B2CInput = z.input<typeof B2CSchema>;
+
+// Group → member disbursement (migration 218). No phone field on purpose: an
+// M-Pesa payout always goes to the member's registered number, resolved
+// server-side.
+export const MemberPayoutSchema = z
+  .object({
+    memberId: z.string().uuid(),
+    // Whole shillings; M-Pesa B2C's per-transaction ceiling applies to every
+    // method so one limit is shown to officers.
+    amount: z.number().int('Amount must be whole shillings').positive('Amount must be greater than zero').max(250_000),
+    purpose: z.enum(['savings_withdrawal', 'merry_go_round', 'other']),
+    description: z.string().trim().min(3, 'Describe the purpose (3+ characters)').max(200),
+    notes: z.string().trim().max(500).optional(),
+    paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']).default('mpesa'),
+    paymentReference: z.string().trim().max(100).optional(),
+  })
+  .refine((v) => v.paymentMethod !== 'bank_transfer' || !!v.paymentReference, {
+    message: 'A bank transfer needs the payee account / transfer reference',
+    path: ['paymentReference'],
+  });
+
+export type MemberPayoutInput = z.input<typeof MemberPayoutSchema>;
+
+export const MemberPayoutActionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('approve') }),
+  z.object({ action: z.literal('reject'), reason: z.string().trim().min(5).max(500) }),
+  z.object({ action: z.literal('cancel') }),
+]);
+
+export const MemberPayoutListSchema = z.object({
+  page: z.coerce.number().int().positive().default(1),
+  limit: z.coerce.number().int().positive().max(100).default(20),
+  status: z
+    .enum([
+      'pending_approval',
+      'awaiting_platform',
+      'approved',
+      'rejected',
+      'cancelled',
+      'dispatched',
+      'completed',
+      'failed',
+      'timed_out',
+      'reconciled',
+    ])
+    .optional(),
+  memberId: z.string().uuid().optional(),
+  initiatedBy: z.string().uuid().optional(),
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+});

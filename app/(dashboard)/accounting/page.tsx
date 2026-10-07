@@ -1024,6 +1024,7 @@ const POSTING_EVENT_LABELS: Record<string, string> = {
   loan_writeoff: 'Loan write-off',
   loan_disbursement: 'Loan disbursement',
   loan_repayment: 'Loan repayment',
+  member_payout: 'Member payout',
 };
 
 interface TemplateLineUI {

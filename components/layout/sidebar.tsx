@@ -30,6 +30,7 @@ import {
   Vault,
   Wallet,
   Zap,
+  HandCoins,
 } from 'lucide-react';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -74,6 +75,7 @@ const NAV: ConfigNavSection[] = [
           // the link is disabled rather than leading to a 403 on arrival.
           { href: '/mpesa', label: 'M-Pesa', icon: Smartphone, requires: 'mpesa.view' },
           { href: '/treasury', label: 'Treasury', icon: Vault, requires: 'mpesa.view' },
+          { href: '/payouts', label: 'Disbursements', icon: HandCoins, requires: 'member_payouts.manage' },
           { href: '/welfare', label: 'Welfare', icon: Heart },
           { href: '/shares', label: 'Shares', icon: Coins },
           { href: '/dividends', label: 'Dividends', icon: Receipt },
@@ -138,6 +140,7 @@ function usePermissionMap(): Record<string, boolean> {
   return {
     'mpesa.view': useHasPermission('mpesa.view'),
     'accounting.manage': useHasPermission('accounting.manage'),
+    'member_payouts.manage': useHasPermission('member_payouts.manage'),
     'investments.view': useHasPermission('investments.view'),
   };
 }

@@ -27,6 +27,7 @@ import {
   Briefcase,
   UserPlus,
   Link2,
+  HandCoins,
 } from 'lucide-react';
 import { useAuth } from '@/lib/auth/context';
 import { BrandLogo } from '@/components/branding/BrandLogo';
@@ -76,6 +77,7 @@ const NAV: PortalNavSection[] = [
     items: [
       { href: '/admin/support', label: 'Support Center', icon: Headphones },
       { href: '/admin/mpesa-unrouted', label: 'Unrouted Payments', icon: Wallet },
+      { href: '/admin/disbursements', label: 'Member Disbursements', icon: HandCoins },
       { href: '/admin/audit-logs', label: 'Audit Logs', icon: ScrollText },
       { href: '/admin/activity', label: 'Platform Activity', icon: BellRing },
       { href: '/admin/feature-flags', label: 'Feature Flags', icon: Flag },

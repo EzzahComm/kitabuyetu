@@ -33,6 +33,11 @@ export const SMS_EVENTS = {
   MEMBER_REGISTERED: 'member.registered',
   MEETING_SCHEDULED: 'meeting.scheduled',
   APPROVAL_REQUESTED: 'approval.requested',
+
+  // Member disbursements (migration 218)
+  MEMBER_PAYOUT_REQUESTED: 'member_payout.requested',
+  MEMBER_PAYOUT_COMPLETED: 'member_payout.completed',
+  MEMBER_PAYOUT_REJECTED: 'member_payout.rejected',
 } as const;
 
 export type SmsEventType = (typeof SMS_EVENTS)[keyof typeof SMS_EVENTS];
