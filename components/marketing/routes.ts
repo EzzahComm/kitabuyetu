@@ -296,7 +296,7 @@ export interface SocialLink {
  */
 export const SOCIAL_LINKS: SocialLink[] = [
   { platform: 'facebook', label: 'Facebook', href: 'https://www.facebook.com/profile.php?id=61593473970354' },
-  { platform: 'x', label: 'X (Twitter)', href: null },
+  { platform: 'x', label: 'X (Twitter)', href: 'https://x.com/KitabuYetu' },
   { platform: 'linkedin', label: 'LinkedIn', href: 'https://www.linkedin.com/in/polycap-wanyonyi-ezzahcomm-642505167' },
   { platform: 'instagram', label: 'Instagram', href: null },
   { platform: 'youtube', label: 'YouTube', href: 'https://www.youtube.com/@KitabuYetu' },
