@@ -455,6 +455,27 @@ export const accountingService = {
     });
   },
 
+  /**
+   * This group's own cash position from its ledger: 1001 Cash and M-Pesa and
+   * 1002 Bank (asset accounts, debit-normal, so `balance` is stored as-is).
+   * Strictly the caller's group; the shared paybill's Daraja balance is the
+   * platform's and is never exposed to a tenant.
+   */
+  async getCashBalances(ctx: TenantContext): Promise<{ cashAndMpesa: number; bank: number; total: number }> {
+    return withDb(ctx, async (client) => {
+      const { rows } = await client.query<{ account_code: string; balance: string }>(
+        `SELECT account_code, balance::text AS balance
+         FROM accounts
+         WHERE group_id = $1 AND is_active = true AND account_code IN ('1001', '1002')`,
+        [ctx.groupId],
+      );
+      const get = (code: string) => Number(rows.find((r) => r.account_code === code)?.balance ?? 0);
+      const cashAndMpesa = get('1001');
+      const bank = get('1002');
+      return { cashAndMpesa, bank, total: cashAndMpesa + bank };
+    });
+  },
+
   // Every report below: cached 60s (analytics.service.ts:119's pattern —
   // fail-open, no manual invalidation, short TTL traded for minimal
   // staleness risk). None of these 5 was cached before — every /accounting
@@ -871,9 +892,11 @@ const GL_CASH_SNAPSHOT_MAX_AGE_HOURS = 36;
  * — not a per-group comparison, since no single group's ledger represents
  * the whole paybill.
  *
- * Reads the latest completed balance_query row in mpesa_transactions (the
- * treasurer-triggered "Query balance" action on the treasury page — see
- * app/api/v1/mpesa/balance/route.ts). Detection only, same as
+ * Reads the latest completed balance_query row in mpesa_transactions. The
+ * treasurer-triggered "Query balance" action that used to create these rows
+ * was removed (it exposed the platform shortcode's balance to tenants — see
+ * app/api/v1/mpesa/balance/route.ts), so until a platform-level trigger exists
+ * this reports no_snapshot. Detection only, same as
  * detectBalanceDrift: a mismatch is logged and recorded, never silently
  * "corrected".
  *

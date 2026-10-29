@@ -24,9 +24,9 @@ import { formatKES, formatDate, formatDateTime, getErrorMessage } from '@/lib/ut
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 interface BalanceResult {
-  workingAccountBalance: number;
-  utilityAccountBalance: number;
-  chargesAccountBalance: number;
+  cashAndMpesa: number;
+  bank: number;
+  total: number;
   queriedAt: string;
 }
 
@@ -134,8 +134,7 @@ interface VendorPaymentRow {
 
 // ─── API helpers — api.get / api.post return T directly ──────────────────────
 
-const fetchBalance = () => api.get<BalanceResult | null>('/mpesa/balance');
-const triggerBalance = () => api.post<{ message: string }>('/mpesa/balance', {});
+const fetchBalance = () => api.get<BalanceResult>('/mpesa/balance');
 const fetchTransactions = (page: number) => api.get<TransactionPage>(`/mpesa/transactions?page=${page}&limit=20`);
 const fetchReversals = () => api.get<ReversalRecord[]>('/mpesa/reversal');
 const fetchReconciles = () => api.get<ReconciliationRun[]>('/mpesa/reconcile');
@@ -174,9 +173,9 @@ function TypeBadge({ type, direction }: { type: string; direction: string }) {
 }
 
 const accounts = [
-  { label: 'Working Account', key: 'workingAccountBalance', icon: Wallet },
-  { label: 'Utility Account', key: 'utilityAccountBalance', icon: Landmark },
-  { label: 'Charges Account', key: 'chargesAccountBalance', icon: Receipt },
+  { label: 'Cash & M-Pesa', key: 'cashAndMpesa', icon: Wallet },
+  { label: 'Bank', key: 'bank', icon: Landmark },
+  { label: 'Total cash', key: 'total', icon: Receipt },
 ] as const;
 
 const txColumns = [
@@ -223,7 +222,7 @@ export default function TreasuryPage() {
   >('transactions');
   const [reconcileMsg, setReconcileMsg] = useState<string | null>(null);
 
-  const balanceQ = useQuery({ queryKey: ['mpesa-balance'], queryFn: fetchBalance, staleTime: 60_000 });
+  const balanceQ = useQuery({ queryKey: ['group-cash-balance'], queryFn: fetchBalance, staleTime: 60_000 });
   const txQ = useQuery({
     queryKey: ['mpesa-transactions', page],
     queryFn: () => fetchTransactions(page),
@@ -248,11 +247,6 @@ export default function TreasuryPage() {
     enabled: tab === 'funding',
   });
 
-  const balanceMut = useMutation({
-    mutationFn: triggerBalance,
-    onSuccess: () => setTimeout(() => qc.invalidateQueries({ queryKey: ['mpesa-balance'] }), 35_000),
-  });
-
   const reconcileMut = useMutation({
     mutationFn: triggerReconcile,
     onSuccess: (res) => {
@@ -270,15 +264,15 @@ export default function TreasuryPage() {
     <div className="space-y-6">
       <PageHeader
         title="Treasury"
-        description="M-Pesa balance, transactions, and reconciliation"
+        description="Your group's cash balance, M-Pesa transactions, and reconciliation"
         actions={
-          <Button variant="outline" size="sm" onClick={() => balanceMut.mutate()} loading={balanceMut.isPending}>
+          <Button variant="outline" size="sm" onClick={() => balanceQ.refetch()} loading={balanceQ.isFetching}>
             <RefreshCw size={15} /> Refresh balance
           </Button>
         }
       />
 
-      {/* Balance cards */}
+      {/* Balance cards: this group's own ledger, never the shared paybill's. */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {accounts.map(({ label, key, icon }) => (
           <StatCard
@@ -290,12 +284,6 @@ export default function TreasuryPage() {
           />
         ))}
       </div>
-
-      {balanceMut.isSuccess && (
-        <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-4 py-2">
-          Balance query sent. Results appear within ~30 s — refresh to see updated figures.
-        </p>
-      )}
 
       {/* Tabs */}
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>

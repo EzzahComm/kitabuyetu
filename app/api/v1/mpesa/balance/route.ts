@@ -1,21 +1,24 @@
 ﻿export const dynamic = 'force-dynamic';
 /**
- * POST /api/v1/mpesa/balance              â€” Trigger balance query (treasurer+)
- * GET  /api/v1/mpesa/balance              â€” Return latest stored balance result
+ * POST /api/v1/mpesa/balance              - REMOVED for tenants (403): it queried the platform shortcode
+ * GET  /api/v1/mpesa/balance              - This group's own ledger cash balance (mpesa.view)
  * POST /api/v1/mpesa/balance?type=result  â€” Safaricom async result callback
  * POST /api/v1/mpesa/balance?type=timeout â€” Safaricom timeout callback
  */
 import { NextRequest, NextResponse, after } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { queryAccountBalance, isValidCallbackToken } from '@/lib/services/daraja.service';
+import { isValidCallbackToken } from '@/lib/services/daraja.service';
+import { accountingService } from '@/lib/services/accounting.service';
 import { handleBalanceResult } from '@/lib/services/mpesa.service';
-import { ok, handleError } from '@/lib/utils/response';
-import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
+import { ok, errorResponse, handleError } from '@/lib/utils/response';
+import { withAdminDb, type TenantContext } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
 function callerIp(req: NextRequest): string {
   return req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? '0.0.0.0';
 }
+
+const refuse = () => errorResponse('The platform M-Pesa balance is not available to groups.', 'FORBIDDEN', 403);
 
 const ack = () => NextResponse.json({ ResultCode: 0, ResultDesc: 'Accepted' });
 
@@ -60,45 +63,16 @@ export async function POST(req: NextRequest): Promise<Response> {
     return ack();
   }
 
-  // Authenticated balance query trigger â€” treasurer, chairperson, or super_admin
-  return withPermission(req, 'mpesa.view', async (auth) => {
-    try {
-      const shortcode = process.env.MPESA_SHORTCODE ?? '';
-      const res = await queryAccountBalance(shortcode);
-
-      // Record the query in master ledger so we can correlate the callback
-      const isSandbox = (process.env.MPESA_ENV ?? 'sandbox') !== 'production';
-      const ctx: TenantContext = {
-        userId: auth.userId,
-        groupId: auth.groupId,
-        role: auth.role,
-        organizationId: auth.organizationId,
-      };
-      await withTransaction(ctx, (db) =>
-        db.query(
-          `INSERT INTO mpesa_transactions
-             (group_id, transaction_type, direction, amount, status, description,
-              originator_conversation_id, conversation_id, is_test)
-           VALUES ($1,'balance_query','outbound',0,'initiated','Account balance query',$2,$3,$4)
-           ON CONFLICT (originator_conversation_id) DO NOTHING`,
-          [auth.groupId, res.originatorConversationId, res.conversationId, isSandbox],
-        ),
-      );
-
-      return ok({
-        conversationId: res.conversationId,
-        originatorConversationId: res.originatorConversationId,
-        responseCode: res.responseCode,
-        responseDescription: res.responseDescription,
-        message: 'Balance query submitted. Result will arrive via callback within 30 seconds.',
-      });
-    } catch (err) {
-      return handleError(err);
-    }
-  });
+  return refuse();
 }
 
-/** Return the latest balance result stored in mpesa_transactions for this group */
+/**
+ * GET returns THIS group's own cash position from its ledger (1001 Cash and
+ * M-Pesa, 1002 Bank), scoped to the caller's group. It used to return the
+ * balance of the platform shortcode (MPESA_SHORTCODE), shared by every group,
+ * which any treasurer could trigger and read. That Daraja balance is the
+ * platform's and is never exposed to a tenant.
+ */
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'mpesa.view', async (auth) => {
     try {
@@ -108,36 +82,8 @@ export async function GET(req: NextRequest): Promise<Response> {
         role: auth.role,
         organizationId: auth.organizationId,
       };
-      const rows = await withDb(ctx, async (db) => {
-        const { rows } = await db.query(
-          `SELECT raw_response, completed_at, status
-           FROM mpesa_transactions
-           WHERE group_id=$1 AND transaction_type='balance_query'
-             AND status='completed'
-           ORDER BY completed_at DESC LIMIT 1`,
-          [auth.groupId],
-        );
-        return rows;
-      });
-
-      if (!rows[0]) return ok(null);
-
-      const raw = rows[0].raw_response as Record<string, unknown>;
-      type ResultParam = { Key: string; Value: string | number };
-      type BalResult = {
-        Result?: {
-          ResultParameters?: { ResultParameter?: ResultParam[] };
-        };
-      };
-      const params = (raw as BalResult).Result?.ResultParameters?.ResultParameter ?? [];
-      const get = (k: string) => params.find((p) => p.Key === k)?.Value ?? 0;
-
-      return ok({
-        workingAccountBalance: Number(get('WorkingAccountAvailableFunds')),
-        utilityAccountBalance: Number(get('UtilityAccountAvailableFunds')),
-        chargesAccountBalance: Number(get('ChargesAccountAvailableFunds')),
-        queriedAt: rows[0].completed_at as string,
-      });
+      const balances = await accountingService.getCashBalances(ctx);
+      return ok({ ...balances, queriedAt: new Date().toISOString() });
     } catch (err) {
       return handleError(err);
     }
