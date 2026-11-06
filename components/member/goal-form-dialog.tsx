@@ -1,9 +1,8 @@
 'use client';
 
 import * as React from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,8 +34,7 @@ export function GoalFormDialog({ open, onOpenChange, goal, onSubmit }: GoalFormD
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  } = useZodForm(schema, {
     values: {
       name: goal?.name ?? '',
       emoji: goal?.emoji ?? '🎯',

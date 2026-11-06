@@ -30,7 +30,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!ctx.organizationId) return badRequest('Organization context is required');
 
     const parsed = TopUpSmsCreditsSchema.safeParse(await req.json());
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await addOrganizationSmsCredits(ctx.organizationId, parsed.data.amountKes, ctx.userId, {
       reference: parsed.data.reference,

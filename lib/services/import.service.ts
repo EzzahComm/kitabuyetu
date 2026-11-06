@@ -148,7 +148,7 @@ export const importService = {
         if (!parsed.success) {
           errors.push({
             row: rowNum,
-            message: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+            message: parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
             raw,
           });
           continue;
@@ -582,7 +582,7 @@ export const importService = {
         const rowNum = i + 2;
         const result = ContributionCsvRowSchema.safeParse(rows[i]);
         if (!result.success) {
-          errors.push({ row: rowNum, message: result.error.errors.map((e) => e.message).join('; ') });
+          errors.push({ row: rowNum, message: result.error.issues.map((e) => e.message).join('; ') });
           continue;
         }
         const row = result.data;
@@ -678,7 +678,7 @@ export const importService = {
         if (!parsed.success) {
           errors.push({
             row: rowNum,
-            message: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+            message: parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
             raw,
           });
           continue;
@@ -953,7 +953,7 @@ export const importService = {
         if (!parsed.success) {
           errors.push({
             row: rowNum,
-            message: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
+            message: parsed.error.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
             raw,
           });
           continue;

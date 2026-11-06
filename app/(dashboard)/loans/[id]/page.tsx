@@ -20,9 +20,8 @@ import { useLoan, useLoanAction, useRecordRepayment } from '@/hooks/use-loans';
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 
 // Mirrors RecordRepaymentSchema field-for-field. It used to be
 // {amount, paymentMethod, reference}, none of which the API accepts —
@@ -73,8 +72,7 @@ export default function LoanDetailPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<RepayForm>({
-    resolver: zodResolver(repaySchema),
+  } = useZodForm(repaySchema, {
     defaultValues: {
       paymentMethod: 'mpesa' as const,
       paymentDate: new Date().toISOString().slice(0, 10),

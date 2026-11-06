@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import {
   Coins,
   Plus,
@@ -523,8 +524,7 @@ function NewTransactionDialog({
     control,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<TxnForm>({
-    resolver: zodResolver(txnSchema),
+  } = useZodForm(txnSchema, {
     defaultValues: { type: 'purchase' },
   });
   const type = useWatch({ control, name: 'type' });

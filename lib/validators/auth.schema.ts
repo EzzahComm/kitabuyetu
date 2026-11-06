@@ -53,7 +53,7 @@ const groupDetailsFields = {
 
   // Governance — the registrant must take one of the three mandatory roles (spec §2).
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
-    errorMap: () => ({ message: 'Choose your role: chairperson, secretary, or treasurer' }),
+    error: 'Choose your role: chairperson, secretary, or treasurer',
   }),
 
   // Location — countyId is required (FK to counties); sub-county / ward fall
@@ -149,7 +149,7 @@ export const RegisterSchema = z.object({
 export const RegisterOrganizationSchema = z.object({
   organizationName: z.string().min(3, 'Organization name must be at least 3 characters').max(255),
   organizationType: z.enum(ORGANIZATION_TYPES, {
-    errorMap: () => ({ message: 'Choose the type of organization' }),
+    error: 'Choose the type of organization',
   }),
   registrationNumber: z.string().max(100).optional().or(z.literal('')),
   organizationPhone: z
@@ -162,7 +162,7 @@ export const RegisterOrganizationSchema = z.object({
   address: z.string().max(255).optional().or(z.literal('')),
 
   planType: z.enum(['starter', 'growth', 'premium'], {
-    errorMap: () => ({ message: 'Choose a plan' }),
+    error: 'Choose a plan',
   }),
 
   // First coordinator (the account signing up)

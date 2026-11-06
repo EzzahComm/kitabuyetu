@@ -82,13 +82,13 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
 
     if (body && typeof body === 'object' && 'action' in body) {
       const parsed = actionSchema.safeParse(body);
-      if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+      if (!parsed.success) return badRequest(parsed.error.issues[0].message);
       const result = await updateGroupStatus(id, parsed.data.action, auth.userId, parsed.data.reason);
       return ok(result);
     }
 
     const parsed = profileSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
     // Throws ConflictError (409) on uq_group_name_per_county collision and
     // NotFoundError (404) for an unknown group — both mapped by handleError.
     const result = await updateGroupProfile(id, parsed.data, auth.userId);

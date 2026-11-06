@@ -16,7 +16,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
     const { id } = await params;
     const body = await req.json();
     const parsed = schema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await updateTicketStatus(id, parsed.data.status, auth.userId, parsed.data.resolution);
     return ok(result);

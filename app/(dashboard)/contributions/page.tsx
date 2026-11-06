@@ -13,9 +13,8 @@ import { Input } from '@/components/ui/input';
 import { useContributions, useRecordContribution, useSavingsPolicy } from '@/hooks/use-contributions';
 import { useMembers } from '@/hooks/use-members';
 import { api } from '@/lib/api/client';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { Contribution } from '@/types/db.types';
@@ -60,8 +59,7 @@ export default function ContributionsPage() {
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<FormValues>({
-    resolver: zodResolver(schema),
+  } = useZodForm(schema, {
     defaultValues: { paymentMethod: 'mpesa', contributionDate: now.toISOString().split('T')[0] },
   });
 

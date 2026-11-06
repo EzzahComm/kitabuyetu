@@ -24,7 +24,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
     const { id } = await params;
     const body = await req.json();
     const parsed = actionSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await setOrganizationActive(id, parsed.data.action === 'activate');
     return ok(result);

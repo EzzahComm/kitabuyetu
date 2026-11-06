@@ -13,9 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useLoans, useApplyLoan, useLoanPolicy } from '@/hooks/use-loans';
 import { useMembers } from '@/hooks/use-members';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useWatch } from 'react-hook-form';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import {
@@ -79,8 +79,7 @@ export default function LoansPage() {
     reset,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<ApplyValues>({
-    resolver: zodResolver(applySchema),
+  } = useZodForm(applySchema, {
     defaultValues: { interestRate: 10, loanTermMonths: 12, repaymentFrequency: 'monthly' },
   });
 
@@ -281,7 +280,7 @@ export default function LoansPage() {
                   what the officer is actually creating. Cadence changes the
                   number and size of instalments, never the total cost. */}
               <p className="text-xs text-muted-foreground">
-                {watchedTerm > 0 && watchedFreq
+                {Number(watchedTerm) > 0 && watchedFreq
                   ? `${installmentCount(Number(watchedTerm), watchedFreq)} instalments over ${watchedTerm} month${Number(watchedTerm) === 1 ? '' : 's'} — same total cost either way`
                   : 'Term stays in months; this only changes how often instalments fall due'}
               </p>

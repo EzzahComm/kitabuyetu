@@ -17,7 +17,7 @@ const bodySchema = z.object({ asOf: z.string().date().optional() });
 export function POST(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async () => {
     const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const asOf = parsed.data.asOf ?? new Date().toISOString().slice(0, 10);
     const result = await computeGovernanceForAllGroups(asOf);

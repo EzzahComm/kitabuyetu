@@ -5,7 +5,7 @@ import { z } from 'zod';
 // Programs" section for the org-side (create/publish/invite/review) schemas.
 
 export const SubmitProgramApplicationSchema = z.object({
-  applicationData: z.record(z.unknown()).optional(),
+  applicationData: z.record(z.string(), z.unknown()).optional(),
 });
 
 export type SubmitProgramApplicationInput = z.infer<typeof SubmitProgramApplicationSchema>;

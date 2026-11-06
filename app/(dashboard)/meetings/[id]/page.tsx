@@ -39,9 +39,8 @@ import {
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 
 const typeLabels: Record<string, string> = {
   regular: 'Regular',
@@ -92,8 +91,7 @@ export default function MeetingDetailPage() {
     setSeededFor(meeting.id);
   }
 
-  const resolutionForm = useForm<ResolutionForm>({
-    resolver: zodResolver(resolutionSchema),
+  const resolutionForm = useZodForm(resolutionSchema, {
     defaultValues: { status: 'carried' },
   });
 

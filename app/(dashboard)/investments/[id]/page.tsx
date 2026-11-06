@@ -40,9 +40,8 @@ import {
 import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 
 const typeLabels: Record<string, string> = {
   real_estate: 'Real Estate',
@@ -129,16 +128,14 @@ export default function InvestmentDetailPage() {
   const [returnOpen, setReturnOpen] = useState(false);
   const [expenseOpen, setExpenseOpen] = useState(false);
 
-  const returnForm = useForm<ReturnForm>({
-    resolver: zodResolver(returnSchema),
+  const returnForm = useZodForm(returnSchema, {
     defaultValues: {
       returnType: 'dividend',
       returnDate: new Date().toISOString().slice(0, 10),
     },
   });
 
-  const expenseForm = useForm<ExpenseForm>({
-    resolver: zodResolver(expenseSchema),
+  const expenseForm = useZodForm(expenseSchema, {
     defaultValues: {
       expenseType: 'inputs',
       expenseDate: new Date().toISOString().slice(0, 10),

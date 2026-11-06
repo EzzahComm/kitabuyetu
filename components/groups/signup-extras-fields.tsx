@@ -13,8 +13,8 @@ import { CERTIFICATE_LIMIT_MB, MAX_CERTIFICATE_BYTES } from '@/lib/utils/certifi
 
 /** The sign-up fields these sections own: a subset of every group sign-up form's values. */
 export interface SignupExtrasFields {
-  monthlyContribution?: number;
-  welfareAmount?: number;
+  monthlyContribution?: unknown;
+  welfareAmount?: unknown;
   isGovernmentRegistered: boolean;
   registrationNumber?: string;
 }

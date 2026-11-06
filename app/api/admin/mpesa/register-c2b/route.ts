@@ -39,7 +39,7 @@ export function POST(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     try {
       const parsed = bodySchema.safeParse(await req.json().catch(() => ({})));
-      if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+      if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
       const result = await registerC2BUrls(parsed.data.version);
       logger.info('[admin/mpesa/register-c2b] C2B URLs registered', {

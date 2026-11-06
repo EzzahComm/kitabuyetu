@@ -54,7 +54,7 @@ const schema = z
 
     // Governance — registrant must hold one of the three mandatory roles.
     creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
-      errorMap: () => ({ message: 'Select your role' }),
+      error: 'Select your role',
     }),
 
     // Location

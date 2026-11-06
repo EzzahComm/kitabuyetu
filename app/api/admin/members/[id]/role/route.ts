@@ -25,7 +25,7 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
     try {
       const { id: memberId } = await params;
       const parsed = schema.safeParse(await req.json());
-      if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+      if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
       const ipAddress =
         req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? req.headers.get('x-real-ip') ?? null;

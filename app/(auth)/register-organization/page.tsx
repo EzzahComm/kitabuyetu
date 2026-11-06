@@ -22,14 +22,14 @@ import { ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_PLAN_COPY } 
 const schema = z
   .object({
     organizationName: z.string().min(3, 'Organization name must be at least 3 characters'),
-    organizationType: z.enum(ORGANIZATION_TYPES, { errorMap: () => ({ message: 'Choose the type of organization' }) }),
+    organizationType: z.enum(ORGANIZATION_TYPES, { error: 'Choose the type of organization' }),
     registrationNumber: z.string().optional().or(z.literal('')),
     organizationPhone: z.string().optional().or(z.literal('')),
     organizationEmail: z.string().email('Invalid email').optional().or(z.literal('')),
     county: z.string().optional().or(z.literal('')),
     address: z.string().optional().or(z.literal('')),
 
-    planType: z.enum(['starter', 'growth', 'premium'], { errorMap: () => ({ message: 'Choose a plan' }) }),
+    planType: z.enum(['starter', 'growth', 'premium'], { error: 'Choose a plan' }),
 
     firstName: z.string().min(2, 'Required'),
     lastName: z.string().min(2, 'Required'),

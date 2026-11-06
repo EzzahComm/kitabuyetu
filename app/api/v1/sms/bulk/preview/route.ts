@@ -29,7 +29,7 @@ import { ok, badRequest } from '@/lib/utils/response';
 export async function POST(req: NextRequest): Promise<Response> {
   return withPermission(req, 'messaging.send', async (auth) => {
     const parsed = BulkPreviewSchema.safeParse(await req.json());
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
     const preview = await smsService.previewBulkSend(ctx, parsed.data);

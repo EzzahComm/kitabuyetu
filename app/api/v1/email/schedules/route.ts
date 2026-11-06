@@ -9,7 +9,7 @@ import { NotFoundError } from '@/lib/utils/errors';
 const CreateScheduleSchema = z.object({
   templateKey: z.string().min(1),
   to: z.string().min(1),
-  vars: z.record(z.string()).optional(),
+  vars: z.record(z.string(), z.string()).optional(),
   name: z.string().optional(),
   sendAt: z.string().datetime(),
   referenceId: z.string().optional(),

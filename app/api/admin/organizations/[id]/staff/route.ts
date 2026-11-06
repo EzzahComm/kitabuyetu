@@ -28,7 +28,7 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
     const { id } = await params;
     const body = await req.json();
     const parsed = addStaffSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await addOrgStaff(id, { ...parsed.data, invitedBy: auth.userId });
     return ok(result);

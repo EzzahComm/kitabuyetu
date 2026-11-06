@@ -13,9 +13,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { useCampaigns, useCampaignEligibility, useCreateCampaign } from '@/hooks/use-campaigns';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -55,7 +54,7 @@ export default function CampaignsPage() {
   const canStart = canManage && officersMissing.length === 0 && !planMissing;
   const createCampaign = useCreateCampaign();
 
-  const form = useForm<CreateCampaignForm>({ resolver: zodResolver(createSchema) });
+  const form = useZodForm(createSchema);
   const beneficiaryName = form.watch('beneficiaryName');
 
   const onSubmit = async (values: CreateCampaignForm) => {

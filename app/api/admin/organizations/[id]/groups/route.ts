@@ -17,7 +17,7 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
     const { id } = await params;
     const body = await req.json();
     const parsed = assignSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await assignGroupToOrganization(id, parsed.data.groupId, auth.userId, parsed.data.accessLevel);
     return ok(result);

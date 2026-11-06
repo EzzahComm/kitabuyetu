@@ -49,7 +49,7 @@ const schema = z.object({
   // GROUP_TYPES tuple so this client copy cannot drift from the server schema.
   groupType: z.enum(GROUP_TYPES),
   creatorRole: z.enum(['chairperson', 'secretary', 'treasurer'], {
-    errorMap: () => ({ message: 'Select your role in this group' }),
+    error: 'Select your role in this group',
   }),
   countyId: z.string().uuid('Please pick a county'),
   subCountyText: z.string().max(80).optional().or(z.literal('')),

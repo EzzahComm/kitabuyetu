@@ -1,0 +1,186 @@
+{
+  "generatedAt": "2026-10-29T19:53:18.277Z",
+  "commit": "d4bc37de",
+  "coverage": {
+    "lines": 30.94,
+    "branches": 28.56,
+    "functions": 26.5,
+    "statements": 30.42
+  },
+  "bundle": {
+    "clientJsKb": 5151,
+    "largestChunkKb": 384,
+    "serverKb": 102276,
+    "topChunks": [
+      {
+        "file": "static\\chunks\\0vytk0rnmvld9.js",
+        "kb": 384
+      },
+      {
+        "file": "static\\chunks\\3gwb465dhjxo9.js",
+        "kb": 224
+      },
+      {
+        "file": "static\\chunks\\1tw5_upsy-qj_.js",
+        "kb": 153
+      },
+      {
+        "file": "static\\chunks\\0cz1d0mv5g_q7.js",
+        "kb": 110
+      },
+      {
+        "file": "static\\chunks\\38aw_pi-t7c7k.js",
+        "kb": 63
+      }
+    ]
+  },
+  "audit": null,
+  "hygiene": {
+    "explicitAny": 4,
+    "tsSuppressions": 0,
+    "eslintSuppressions": 8,
+    "consoleLog": 2,
+    "todos": 4,
+    "largeFiles": 46,
+    "largestFiles": [
+      {
+        "file": "lib\\services\\sms.service.ts",
+        "lines": 2776
+      },
+      {
+        "file": "lib\\services\\admin.service.ts",
+        "lines": 1992
+      },
+      {
+        "file": "lib\\services\\organization-finance.service.ts",
+        "lines": 1927
+      },
+      {
+        "file": "lib\\jobs\\handlers.ts",
+        "lines": 1786
+      },
+      {
+        "file": "app\\(dashboard)\\accounting\\page.tsx",
+        "lines": 1549
+      },
+      {
+        "file": "lib\\services\\import.service.ts",
+        "lines": 1345
+      },
+      {
+        "file": "app\\(enterprise)\\enterprise\\funding\\page.tsx",
+        "lines": 1329
+      },
+      {
+        "file": "app\\(dashboard)\\treasury\\page.tsx",
+        "lines": 1317
+      },
+      {
+        "file": "lib\\services\\mpesa-stk.service.ts",
+        "lines": 1289
+      },
+      {
+        "file": "hooks\\use-admin.ts",
+        "lines": 1288
+      }
+    ]
+  },
+  "deltas": [
+    {
+      "metric": "coverage.lines",
+      "before": 28.94,
+      "now": 30.94,
+      "delta": 2,
+      "status": "improved",
+      "unit": "%"
+    },
+    {
+      "metric": "coverage.branches",
+      "before": 27.2,
+      "now": 28.56,
+      "delta": 1.36,
+      "status": "improved",
+      "unit": "%"
+    },
+    {
+      "metric": "coverage.functions",
+      "before": 25.31,
+      "now": 26.5,
+      "delta": 1.19,
+      "status": "improved",
+      "unit": "%"
+    },
+    {
+      "metric": "bundle.clientJsKb",
+      "before": 5433,
+      "now": 5151,
+      "delta": -282,
+      "status": "improved",
+      "unit": " KB"
+    },
+    {
+      "metric": "bundle.largestChunkKb",
+      "before": 359,
+      "now": 384,
+      "delta": 25,
+      "status": "regressed",
+      "unit": " KB"
+    },
+    {
+      "metric": "bundle.serverKb",
+      "before": 28787,
+      "now": 102276,
+      "delta": 73489,
+      "status": "regressed",
+      "unit": " KB"
+    },
+    {
+      "metric": "hygiene.explicitAny",
+      "before": 4,
+      "now": 4,
+      "delta": 0,
+      "status": "unchanged",
+      "unit": ""
+    },
+    {
+      "metric": "hygiene.tsSuppressions",
+      "before": 0,
+      "now": 0,
+      "delta": 0,
+      "status": "unchanged",
+      "unit": ""
+    },
+    {
+      "metric": "hygiene.eslintSuppressions",
+      "before": 6,
+      "now": 8,
+      "delta": 2,
+      "status": "regressed",
+      "unit": ""
+    },
+    {
+      "metric": "hygiene.consoleLog",
+      "before": 3,
+      "now": 2,
+      "delta": -1,
+      "status": "improved",
+      "unit": ""
+    },
+    {
+      "metric": "hygiene.todos",
+      "before": 4,
+      "now": 4,
+      "delta": 0,
+      "status": "unchanged",
+      "unit": ""
+    },
+    {
+      "metric": "hygiene.largeFiles",
+      "before": 43,
+      "now": 46,
+      "delta": 3,
+      "status": "regressed",
+      "unit": ""
+    }
+  ]
+}

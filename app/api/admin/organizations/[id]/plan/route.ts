@@ -42,7 +42,7 @@ export function POST(req: NextRequest, { params }: { params: Promise<{ id: strin
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id } = await params;
     const parsed = changePlanSchema.safeParse(await req.json());
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const result = await assignOrganizationPlan(id, parsed.data.planType, auth.userId, {
       custom: parsed.data.custom,

@@ -14,9 +14,8 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
 import { useInvestments, useInvestmentSummary, useCreateInvestment, type InvestmentRow } from '@/hooks/use-investments';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -73,8 +72,7 @@ export default function InvestmentsPage() {
   const { data: summary } = useInvestmentSummary();
   const createInvestment = useCreateInvestment();
 
-  const form = useForm<CreateInvestmentForm>({
-    resolver: zodResolver(createSchema),
+  const form = useZodForm(createSchema, {
     defaultValues: { investmentType: 'shares' },
   });
 

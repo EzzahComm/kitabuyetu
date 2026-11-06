@@ -39,7 +39,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
   return withPlatformRole(req, 'super_admin', async (auth) => {
     const { id: groupId, memberId } = await params;
     const parsed = profileSchema.safeParse(await req.json());
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     // Throws ConflictError (409) on the members_email_unique collision and
     // NotFoundError (404) for an unknown member — both mapped by handleError.

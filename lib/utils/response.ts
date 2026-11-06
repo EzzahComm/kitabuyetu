@@ -34,7 +34,7 @@ export function handleError(err: unknown): NextResponse<ApiError> {
   }
 
   if (err instanceof ZodError) {
-    const message = err.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
+    const message = err.issues.map((e) => `${e.path.join('.')}: ${e.message}`).join('; ');
     return errorResponse(message, 'VALIDATION_ERROR', 422);
   }
 

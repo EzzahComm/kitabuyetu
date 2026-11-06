@@ -16,7 +16,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
     const { id, memberId } = await params;
     const body = await req.json();
     const parsed = changeRoleSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     await changeOrgStaffRole(id, memberId, parsed.data.orgRole);
     return ok({ success: true });

@@ -129,7 +129,7 @@ const envObjectSchema = z.object({
   EMAIL_DRY_RUN: z
     .string()
     .transform((v) => v === 'true')
-    .default('false'),
+    .default(false),
   RESEND_API_KEY: z.string().optional(),
   // Format from Resend dashboard: whsec_<base64>. Used by svix HMAC verify.
   RESEND_WEBHOOK_SECRET: z.string().optional(),

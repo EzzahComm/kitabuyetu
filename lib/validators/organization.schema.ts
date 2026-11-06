@@ -54,6 +54,7 @@ export const RepaymentWaterfallSchema = z.object({
     .refine((o) => new Set(o).size === o.length, 'waterfall order cannot repeat a component'),
   revenue_split: z
     .record(
+      z.string(),
       z
         .object({ organization: z.number().min(0).max(1), group: z.number().min(0).max(1) })
         .refine((s) => Math.abs(s.organization + s.group - 1) < 1e-9, 'each revenue_split must sum to exactly 1.0'),
@@ -95,7 +96,7 @@ export const CreateProgramSchema = z
     budget: z.number().positive().max(100_000_000_000),
     fundingSource: z.string().max(160).optional(),
     description: z.string().max(2000).optional(),
-    eligibilityCriteria: z.record(z.unknown()).optional(),
+    eligibilityCriteria: z.record(z.string(), z.unknown()).optional(),
     geographicCoverage: z.array(z.string().max(80)).max(100).optional(),
     reportingRequirements: z.string().max(2000).optional(),
     startsOn: z
@@ -404,7 +405,7 @@ export const CreateGroupProgramSchema = z.object({
   description: z.string().max(2000).optional(),
   objectives: z.string().max(2000).optional(),
   targetBeneficiaries: z.string().max(500).optional(),
-  eligibilityCriteria: z.record(z.unknown()).optional(),
+  eligibilityCriteria: z.record(z.string(), z.unknown()).optional(),
   geographicCoverage: z.array(z.string().max(80)).max(100).optional(),
   applicationRequirements: z.string().max(2000).optional(),
   startsOn: z

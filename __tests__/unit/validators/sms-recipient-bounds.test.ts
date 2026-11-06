@@ -21,7 +21,7 @@ import {
 
 const VALID = '0722123456';
 const VALID_2 = '0733123456';
-const UUID = '11111111-1111-1111-1111-111111111111';
+const UUID = '11111111-1111-4111-8111-111111111111';
 
 describe('SendSmsSchema recipient bounds (G9)', () => {
   const base = { message: 'hello' };

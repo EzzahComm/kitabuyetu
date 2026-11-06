@@ -35,7 +35,7 @@ export function POST(req: NextRequest) {
   return withPlatformRole(req, 'super_admin', async () => {
     const body = await req.json();
     const parsed = createSchema.safeParse(body);
-    if (!parsed.success) return badRequest(parsed.error.errors[0].message);
+    if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
     const ticket = await createSupportTicket(parsed.data);
     return ok(ticket, 201);

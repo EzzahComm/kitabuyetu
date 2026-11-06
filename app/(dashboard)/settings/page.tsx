@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
+import { useZodForm } from '@/hooks/use-zod-form';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -83,8 +84,7 @@ export default function SettingsPage() {
     handleSubmit: handlePlan,
     reset: resetPlan,
     formState: { errors: planErrors, isSubmitting: planSubmitting },
-  } = useForm<PlanForm>({
-    resolver: zodResolver(planSchema),
+  } = useZodForm(planSchema, {
     defaultValues: { monthlyContribution: 0, welfareAmount: 0 },
   });
 
