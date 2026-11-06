@@ -101,9 +101,13 @@ export const ABOUT_ITEMS: NavLink[] = [
   {
     label: 'Who We Are',
     href: ROUTES.about,
-    description: 'Our story, mission, vision, values and approach.'
+    description: 'Our story, mission, vision, values and approach.',
   },
-  { label: 'Mission, Vision & Values', href: `${ROUTES.about}#mission-vision`, description: 'The purpose and principles guiding our work.' },
+  {
+    label: 'Mission, Vision & Values',
+    href: `${ROUTES.about}#mission-vision`,
+    description: 'The purpose and principles guiding our work.',
+  },
   { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
   { label: 'Our Approach', href: `${ROUTES.about}#our-approach`, description: 'How we build and grow responsibly.' },
   { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
@@ -126,11 +130,19 @@ export const PRODUCT_ITEMS: NavLink[] = [
     href: ROUTES.fundraise,
     description: 'Campaigns, supporter contributions and fundraising records.',
   },
-  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Coordinate organisations, programmes and institutional reporting.' },
+  {
+    label: 'Enterprise',
+    href: ROUTES.enterprise,
+    description: 'Coordinate organisations, programmes and institutional reporting.',
+  },
 ];
 
 export const ECOSYSTEM_ITEMS: NavLink[] = [
-  { label: 'Donors', href: ROUTES.ecosystemDonors, description: 'A developing pathway for institutional partnerships and community programmes.' },
+  {
+    label: 'Donors',
+    href: ROUTES.ecosystemDonors,
+    description: 'A developing pathway for institutional partnerships and community programmes.',
+  },
   {
     label: 'Multigroup Organizations',
     href: ROUTES.ecosystemOrganizations,
@@ -149,7 +161,11 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
 ];
 
 export const PRICING_ITEMS: NavLink[] = [
-  { label: 'Bookkeeper', href: ROUTES.pricing, description: 'Financial and membership management for community organisations.' },
+  {
+    label: 'Bookkeeper',
+    href: ROUTES.pricing,
+    description: 'Financial and membership management for community organisations.',
+  },
   {
     label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,

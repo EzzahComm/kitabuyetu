@@ -33,7 +33,8 @@ export const viewport: Viewport = {
 };
 
 const TAGLINE = 'The Digital Operating System for Community Organisations';
-const LONG_DESCRIPTION = 'Kitabu Yetu equips community organisations and the institutions that support them with digital tools for membership, finances, communication and programme management.';
+const LONG_DESCRIPTION =
+  'Kitabu Yetu equips community organisations and the institutions that support them with digital tools for membership, finances, communication and programme management.';
 
 export const metadata: Metadata = {
   // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is

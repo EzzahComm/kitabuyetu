@@ -99,8 +99,16 @@ const PARTNER_LOGOS = [
 
 const PROMISES = [
   { icon: Unlock, title: 'Accessible technology', body: 'Tools designed around real organisational workflows.' },
-  { icon: Smartphone, title: 'Connected operations', body: 'Bring records, communication and programme information closer together.' },
-  { icon: UsersRound, title: 'Built for organisations', body: 'For community groups and the institutions that support them.' },
+  {
+    icon: Smartphone,
+    title: 'Connected operations',
+    body: 'Bring records, communication and programme information closer together.',
+  },
+  {
+    icon: UsersRound,
+    title: 'Built for organisations',
+    body: 'For community groups and the institutions that support them.',
+  },
 ];
 
 /** Matched 1:1 by index, so the two columns read as a direct correction. */
@@ -121,7 +129,10 @@ const WITH_KITABU = [
 
 const PAYMENT_STEPS = [
   { title: 'Configure your organisation', body: 'Set up its structure, users, roles and operating workflows.' },
-  { title: 'Capture everyday activity', body: 'Keep membership, financial, communication and programme records connected.' },
+  {
+    title: 'Capture everyday activity',
+    body: 'Keep membership, financial, communication and programme records connected.',
+  },
   { title: 'Review and report', body: 'Give authorised teams reliable information for oversight and decisions.' },
 ];
 
@@ -206,10 +217,12 @@ export default function Home() {
                 The Digital Operating System for Community Organisations.
               </h2>
               <p className="mb-4 leading-relaxed text-finanza-text">
-                Community organisations and the institutions that support them coordinate people, finances, communication and programmes across fragmented systems.
+                Community organisations and the institutions that support them coordinate people, finances,
+                communication and programmes across fragmented systems.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu brings these essential processes into practical digital infrastructure—helping organisations improve management, strengthen accountability and coordinate their work as they grow.
+                Kitabu Yetu brings these essential processes into practical digital infrastructure—helping organisations
+                improve management, strengthen accountability and coordinate their work as they grow.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (

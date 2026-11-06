@@ -35,7 +35,9 @@ export default function EcosystemPage() {
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">
-          Our development ecosystem is a growth layer around the Kitabu Yetu technology platform. It is being developed progressively to help community organisations connect with relevant institutions, learning, services and opportunities—while each organisation retains its own records and operating autonomy.
+          Our development ecosystem is a growth layer around the Kitabu Yetu technology platform. It is being developed
+          progressively to help community organisations connect with relevant institutions, learning, services and
+          opportunities—while each organisation retains its own records and operating autonomy.
         </SectionTitle>
 
         <div id="donors">

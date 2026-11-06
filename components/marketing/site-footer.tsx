@@ -51,7 +51,8 @@ export function SiteFooter() {
                 <BrandLockup size={48} tone="dark" tagline />
               </Link>
               <p className="text-[0.9375rem] leading-relaxed">
-                The Digital Operating System for Community Organisations. Practical digital infrastructure for stronger management, financial accountability and connected communities.
+                The Digital Operating System for Community Organisations. Practical digital infrastructure for stronger
+                management, financial accountability and connected communities.
               </p>
               <ul className="mt-5 space-y-2.5 text-[0.9375rem]">
                 <li className="flex items-center gap-3">
