@@ -12,6 +12,7 @@ export default defineConfig([
     'coverage/**',
     'scripts/**',
     'supabase/**',
+    '.claude/worktrees/**',
     'tmp-*',
   ]),
   ...nextVitals,

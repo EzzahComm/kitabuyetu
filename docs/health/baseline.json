@@ -1,92 +1,87 @@
 {
-  "generatedAt": "2026-09-29T13:54:56.443Z",
-  "commit": "65a698e",
+  "generatedAt": "2026-10-29T19:53:57.108Z",
+  "commit": "d4bc37de",
   "coverage": {
-    "lines": 28.94,
-    "branches": 27.2,
-    "functions": 25.31,
-    "statements": 28.59
+    "lines": 30.94,
+    "branches": 28.56,
+    "functions": 26.5,
+    "statements": 30.42
   },
   "bundle": {
-    "clientJsKb": 5433,
-    "largestChunkKb": 359,
-    "serverKb": 28787,
+    "clientJsKb": 5151,
+    "largestChunkKb": 384,
+    "serverKb": 102276,
     "topChunks": [
       {
-        "file": "static/chunks/30zts_6s4-3_b.js",
-        "kb": 359
+        "file": "static\\chunks\\0vytk0rnmvld9.js",
+        "kb": 384
       },
       {
-        "file": "static/chunks/0-_5q-bedv_lk.js",
+        "file": "static\\chunks\\3gwb465dhjxo9.js",
         "kb": 224
       },
       {
-        "file": "static/chunks/1vgpv7vwitdbl.js",
+        "file": "static\\chunks\\1tw5_upsy-qj_.js",
         "kb": 153
       },
       {
-        "file": "static/chunks/0cz1d0mv5g_q7.js",
+        "file": "static\\chunks\\0cz1d0mv5g_q7.js",
         "kb": 110
       },
       {
-        "file": "static/chunks/0sq86leequ8pd.js",
-        "kb": 74
+        "file": "static\\chunks\\38aw_pi-t7c7k.js",
+        "kb": 63
       }
     ]
   },
-  "audit": {
-    "critical": 0,
-    "high": 0,
-    "moderate": 2,
-    "low": 1
-  },
+  "audit": null,
   "hygiene": {
     "explicitAny": 4,
     "tsSuppressions": 0,
-    "eslintSuppressions": 6,
-    "consoleLog": 3,
+    "eslintSuppressions": 8,
+    "consoleLog": 2,
     "todos": 4,
-    "largeFiles": 43,
+    "largeFiles": 46,
     "largestFiles": [
       {
-        "file": "lib/services/sms.service.ts",
+        "file": "lib\\services\\sms.service.ts",
         "lines": 2776
       },
       {
-        "file": "lib/services/organization-finance.service.ts",
+        "file": "lib\\services\\admin.service.ts",
+        "lines": 1992
+      },
+      {
+        "file": "lib\\services\\organization-finance.service.ts",
         "lines": 1927
       },
       {
-        "file": "lib/services/admin.service.ts",
-        "lines": 1879
+        "file": "lib\\jobs\\handlers.ts",
+        "lines": 1786
       },
       {
-        "file": "app/(dashboard)/accounting/page.tsx",
-        "lines": 1548
+        "file": "app\\(dashboard)\\accounting\\page.tsx",
+        "lines": 1549
       },
       {
-        "file": "lib/jobs/handlers.ts",
-        "lines": 1439
-      },
-      {
-        "file": "lib/services/import.service.ts",
+        "file": "lib\\services\\import.service.ts",
         "lines": 1345
       },
       {
-        "file": "app/(enterprise)/enterprise/funding/page.tsx",
+        "file": "app\\(enterprise)\\enterprise\\funding\\page.tsx",
         "lines": 1329
       },
       {
-        "file": "app/(dashboard)/treasury/page.tsx",
+        "file": "app\\(dashboard)\\treasury\\page.tsx",
         "lines": 1317
       },
       {
-        "file": "components/sms/tabs.tsx",
-        "lines": 1252
+        "file": "lib\\services\\mpesa-stk.service.ts",
+        "lines": 1289
       },
       {
-        "file": "lib/services/mpesa-stk.service.ts",
-        "lines": 1221
+        "file": "hooks\\use-admin.ts",
+        "lines": 1288
       }
     ]
   }

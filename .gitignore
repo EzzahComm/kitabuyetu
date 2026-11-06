@@ -57,3 +57,8 @@ coverage/
 .optimization/
 
 .optimize/
+
+# Agent-local git worktrees (full nested checkouts). Must stay out of the
+# index, eslint, and jest — otherwise lint/typecheck crawl a second tree and
+# jest reports haste-map package.json collisions.
+.claude/worktrees/

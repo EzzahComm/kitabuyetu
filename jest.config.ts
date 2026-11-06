@@ -11,6 +11,9 @@ const config: Config = {
   // (jest.integration.config.ts) — they need a live DB, unlike this suite's
   // fake DATABASE_URL (see ci.yml).
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/__tests__/integration/'],
+  // Nested agent worktrees ship their own package.json and would otherwise
+  // collide in jest-haste-map (and double the crawl cost).
+  modulePathIgnorePatterns: ['<rootDir>/.claude/worktrees/'],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
   },
