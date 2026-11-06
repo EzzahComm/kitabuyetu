@@ -99,11 +99,13 @@ export function isNavGroup(entry: NavEntry): entry is NavGroup {
 
 export const ABOUT_ITEMS: NavLink[] = [
   {
-    label: 'Our Story',
+    label: 'Who We Are',
     href: ROUTES.about,
-    description: 'Why Kitabu Yetu exists, and the problem it set out to solve.',
+    description: 'Our story, mission, vision, values and approach.'
   },
+  { label: 'Mission, Vision & Values', href: `${ROUTES.about}#mission-vision`, description: 'The purpose and principles guiding our work.' },
   { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
+  { label: 'Our Approach', href: `${ROUTES.about}#our-approach`, description: 'How we build and grow responsibly.' },
   { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
   { label: 'Careers', href: ROUTES.careers, description: 'Open roles, and how to join the team.' },
 ];
@@ -173,9 +175,9 @@ export const NAV_ITEMS: NavEntry[] = [
   { label: 'About', items: ABOUT_ITEMS },
   { label: 'Products', items: PRODUCT_ITEMS },
   { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
-  { label: 'Marketplace', href: ROUTES.ecosystemMarketplace },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Pricing', items: PRICING_ITEMS },
-  { label: 'Blog', href: ROUTES.resources },
+  { label: 'Resources', href: ROUTES.resources },
   { label: 'Contact', href: ROUTES.contact },
 ];
 
