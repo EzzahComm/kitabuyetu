@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 
-export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://kitabuyetu.co.ke').replace(/\/$/, '');
+export const SITE_URL = (process.env.NEXT_PUBLIC_APP_URL ?? 'https://www.kitabuyetu.co.ke').replace(/\/$/, '');
 
-/** The homepage's search title and description. The root layout's openGraph/twitter reuse them: `/` is the only indexable page that inherits those. */
-export const HOME_TITLE = 'Kitabu Yetu — Chama Management App for Kenya with M-Pesa';
+/** Corporate positioning used by the homepage and inherited social metadata. */
+export const HOME_TITLE = 'Kitabu Yetu | Digital Operating System for Community Organisations';
 export const HOME_DESCRIPTION =
-  'Run your chama, welfare group or table banking group on Kitabu Yetu: M-Pesa contributions, loans, SMS reminders and records every member can trust.';
+  'Digital infrastructure for community organisations and the institutions that support them. Manage membership, finances, communication and programmes with Kitabu Yetu.';
 
 /** The branded 1200×630 card from app/opengraph-image.tsx, which Next.js only attaches to `/` on its own. */
 export const OG_FALLBACK_IMAGE = `${SITE_URL}/opengraph-image`;
@@ -14,7 +14,7 @@ export const OG_FALLBACK = {
   url: OG_FALLBACK_IMAGE,
   width: 1200,
   height: 630,
-  alt: 'Kitabu Yetu — Simple books. Stronger groups.',
+  alt: 'Kitabu Yetu — The Digital Operating System for Community Organisations.',
 };
 
 // A page's own openGraph/twitter objects replace the root layout's wholesale (no deep merge),
