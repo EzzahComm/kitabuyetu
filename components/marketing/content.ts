@@ -461,8 +461,8 @@ export const RESOURCES: ResourceCard[] = [
   },
   {
     kind: 'Overview',
-    title: 'The ecosystem',
-    body: 'The tools a group can use, and the organizations and partners that work alongside them.',
+    title: 'The development ecosystem',
+    body: 'A growing network of partners, learning, services and opportunities being developed around the technology platform.',
     href: ROUTES.ecosystem,
   },
   {
@@ -510,7 +510,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: BookOpen,
     title: 'Bookkeeper',
-    body: 'Run your whole group — members, money and reports — in books that always balance.',
+    body: 'Manage membership, financial activity, contributions, loans, welfare and reporting through a reliable organisational record.',
     points: [
       'Contributions, loans, welfare and shares',
       'Collect and pay out by M-Pesa',
@@ -523,7 +523,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: MessageSquareText,
     title: 'Chama Reminder / Kumbusha',
-    body: 'Keep members informed and contributions on time — no bookkeeping needed.',
+    body: 'Keep members, teams and stakeholders informed through practical SMS communication—without needing the bookkeeping module.',
     points: [
       'Contribution and meeting reminders',
       'Group announcements by SMS',
@@ -536,7 +536,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Gift,
     title: 'Fundraise / Changi$ha',
-    body: 'Public M-Pesa campaigns for causes and projects, checked by us before they go live.',
+    body: 'Create and manage fundraising campaigns, track supporter contributions and communicate campaign progress.',
     points: [
       'Shareable campaign pages with a running total',
       'Donations by M-Pesa, recorded automatically',
@@ -551,7 +551,7 @@ export const PRODUCT_PILLARS: ProductPillar[] = [
   {
     icon: Briefcase,
     title: 'Enterprise',
-    body: 'Oversee many groups and programmes from one place — each keeps its own book.',
+    body: 'Coordinate multiple organisations and programmes through institutional oversight, structured reporting and role-based access.',
     points: [
       'Multi-group and multi-organization dashboards',
       'Programs, funding and disbursements to the groups you back',
