@@ -120,9 +120,9 @@ const WITH_KITABU = [
 ];
 
 const PAYMENT_STEPS = [
-  { title: 'Member pays by M-Pesa', body: 'The way they already send money.' },
-  { title: 'Payment is matched', body: 'Linked to the right member automatically.' },
-  { title: 'Books update', body: 'Balanced and confirmed by SMS. Done.' },
+  { title: 'Configure your organisation', body: 'Set up its structure, users, roles and operating workflows.' },
+  { title: 'Capture everyday activity', body: 'Keep membership, financial, communication and programme records connected.' },
+  { title: 'Review and report', body: 'Give authorised teams reliable information for oversight and decisions.' },
 ];
 
 const ECOSYSTEM = [
@@ -134,17 +134,17 @@ const ECOSYSTEM = [
   {
     icon: ShieldCheck,
     title: 'Financial products',
-    body: 'Loans and insurance for groups and members.',
+    body: 'Connect organisations with relevant financial-service providers as partnerships become available.',
   },
   {
     icon: GraduationCap,
     title: 'Professional knowledge',
-    body: 'Guidance on finance, farming and governance.',
+    body: 'Build access to practical learning, training and organisational capacity support.',
   },
   {
     icon: Store,
     title: 'Markets & services',
-    body: 'Buyers, suppliers and services for your projects.',
+    body: 'Develop pathways to appropriate suppliers, service providers and markets.',
   },
   {
     icon: FileText,
@@ -203,13 +203,13 @@ export default function Home() {
                 id="about-heading"
                 className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
               >
-                Technology that helps community organisations work better and grow stronger.
+                The Digital Operating System for Community Organisations.
               </h2>
               <p className="mb-4 leading-relaxed text-finanza-text">
-                Community organisations do essential work, but too often their membership, financial records, communication and programme information sit in disconnected systems.
+                Community organisations and the institutions that support them coordinate people, finances, communication and programmes across fragmented systems.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu brings essential organisational processes into practical digital tools—strengthening management, accountability and communication as organisations grow.
+                Kitabu Yetu brings these essential processes into practical digital infrastructure—helping organisations improve management, strengthen accountability and coordinate their work as they grow.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (
@@ -234,7 +234,7 @@ export default function Home() {
             id="problem-heading"
             align="center"
             pill="The Problem"
-            title="Still running the group from a notebook?"
+            title="Are your organisation’s essential processes still disconnected?"
             className="mb-12"
           />
           <div className="grid gap-6 md:grid-cols-2">
@@ -274,8 +274,8 @@ export default function Home() {
               <FinanzaHeading
                 id="how-heading"
                 pill="How It Works"
-                title="Member pays. Books update. Done."
-                lede="No evening of matching M-Pesa messages to names."
+                title="Organisations coordinate. Records become useful. Decisions improve."
+                lede="Bring operational information together so teams can make clearer, more accountable decisions."
               />
               <div className="my-8">
                 <Emphasis>Treasurers get their evenings back.</Emphasis>
@@ -327,8 +327,8 @@ export default function Home() {
               <FinanzaHeading
                 id="ecosystem-heading"
                 pill="Ecosystem"
-                title="Clean records open doors."
-                lede="Reliable organisational records create a stronger foundation for collaboration and future opportunities."
+                title="Stronger organisations build stronger communities."
+                lede="Reliable organisational systems create a stronger foundation for accountability, collaboration and sustainable growth."
               />
               <ul className="mt-8 space-y-6">
                 {ECOSYSTEM.map((item) => (
