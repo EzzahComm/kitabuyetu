@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react';
 import Image from 'next/image';
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { signUpUrl } from '@/lib/app-links';
 import { btnOutline, btnPrimary } from './finanza';
 import { PRODUCT_PHOTOS } from './photos';
 import { CONTACT, whatsappHref } from './routes';
