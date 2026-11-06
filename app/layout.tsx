@@ -32,8 +32,8 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
-const TAGLINE = BRAND_TAGLINE;
-const LONG_DESCRIPTION = `Kitabu Yetu — ${BRAND_TAGLINE}. Digital bookkeeping for chamas, table banking groups, SACCOs, welfare associations, and investment clubs across East Africa.`;
+const TAGLINE = 'The Digital Operating System for Community Organisations';
+const LONG_DESCRIPTION = 'Kitabu Yetu equips community organisations and the institutions that support them with digital tools for membership, finances, communication and programme management.';
 
 export const metadata: Metadata = {
   // Undefined rather than a hardcoded domain when NEXT_PUBLIC_APP_URL is
@@ -55,7 +55,10 @@ export const metadata: Metadata = {
     'investment club',
     'Kenya',
     'East Africa',
-    'bookkeeping',
+    'community organisations',
+    'NGO programme management',
+    'digital transformation',
+    'financial accountability',
     'community finance',
   ],
   authors: [{ name: 'Kitabu Yetu' }],
