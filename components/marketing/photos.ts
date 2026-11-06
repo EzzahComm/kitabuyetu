@@ -4,7 +4,7 @@ import benefitTwoImg from '@/public/img/benefit-two.jpg';
 import heroOneImg from '@/public/img/hero-one.jpg';
 import heroTwoImg from '@/public/img/hero-two.jpg';
 import fundraiseImg from '@/public/img/fundraise.jpg';
-import enterpriseImg from '@/public/img/enterprise.jpg';
+import organisationNetworkImg from '@/public/img/community-organisation-network.svg';
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Every marketing photo, by what it depicts. Pages ask for a photo by role
@@ -63,11 +63,10 @@ export const PHOTOS: Record<
     alt: 'A shopkeeper in Dar es Salaam smiling and holding her phone at her market stall',
     position: '60% 30%',
   },
-  /** Two people reaching an agreement — the organisation/Kitabu Yetu partnership. */
+  /** Community groups and institutions connected through one operating workspace. */
   organisations: {
-    src: enterpriseImg,
-    alt: 'Two people shaking hands in an office in Nairobi',
-    position: '55% 50%',
+    src: organisationNetworkImg,
+    alt: 'Illustration of community groups and institutions connected to a shared digital workspace',
   },
 };
 
