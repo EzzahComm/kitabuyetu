@@ -98,9 +98,9 @@ const PARTNER_LOGOS = [
 ] as const;
 
 const PROMISES = [
-  { icon: Unlock, title: 'No contract', body: 'Pay monthly. Stop any time.' },
-  { icon: Smartphone, title: 'All by M-Pesa', body: 'Your subscription and your members’ contributions.' },
-  { icon: UsersRound, title: 'Made for chamas', body: 'Not a business tool squeezed to fit.' },
+  { icon: Unlock, title: 'Accessible technology', body: 'Tools designed around real organisational workflows.' },
+  { icon: Smartphone, title: 'Connected operations', body: 'Bring records, communication and programme information closer together.' },
+  { icon: UsersRound, title: 'Built for organisations', body: 'For community groups and the institutions that support them.' },
 ];
 
 /** Matched 1:1 by index, so the two columns read as a direct correction. */
@@ -203,14 +203,13 @@ export default function Home() {
                 id="about-heading"
                 className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
               >
-                Your group already works. Now the books will too.
+                Technology that helps community organisations work better and grow stronger.
               </h2>
               <p className="mb-4 leading-relaxed text-finanza-text">
-                The problem isn&apos;t discipline. It&apos;s one book in one person&apos;s handwriting, and M-Pesa
-                messages matched to names the night before a meeting.
+                Community organisations do essential work, but too often their membership, financial records, communication and programme information sit in disconnected systems.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu puts members, money and payments in one place — in books that always balance.
+                Kitabu Yetu brings essential organisational processes into practical digital tools—strengthening management, accountability and communication as organisations grow.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (
@@ -329,7 +328,7 @@ export default function Home() {
                 id="ecosystem-heading"
                 pill="Ecosystem"
                 title="Clean records open doors."
-                lede="Your track record connects you to funding, partners and markets beyond your savings."
+                lede="Reliable organisational records create a stronger foundation for collaboration and future opportunities."
               />
               <ul className="mt-8 space-y-6">
                 {ECOSYSTEM.map((item) => (
@@ -343,7 +342,7 @@ export default function Home() {
                 ))}
               </ul>
               <div className="my-8">
-                <Emphasis>Run the group today. Grow it tomorrow.</Emphasis>
+                <Emphasis>Technology first. Stronger connections over time.</Emphasis>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>
