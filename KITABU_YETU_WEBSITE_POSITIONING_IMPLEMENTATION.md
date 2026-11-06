@@ -130,14 +130,15 @@ Align navigation with:
 Home
 About
 Products
-  - Bookkeeper
-  - Chama Reminder
-  - Changi$ha / Fundraise
-  - Enterprise
-Ecosystem
-How It Works
-Pricing
-Contact
+
+- Bookkeeper
+- Chama Reminder
+- Changi$ha / Fundraise
+- Enterprise
+  Ecosystem
+  How It Works
+  Pricing
+  Contact
 
 Keep Sign In and Get Started accessible.
 
