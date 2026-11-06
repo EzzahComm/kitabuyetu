@@ -51,8 +51,7 @@ export function SiteFooter() {
                 <BrandLockup size={48} tone="dark" tagline />
               </Link>
               <p className="text-[0.9375rem] leading-relaxed">
-                Simple books. Stronger groups. Vibrant communities — digital tools for groups and organizations across
-                East Africa.
+                The Digital Operating System for Community Organisations. Practical digital infrastructure for stronger management, financial accountability and connected communities.
               </p>
               <ul className="mt-5 space-y-2.5 text-[0.9375rem]">
                 <li className="flex items-center gap-3">
