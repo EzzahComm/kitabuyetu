@@ -676,7 +676,7 @@ function CancelDialog({
 
 const paySchema = z.object({
   paymentMethod: z.enum(['mpesa']),
-  paymentReference: z.string().optional(),
+  paymentReference: z.string().min(1, 'M-Pesa receipt/reference is required'),
 });
 type PayForm = z.infer<typeof paySchema>;
 
@@ -789,7 +789,7 @@ function BulkPayDialog({
           <DialogTitle>Bulk pay {count} allocation(s)</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Same payment method/reference is recorded against each selected allocation. Already-paid or cancelled rows are
+          M-Pesa payment reference is recorded against each selected allocation. Confirm this represents the payout batch. Already-paid or cancelled rows are
           skipped.
         </p>
         <form
@@ -807,10 +807,7 @@ function BulkPayDialog({
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="mpesa">M-Pesa</option>
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="cheque">Cheque</option>
-              <option value="other">Other</option>
+              
             </select>
           </div>
           <div className="space-y-1">
