@@ -33,10 +33,9 @@ export const ReviewWelfareRequestSchema = z.object({
 
 export const DisburseWelfareSchema = z.object({
   paymentMethod: z.enum(['mpesa']),
-  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt is required'),
   amountDisbursed: z.coerce.number().positive(),
   notes: z.string().optional(),
-}).refine(() => false, { message: 'Manual welfare disbursement is disabled; wait for the M-Pesa provider callback.' });
+}).strict().refine(() => false, { message: 'Manual welfare disbursement is disabled; wait for the M-Pesa provider callback.' });
 
 export const WelfareQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -54,7 +53,7 @@ export const RecordWelfarePoolSchema = z.object({
   periodMonth: z.coerce.number().int().min(1).max(12).optional(),
   periodYear: z.coerce.number().int().min(2020).optional(),
   notes: z.string().optional(),
-}).refine(() => false, { message: 'Manual welfare pool entries are disabled; use provider-confirmed payment allocation.' });
+}).strict().refine(() => false, { message: 'Manual welfare pool entries are disabled; use provider-confirmed payment allocation.' });
 
 export type CreateWelfareRequestInput = z.infer<typeof CreateWelfareRequestSchema>;
 export type ReviewWelfareRequestInput = z.infer<typeof ReviewWelfareRequestSchema>;
