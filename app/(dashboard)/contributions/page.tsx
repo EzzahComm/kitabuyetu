@@ -31,7 +31,7 @@ const schema = z.object({
   amount: z.coerce.number().positive(),
   contributionDate: z.string().min(1, 'Date required'),
   paymentMethod: z.enum(['mpesa']),
-  mpesaReceiptNumber: z.string().optional(),
+  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt required'),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -215,8 +215,8 @@ export default function ContributionsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>M-Pesa reference</Label>
-              <Input placeholder="M-Pesa receipt code" {...register('mpesaReceiptNumber')} />
+              <Label>M-Pesa receipt reference</Label>
+              <Input placeholder="M-Pesa receipt code" required {...register('mpesaReceiptNumber')} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
