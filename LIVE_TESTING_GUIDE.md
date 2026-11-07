@@ -260,7 +260,7 @@
 
 ## Test Scenario 5: Contributions & Accounting
 
-### Step 5.1: Make a Contribution
+### Step 5.1: Create a Contribution Obligation
 
 **Request:** `POST /api/v1/contributions`  
 **Headers:** `Authorization: Bearer {{access_token}}`  
@@ -268,37 +268,19 @@
 
 ```json
 {
-  "group_id": "{{group_id}}",
-  "member_id": "{{member_id}}",
-  "amount": "1000",
-  "contribution_type": "regular",
-  "payment_method": "cash"
+  "memberId": "{{member_id}}",
+  "amount": 1000,
+  "contributionDate": "2026-11-07"
 }
 ```
 
-**Expected Response:**
+**Expected:** a `pending` contribution obligation only. The request must not accept a payment method, receipt number, or client-supplied completed status.
 
-```json
-{
-  "success": true,
-  "contribution": {
-    "id": "uuid",
-    "amount": "1000",
-    "status": "completed",
-    "created_at": "2026-09-18T..."
-  }
-}
-```
+### Step 5.2: Settle Through M-Pesa
 
-### Step 5.2: View Journal Entries
+Initiate the supported M-Pesa STK/C2B payment flow for the member. Use the provider callback to confirm the payment; do not type or simulate an M-Pesa receipt in the application.
 
-**Request:** `GET /api/v1/accounting/journals?groupId={{group_id}}`  
-**Headers:** `Authorization: Bearer {{access_token}}`
-
-**Expected Response - Look for:**
-
-- Debit: Account 1001 (Cash and M-Pesa) - 1000
-- Credit: Account 4001 (Member Contributions) - 1000
+**Expected:** only after a valid provider confirmation should the contribution become `completed` and the system post its journal entry.
 
 ---
 
