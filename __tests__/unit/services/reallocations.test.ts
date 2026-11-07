@@ -174,7 +174,7 @@ describe('reallocationsService.initiate', () => {
     expect(result.needsApproval).toBe(false);
     expect(mockQuery).toHaveBeenCalledTimes(13);
     // Void step targets only completed rows (double-execution latch).
-    expect(mockQuery.mock.calls[6][0]).toContain("status = 'completed'");
+    expect(mockQuery.mock.calls[7][0]).toContain("status = 'completed'");
     // Spine flips to reallocated.
     expect(mockQuery.mock.calls[9][0]).toContain("allocation_status = 'reallocated'");
   });
