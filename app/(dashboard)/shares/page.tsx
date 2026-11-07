@@ -499,7 +499,7 @@ const txnSchema = z.object({
   unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
   totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
   counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'other']).optional().or(z.literal('')),
+  paymentMethod: z.enum(['mpesa']).optional().or(z.literal('')),
   paymentReference: z.string().max(80).optional().or(z.literal('')),
   notes: z.string().max(1000).optional().or(z.literal('')),
 });
@@ -682,10 +682,7 @@ function NewTransactionDialog({
                 >
                   <option value="">— Select —</option>
                   <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="other">Other</option>
+
                 </select>
               </div>
               <div className="space-y-1">
