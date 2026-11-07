@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
-import { ArrowLeft, CheckCircle, XCircle, DollarSign, Smartphone, AlertTriangle, Ban } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, Smartphone, AlertTriangle, Ban } from 'lucide-react';
 import { api, ApiError } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
