@@ -112,8 +112,8 @@ export const RecordRepaymentSchema = z.object({
   installmentNumber: z.number().int().min(1),
   amountPaid: z.number().positive(),
   paymentDate: z.string().date(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
+  paymentMethod: z.enum(['mpesa']),
+  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt is required').max(50),
   penaltyAmount: z.number().min(0).default(0),
 });
 
