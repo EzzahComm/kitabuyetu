@@ -7,14 +7,10 @@ import { z } from 'zod';
 export const dynamic = 'force-dynamic';
 
 const schema = z.object({
-  action: z.enum(['allocate', 'dismiss', 'activate_subscription']),
+  action: z.literal('dismiss'),
   groupId: z.string().uuid().optional(),
-  memberId: z.string().uuid().optional(),
   notes: z.string().optional(),
-  planType: z.enum(['starter', 'growth', 'premium']).optional(),
-  product: z.enum(['kitabu_yetu', 'chama_reminder']).optional(),
-  billingCycle: z.enum(['monthly', 'quarterly', 'biannual', 'annual']).optional(),
-});
+}).strict();
 
 /**
  * Resolve an unrouted M-Pesa payment — allocate to a member's contribution,
