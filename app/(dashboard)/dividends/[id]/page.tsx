@@ -636,7 +636,6 @@ function PayDialog({
 }: {
   allocation: Allocation | null;
   onOpenChange: (v: boolean) => void;
-  onConfirm: (method: string, reference: string | undefined) => Promise<void>;
 }) {
   if (!allocation) return null;
   return (
