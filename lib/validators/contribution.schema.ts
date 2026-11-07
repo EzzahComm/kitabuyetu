@@ -1,25 +1,26 @@
 import { z } from 'zod';
 
+// Cashless policy: only M-Pesa can be selected for new contribution records.
+// Historical cash rows remain readable; this schema does not rewrite them.
+
 export const CreateContributionSchema = z.object({
   memberId: z.string().uuid(),
   amount: z.number().positive('Amount must be positive'),
   contributionDate: z.string().date(),
   dueDate: z.string().date().optional().nullable(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']).optional().nullable(),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
-});
+}).strict();
 
 export const UpdateContributionSchema = z.object({
-  status: z.enum(['pending', 'completed', 'failed', 'cancelled', 'overdue']).optional(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']).optional().nullable(),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
+  // A user may annotate or cancel a pending obligation, but only a verified
+  // provider callback may move it to completed.
+  status: z.enum(['pending', 'failed', 'cancelled', 'overdue']).optional(),
   notes: z.string().max(500).optional().nullable(),
-});
+}).strict();
 
-export const ReconcileContributionSchema = z.object({
-  mpesaReceiptNumber: z.string().min(1).max(50),
-});
+// Manual receipt-based reconciliation is deliberately unsupported. A future
+// reallocation action must reference an existing provider-confirmed payment ID.
+export const ReconcileContributionSchema = z.object({}).strict();
 
 export const ContributionQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

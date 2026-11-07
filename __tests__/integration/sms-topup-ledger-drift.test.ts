@@ -33,6 +33,15 @@ async function provisionAccount(groupId: string): Promise<void> {
   );
 }
 
+async function topUp(groupId: string, userId: string, amount: number): Promise<void> {
+  const [payment] = await rawQuery<{ id: string }>(
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk') RETURNING id`,
+    [groupId, amount, `SMS-1794070218587-8922`],
+  );
+  await billingService.addSmsCredits({ userId, groupId, role: 'treasurer' }, amount, payment.id);
+}
+
 describe('top-up leaves no ledger drift (G18)', () => {
   it('records the movement the balance actually made', async () => {
     await resetDatabase();
@@ -41,7 +50,7 @@ describe('top-up leaves no ledger drift (G18)', () => {
 
     // KES 100 at 0.90 is 111.111... — the non-terminating case that produced
     // the drift.
-    await billingService.addSmsCredits({ userId: officerId, groupId, role: 'treasurer' }, 100);
+    await topUp(groupId, officerId, 100);
 
     const [row] = await rawQuery<{ balance: string; ledger: string }>(
       `SELECT ba.sms_credits AS balance,
@@ -61,7 +70,7 @@ describe('top-up leaves no ledger drift (G18)', () => {
 
     // Several purchases, so any per-purchase drift would accumulate visibly.
     for (const amount of [100, 250, 75]) {
-      await billingService.addSmsCredits({ userId: officerId, groupId, role: 'treasurer' }, amount);
+      await topUp(groupId, officerId, amount);
     }
 
     const [v] = await rawQuery<{ drift: string; lot_drift: string }>(

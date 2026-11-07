@@ -226,6 +226,9 @@ export const sharesService = {
   // ── Share transactions ───────────────────────────────────────────────
 
   async createTransaction(ctx: TenantContext, input: CreateShareTransactionInput): Promise<ShareTransaction[]> {
+    if (input.type === 'purchase' || input.type === 'redemption') {
+      throw new ValidationError('Manual share purchases and redemptions are disabled. Only provider-confirmed M-Pesa allocations may post financial transactions.');
+    }
     return withTransaction(ctx, async (client) => {
       // Resolve share class and lock it FOR SHARE so its config doesn't shift mid-txn.
       const { rows: cls } = await client.query<{
@@ -389,8 +392,8 @@ export const sharesService = {
           unit_price: unitPrice,
           total_amount: totalAmount,
           counterparty_member_id: null,
-          payment_method: input.paymentMethod ?? null,
-          payment_reference: input.paymentReference ?? null,
+          payment_method: null,
+          payment_reference: null,
           certificate_serial: serial,
           notes: input.notes ?? null,
           created_by: ctx.userId,

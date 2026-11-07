@@ -94,11 +94,9 @@ export const LoanFundingPlanSchema = z
 
 export const DisburseLoanSchema = z.object({
   disbursementDate: z.string().date(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   fundingPlan: LoanFundingPlanSchema.optional(),
-});
+}).strict().refine(() => false, { message: 'Manual loan disbursement is disabled; use M-Pesa B2C and its provider callback.' });
 
 export const MarkDefaultedSchema = z.object({
   reason: z.string().min(5).max(500),
@@ -112,10 +110,9 @@ export const RecordRepaymentSchema = z.object({
   installmentNumber: z.number().int().min(1),
   amountPaid: z.number().positive(),
   paymentDate: z.string().date(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
+  paymentMethod: z.enum(['mpesa']),
   penaltyAmount: z.number().min(0).default(0),
-});
+}).strict().refine(() => false, { message: 'Manual loan repayment is disabled; only provider-confirmed M-Pesa callbacks may settle repayments.' });
 
 export const LoanQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

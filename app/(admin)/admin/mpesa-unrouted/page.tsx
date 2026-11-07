@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { Search, Wallet, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { Search, Wallet, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
@@ -75,7 +75,7 @@ export default function MpesaUnroutedPage() {
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebouncedValue(search, 300);
   const [target, setTarget] = useState<UnroutedRow | null>(null);
-  const [action, setAction] = useState<Action>('allocate');
+  const [action, setAction] = useState<Action>('dismiss');
   const [groupSearch, setGroupSearch] = useState('');
   const [groupId, setGroupId] = useState('');
   const [memberId, setMemberId] = useState('');
@@ -100,7 +100,7 @@ export default function MpesaUnroutedPage() {
 
   const openResolve = (row: UnroutedRow) => {
     setTarget(row);
-    setAction(SUBSCRIPTION_REFS.has(row.bill_ref ?? '') ? 'activate_subscription' : 'allocate');
+    setAction('dismiss');
     setGroupId(row.candidate_group_id ?? '');
     setGroupSearch('');
     setMemberId('');
@@ -130,12 +130,8 @@ export default function MpesaUnroutedPage() {
     try {
       await resolve.mutateAsync({
         id: target.id,
-        action,
-        groupId: action === 'dismiss' ? groupId || undefined : groupId,
-        memberId: action === 'allocate' ? memberId : undefined,
-        planType: action === 'activate_subscription' ? planType : undefined,
-        product: action === 'activate_subscription' ? product : undefined,
-        billingCycle: action === 'activate_subscription' ? cycle : undefined,
+        action: 'dismiss',
+        groupId: groupId || undefined,
         notes: notes || undefined,
       });
       toast({
@@ -156,7 +152,7 @@ export default function MpesaUnroutedPage() {
     <div className="space-y-5">
       <PageHeader
         title="Unrouted M-Pesa Payments"
-        description="Payments the automatic router couldn't place — allocate to a member, activate a subscription, or dismiss (e.g. a confirmed test payment)"
+        description="Provider-confirmed receipts the automatic router could not match. Manual allocation and subscription activation are disabled; use the audited reallocation workflow for existing payments."
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -268,34 +264,8 @@ export default function MpesaUnroutedPage() {
                 <p>{target.reason}</p>
               </div>
 
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={action === 'allocate' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs"
-                  onClick={() => setAction('allocate')}
-                >
-                  <CheckCircle2 size={13} className="mr-1.5" /> Allocate
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={action === 'activate_subscription' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs"
-                  onClick={() => setAction('activate_subscription')}
-                >
-                  <RefreshCw size={13} className="mr-1.5" /> Subscription
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant={action === 'dismiss' ? 'default' : 'outline'}
-                  className="flex-1 h-8 text-xs"
-                  onClick={() => setAction('dismiss')}
-                >
-                  <XCircle size={13} className="mr-1.5" /> Dismiss
-                </Button>
+              <div className="rounded-md border p-3 text-sm text-muted-foreground">
+                Unrouted receipts cannot be manually allocated or used to activate subscriptions. Only an existing provider-confirmed payment can be corrected through the audited reallocation workflow.
               </div>
 
               {(action === 'allocate' || action === 'activate_subscription') && (

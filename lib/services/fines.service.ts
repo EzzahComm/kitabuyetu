@@ -13,18 +13,10 @@
  * in the same transaction as every write, and postTemplatedJournal for the
  * one write that actually recognizes revenue (a fine getting paid).
  *
- * markPaid is an explicit officer confirmation, not a payment_requests
- * webhook hook: 'fine' has been a payment_requests.product enum value since
- * migration 059, but dispatchProduct (mpesa-allocation.service.ts) has no
- * case for it — a 'fine' payment_request can never be auto-fulfilled by the
- * M-Pesa engine today (it falls through to the same manual-confirmation path
- * 'share' purchases already use, per that switch's own comment). Gating
- * markPaid on the linked request reaching 'fulfilled' would therefore strand
- * every fine that goes through initiateCollection, since nothing can ever
- * make that transition happen automatically yet. An officer confirming
- * payment directly (cash collected at a meeting, or an M-Pesa payment the
- * officer has separately reconciled) is the same manual pattern already
- * accepted elsewhere in this codebase, not a shortcut invented for fines.
+ * Fine settlement currently has no provider callback integration. Until the
+ * M-Pesa allocation engine can settle a fine from a verified payment, the
+ * manual markPaid action is blocked rather than accepting cash or a typed
+ * confirmation as evidence.
  */
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -33,6 +25,12 @@ import { finePolicyService } from './fine-policy.service';
 import { paymentRequestsService } from './payment-requests.service';
 import { postTemplatedJournal } from './posting-templates.service';
 import type { IssueFineInput, WaiveFineInput, CancelFineInput, FineQueryInput } from '@/lib/validators/fine.schema';
+
+function rejectFinePaymentFlowUntilProviderIntegration(): void {
+  throw new ValidationError(
+    'Fine payment collection and settlement are disabled until a verified M-Pesa callback flow is connected',
+  );
+}
 
 const FINE_SELECT = `
   SELECT f.*,
@@ -259,6 +257,7 @@ export const finesService = {
   },
 
   async initiateCollection(ctx: TenantContext, id: string) {
+    rejectFinePaymentFlowUntilProviderIntegration();
     const fine = await withDb(ctx, async (client) => {
       const {
         rows: [f],
@@ -334,12 +333,11 @@ export const finesService = {
    * realized revenue for the group (postTemplatedJournal('fine_collection'),
    * see posting-templates.service.ts, rather than an ad-hoc journal insert).
    *
-   * Deliberately does not require the linked payment_request (if any) to be
-   * 'fulfilled' first — see this file's header for why that gate would be
-   * unsatisfiable today. Cash collected with no payment_request at all is
-   * equally valid, mirroring welfare.disburse()'s 'cash' path.
+   * Disabled until a verified M-Pesa callback can collect and settle fines; no
+   * officer confirmation or cash collection may create a paid fine.
    */
   async markPaid(ctx: TenantContext, id: string) {
+    rejectFinePaymentFlowUntilProviderIntegration();
     return withTransaction(ctx, async (client) => {
       const {
         rows: [fine],

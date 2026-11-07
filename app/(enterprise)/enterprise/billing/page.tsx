@@ -52,7 +52,7 @@ export default function OrganizationBillingPage() {
         title="Billing"
         description="This organization's plan and SMS credits — separate from the capital wallet on the Funding Portal."
         actions={
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setTopUpOpen(true)}>
+          <Button size="sm" className="gap-1.5 h-9" disabled>
             <ArrowDownToLine size={15} /> Top up SMS
           </Button>
         }
@@ -102,7 +102,7 @@ export default function OrganizationBillingPage() {
       <div className="space-y-3">
         <SectionHeader
           title="Recent top-ups"
-          subtitle="Manual entries, reconciled against bank/M-Pesa settlement separately."
+          subtitle="Historical top-ups remain visible. New top-ups are disabled until verified provider payment is connected."
         />
         <Card>
           <CardContent className="overflow-x-auto p-0">

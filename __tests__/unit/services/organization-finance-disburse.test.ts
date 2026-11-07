@@ -6,7 +6,6 @@
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
-import { ValidationError, ForbiddenError, NotFoundError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -150,49 +149,20 @@ function sqlRouter(threshold: number) {
 }
 
 describe('organizationFinanceService.disburse', () => {
-  it('rejects insufficient wallet balance', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'access-1' }] }); // group link
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'wallet-1', available_balance: '1000.00' }] }); // wallet lock
-
-    await expect(organizationFinanceService.disburse(ctx, input)).rejects.toBeInstanceOf(ValidationError);
-  });
-
-  it('throws NotFoundError when the group has no active org link', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [] });
-    await expect(organizationFinanceService.disburse(ctx, input)).rejects.toBeInstanceOf(NotFoundError);
-  });
-
-  it('settles immediately under the org threshold', async () => {
-    mockQuery.mockImplementation(sqlRouter(20000)); // amount 5000 < threshold 20000
-
-    const result = await organizationFinanceService.disburse(ctx, input);
-
-    expect(result.needsApproval).toBe(false);
-    expect(result.status).toBe('completed');
-    // Reservation used committed_balance, not a bare debit.
-    const reserveCall = mockQuery.mock.calls.find(([sql]: [string]) =>
-      /available_balance\s*=\s*available_balance\s*-/.test(sql),
-    );
-    expect(reserveCall?.[0]).toContain('committed_balance');
-  });
-
-  it('parks pending_approval above the org threshold — no group journal posted', async () => {
-    mockQuery.mockImplementation(sqlRouter(2000)); // amount 5000 > threshold 2000
-
-    const result = await organizationFinanceService.disburse(ctx, input);
-
-    expect(result.needsApproval).toBe(true);
-    expect(result.status).toBe('pending_approval');
-    // No settlement queries ran — the group-side journal is never posted
-    // above the threshold.
-    expect(mockQuery.mock.calls.some(([sql]: [string]) => /INSERT INTO journal_entries/.test(sql))).toBe(false);
+  it('rejects organization-to-group ledger-only disbursements without a provider transfer', async () => {
+    await expect(organizationFinanceService.disburse(ctx, input))
+      .rejects.toThrow(/disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(withTransaction).not.toHaveBeenCalled();
   });
 });
 
 describe('organizationFinanceService.approveDisbursement', () => {
-  it('refuses approval by the same coordinator who created it (maker-checker)', async () => {
-    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'disb-2', created_by: 'coord-1' }] });
-    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2')).rejects.toBeInstanceOf(ForbiddenError);
+  it('rejects approval while no verified provider settlement flow exists', async () => {
+    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2'))
+      .rejects.toThrow(/disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i);
+    expect(mockQuery).not.toHaveBeenCalled();
+    expect(withTransaction).not.toHaveBeenCalled();
   });
 });
 

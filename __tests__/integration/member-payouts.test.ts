@@ -5,7 +5,7 @@
  *   off → the system executes and posts the group ledger + member ledger.
  *
  * Covers authorization (server-side, incl. cross-group and bypass attempts),
- * validation, the full workflow with ledger reconciliation (cash and M-Pesa),
+ * validation, the full provider-confirmed M-Pesa workflow with ledger reconciliation,
  * rollback on a ledger failure, idempotency, double/concurrent approval, and
  * that notifications fire only after commit.
  *
@@ -79,7 +79,7 @@ async function initiate(g: Officers, by: Actor, body: Record<string, unknown>, k
         amount: 10_000,
         purpose: 'other',
         description: 'Member emergency support',
-        paymentMethod: 'cash',
+        paymentMethod: 'mpesa',
         ...body,
       },
     }),
@@ -267,109 +267,13 @@ describe('member disbursements', () => {
     });
   });
 
-  // ─── Workflow + reconciliation ──────────────────────────────────────────
+  // ─── Offline payment rejection ───────────────────────────────────────────
 
-  describe('workflow and ledger reconciliation', () => {
-    it('100,000 − 10,000 cash disbursement reconciles the group and member ledgers', async () => {
-      const { json } = await initiate(g, chair, { amount: 10_000 });
-      const id = json.data!.id;
-      expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 10_000 });
-
-      expect((await act(g, treasurer, id, { action: 'approve' })).json.data?.status).toBe('awaiting_platform');
-      const done = await platform(id, 'approve');
-      expect(done.status).toBe(200);
-      expect(done.json.data?.status).toBe('completed');
-
-      // Group ledger: one member-attributed journal, DR 4001 / CR 1001, same reference.
-      const r = await row(id);
-      expect(r.journal_entry_id).not.toBeNull();
-      const [je] = await rawQuery<{ reference: string; member_id: string }>(
-        `SELECT reference, member_id FROM journal_entries WHERE id = $1`,
-        [r.journal_entry_id],
-      );
-      expect(je).toEqual({ reference: r.reference, member_id: g.memberId });
-      const lines = await rawQuery<{ code: string; debit: string; credit: string }>(
-        `SELECT a.account_code AS code, jl.debit, jl.credit FROM journal_lines jl JOIN accounts a ON a.id = jl.account_id
-         WHERE jl.journal_entry_id = $1 ORDER BY a.account_code`,
-        [r.journal_entry_id],
-      );
-      expect(lines.map((l) => [l.code, parseFloat(l.debit), parseFloat(l.credit)])).toEqual([
-        ['1001', 0, 10_000],
-        ['4001', 10_000, 0],
-      ]);
-      expect(await cash(g.groupId)).toEqual({ balance: 90_000, reserved: 0 });
-
-      // Member ledger: on the passbook under the same reference.
-      const passbook = await listMyPassbook({ userId: g.memberId, groupId: g.groupId, role: 'member' }, {
-        page: 1,
-        limit: 20,
-      } as Parameters<typeof listMyPassbook>[1]);
-      expect(passbook.items).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            type: 'member_payout',
-            amount: 10_000,
-            status: 'success',
-            ref: r.reference,
-            label: 'Member emergency support',
-          }),
-        ]),
-      );
-
-      const audit = await rawQuery<{ action: string }>(`SELECT action FROM audit_logs WHERE resource_id = $1`, [id]);
-      expect(audit.map((a) => a.action)).toEqual(
-        expect.arrayContaining([
-          'disbursement.initiate',
-          'member_payout.treasurer_approve',
-          'member_payout.journal_posted',
-          'member_payout.platform_approve',
-        ]),
-      );
-      expect(emitted('member_payout.completed')).toEqual([id]);
-      expect((await reconFor()).reconciled).toBe(true);
-    });
-
-    it('a second (savings) disbursement keeps both ledgers reconciled', async () => {
-      const { json } = await initiate(g, secretary, { amount: 20_000, purpose: 'savings_withdrawal' });
-      const id = json.data!.id;
-      await act(g, treasurer, id, { action: 'approve' });
-      expect((await platform(id, 'approve')).json.data?.status).toBe('completed');
-
-      expect(await cash(g.groupId)).toEqual({ balance: 70_000, reserved: 0 });
-      const [snap] = await withAdminDb((db) => computeMemberFinancialSnapshot(db, g.groupId, g.memberId));
-      expect(snap.savings).toBe(30_000);
-      const recon = await reconFor();
-      expect(recon.reconciled).toBe(true);
-      expect(recon.completed).toEqual({ count: 2, total: 30_000 });
-      expect(recon.postedToLedger).toEqual({ count: 2, total: 30_000 });
-    });
-
-    it('a ledger failure at execution rolls everything back', async () => {
-      const { json } = await initiate(g, chair, { amount: 5_000 });
-      const id = json.data!.id;
-      await act(g, treasurer, id, { action: 'approve' });
-
-      await rawQuery(`UPDATE accounts SET is_active = false WHERE group_id = $1 AND account_code = '4001'`, [
-        g.groupId,
-      ]);
-      try {
-        const failed = await platform(id, 'approve');
-        expect(failed.status).toBe(422);
-        expect(await row(id)).toEqual(expect.objectContaining({ status: 'awaiting_platform', journal_entry_id: null }));
-        expect(await cash(g.groupId)).toEqual({ balance: 70_000, reserved: 5_000 });
-        const signoffs = await rawQuery(
-          `SELECT 1 FROM settlement_approvals WHERE subject_id = $1 AND approver_kind = 'backoffice'`,
-          [id],
-        );
-        expect(signoffs).toHaveLength(0);
-        expect(emitted('member_payout.completed')).toEqual([]);
-      } finally {
-        await rawQuery(`UPDATE accounts SET is_active = true WHERE group_id = $1 AND account_code = '4001'`, [
-          g.groupId,
-        ]);
-      }
-      expect((await platform(id, 'approve')).json.data?.status).toBe('completed');
-      expect(await cash(g.groupId)).toEqual({ balance: 65_000, reserved: 0 });
+  describe('cashless enforcement', () => {
+    it.each(['cash', 'bank_transfer'])('rejects %s member payout requests without reserving funds', async (paymentMethod) => {
+      const result = await initiate(g, chair, { amount: 1_000, paymentMethod });
+      expect(result.status).toBe(422);
+      expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
     });
   });
 
@@ -386,7 +290,12 @@ describe('member disbursements', () => {
       await act(g, chair, first.json.data!.id, { action: 'cancel' });
     });
 
-    it('double and concurrent approvals execute exactly once', async () => {
+    it('double and concurrent approvals dispatch exactly once; settlement waits for the provider callback', async () => {
+      (darajaB2C as jest.Mock).mockResolvedValueOnce({
+        conversationId: 'conv-concurrent-1',
+        originatorConversationId: 'oc-concurrent-1',
+        responseDescription: 'Accepted',
+      });
       const { json } = await initiate(g, chair, { amount: 3_000 });
       const id = json.data!.id;
       expect((await act(g, treasurer, id, { action: 'approve' })).status).toBe(200);
@@ -394,11 +303,26 @@ describe('member disbursements', () => {
 
       const results = await Promise.all([platform(id, 'approve'), platform(id, 'approve')]);
       expect(results.map((r) => r.status).sort()).toEqual([200, 422]);
+      expect((await row(id)).status).toBe('dispatched');
+      const journalsBeforeCallback = await rawQuery(`SELECT 1 FROM journal_entries WHERE reference = $1`, [
+        (await row(id)).reference,
+      ]);
+      expect(journalsBeforeCallback).toHaveLength(0);
+
+      await handleB2CResult({
+        Result: {
+          ResultType: 0, ResultCode: 0, ResultDesc: 'Processed',
+          OriginatorConversationID: 'oc-concurrent-1', ConversationID: 'conv-concurrent-1',
+          TransactionID: 'RCPTCONCURRENT1',
+          ResultParameters: { ResultParameter: [{ Key: 'TransactionReceipt', Value: 'RCPTCONCURRENT1' }] },
+        },
+      }, '127.0.0.1');
+      expect((await row(id)).status).toBe('completed');
       const journals = await rawQuery(`SELECT 1 FROM journal_entries WHERE reference = $1`, [
         (await row(id)).reference,
       ]);
       expect(journals).toHaveLength(1);
-      expect(await cash(g.groupId)).toEqual({ balance: 62_000, reserved: 0 });
+      expect((await cash(g.groupId)).reserved).toBe(0);
     });
 
     it('concurrent requests cannot together exceed the available balance', async () => {

@@ -5,14 +5,12 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import {
-  ContributionCsvRowSchema,
   LoanCsvRowSchema,
   MEMBER_CSV_COLUMNS,
   MemberCsvRowSchema,
   resolveCsvHeader,
   resolveHeaderFor,
   type MemberCsvColumn,
-  type ContributionCsvRow,
   type ImportKind,
 } from '@/lib/validators/import.schema';
 import type { PoolClient } from 'pg';
@@ -568,74 +566,10 @@ export const importService = {
   // ── Legacy single-shot contribution import (untouched in E3) ──────────
 
   async importContributions(
-    ctx: TenantContext,
-    csvBuffer: Buffer,
+    _ctx: TenantContext,
+    _csvBuffer: Buffer,
   ): Promise<{ imported: number; errors: ImportRowError[] }> {
-    const rows = parseCsv(csvBuffer);
-    if (rows.length > MAX_ROWS) throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
-
-    const errors: ImportRowError[] = [];
-    const valid: (ContributionCsvRow & { member_id: string })[] = [];
-
-    return withTransaction(ctx, async (client) => {
-      for (let i = 0; i < rows.length; i++) {
-        const rowNum = i + 2;
-        const result = ContributionCsvRowSchema.safeParse(rows[i]);
-        if (!result.success) {
-          errors.push({ row: rowNum, message: result.error.errors.map((e) => e.message).join('; ') });
-          continue;
-        }
-        const row = result.data;
-
-        if (!isValidKenyanPhone(row.member_phone)) {
-          errors.push({ row: rowNum, message: `Invalid phone: ${row.member_phone}` });
-          continue;
-        }
-        const phone = normalizePhone(row.member_phone);
-        const { rows: member } = await client.query<{ id: string }>(
-          `SELECT m.id
-             FROM members m
-             JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $2 AND gm.status = 'active'
-            WHERE m.phone = $1
-            LIMIT 1`,
-          [phone, ctx.groupId],
-        );
-        if (!member[0]) {
-          errors.push({ row: rowNum, message: `No active member with phone ${row.member_phone}` });
-          continue;
-        }
-        valid.push({ ...row, member_id: member[0].id });
-      }
-
-      let imported = 0;
-      for (const row of valid) {
-        try {
-          await client.query(
-            `INSERT INTO contributions
-               (group_id, member_id, group_membership_id, amount, contribution_date, status, payment_method, mpesa_receipt_number, notes, recorded_by)
-             VALUES ($1,$2,
-                     (SELECT gm.id FROM group_members gm
-                      WHERE gm.group_id = $1 AND gm.member_id = $2),
-                     $3,$4,'completed',$5,$6,$7,$8)
-             ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
-            [
-              ctx.groupId,
-              row.member_id,
-              row.amount.toFixed(2),
-              row.contribution_date,
-              row.payment_method ?? null,
-              row.mpesa_receipt ?? null,
-              row.notes ?? null,
-              ctx.userId,
-            ],
-          );
-          imported++;
-        } catch {
-          // Duplicate or constraint violation — skip silently.
-        }
-      }
-      return { imported, errors };
-    });
+    throw new ValidationError('Manual contribution imports are disabled. Historical records require a separate controlled history-import workflow.');
   },
 
   // ── Two-phase contribution import (Phase E7) ─────────────────────────
@@ -645,220 +579,20 @@ export const importService = {
    * import_job. Identical state-machine shape to previewMembers.
    */
   async previewContributions(
-    ctx: TenantContext,
-    csvBuffer: Buffer,
-    filename: string | null,
+    _ctx: TenantContext,
+    _csvBuffer: Buffer,
+    _filename: string | null,
   ): Promise<ImportJob & { preview_rows: PreparedContributionRow[] }> {
-    const rawRows = parseCsv(csvBuffer);
-    if (rawRows.length === 0) throw new ValidationError('CSV contains no data rows');
-    if (rawRows.length > MAX_ROWS) throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
-
-    return withTransaction(ctx, async (client) => {
-      const headerMap = buildHeaderMapFor('contributions', Object.keys(rawRows[0]));
-      const unknownHeaders = Object.keys(rawRows[0]).filter((h) => headerMap[h] === undefined);
-
-      // Member lookup cache: phone → member_id. Avoids N+1 queries for groups
-      // that have the same member contributing in many rows.
-      const memberByPhone = new Map<string, string>();
-      const errors: ImportRowError[] = [];
-      const preparedRows: PreparedContributionRow[] = [];
-      const seenReceiptsInFile = new Set<string>();
-
-      for (let i = 0; i < rawRows.length; i++) {
-        const rowNum = i + 2;
-        const raw = rawRows[i];
-
-        const canon: Record<string, string> = {};
-        for (const [origKey, value] of Object.entries(raw)) {
-          const canonKey = headerMap[origKey];
-          if (canonKey) canon[canonKey] = value;
-        }
-
-        const parsed = ContributionCsvRowSchema.safeParse(canon);
-        if (!parsed.success) {
-          errors.push({
-            row: rowNum,
-            message: parsed.error.errors.map((e) => `${e.path.join('.')}: ${e.message}`).join('; '),
-            raw,
-          });
-          continue;
-        }
-        const data = parsed.data;
-
-        if (!isValidKenyanPhone(data.member_phone)) {
-          errors.push({ row: rowNum, message: `Invalid Kenyan phone: ${data.member_phone}`, raw });
-          continue;
-        }
-        const phone = normalizePhone(data.member_phone);
-
-        let memberId = memberByPhone.get(phone);
-        if (!memberId) {
-          const { rows: m } = await client.query<{ id: string }>(
-            `SELECT m.id FROM members m
-               JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
-              WHERE m.phone = $2
-              LIMIT 1`,
-            [ctx.groupId, phone],
-          );
-          if (!m[0]) {
-            errors.push({ row: rowNum, message: `No member in this group with phone ${phone}`, raw });
-            continue;
-          }
-          memberId = m[0].id;
-          memberByPhone.set(phone, memberId);
-        }
-
-        // Within-file duplicate receipt detection (the DB UNIQUE catches
-        // existing-row dupes at commit).
-        if (data.mpesa_receipt) {
-          if (seenReceiptsInFile.has(data.mpesa_receipt)) {
-            errors.push({ row: rowNum, message: `Duplicate M-Pesa receipt in file: ${data.mpesa_receipt}`, raw });
-            continue;
-          }
-          seenReceiptsInFile.add(data.mpesa_receipt);
-        }
-
-        preparedRows.push({
-          row_num: rowNum,
-          member_id: memberId,
-          member_phone: phone,
-          amount: data.amount,
-          contribution_date: data.contribution_date,
-          payment_method: data.payment_method ?? null,
-          mpesa_receipt: data.mpesa_receipt ?? null,
-          notes: data.notes ?? null,
-          warnings: [],
-        });
-      }
-
-      if (unknownHeaders.length > 0) {
-        errors.unshift({
-          row: 0,
-          message: `Unrecognised columns ignored: ${unknownHeaders.join(', ')}`,
-        });
-      }
-
-      const { rows } = await client.query<ImportJob>(
-        `INSERT INTO import_jobs
-           (group_id, created_by, kind, status, filename,
-            total_rows, valid_rows, error_rows, errors, preview_rows)
-         VALUES ($1, $2, 'contributions', 'previewed', $3,
-                 $4, $5, $6, $7::jsonb, $8::jsonb)
-         RETURNING *`,
-        [
-          ctx.groupId,
-          ctx.userId,
-          filename,
-          rawRows.length,
-          preparedRows.length,
-          errors.filter((e) => e.row > 0).length,
-          JSON.stringify(errors),
-          JSON.stringify(preparedRows),
-        ],
-      );
-
-      await writeAuditLog(client, ctx, 'contribution_import.preview', rows[0].id, {
-        filename,
-        total_rows: rawRows.length,
-        valid_rows: preparedRows.length,
-        error_rows: errors.filter((e) => e.row > 0).length,
-      });
-
-      return { ...rows[0], preview_rows: preparedRows };
-    });
+    throw new ValidationError('Manual contribution imports are disabled. New payments must be confirmed by the M-Pesa provider callback.');
   },
 
   async commitContributions(
-    ctx: TenantContext,
-    jobId: string,
+    _ctx: TenantContext,
+    _jobId: string,
   ): Promise<ImportJob & { imported: number; skipped: number }> {
-    return withTransaction(ctx, async (client) => {
-      const { rows: jobRows } = await client.query<ImportJob & { preview_rows: PreparedContributionRow[] }>(
-        `SELECT * FROM import_jobs WHERE id = $1 AND group_id = $2 FOR UPDATE`,
-        [jobId, ctx.groupId],
-      );
-      const job = jobRows[0];
-      if (!job) throw new NotFoundError('Import job', jobId);
-      if (job.kind !== 'contributions') throw new ValidationError(`Job ${jobId} is not a contributions import`);
-      if (job.status !== 'previewed')
-        throw new ConflictError(`Job ${jobId} is in status '${job.status}' — only 'previewed' jobs can be committed`);
-
-      const rowsToInsert = job.preview_rows as PreparedContributionRow[];
-      const createdIds: string[] = [];
-      const errors: ImportRowError[] = [...(job.errors ?? [])];
-      let imported = 0;
-      let skipped = 0;
-
-      for (const row of rowsToInsert) {
-        try {
-          // ON CONFLICT (mpesa_receipt_number) is the only dedup path for
-          // pre-existing rows; everything else goes through.
-          const { rows: ins } = await client.query<{ id: string }>(
-            `INSERT INTO contributions
-               (group_id, member_id, group_membership_id, amount, contribution_date, status,
-                payment_method, mpesa_receipt_number, notes, recorded_by)
-             VALUES ($1, $2,
-                     (SELECT gm.id FROM group_members gm
-                      WHERE gm.group_id = $1 AND gm.member_id = $2),
-                     $3, $4, 'completed',
-                     $5, $6, $7, $8)
-             ON CONFLICT (mpesa_receipt_number) DO NOTHING
-             RETURNING id`,
-            [
-              ctx.groupId,
-              row.member_id,
-              row.amount.toFixed(2),
-              row.contribution_date,
-              row.payment_method,
-              row.mpesa_receipt,
-              row.notes,
-              ctx.userId,
-            ],
-          );
-          if (ins[0]) {
-            createdIds.push(ins[0].id);
-            imported++;
-          } else {
-            errors.push({ row: row.row_num, message: `Skipped: duplicate M-Pesa receipt ${row.mpesa_receipt}` });
-            skipped++;
-          }
-        } catch (err) {
-          errors.push({ row: row.row_num, message: `Failed to import: ${(err as Error).message}` });
-          skipped++;
-        }
-      }
-
-      const { rows: updated } = await client.query<ImportJob>(
-        `UPDATE import_jobs SET
-           status              = 'committed',
-           committed_at        = NOW(),
-           valid_rows          = $2,
-           error_rows          = $3,
-           errors              = $4::jsonb,
-           created_member_ids  = $5,
-           preview_rows        = '[]'::jsonb
-         WHERE id = $1
-         RETURNING *`,
-        // Note: created_member_ids is repurposed as the generic "rows this
-        // import created" column. The name is from E3 (members); see memory.
-        [jobId, imported, errors.filter((e) => e.row > 0).length, JSON.stringify(errors), createdIds],
-      );
-
-      await writeAuditLog(client, ctx, 'contribution_import.commit', jobId, {
-        imported,
-        skipped,
-        created_ids: createdIds.length,
-      });
-
-      return { ...updated[0], imported, skipped };
-    });
+    throw new ValidationError('Contribution imports cannot create completed payments. Only provider-confirmed M-Pesa callbacks may post contributions.');
   },
 
-  /**
-   * Soft-cancel rollback: UPDATE status='cancelled'. Preserves the audit
-   * trail per the prior audit finding about hard-deleting financial rows.
-   * Returns the count actually cancelled (not just attempted).
-   */
   async rollbackContributions(
     ctx: TenantContext,
     jobId: string,

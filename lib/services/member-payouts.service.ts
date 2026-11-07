@@ -5,8 +5,7 @@
  *
  *   chairperson | secretary  initiate()          → pending_approval  (funds reserved)
  *   treasurer (≠ initiator)  treasurerApprove()  → awaiting_platform
- *   Kitabu Yetu backoffice   platformApprove()   → M-Pesa: approved → dispatched → completed (B2C callback)
- *                                                → cash / bank: completed, in the same transaction
+ *   Kitabu Yetu backoffice   platformApprove()   → approved → dispatched → completed (B2C callback)
  *   treasurer / platform     reject*()           → rejected   (reservation released)
  *   initiator                cancel()            → cancelled  (reservation released)
  *
@@ -42,7 +41,6 @@ import {
   disbursementsService,
   dispatchDisbursement,
   type DisbursementRow,
-  type PayoutMethod,
   type PayoutPurpose,
 } from './disbursements.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -62,8 +60,7 @@ export interface InitiateMemberPayoutInput {
   purpose: PayoutPurpose;
   description: string;
   notes?: string;
-  paymentMethod: PayoutMethod;
-  paymentReference?: string;
+  paymentMethod: 'mpesa';
   idempotencyKey: string;
 }
 
@@ -192,8 +189,8 @@ export const memberPayoutsService = {
     const office = await withDb(ctx, (db) =>
       requireOffice(db, ctx, ['chairperson', 'secretary'], 'initiate a member disbursement'),
     );
-    if (input.paymentMethod === 'bank_transfer' && !input.paymentReference?.trim()) {
-      throw new ValidationError('A bank transfer needs the payee account / transfer reference');
+    if (input.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Member payouts are M-Pesa-only.');
     }
 
     const row = await disbursementsService.initiateDisbursement(ctx, {
@@ -203,7 +200,6 @@ export const memberPayoutsService = {
         description: input.description.trim(),
         notes: input.notes?.trim() || null,
         paymentMethod: input.paymentMethod,
-        paymentReference: input.paymentReference?.trim() || null,
         initiatorRole: office as 'chairperson' | 'secretary',
       },
       amount: input.amount,
@@ -310,15 +306,18 @@ export const memberPayoutsService = {
 
   /**
    * Kitabu Yetu's sign-off (super-admin). M-Pesa: released for B2C dispatch;
-   * the ledgers post on Safaricom's result callback. Cash / bank transfer:
-   * executed here — group journal, member ledger, reservation release and
-   * 'completed' commit together or not at all.
+   * the group and member ledgers post only on Safaricom's verified result callback.
    */
   async platformApprove(adminUserId: string, id: string): Promise<DisbursementRow> {
     const row = await withAdminDb(async (db) => {
       const prior = await lockMemberPayout(db, id, null, ['awaiting_platform']);
       const recipient = await resolveMemberPayoutRecipient(db, prior.group_id, prior.member_id as string);
       if (!recipient) throw new ValidationError('The recipient is no longer an active member of the group');
+      if (prior.payment_method !== 'mpesa') {
+        throw new ValidationError(
+          'Legacy cash and bank-transfer payouts cannot be signed off. Decline this request and resubmit using M-Pesa.',
+        );
+      }
 
       await db.query(
         `INSERT INTO settlement_approvals (subject_type, subject_id, group_id, approver_id, approver_kind, decision)
@@ -326,51 +325,9 @@ export const memberPayoutsService = {
         [id, prior.group_id, adminUserId],
       );
 
-      if (prior.payment_method === 'mpesa') {
-        const { rows } = await db.query<DisbursementRow>(
-          `UPDATE disbursement_requests
-           SET    status = 'approved', platform_approved_by = $2, platform_approved_at = NOW()
-           WHERE  id = $1 RETURNING *`,
-          [id, adminUserId],
-        );
-        await audit(
-          db,
-          prior,
-          null,
-          'member_payout.platform_approve',
-          { status: prior.status },
-          {
-            status: 'approved',
-            platform_approved_by: adminUserId,
-          },
-        );
-        return rows[0];
-      }
-
-      // Cash / bank: final balance check against the source account, which
-      // already carries this payout's own reservation.
-      const { rows: acct } = await db.query<{ balance: string; reserved_amount: string }>(
-        `SELECT balance, reserved_amount FROM accounts WHERE id = $1 FOR UPDATE`,
-        [prior.cash_account_id],
-      );
-      if (!acct[0] || parseFloat(acct[0].balance) - parseFloat(acct[0].reserved_amount) < 0) {
-        throw new ValidationError('Insufficient group funds to execute this disbursement');
-      }
-
-      const posted = await postMemberPayoutJournal(db, {
-        disbursementRequestId: id,
-        charge: 0,
-        receipt: null,
-        mpesaTransactionId: null,
-        strict: true,
-      });
-      if (posted !== 'posted') throw new ValidationError('Ledger posting failed — nothing was recorded');
-
-      await releaseReservation(db, prior);
       const { rows } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
-         SET    status = 'completed', completed_at = NOW(),
-                platform_approved_by = $2, platform_approved_at = NOW()
+         SET    status = 'approved', platform_approved_by = $2, platform_approved_at = NOW()
          WHERE  id = $1 RETURNING *`,
         [id, adminUserId],
       );
@@ -380,20 +337,12 @@ export const memberPayoutsService = {
         null,
         'member_payout.platform_approve',
         { status: prior.status },
-        {
-          status: 'completed',
-          platform_approved_by: adminUserId,
-          journal_entry_id: rows[0].journal_entry_id,
-        },
+        { status: 'approved', platform_approved_by: adminUserId },
       );
       return rows[0];
     });
 
-    if (row.status === 'approved') {
-      await dispatchDisbursement(row.id);
-    } else {
-      await notifyMemberPayout(row.id, 'completed');
-    }
+    await dispatchDisbursement(row.id);
     return row;
   },
 
@@ -533,11 +482,9 @@ export type MemberPayoutPostResult = 'not_member_payout' | 'already_posted' | 'p
  * rows, and is idempotent (row lock + journal_entry_id check) so a replayed
  * callback or a repost never double-posts.
  *
- * Bank-transfer payouts credit 1002 instead of the template's cash account.
  * `charge` (Safaricom's B2C fee) is folded into the same entry; when the chart
  * can't take it the payout still posts and the fee is recorded unlinked,
- * matching postLoanDisbursementJournal. With `strict`, a missing account
- * throws so the caller's transaction rolls back (cash/bank execution).
+ * matching postLoanDisbursementJournal. With `strict`, a missing account throws.
  */
 export async function postMemberPayoutJournal(
   db: PoolClient,
@@ -581,10 +528,7 @@ export async function postMemberPayoutJournal(
 
   const template = await resolvePostingTemplate(db, 'member_payout', { groupId: row.group_id });
   const post = async (charge: number) => {
-    let lines = buildTemplateLines(template, { amount, charge });
-    if (row.payment_method === 'bank_transfer') {
-      lines = lines.map((l) => (l.credit ? { ...l, accountCode: '1002' } : l));
-    }
+    const lines = buildTemplateLines(template, { amount, charge });
     return postSystemJournal(db, row.group_id, row.initiated_by, description, lines, {
       reference: row.reference,
       memberId: row.member_id as string,

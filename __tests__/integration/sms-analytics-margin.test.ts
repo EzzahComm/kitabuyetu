@@ -337,69 +337,23 @@ describe('Organization SMS credit top-ups', () => {
     await resetDatabase();
     ({ organizationId, coordinatorId } = await createTestOrganization());
   });
+
   afterAll(async () => {
     await resetDatabase();
   });
 
-  it('credits the right amount at the default rate, and writes a real purchase ledger row', async () => {
-    // No prior organization_billing_accounts row — proves the lazy bootstrap.
-    const result = await addOrganizationSmsCredits(organizationId, 900, coordinatorId);
+  it('rejects self-attested organization SMS top-ups without provider settlement', async () => {
+    await expect(addOrganizationSmsCredits(organizationId, 900, coordinatorId))
+      .rejects.toThrow(/disabled until a verified provider payment flow is connected/i);
 
-    // Manual top-up: no paymentId, so the G27 duplicate guard can never
-    // swallow it and a null return would be a real defect.
-    expect(result).not.toBeNull();
-    if (!result) throw new Error('unreachable: manual top-up returned null');
-
-    expect(result.rateApplied).toBeCloseTo(0.9, 4); // schema default
-    expect(result.creditsAdded).toBeCloseTo(1000, 4); // 900 / 0.90
-    expect(result.newBalance).toBeCloseTo(1000, 4);
-
-    const [account] = await rawQuery<{ sms_credits: string }>(
+    const rows = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
       [organizationId],
     );
-    expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
-
-    const [lot] = await rawQuery<{ amount_paid: string; credits_added: string; rate_applied: string }>(
-      `SELECT amount_paid, credits_added, rate_applied FROM organization_sms_credits WHERE organization_id = $1`,
-      [organizationId],
-    );
-    expect(Number(lot.amount_paid)).toBeCloseTo(900, 2);
-    expect(Number(lot.credits_added)).toBeCloseTo(1000, 4);
-
-    const [ledger] = await rawQuery<{ payer_type: string; entry_type: string; amount: string }>(
-      `SELECT payer_type, entry_type, amount FROM sms_credit_ledger
-       WHERE organization_id = $1 AND entry_type = 'purchase'`,
-      [organizationId],
-    );
-    expect(ledger.payer_type).toBe('organization');
-    expect(Number(ledger.amount)).toBeCloseTo(1000, 4);
+    expect(Number(rows[0]?.sms_credits ?? 0)).toBe(0);
   });
 
-  it('a changed rate applies to the NEXT top-up, not the last one', async () => {
-    const first = await addOrganizationSmsCredits(organizationId, 900, coordinatorId); // at 0.90
-    if (!first) throw new Error('unreachable: manual top-up returned null');
-    expect(first.rateApplied).toBeCloseTo(0.9, 4);
-
-    await setOrganizationSmsRate(organizationId, 0.5, coordinatorId);
-    const second = await addOrganizationSmsCredits(organizationId, 500, coordinatorId); // at 0.50
-    if (!second) throw new Error('unreachable: manual top-up returned null');
-
-    expect(second.rateApplied).toBeCloseTo(0.5, 4);
-    expect(second.creditsAdded).toBeCloseTo(1000, 4); // 500 / 0.50
-
-    // The first lot's OWN rate_applied must still read 0.90 — a rate change
-    // must never restate a completed purchase, same rule §4 already enforces
-    // for groups (migration 146).
-    const lots = await rawQuery<{ rate_applied: string }>(
-      `SELECT rate_applied FROM organization_sms_credits WHERE organization_id = $1 ORDER BY created_at ASC`,
-      [organizationId],
-    );
-    expect(Number(lots[0].rate_applied)).toBeCloseTo(0.9, 4);
-    expect(Number(lots[1].rate_applied)).toBeCloseTo(0.5, 4);
-  });
-
-  it('setOrganizationSmsRate writes an audit_logs row with old and new values', async () => {
+  it('continues to allow staff to update the SMS rate without moving money', async () => {
     await setOrganizationSmsRate(organizationId, 1.2, coordinatorId);
 
     const [audit] = await rawQuery<{ old_values: { sms_rate: string }; new_values: { sms_rate: string } }>(
@@ -407,41 +361,43 @@ describe('Organization SMS credit top-ups', () => {
        WHERE action = 'organization.sms_rate_update' AND resource_id = $1`,
       [organizationId],
     );
-    expect(Number(audit.old_values.sms_rate)).toBeCloseTo(0.9, 4); // the bootstrapped default
+    expect(Number(audit.old_values.sms_rate)).toBeCloseTo(0.9, 4);
     expect(Number(audit.new_values.sms_rate)).toBeCloseTo(1.2, 4);
   });
 
-  it('rejects a non-positive top-up amount', async () => {
-    await expect(addOrganizationSmsCredits(organizationId, 0, coordinatorId)).rejects.toThrow();
-    await expect(addOrganizationSmsCredits(organizationId, -50, coordinatorId)).rejects.toThrow();
-  });
-
-  it('getOrganizationUsage() shows real, nonzero revenue once a top-up exists', async () => {
-    await addOrganizationSmsCredits(organizationId, 900, coordinatorId, { reference: 'bank-ref-1' });
-
-    const rows = await smsMarginService.getOrganizationUsage();
-    const mine = rows.find((r) => r.organizationId === organizationId);
-    expect(mine).toBeDefined();
-    expect(mine!.revenue).toBeCloseTo(900, 2);
-    expect(mine!.creditsPurchased).toBeCloseTo(1000, 4);
-    expect(mine!.currentBalance).toBeCloseTo(1000, 4);
-  });
-
-  it('an organization_coordinator can self-serve top up their OWN org via the route', async () => {
+  it('rejects coordinator self-serve top-ups at the route boundary', async () => {
     const res = await orgTopUpPost(
       buildRequest('/api/admin/organization/sms-credits', {
         method: 'POST',
         headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'organization_coordinator', organizationId }),
-        body: { amountKes: 450 },
+        body: { amountKes: 450, reference: 'typed-reference' },
       }),
     );
-    expect(res.status).toBe(201);
+    expect(res.status).toBeGreaterThanOrEqual(400);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
       [organizationId],
     );
-    expect(Number(account.sms_credits)).toBeCloseTo(500, 4); // 450 / 0.90
+    expect(Number(account?.sms_credits ?? 0)).toBe(0);
+  });
+
+  it('rejects super_admin manual grants at the by-id route too', async () => {
+    const res = await adminTopUpPost(
+      buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
+        method: 'POST',
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'super_admin' }),
+        body: { amountKes: 900, notes: 'goodwill grant' },
+      }),
+      { params: Promise.resolve({ id: organizationId }) },
+    );
+    expect(res.status).toBeGreaterThanOrEqual(400);
+
+    const [account] = await rawQuery<{ sms_credits: string }>(
+      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
+      [organizationId],
+    );
+    expect(Number(account?.sms_credits ?? 0)).toBe(0);
   });
 
   it('a coordinator WITHOUT an organizationId claim is denied on the self-serve route', async () => {
@@ -455,25 +411,7 @@ describe('Organization SMS credit top-ups', () => {
     expect(res.status).toBe(403);
   });
 
-  it("super_admin can grant/correct ANY organization's balance via the by-id route", async () => {
-    const res = await adminTopUpPost(
-      buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
-        method: 'POST',
-        headers: backofficeHeaders({ userId: coordinatorId, platformRole: 'super_admin' }),
-        body: { amountKes: 900, notes: 'goodwill grant' },
-      }),
-      { params: Promise.resolve({ id: organizationId }) },
-    );
-    expect(res.status).toBe(201);
-
-    const [account] = await rawQuery<{ sms_credits: string }>(
-      `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
-      [organizationId],
-    );
-    expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
-  });
-
-  it('a support-role caller is denied on both super_admin SMS-billing routes — support is read-only', async () => {
+  it('a support-role caller remains denied on the super_admin SMS-billing routes', async () => {
     const topUp = await adminTopUpPost(
       buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
         method: 'POST',

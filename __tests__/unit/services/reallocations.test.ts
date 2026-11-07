@@ -8,7 +8,7 @@
  */
 import { withTransaction } from '@/lib/db';
 import { reallocationsService } from '@/lib/services/reallocations.service';
-import { ValidationError, ForbiddenError } from '@/lib/utils/errors';
+import { ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -42,7 +42,18 @@ const contribution = (over: Record<string, unknown> = {}) => ({
     },
   ],
 });
-const paymentAllocated = { rows: [{ id: 'pay-1', allocation_status: 'allocated' }] };
+const paymentAllocated = (amount = '5000.00', over: Record<string, unknown> = {}) => ({
+  rows: [{
+    id: 'pay-1',
+    allocation_status: 'allocated',
+    status: 'completed',
+    payment_method: 'mpesa',
+    mpesa_receipt_number: 'RX123',
+    group_id: 'grp-1',
+    amount,
+    ...over,
+  }],
+});
 
 describe('reallocationsService.initiate', () => {
   const input = { contributionId: 'contrib-1', toMemberId: 'member-b', reason: 'Posted to wrong member' };
@@ -68,10 +79,52 @@ describe('reallocationsService.initiate', () => {
     await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('rejects a payment that is not provider-confirmed and completed', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { status: 'pending' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a receipt mismatch between the payment spine and contribution', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { mpesa_receipt_number: 'OTHER' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a payment belonging to a different group', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { group_id: 'other-group' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects an amount mismatch between the payment spine and contribution', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5001.00'));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a second correction while the payment already awaits approval', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution({ amount: '50000.00' }));
+    mockQuery.mockResolvedValueOnce(paymentAllocated('50000.00'));
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pending-realloc-1' }] });
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ConflictError);
+  });
+
   it('parks above-threshold corrections pending approval without executing', async () => {
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce(contribution({ amount: '50000.00' }));
-    mockQuery.mockResolvedValueOnce(paymentAllocated);
+    mockQuery.mockResolvedValueOnce(paymentAllocated('50000.00'));
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no pending correction
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'realloc-1', status: 'pending_approval' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reallocation.create
@@ -80,14 +133,15 @@ describe('reallocationsService.initiate', () => {
 
     expect(result.needsApproval).toBe(true);
     // INSERT + its audit log were the last queries — no execution steps followed.
-    expect(mockQuery).toHaveBeenCalledTimes(6);
-    expect(mockQuery.mock.calls[4][1]).toContain('pending_approval');
+    expect(mockQuery).toHaveBeenCalledTimes(7);
+    expect(mockQuery.mock.calls[5][1]).toContain('pending_approval');
   });
 
   it('executes below-threshold corrections immediately', async () => {
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce(contribution({ amount: '5000.00' }));
-    mockQuery.mockResolvedValueOnce(paymentAllocated);
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00'));
+    mockQuery.mockResolvedValueOnce({ rows: [] }); // no pending correction
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({
       rows: [
@@ -110,7 +164,7 @@ describe('reallocationsService.initiate', () => {
     // executeReallocation (original had no journal → mirrors skipped):
     mockQuery.mockResolvedValueOnce(contribution()); // void original RETURNING
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] }); // corrected insert
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // spine transition
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pay-1' }] }); // spine transition
     mockQuery.mockResolvedValueOnce({ rows: [] }); // payment_events
     mockQuery.mockResolvedValueOnce({ rows: [] }); // outbox
     mockQuery.mockResolvedValueOnce({ rows: [] }); // realloc finalise
@@ -118,11 +172,11 @@ describe('reallocationsService.initiate', () => {
     const result = await reallocationsService.initiate(ctx, input);
 
     expect(result.needsApproval).toBe(false);
-    expect(mockQuery).toHaveBeenCalledTimes(12);
+    expect(mockQuery).toHaveBeenCalledTimes(13);
     // Void step targets only completed rows (double-execution latch).
-    expect(mockQuery.mock.calls[6][0]).toContain("status = 'completed'");
+    expect(mockQuery.mock.calls[7][0]).toContain("status = 'completed'");
     // Spine flips to reallocated.
-    expect(mockQuery.mock.calls[8][0]).toContain("allocation_status = 'reallocated'");
+    expect(mockQuery.mock.calls[9][0]).toContain("allocation_status = 'reallocated'");
   });
 });
 
@@ -173,7 +227,7 @@ describe('reallocationsService.approve', () => {
       },
     );
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pay-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });

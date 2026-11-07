@@ -437,132 +437,20 @@ export const dividendsService = {
   // ── Payments ─────────────────────────────────────────────────────────
 
   async payAllocation(
-    ctx: TenantContext,
-    declarationId: string,
-    allocationId: string,
-    input: PayAllocationInput,
+    _ctx: TenantContext,
+    _declarationId: string,
+    _allocationId: string,
+    _input: PayAllocationInput,
   ): Promise<DividendAllocation> {
-    return withTransaction(ctx, async (client) => {
-      const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
-      if (decl.status !== 'approved') {
-        throw new ConflictError(`Cannot record payments — declaration is in status '${decl.status}'`);
-      }
-
-      const { rows: a } = await client.query<DividendAllocation>(
-        `SELECT * FROM dividend_allocations
-          WHERE id = $1 AND declaration_id = $2 AND group_id = $3
-          FOR UPDATE`,
-        [allocationId, declarationId, ctx.groupId],
-      );
-      if (!a[0]) throw new NotFoundError('Dividend allocation', allocationId);
-      if (a[0].status !== 'pending')
-        throw new ConflictError(`Allocation is in status '${a[0].status}' — only pending allocations can be paid`);
-
-      const { rows: updated } = await client.query<DividendAllocation>(
-        `UPDATE dividend_allocations SET
-           status            = 'paid',
-           payment_method    = $2,
-           payment_reference = $3,
-           paid_at           = NOW(),
-           paid_by           = $4,
-           notes             = COALESCE($5, notes),
-           updated_at        = NOW()
-         WHERE id = $1
-         RETURNING *`,
-        [allocationId, input.paymentMethod, input.paymentReference ?? null, ctx.userId, input.notes ?? null],
-      );
-
-      await rollUpTotals(client, declarationId);
-      await writeAuditLog(client, ctx, 'dividend.allocation.pay', allocationId, {
-        declaration_id: declarationId,
-        method: input.paymentMethod,
-        amount: a[0].net_amount,
-      });
-
-      const netAmount = Number(a[0].net_amount);
-      if (netAmount > 0) {
-        await postTemplatedJournal(
-          client,
-          ctx.groupId,
-          ctx.userId,
-          'dividend_payment',
-          `Dividend payment — allocation ${allocationId}`,
-          { net: netAmount },
-          { reference: allocationId, memberId: a[0].member_id },
-        );
-      }
-
-      return updated[0];
-    });
+    throw new ValidationError('Manual dividend payment recording is disabled. Dividend payouts must be completed through a provider-confirmed M-Pesa disbursement flow.');
   },
 
   async bulkPayAllocations(
-    ctx: TenantContext,
-    declarationId: string,
-    input: BulkPayAllocationsInput,
+    _ctx: TenantContext,
+    _declarationId: string,
+    _input: BulkPayAllocationsInput,
   ): Promise<{ paid: number; skipped: { id: string; reason: string }[] }> {
-    return withTransaction(ctx, async (client) => {
-      const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
-      if (decl.status !== 'approved') {
-        throw new ConflictError(`Cannot record payments — declaration is in status '${decl.status}'`);
-      }
-
-      const skipped: { id: string; reason: string }[] = [];
-      let paid = 0;
-
-      for (const id of input.allocationIds) {
-        const { rows: a } = await client.query<{ status: string; member_id: string; net_amount: string }>(
-          `SELECT status, member_id, net_amount FROM dividend_allocations
-            WHERE id = $1 AND declaration_id = $2 AND group_id = $3
-            FOR UPDATE`,
-          [id, declarationId, ctx.groupId],
-        );
-        if (!a[0]) {
-          skipped.push({ id, reason: 'Not found' });
-          continue;
-        }
-        if (a[0].status !== 'pending') {
-          skipped.push({ id, reason: `Status is ${a[0].status}` });
-          continue;
-        }
-
-        await client.query(
-          `UPDATE dividend_allocations SET
-             status            = 'paid',
-             payment_method    = $2,
-             payment_reference = $3,
-             paid_at           = NOW(),
-             paid_by           = $4,
-             notes             = COALESCE($5, notes),
-             updated_at        = NOW()
-           WHERE id = $1`,
-          [id, input.paymentMethod, input.paymentReference ?? null, ctx.userId, input.notes ?? null],
-        );
-        paid++;
-
-        const netAmount = Number(a[0].net_amount);
-        if (netAmount > 0) {
-          await postTemplatedJournal(
-            client,
-            ctx.groupId,
-            ctx.userId,
-            'dividend_payment',
-            `Dividend payment — allocation ${id}`,
-            { net: netAmount },
-            { reference: id, memberId: a[0].member_id },
-          );
-        }
-      }
-
-      await rollUpTotals(client, declarationId);
-      await writeAuditLog(client, ctx, 'dividend.allocation.bulk_pay', declarationId, {
-        paid,
-        skipped: skipped.length,
-        method: input.paymentMethod,
-      });
-
-      return { paid, skipped };
-    });
+    throw new ValidationError('Manual bulk dividend payment recording is disabled. Dividend payouts must be completed through provider-confirmed M-Pesa disbursements.');
   },
 
   async cancelAllocation(

@@ -609,63 +609,19 @@ export const billingService = {
     });
   },
 
-  async recordPayment(ctx: TenantContext, data: RecordManualPaymentInput): Promise<Payment> {
-    return withTransaction(ctx, async (client) => {
-      const { rows } = await client.query<Payment>(
-        `INSERT INTO payments
-           (group_id, invoice_id, amount, payment_method, status, payment_date, recorded_by,
-            mpesa_receipt_number, notes)
-         VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8) RETURNING *`,
-        [
-          ctx.groupId,
-          data.invoiceId ?? null,
-          data.amount.toFixed(2),
-          data.paymentMethod,
-          data.paymentDate,
-          ctx.userId,
-          data.mpesaReceiptNumber ?? null,
-          data.notes ?? null,
-        ],
-      );
-
-      if (data.invoiceId) {
-        await client.query(
-          `UPDATE invoices
-           SET paid_amount = paid_amount + $1,
-               status = CASE WHEN paid_amount + $1 >= total_amount THEN 'completed' ELSE status END
-           WHERE id = $2`,
-          [data.amount.toFixed(2), data.invoiceId],
-        );
-      }
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
-      // Subscription expense account was previously dead code — no payment
-      // path ever posted to it.
-      //
-      // Skipped for a group with no chart of accounts (migration 140). This is
-      // reachable: /api/v1/billing is outside the subscription lock, so a
-      // Chama-Reminder-only group can record a payment here, and the template
-      // needs accounts 1001 and 5003 — it would fail with an account-codes
-      // error that says nothing about the real cause. Recording the payment
-      // still matters to such a group; posting a journal it has no ledger for
-      // does not.
-      if (await hasChartOfAccounts(client, ctx.groupId)) {
-        await postTemplatedJournal(
-          client,
-          ctx.groupId,
-          ctx.userId,
-          'subscription_payment',
-          `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
-          { amount: data.amount },
-          { reference: rows[0].id },
-        );
-      }
-
-      return rows[0];
-    });
+  async recordPayment(
+    _ctx: TenantContext,
+    _data: RecordManualPaymentInput,
+  ): Promise<Payment> {
+    throw new ValidationError('Manual invoice payment entry is disabled. Only verified M-Pesa provider callbacks may settle invoices.');
   },
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
+    if (!paymentId) {
+      throw new ValidationError(
+        'Manual SMS-credit top-ups are disabled. Only a completed provider-confirmed M-Pesa payment can add credits.',
+      );
+    }
     // The confirmation is sent AFTER this transaction commits, never inside
     // it. First attempt put it inside and CI's app_tenant (real RLS) job
     // caught the consequence immediately: top-ups credited 0 instead of
@@ -682,6 +638,27 @@ export const billingService = {
     //
     // Anything best-effort therefore belongs outside the money transaction.
     const confirm = await withTransaction(ctx, async (client) => {
+      // The service is callable outside the STK callback too. Do not trust
+      // possession of a payment ID alone: bind it to a completed M-Pesa
+      // payment, its provider receipt, this group, and the exact amount.
+      const { rows: verifiedPayments } = await client.query<{ id: string }>(
+        `SELECT id FROM payments
+         WHERE id = $1
+           AND group_id = $2
+           AND status = 'completed'
+           AND payment_method = 'mpesa'
+           AND channel = 'stk'
+           AND mpesa_receipt_number IS NOT NULL
+           AND amount = $3
+         FOR SHARE`,
+        [paymentId, ctx.groupId, amountKes.toFixed(2)],
+      );
+      if (!verifiedPayments[0]) {
+        throw new ValidationError(
+          'SMS credits require a matching completed M-Pesa payment with a provider receipt for this group and amount',
+        );
+      }
+
       // MIN across every active subscription, matching reserve_sms_credits'
       // own rule exactly (migration 127). These two must agree: this decides
       // how many credits a top-up buys, that one decides what a send costs, and
@@ -949,12 +926,17 @@ export async function setOrganizationSmsRate(
  * Returns null when a replay was swallowed: nothing was credited, so the
  * caller must not report a top-up either.
  */
+function rejectUnverifiedOrganizationSmsTopUp(): void {
+  throw new ValidationError('Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected');
+}
+
 export async function addOrganizationSmsCredits(
   organizationId: string,
   amountKes: number,
   actorUserId: string | null,
   opts: { reference?: string; notes?: string; paymentId?: string | null } = {},
 ): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number } | null> {
+  rejectUnverifiedOrganizationSmsTopUp();
   if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
 
   const result = await withAdminDb(async (db) => {

@@ -465,6 +465,7 @@ export default function SmsPricingPage() {
                                 variant="outline"
                                 className="h-7 px-2 text-xs"
                                 onClick={() => setTopUpTarget({ id: o.organizationId, name: o.organizationName })}
+                                disabled
                               >
                                 Top up
                               </Button>
@@ -486,17 +487,15 @@ export default function SmsPricingPage() {
               </CardContent>
             </Card>
             <p className="text-xs text-muted-foreground">
-              Organizations have no real-time M-Pesa collection today — a top-up here (or one the organization&apos;s
-              own coordinator records in the Funding Portal) is a manual entry, trusted the same way a group&apos;s
-              general capital deposit already is. &quot;Set rate&quot; controls the negotiated per-SMS price a
-              top-up&apos;s credits are computed at.
+              Organization SMS credits cannot be added manually. New credits require a completed, provider-confirmed
+              M-Pesa payment; that collection flow is not yet connected. &quot;Set rate&quot; remains available for
+              configuring the negotiated per-SMS price.
             </p>
           </div>
         </TabsContent>
       </Tabs>
 
-      {/* Top up an organization's SMS credits — super_admin correcting/granting a
-          balance, previously impossible: there was no admin tool for this at all. */}
+      {/* Retained as a disabled legacy dialog; the service rejects manual grants until provider collection is connected. */}
       <Dialog
         open={!!topUpTarget}
         onOpenChange={(o) => {
@@ -519,8 +518,7 @@ export default function SmsPricingPage() {
               />
             </div>
             <p className="text-xs text-muted-foreground">
-              Credits are computed at this organization&apos;s current negotiated rate. Recorded as a manual top-up — no
-              M-Pesa payment is collected here.
+              Manual grants are disabled. Credits can only be added after a verified provider payment.
             </p>
           </div>
           <DialogFooter>
@@ -530,7 +528,7 @@ export default function SmsPricingPage() {
             <Button
               onClick={handleTopUp}
               loading={topUpOrg.isPending}
-              disabled={!topUpAmount || Number.isNaN(Number(topUpAmount)) || Number(topUpAmount) <= 0}
+              disabled
             >
               Add credits
             </Button>

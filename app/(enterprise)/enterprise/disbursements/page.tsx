@@ -216,11 +216,11 @@ export default function DisbursementsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Disbursements"
-        description="Send funds from your organization wallet to a branch, and approve pending requests."
+        description="Historical disbursements remain viewable. New transfers and approvals are disabled until verified M-Pesa or KCB Buni settlement is connected."
         breadcrumbs={[{ label: 'Portfolio', href: '/enterprise' }, { label: 'Disbursements' }]}
         actions={
           canManageDisbursements ? (
-            <Button size="sm" onClick={() => setCreating(true)}>
+            <Button size="sm" disabled>
               <Plus size={15} className="mr-2" /> New disbursement
             </Button>
           ) : undefined

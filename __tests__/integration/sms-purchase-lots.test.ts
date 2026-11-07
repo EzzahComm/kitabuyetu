@@ -14,11 +14,7 @@ import { billingService } from '@/lib/services/billing.service';
 import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
-import type { TenantContext } from '@/lib/db';
 
-function ctxFor(groupId: string, userId: string): TenantContext {
-  return { userId, groupId, role: 'chairperson' };
-}
 
 async function lots(groupId: string) {
   return rawQuery<{ credits_added: string; remaining_credits: string; rate_applied: string }>(
@@ -51,6 +47,15 @@ async function lotDrift(groupId: string): Promise<number> {
     [groupId],
   );
   return Number(row.lot_drift);
+}
+
+async function topUp(groupId: string, userId: string, amount: number): Promise<void> {
+  const [payment] = await rawQuery<{ id: string }>(
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk') RETURNING id`,
+    [groupId, amount, `SMS-1794070222599-25339`],
+  );
+  await billingService.addSmsCredits({ userId, groupId, role: 'chairperson' }, amount, payment.id);
 }
 
 describe('SMS purchase lots', () => {
@@ -113,7 +118,7 @@ describe('SMS purchase lots', () => {
   });
 
   it('records a lot when a real top-up happens', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(groupId, officerId, 90);
 
     const rows = await lots(groupId);
     expect(rows).toHaveLength(1);
@@ -123,7 +128,7 @@ describe('SMS purchase lots', () => {
   });
 
   it('draws a lot down when messages are actually consumed', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(groupId, officerId, 90);
     const before = Number((await lots(groupId))[0].remaining_credits);
 
     const [log] = await rawQuery<{ id: string }>(
@@ -143,7 +148,7 @@ describe('SMS purchase lots', () => {
 
   it('does not draw a lot for an allowance-funded message', async () => {
     // An allowance send consumes no PURCHASED credit, so no lot may move.
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(groupId, officerId, 90);
     const before = Number((await lots(groupId))[0].remaining_credits);
 
     const [log] = await rawQuery<{ id: string }>(
