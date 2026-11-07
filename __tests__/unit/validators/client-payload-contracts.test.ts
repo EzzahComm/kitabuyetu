@@ -18,7 +18,7 @@
  * rather than in production.
  */
 import { CreateJournalSchema, SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
-import { StkPushSchema } from '@/lib/validators/mpesa.schema';
+import { MemberPayoutSchema, StkPushSchema } from '@/lib/validators/mpesa.schema';
 import { ReviewWelfareRequestSchema } from '@/lib/services/welfare.service';
 import {
   ApplyLoanSchema,
@@ -33,6 +33,17 @@ import { PayAllocationSchema, BulkPayAllocationsSchema } from '@/lib/validators/
 import { CreateShareTransactionSchema } from '@/lib/validators/shares.schema';
 
 describe('callback-only money movement payloads', () => {
+  it('rejects a manually supplied member payout reference', () => {
+    expect(MemberPayoutSchema.safeParse({
+      memberId: '11111111-1111-4111-8111-111111111111',
+      amount: 1000,
+      purpose: 'other',
+      description: 'Member payout',
+      paymentMethod: 'mpesa',
+      paymentReference: 'QAB123XYZ',
+    }).success).toBe(false);
+  });
+
   it('rejects manually recorded invoice settlements', () => {
     expect(RecordManualPaymentSchema.safeParse({
       amount: 500,
