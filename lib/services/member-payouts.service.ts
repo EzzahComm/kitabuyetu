@@ -306,9 +306,7 @@ export const memberPayoutsService = {
 
   /**
    * Kitabu Yetu's sign-off (super-admin). M-Pesa: released for B2C dispatch;
-   * the ledgers post on Safaricom's result callback. Cash / bank transfer:
-   * executed here — group journal, member ledger, reservation release and
-   * 'completed' commit together or not at all.
+   * the group and member ledgers post only on Safaricom's verified result callback.
    */
   async platformApprove(adminUserId: string, id: string): Promise<DisbursementRow> {
     const row = await withAdminDb(async (db) => {
@@ -484,11 +482,9 @@ export type MemberPayoutPostResult = 'not_member_payout' | 'already_posted' | 'p
  * rows, and is idempotent (row lock + journal_entry_id check) so a replayed
  * callback or a repost never double-posts.
  *
- * Bank-transfer payouts credit 1002 instead of the template's cash account.
  * `charge` (Safaricom's B2C fee) is folded into the same entry; when the chart
  * can't take it the payout still posts and the fee is recorded unlinked,
- * matching postLoanDisbursementJournal. With `strict`, a missing account
- * throws so the caller's transaction rolls back (cash/bank execution).
+ * matching postLoanDisbursementJournal. With `strict`, a missing account throws.
  */
 export async function postMemberPayoutJournal(
   db: PoolClient,
