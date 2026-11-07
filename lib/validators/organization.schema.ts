@@ -246,9 +246,8 @@ export const DepositSchema = z.object({
   notes: z.string().max(500).optional(),
 });
 
-/** How money physically moves. Mirrors the `payment_method` enum, which
- *  `loans.payment_method` already uses — deliberately not a second vocabulary. */
-export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
+/** Organization disbursement payloads accept M-Pesa only. Historical cash/bank values remain readable. */
+export const PAYMENT_METHODS = ['mpesa'] as const;
 
 export const DisburseSchema = z
   .object({
