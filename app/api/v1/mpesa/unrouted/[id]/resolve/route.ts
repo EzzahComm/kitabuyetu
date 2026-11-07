@@ -24,7 +24,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const { id } = await params;
       const input = Schema.parse(await req.json());
       await resolveUnrouted({ userId: auth.userId, groupId: auth.groupId, role: auth.role }, id, input.action, {
-        memberId: input.memberId,
         notes: input.notes,
       });
       return ok({ resolved: true });
