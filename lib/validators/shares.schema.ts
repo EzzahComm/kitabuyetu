@@ -46,17 +46,14 @@ export const UpdateShareClassSchema = z.object({
 export const SHARE_TXN_TYPES = ['allocation', 'purchase', 'transfer', 'redemption', 'adjustment'] as const;
 export type ShareTxnTypeInput = (typeof SHARE_TXN_TYPES)[number];
 
-// Cashless policy: no new share transaction can be recorded as cash/offline.
-export const PAYMENT_METHODS = ['mpesa'] as const;
-
 /**
  * Single create-transaction shape that covers all txn flavours. The service
  * splits 'transfer' into the paired transfer_in / transfer_out rows.
  *
  *   - allocation: { memberId, classId, quantity > 0 } (free shares; unitPrice defaults to 0)
- *   - purchase:   { memberId, classId, quantity > 0, totalAmount, paymentMethod, paymentReference? }
+ *   - purchase:   disabled until a provider-confirmed M-Pesa allocation flow exists
  *   - transfer:   { memberId (from), counterpartyMemberId (to), classId, quantity > 0 }
- *   - redemption: { memberId, classId, quantity > 0, totalAmount, paymentMethod }
+ *   - redemption: disabled until a provider-confirmed M-Pesa payout flow exists
  *                 (quantity given as positive; service flips sign for the DB row)
  *   - adjustment: { memberId, classId, quantity (any non-zero), reason }
  */
