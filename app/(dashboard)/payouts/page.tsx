@@ -663,11 +663,7 @@ export default function DisbursementsPage() {
                 ) : (
                   <>
                     <Row label="Withdrawable savings" value={formatKES(elig.withdrawableSavings)} />
-                    <Row label="Group funds (cash / M-Pesa)" value={formatKES(elig.available.cash)} />
-                    <Row
-                      label="Group funds (bank)"
-                      value={elig.available.bank === null ? 'No bank account' : formatKES(elig.available.bank)}
-                    />
+                    <Row label="Available payout balance" value={formatKES(elig.available.cash)} />
                   </>
                 )}
               </div>
