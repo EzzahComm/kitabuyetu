@@ -647,6 +647,7 @@ export const billingService = {
            AND group_id = $2
            AND status = 'completed'
            AND payment_method = 'mpesa'
+           AND channel = 'stk'
            AND mpesa_receipt_number IS NOT NULL
            AND amount = $3
          FOR SHARE`,
