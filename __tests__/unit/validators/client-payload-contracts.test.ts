@@ -59,6 +59,16 @@ describe('callback-only money movement payloads', () => {
     }).success).toBe(false);
   });
 
+  it.each(['cash', 'bank_transfer'])('rejects offline member payout method %s', (paymentMethod) => {
+    expect(MemberPayoutSchema.safeParse({
+      memberId: '11111111-1111-4111-8111-111111111111',
+      amount: 1000,
+      purpose: 'other',
+      description: 'Member payout',
+      paymentMethod,
+    }).success).toBe(false);
+  });
+
   it('rejects manually recorded invoice settlements', () => {
     expect(RecordManualPaymentSchema.safeParse({
       amount: 500,
