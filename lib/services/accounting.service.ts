@@ -55,7 +55,7 @@ export const DEFAULT_ACCOUNTS = [
  * by groups. Provider/system generated entries
  * continue through dedicated service posting paths and are not affected here.
  */
-async function assertNoManualCashAccount(
+async function assertNoManualLiquidPaymentAccount(
   client: PoolClient,
   groupId: string,
   accountIds: string[],
@@ -370,7 +370,7 @@ export const accountingService = {
     data: CreateJournalInput,
   ): Promise<JournalEntry & { lines: JournalLine[] }> {
     return withTransaction(ctx, async (client) => {
-      await assertNoManualCashAccount(client, ctx.groupId, data.lines.map((line) => line.accountId));
+      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, data.lines.map((line) => line.accountId));
       const { rows: jeRows } = await client.query<JournalEntry>(
         `INSERT INTO journal_entries (group_id, entry_date, reference, description, created_by)
          VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -421,7 +421,7 @@ export const accountingService = {
       const { rows: draftLines } = await client.query<{ account_id: string }>(
         `SELECT account_id FROM journal_lines WHERE journal_entry_id = $1`, [id],
       );
-      await assertNoManualCashAccount(client, ctx.groupId, draftLines.map((line) => line.account_id));
+      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, draftLines.map((line) => line.account_id));
 
       // Maker-checker (ACCOUNTING_ARCHITECTURE_AUDIT.md §15): above the
       // group's threshold, the poster must differ from the creator. The DB
