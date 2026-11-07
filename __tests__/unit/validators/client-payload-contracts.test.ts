@@ -187,7 +187,7 @@ describe('client payload contracts', () => {
       expect(RejectLoanSchema.safeParse({ reason: 'Insufficient savings history' }).success).toBe(true);
     });
 
-    it('rejects a disburse with no date/method — what the Mark disbursed button used to send', () => {
+    it('rejects all manual loan disbursement payloads', () => {
       expect(DisburseLoanSchema.safeParse({}).success).toBe(false);
       expect(
         DisburseLoanSchema.safeParse({
@@ -195,10 +195,10 @@ describe('client payload contracts', () => {
           paymentMethod: 'cash',
           mpesaReceiptNumber: null,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
     });
 
-    it('accepts the rebuilt repayment payload and rejects the old {amount, reference} one', () => {
+    it('rejects manual repayment payloads; provider callbacks own completion', () => {
       expect(
         RecordRepaymentSchema.safeParse({
           installmentNumber: 1,
@@ -208,7 +208,7 @@ describe('client payload contracts', () => {
           mpesaReceiptNumber: null,
           penaltyAmount: 0,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
       expect(
         RecordRepaymentSchema.safeParse({
           amount: 5000,
