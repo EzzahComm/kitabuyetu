@@ -152,16 +152,18 @@ describe('postJournalEntry maker-checker', () => {
   it('blocks the creator from posting their own entry above the threshold', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', created_by: 'user-1', group_id: 'group-1', status: 'draft' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'group-1', value: { threshold: 1000 } }] })
       .mockResolvedValueOnce({ rows: [{ total: '5000.00' }] });
 
     await expect(accountingService.postJournalEntry(ctx, 'je-1')).rejects.toBeInstanceOf(ForbiddenError);
-    expect(mockQuery).toHaveBeenCalledTimes(3); // never reaches the UPDATE or audit-log insert
+    expect(mockQuery).toHaveBeenCalledTimes(4); // never reaches the UPDATE or audit-log insert
   });
 
   it('allows the creator to post their own entry at or under the threshold', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', created_by: 'user-1', group_id: 'group-1', status: 'draft' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ organization_id: null, group_id: 'group-1', value: { threshold: 10000 } }] })
       .mockResolvedValueOnce({ rows: [{ total: '500.00' }] })
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', status: 'posted', posted_by: 'user-1' }] })
@@ -169,18 +171,19 @@ describe('postJournalEntry maker-checker', () => {
 
     const result = await accountingService.postJournalEntry(ctx, 'je-1');
     expect(result.status).toBe('posted');
-    expect(mockQuery).toHaveBeenCalledTimes(5);
+    expect(mockQuery).toHaveBeenCalledTimes(6);
   });
 
   it('allows a different actor to post regardless of amount, without a threshold check', async () => {
     mockQuery
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', created_by: 'user-2', group_id: 'group-1', status: 'draft' }] })
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ id: 'je-1', status: 'posted', posted_by: 'user-1' }] })
       .mockResolvedValueOnce({ rows: [] });
 
     const result = await accountingService.postJournalEntry(ctx, 'je-1');
     expect(result.status).toBe('posted');
-    expect(mockQuery).toHaveBeenCalledTimes(3); // no threshold lookup — different actor, no check needed
+    expect(mockQuery).toHaveBeenCalledTimes(4); // no threshold lookup — different actor, no check needed
   });
 
   it('throws NotFoundError when there is no matching draft entry', async () => {
