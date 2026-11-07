@@ -66,7 +66,7 @@ export default function ContributionsPage() {
   const onSubmit = async (values: FormValues) => {
     try {
       await record.mutateAsync(values);
-      toast({ title: 'Contribution recorded' });
+      toast({ title: 'Contribution obligation saved', description: 'It remains pending until M-Pesa confirms payment.' });
       setOpen(false);
       reset();
     } catch (err) {
