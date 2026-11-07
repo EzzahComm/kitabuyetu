@@ -119,6 +119,6 @@ Additional pathways closed by the cashless audit:
 
 - Organization wallet deposits and organization-to-group disbursements/approvals are disabled until real inbound/outbound provider transfers are connected. A ledger-only transfer is not proof that money moved.
 - Group and organization SMS-credit top-ups require a matching completed M-Pesa STK payment with provider receipt, group, and exact amount. Manual grants and reference-only top-ups are rejected; the backfill script also accepts only receipt-backed STK payments.
-- Fine mark-paid actions are disabled until a verified M-Pesa callback can settle fines.
+- Fine collection requests and mark-paid actions are disabled until a verified M-Pesa callback can collect and settle fines.
 - Generic manual journals cannot post to cash, bank, or M-Pesa/mobile-money accounts. Provider/system-generated postings remain available.
 - Support and marketing copy now describe the M-Pesa-only contribution workflow; legacy cash/bank history remains available for read-only reporting.
