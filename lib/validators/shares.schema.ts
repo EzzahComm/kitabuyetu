@@ -88,10 +88,14 @@ export const CreateShareTransactionSchema = z
     path: ['counterpartyMemberId'],
     message: 'counterpartyMemberId must be different from memberId',
   })
-  .refine(
-    (v) => !['purchase', 'redemption'].includes(v.type) || (v.paymentMethod === 'mpesa' && !!v.paymentReference?.trim()),
-    { path: ['paymentReference'], message: 'Share purchases/redemptions require an M-Pesa method and receipt/reference' },
-  )
+  .refine((v) => !['purchase', 'redemption'].includes(v.type), {
+    path: ['type'],
+    message: 'Manual share purchases and redemptions are disabled until provider-backed allocation is available',
+  })
+  .refine((v) => !v.paymentReference?.trim(), {
+    path: ['paymentReference'],
+    message: 'Manual payment references are not accepted',
+  })
   .refine(
     // Non-adjustment types require positive quantity from the API; the
     // service decides the DB sign per type.
