@@ -225,8 +225,208 @@ export const sharesService = {
 
   // ── Share transactions ───────────────────────────────────────────────
 
-  async createTransaction(ctx: TenantContext, _input: CreateShareTransactionInput): Promise<ShareTransaction[]> {
-    throw new ValidationError('Manual share transaction posting is disabled. Purchases/redemptions require provider-confirmed M-Pesa allocation; non-financial adjustments must use the audited adjustment workflow.');
+  async createTransaction(ctx: TenantContext, input: CreateShareTransactionInput): Promise<ShareTransaction[]> {
+    if (input.type === 'purchase' || input.type === 'redemption') {
+      throw new ValidationError('Manual share purchases and redemptions are disabled. Only provider-confirmed M-Pesa allocations may post financial transactions.');
+    }
+    return withTransaction(ctx, async (client) => {
+      // Resolve share class and lock it FOR SHARE so its config doesn't shift mid-txn.
+      const { rows: cls } = await client.query<{
+        id: string;
+        code: string;
+        par_value: string;
+        current_value: string | null;
+        is_active: boolean;
+        max_per_member: number | null;
+        transfer_allowed: boolean;
+        lock_period_days: number;
+      }>(
+        `SELECT id, code, par_value, current_value, is_active, max_per_member, transfer_allowed, lock_period_days
+           FROM share_classes
+          WHERE group_id = $1 AND id = $2
+          FOR SHARE`,
+        [ctx.groupId, input.shareClassId],
+      );
+      if (!cls[0]) throw new NotFoundError('Share class', input.shareClassId);
+      if (!cls[0].is_active)
+        throw new ConflictError('Share class is inactive — re-activate it before posting transactions');
+      if (input.type === 'transfer' && !cls[0].transfer_allowed) {
+        throw new ConflictError(`Transfers are disabled for share class '${cls[0].code}'`);
+      }
+
+      // Lock-period check on outflows. We use the last *acquisition* date
+      // (the most recent inflow), not last_transaction_at — a previous
+      // outflow would otherwise reset the lock clock and let members
+      // sidestep the policy with a sacrificial small redemption.
+      const isOutflow = input.type === 'redemption' || input.type === 'transfer';
+      if (isOutflow && cls[0].lock_period_days > 0) {
+        const lastAcq = await getLastAcquisitionAt(client, ctx.groupId, input.memberId, input.shareClassId);
+        if (lastAcq) {
+          const unlockAt = new Date(lastAcq.getTime() + cls[0].lock_period_days * 24 * 60 * 60 * 1000);
+          if (new Date() < unlockAt) {
+            const daysLeft = Math.ceil((unlockAt.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+            throw new ConflictError(
+              `Lock period active for class '${cls[0].code}': last acquisition was on ${lastAcq.toISOString().slice(0, 10)}; shares unlock on ${unlockAt.toISOString().slice(0, 10)} (${daysLeft} day(s) remaining)`,
+            );
+          }
+        }
+      }
+
+      // Membership check — keeps the FK error clean.
+      await assertGroupMembership(client, ctx.groupId, input.memberId, 'memberId');
+      if (input.counterpartyMemberId) {
+        await assertGroupMembership(client, ctx.groupId, input.counterpartyMemberId, 'counterpartyMemberId');
+      }
+
+      const unitPrice: number = input.unitPrice ?? Number(cls[0].current_value ?? cls[0].par_value);
+      const qtyAbs = Math.abs(input.quantity);
+      const totalAmount: number = input.totalAmount ?? (input.type === 'allocation' ? 0 : qtyAbs * unitPrice);
+
+      // Outflow checks: ensure sender has enough shares of this class.
+      if (input.type === 'redemption' || input.type === 'transfer') {
+        const senderBalance = await getMemberBalance(client, ctx.groupId, input.memberId, input.shareClassId);
+        if (senderBalance < qtyAbs) {
+          throw new ConflictError(
+            `Member only holds ${senderBalance} share(s) of '${cls[0].code}' — cannot ${input.type} ${qtyAbs}`,
+          );
+        }
+      }
+
+      // Inflow checks: enforce max_per_member (after this txn).
+      if (cls[0].max_per_member !== null) {
+        const checks: { memberId: string; addAfter: number }[] = [];
+        if (input.type === 'purchase' || input.type === 'allocation') {
+          checks.push({ memberId: input.memberId, addAfter: qtyAbs });
+        }
+        if (input.type === 'transfer') {
+          checks.push({ memberId: input.counterpartyMemberId!, addAfter: qtyAbs });
+        }
+        if (input.type === 'adjustment' && input.quantity > 0) {
+          checks.push({ memberId: input.memberId, addAfter: input.quantity });
+        }
+        for (const c of checks) {
+          const current = await getMemberBalance(client, ctx.groupId, c.memberId, input.shareClassId);
+          if (current + c.addAfter > cls[0].max_per_member) {
+            throw new ConflictError(
+              `Holding would exceed the per-member cap of ${cls[0].max_per_member} for class '${cls[0].code}'`,
+            );
+          }
+        }
+      }
+
+      const inserted: ShareTransaction[] = [];
+
+      if (input.type === 'transfer') {
+        // Pair: transfer_out for sender, transfer_in for receiver. Both use
+        // the same posted_at so the ledger orders them adjacently.
+        const postedAt = new Date().toISOString();
+        const outSerial = null; // outflow doesn't issue a cert
+        const inSerial = await allocateSerial(client, ctx.groupId, cls[0].code);
+
+        const outRow = await insertTxn(client, {
+          group_id: ctx.groupId,
+          member_id: input.memberId,
+          share_class_id: input.shareClassId,
+          type: 'transfer_out',
+          quantity: -qtyAbs,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          counterparty_member_id: input.counterpartyMemberId!,
+          payment_method: null,
+          payment_reference: null,
+          certificate_serial: outSerial,
+          notes: input.notes ?? null,
+          created_by: ctx.userId,
+          posted_at: postedAt,
+        });
+        const inRow = await insertTxn(client, {
+          group_id: ctx.groupId,
+          member_id: input.counterpartyMemberId!,
+          share_class_id: input.shareClassId,
+          type: 'transfer_in',
+          quantity: +qtyAbs,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          counterparty_member_id: input.memberId,
+          payment_method: null,
+          payment_reference: null,
+          certificate_serial: inSerial,
+          notes: input.notes ?? null,
+          created_by: ctx.userId,
+          posted_at: postedAt,
+        });
+        inserted.push(outRow, inRow);
+        await writeAuditLog(client, ctx, 'share_txn.transfer', outRow.id, {
+          from_member: input.memberId,
+          to_member: input.counterpartyMemberId,
+          quantity: qtyAbs,
+          class_id: input.shareClassId,
+        });
+      } else {
+        // Single-row insert paths.
+        const dbType = (
+          {
+            allocation: 'allocation',
+            purchase: 'purchase',
+            redemption: 'redemption',
+            adjustment: 'adjustment',
+          } as const
+        )[input.type as 'allocation' | 'purchase' | 'redemption' | 'adjustment'];
+
+        // Sign convention: redemption always negative; allocation/purchase positive;
+        // adjustment keeps the sign the caller passed.
+        const dbQuantity =
+          input.type === 'redemption' ? -qtyAbs : input.type === 'adjustment' ? input.quantity : qtyAbs;
+
+        const serial =
+          input.type === 'allocation' || input.type === 'purchase' || (input.type === 'adjustment' && dbQuantity > 0)
+            ? await allocateSerial(client, ctx.groupId, cls[0].code)
+            : null;
+
+        const row = await insertTxn(client, {
+          group_id: ctx.groupId,
+          member_id: input.memberId,
+          share_class_id: input.shareClassId,
+          type: dbType,
+          quantity: dbQuantity,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+          counterparty_member_id: null,
+          payment_method: null,
+          payment_reference: null,
+          certificate_serial: serial,
+          notes: input.notes ?? null,
+          created_by: ctx.userId,
+          posted_at: input.postedAt ?? new Date().toISOString(),
+        });
+        inserted.push(row);
+        await writeAuditLog(client, ctx, `share_txn.${input.type}`, row.id, {
+          member_id: input.memberId,
+          class_id: input.shareClassId,
+          quantity: dbQuantity,
+          unit_price: unitPrice,
+          total_amount: totalAmount,
+        });
+
+        // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: purchase/redemption move real
+        // cash and previously had zero GL trace. Allocation (bonus shares,
+        // typically zero cash) and adjustment (a data correction, not a
+        // described cash flow) are deliberately not posted here.
+        if ((input.type === 'purchase' || input.type === 'redemption') && totalAmount > 0) {
+          await postTemplatedJournal(
+            client,
+            ctx.groupId,
+            ctx.userId,
+            input.type === 'purchase' ? 'share_purchase' : 'share_redemption',
+            `Share ${input.type} — ${cls[0].code} x${qtyAbs}`,
+            { amount: totalAmount },
+            { reference: row.id, memberId: input.memberId },
+          );
+        }
+      }
+
+      return inserted;
+    });
   },
 
   async listTransactions(ctx: TenantContext, params: ShareTxnQueryInput) {
