@@ -28,7 +28,7 @@ Chairperson | Secretary   initiate        → pending_approval   funds reserved 
 Treasurer (≠ initiator)   approve         → awaiting_platform
                           reject (reason) → rejected            reservation released, initiator notified
 Kitabu Yetu (super_admin) sign off        → M-Pesa: approved → dispatched → completed (B2C callback)
-                                          → legacy cash / bank rows: historic workflow only; new requests are M-Pesa-only
+                                          → legacy cash / bank rows: sign-off blocked; decline and resubmit via M-Pesa
                           decline         → rejected            reservation released, initiator notified
 Initiator                 cancel          → cancelled           (before money moves)
 ```
@@ -82,7 +82,7 @@ in their passbook.
 ## Cashless rollout status
 
 - **New member payout requests are M-Pesa-only.** The server schema rejects `cash` and `bank_transfer` for new submissions; the form does not offer those methods.
-- Historical cash and bank-transfer rows remain readable and auditable. They are not deleted or rewritten.
+- Historical cash and bank-transfer rows remain readable and auditable. They are not deleted or rewritten. Any legacy request still awaiting platform sign-off is blocked and should be declined; ask the group to resubmit via M-Pesa.
 - Bank-transfer automation through KCB Buni is a separate integration phase. Do not mark a new bank payout complete until the provider confirms the transfer and reconciliation is in place.
 
 ## Known limits / follow-ups
