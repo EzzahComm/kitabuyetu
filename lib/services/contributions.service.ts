@@ -219,14 +219,8 @@ export const contributionsService = {
   },
 
   async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
-    // Server-side enforcement: UI and import validation are not security boundaries.
-    if (data.paymentMethod && data.paymentMethod !== 'mpesa') {
-      throw new ValidationError('Cashless policy: contributions can only be recorded via M-Pesa.');
-    }
-    if (data.paymentMethod === 'mpesa' && !data.mpesaReceiptNumber?.trim()) {
-      throw new ValidationError('An M-Pesa receipt is required to record a received contribution.');
-    }
-
+    // This endpoint creates an unpaid obligation only. It cannot accept a
+    // provider reference or mark money received; verified callbacks own that.
     return withTransaction(ctx, async (client) => {
       // The target member must hold an active membership in THIS group —
       // RLS scopes group_id but never member_id (audit H-1). The returned
@@ -234,18 +228,11 @@ export const contributionsService = {
       // attribution are the same act.
       const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
 
-      if (data.mpesaReceiptNumber) {
-        const dup = await client.query('SELECT id FROM contributions WHERE mpesa_receipt_number = $1', [
-          data.mpesaReceiptNumber,
-        ]);
-        if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
-      }
-
       const { rows } = await client.query<Contribution>(
         `INSERT INTO contributions
            (group_id, member_id, group_membership_id, amount, contribution_date, due_date,
             status, payment_method, mpesa_receipt_number, notes, recorded_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending',NULL,NULL,$7,$8)
          RETURNING *`,
         [
           ctx.groupId,
@@ -254,9 +241,6 @@ export const contributionsService = {
           data.amount.toFixed(2),
           data.contributionDate,
           data.dueDate ?? null,
-          data.paymentMethod ? 'completed' : 'pending',
-          data.paymentMethod ?? null,
-          data.mpesaReceiptNumber ?? null,
           data.notes ?? null,
           ctx.userId,
         ],
@@ -375,10 +359,6 @@ export const contributionsService = {
   },
 
   async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
-    if (data.paymentMethod && data.paymentMethod !== 'mpesa') {
-      throw new ValidationError('Cashless policy: contribution updates can only use M-Pesa.');
-    }
-
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Contribution>(
         'SELECT * FROM contributions WHERE id = $1 AND group_id = $2',
@@ -388,16 +368,6 @@ export const contributionsService = {
 
       const prev = existing[0];
 
-      // Preserve completed historical rows, but require electronic evidence
-      // before a pending contribution can newly become completed.
-      if (data.status === 'completed' && prev.status !== 'completed') {
-        const method = data.paymentMethod ?? prev.payment_method;
-        const receipt = data.mpesaReceiptNumber ?? prev.mpesa_receipt_number;
-        if (method !== 'mpesa' || !receipt?.trim()) {
-          throw new ValidationError('A contribution can only be completed with an M-Pesa method and receipt reference.');
-        }
-      }
-
       const sets: string[] = [];
       const values: unknown[] = [];
       let idx = 1;
@@ -405,14 +375,6 @@ export const contributionsService = {
       if (data.status !== undefined) {
         sets.push(`status = $${idx++}`);
         values.push(data.status);
-      }
-      if (data.paymentMethod !== undefined) {
-        sets.push(`payment_method = $${idx++}`);
-        values.push(data.paymentMethod);
-      }
-      if (data.mpesaReceiptNumber !== undefined) {
-        sets.push(`mpesa_receipt_number = $${idx++}`);
-        values.push(data.mpesaReceiptNumber);
       }
       if (data.notes !== undefined) {
         sets.push(`notes = $${idx++}`);
