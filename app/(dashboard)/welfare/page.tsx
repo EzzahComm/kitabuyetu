@@ -435,12 +435,13 @@ export default function WelfarePage() {
                   {...poolForm.register('paymentMethod')}
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
-                  <option value="">Select…</option>
                   <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
                 </select>
               </div>
+            </div>
+            <div className="space-y-1">
+              <Label>M-Pesa receipt reference</Label>
+              <Input required placeholder="e.g. QAB123XYZ" {...poolForm.register('mpesaReceiptNumber')} />
             </div>
             <div className="space-y-1">
               <Label>Notes (optional)</Label>
