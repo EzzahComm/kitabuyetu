@@ -63,7 +63,6 @@ export interface InitiateMemberPayoutInput {
   description: string;
   notes?: string;
   paymentMethod: PayoutMethod;
-  paymentReference?: string;
   idempotencyKey: string;
 }
 
@@ -192,8 +191,8 @@ export const memberPayoutsService = {
     const office = await withDb(ctx, (db) =>
       requireOffice(db, ctx, ['chairperson', 'secretary'], 'initiate a member disbursement'),
     );
-    if (input.paymentMethod === 'bank_transfer' && !input.paymentReference?.trim()) {
-      throw new ValidationError('A bank transfer needs the payee account / transfer reference');
+    if (input.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Member payouts are M-Pesa-only.');
     }
 
     const row = await disbursementsService.initiateDisbursement(ctx, {
@@ -203,7 +202,6 @@ export const memberPayoutsService = {
         description: input.description.trim(),
         notes: input.notes?.trim() || null,
         paymentMethod: input.paymentMethod,
-        paymentReference: input.paymentReference?.trim() || null,
         initiatorRole: office as 'chairperson' | 'secretary',
       },
       amount: input.amount,
