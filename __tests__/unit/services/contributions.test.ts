@@ -52,6 +52,31 @@ const baseContributionInput = {
 // First query in create() is always the membership guard (audit H-1).
 const membershipRow = { rows: [{ id: 'gm-1', member_code: 'KY000000100001' }] };
 
+describe('cashless contribution policy', () => {
+  it.each(['cash', 'bank_transfer', 'cheque', 'standing_order'])(
+    'rejects new contribution records using %s before database writes',
+    async (paymentMethod) => {
+      await expect(
+        contributionsService.create(ctx, {
+          ...baseContributionInput,
+          paymentMethod: paymentMethod as 'cash',
+        }),
+      ).rejects.toBeInstanceOf(ValidationError);
+      expect(mockQuery).not.toHaveBeenCalled();
+    },
+  );
+
+  it('rejects a completed M-Pesa contribution without a receipt reference', async () => {
+    await expect(
+      contributionsService.create(ctx, {
+        ...baseContributionInput,
+        paymentMethod: 'mpesa',
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+});
+
 describe('contributionsService.create', () => {
   it('throws ValidationError when the member has no active membership in the group', async () => {
     // Membership guard finds nothing → reject before any write
