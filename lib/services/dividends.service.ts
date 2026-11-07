@@ -442,6 +442,7 @@ export const dividendsService = {
     allocationId: string,
     input: PayAllocationInput,
   ): Promise<DividendAllocation> {
+    throw new ValidationError('Manual dividend payment recording is disabled. Dividend payouts must be completed through a provider-confirmed disbursement flow.');
     return withTransaction(ctx, async (client) => {
       const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
       if (decl.status !== 'approved') {
@@ -501,6 +502,7 @@ export const dividendsService = {
     declarationId: string,
     input: BulkPayAllocationsInput,
   ): Promise<{ paid: number; skipped: { id: string; reason: string }[] }> {
+    throw new ValidationError('Manual bulk dividend payment recording is disabled. Dividend payouts must be completed through a provider-confirmed disbursement flow.');
     return withTransaction(ctx, async (client) => {
       const decl = await fetchDeclarationForUpdate(client, ctx.groupId, declarationId);
       if (decl.status !== 'approved') {
