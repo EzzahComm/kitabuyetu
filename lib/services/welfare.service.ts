@@ -251,8 +251,9 @@ export const welfareService = {
 
   async disburse(ctx: TenantContext, id: string, data: DisburseWelfareInput) {
     throw new ValidationError('Manual welfare disbursement is disabled. Complete the M-Pesa B2C transfer and wait for the provider callback.');
-  async disburse(ctx: TenantContext, id: string, data: DisburseWelfareInput) {
-    return withTransaction(ctx, async (client) => {
+  },
+
+
       const {
         rows: [req],
       } = await client.query('SELECT * FROM welfare_requests WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
