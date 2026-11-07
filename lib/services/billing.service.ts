@@ -901,7 +901,7 @@ export async function setOrganizationSmsRate(
  * caller must not report a top-up either.
  */
 function rejectUnverifiedOrganizationSmsTopUp(): void {
-  rejectUnverifiedOrganizationSmsTopUp();
+  throw new ValidationError('Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected');
 }
 
 export async function addOrganizationSmsCredits(
@@ -910,7 +910,7 @@ export async function addOrganizationSmsCredits(
   actorUserId: string | null,
   opts: { reference?: string; notes?: string; paymentId?: string | null } = {},
 ): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number } | null> {
-  throw new ValidationError('Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected');
+  rejectUnverifiedOrganizationSmsTopUp();
   if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
 
   const result = await withAdminDb(async (db) => {
