@@ -28,6 +28,42 @@ import {
 } from '@/lib/validators/loan.schema';
 import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
 import { BulkSmsSchema } from '@/lib/validators/sms.schema';
+import { RecordManualPaymentSchema } from '@/lib/validators/billing.schema';
+import { PayAllocationSchema, BulkPayAllocationsSchema } from '@/lib/validators/dividends.schema';
+import { CreateShareTransactionSchema } from '@/lib/validators/shares.schema';
+
+describe('callback-only money movement payloads', () => {
+  it('rejects manually recorded invoice settlements', () => {
+    expect(RecordManualPaymentSchema.safeParse({
+      amount: 500,
+      paymentMethod: 'mpesa',
+      paymentDate: '2026-08-04T10:00:00.000Z',
+      mpesaReceiptNumber: 'QAB123XYZ',
+    }).success).toBe(false);
+  });
+
+  it('rejects individual and bulk manual dividend settlements', () => {
+    expect(PayAllocationSchema.safeParse({
+      paymentMethod: 'mpesa',
+      paymentReference: 'QAB123XYZ',
+    }).success).toBe(false);
+    expect(BulkPayAllocationsSchema.safeParse({
+      allocationIds: ['11111111-1111-4111-8111-111111111111'],
+      paymentMethod: 'mpesa',
+      paymentReference: 'QAB123XYZ',
+    }).success).toBe(false);
+  });
+
+  it('rejects manual share purchases and typed payment references', () => {
+    const base = {
+      memberId: '11111111-1111-4111-8111-111111111111',
+      shareClassId: '22222222-2222-4222-8222-222222222222',
+      quantity: 1,
+    };
+    expect(CreateShareTransactionSchema.safeParse({ ...base, type: 'purchase', paymentMethod: 'mpesa', paymentReference: 'QAB123XYZ' }).success).toBe(false);
+    expect(CreateShareTransactionSchema.safeParse({ ...base, type: 'allocation', paymentReference: 'QAB123XYZ' }).success).toBe(false);
+  });
+});
 
 describe('client payload contracts', () => {
   describe('accounting: POST /accounting/journals', () => {
