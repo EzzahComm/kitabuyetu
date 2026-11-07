@@ -55,7 +55,7 @@ export default function LoanDetailPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [disburseOpen, setDisburseOpen] = useState(false);
   const [disburseDate, setDisburseDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [disburseMethod, setDisburseMethod] = useState<'cash' | 'bank_transfer' | 'cheque' | 'standing_order'>('cash');
+  const [disburseMethod, setDisburseMethod] = useState<'mpesa'>('mpesa');
   const [disburseRef, setDisburseRef] = useState('');
   const [defaultOpen, setDefaultOpen] = useState(false);
   const [defaultReason, setDefaultReason] = useState('');
