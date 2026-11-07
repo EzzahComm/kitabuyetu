@@ -900,6 +900,10 @@ export async function setOrganizationSmsRate(
  * Returns null when a replay was swallowed: nothing was credited, so the
  * caller must not report a top-up either.
  */
+function rejectUnverifiedOrganizationSmsTopUp(): void {
+  rejectUnverifiedOrganizationSmsTopUp();
+}
+
 export async function addOrganizationSmsCredits(
   organizationId: string,
   amountKes: number,
