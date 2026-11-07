@@ -359,6 +359,11 @@ export const contributionsService = {
   },
 
   async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
+    if ((data as { status?: string }).status === 'completed') {
+      throw new ValidationError(
+        'A contribution can only be completed by a verified M-Pesa provider callback',
+      );
+    }
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Contribution>(
         'SELECT * FROM contributions WHERE id = $1 AND group_id = $2',
