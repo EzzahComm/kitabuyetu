@@ -94,7 +94,7 @@ export const LoanFundingPlanSchema = z
 
 export const DisburseLoanSchema = z.object({
   disbursementDate: z.string().date(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
+  paymentMethod: z.enum(['mpesa']),
   mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
   fundingPlan: LoanFundingPlanSchema.optional(),
