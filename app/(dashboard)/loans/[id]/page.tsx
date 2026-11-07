@@ -501,10 +501,7 @@ export default function LoanDetailPage() {
                 onChange={(e) => setDisburseMethod(e.target.value as typeof disburseMethod)}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="cash">Cash</option>
-                <option value="bank_transfer">Bank transfer</option>
-                <option value="cheque">Cheque</option>
-                <option value="standing_order">Standing order</option>
+                <option value="mpesa">M-Pesa</option>
               </select>
             </div>
             <div className="space-y-1">
