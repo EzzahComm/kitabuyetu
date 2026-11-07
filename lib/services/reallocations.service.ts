@@ -121,6 +121,18 @@ export const reallocationsService = {
         throw new ValidationError('Only a completed, provider-confirmed M-Pesa payment linked to this contribution can be reallocated');
       }
 
+      // The payment row is already locked. Also prevent a second correction
+      // request while a maker-checker request for this same payment is pending.
+      const { rows: pendingReallocations } = await client.query<{ id: string }>(
+        `SELECT id FROM payment_reallocations
+         WHERE payment_id = $1 AND status = 'pending_approval'
+         LIMIT 1 FOR UPDATE`,
+        [payment.id],
+      );
+      if (pendingReallocations[0]) {
+        throw new ConflictError('This payment already has a reallocation awaiting approval');
+      }
+
       const {
         rows: [grp],
       } = await client.query<{ threshold: string }>(
