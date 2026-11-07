@@ -4,7 +4,7 @@
  */
 
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError } from '@/lib/utils/errors';
+import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
 import { IS_SANDBOX, markSpineAllocated } from './mpesa-spine.service';
@@ -50,6 +50,14 @@ export async function resolveUnrouted(
   action: 'allocate' | 'dismiss',
   opts: { memberId?: string; notes?: string },
 ): Promise<void> {
+  // An unrouted receipt is not an invalidated allocation. It cannot be
+  // manually converted into a completed contribution. Reallocation will be
+  // exposed only for an existing provider-confirmed payment whose allocation
+  // state was explicitly invalidated, using its immutable payment ID.
+  if (action === 'allocate') {
+    throw new ValidationError('New allocation of unrouted receipts is disabled. Only reallocation of an existing invalidated provider-confirmed payment is permitted.');
+  }
+
   return withTransaction(ctx, async (db) => {
     const { rows } = await db.query<{
       id: string;
