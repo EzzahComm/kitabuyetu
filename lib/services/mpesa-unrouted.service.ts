@@ -37,13 +37,10 @@ export async function listUnrouted(ctx: TenantContext): Promise<UnroutedRow[]> {
 }
 
 /**
- * Resolves an unrouted receipt. Two actions:
- *   - 'allocate': create a completed contribution for `memberId` in the group,
- *     post the split journal, and mark the receipt resolved.
- *   - 'dismiss': mark resolved with a note and no contribution (e.g. a
- *     mistaken payment handled out-of-band / reversed).
+ * Dismisses an unrouted receipt after review. Manual allocation is disabled;
+ * only an existing provider-confirmed payment can be corrected through the
+ * audited reallocation workflow.
  */
-export async function resolveUnrouted(
 export async function resolveUnrouted(
   ctx: TenantContext,
   id: string,
