@@ -341,6 +341,8 @@ export const welfareService = {
   },
 
   async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
+    throw new ValidationError('Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.');
+  async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
     return withTransaction(ctx, async (client) => {
       // The target member must hold an active membership in THIS group (audit
       // H-1); its id is stamped on the row (§6a).
