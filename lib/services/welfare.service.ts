@@ -1,7 +1,6 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postTemplatedJournal } from './posting-templates.service';
 import { z } from 'zod';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
@@ -248,7 +247,7 @@ export const welfareService = {
     });
   },
 
-  async disburse(ctx: TenantContext, id: string, data: DisburseWelfareInput) {
+  async disburse(_ctx: TenantContext, _id: string, _data: DisburseWelfareInput) {
     throw new ValidationError('Manual welfare disbursement is disabled. Complete the M-Pesa B2C transfer and wait for the provider callback.');
   },
 
@@ -286,7 +285,7 @@ export const welfareService = {
     });
   },
 
-  async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
+  async recordPoolContribution(_ctx: TenantContext, _data: RecordWelfarePoolInput) {
     throw new ValidationError('Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.');
   },
 
