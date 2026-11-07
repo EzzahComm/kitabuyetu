@@ -9,9 +9,6 @@ export const DIVIDEND_POLICY_TYPES = ['proportional_to_shares', 'flat_per_member
 
 export const ALLOCATION_STATUSES = ['pending', 'paid', 'reinvested', 'cancelled'] as const;
 
-// Cashless policy: dividend allocations can only be paid via M-Pesa.
-export const PAYMENT_METHODS = ['mpesa'] as const;
-
 export const CreateDividendDeclarationSchema = z
   .object({
     periodLabel: z.string().min(2).max(60),
