@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Wallet, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,10 +17,8 @@ import {
   useCreateWelfareRequest,
   useReviewWelfareRequest,
   useWelfarePool,
-  useRecordWelfarePoolContribution,
   type WelfareRequestRow,
 } from '@/hooks/use-welfare';
-import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -52,17 +50,6 @@ type WelfareRequestForm = z.infer<typeof requestSchema>;
 // call sites in this file for the same pattern.
 type WelfareRequestFormInput = z.input<typeof requestSchema>;
 
-const poolSchema = z.object({
-  memberId: z.string().min(1, 'Member required'),
-  amount: z.coerce.number().positive(),
-  contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
-  paymentMethod: z.enum(['mpesa']).default('mpesa'),
-  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt required'),
-  notes: z.string().optional(),
-});
-
-type WelfarePoolForm = z.infer<typeof poolSchema>;
-type WelfarePoolFormInput = z.input<typeof poolSchema>;
 
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
@@ -92,7 +79,6 @@ export default function WelfarePage() {
   // zod's non-strict parse, leaving `limit` at its default of 20) — matches
   // the working contributions/page.tsx precedent (docs/audits/
   // optimization-2026-09).
-  const { data: membersData } = useMembers({ limit: 100, status: 'active' });
 
   const createReq = useCreateWelfareRequest();
   const reviewReq = useReviewWelfareRequest(reviewRow?.id ?? '');
@@ -229,7 +215,7 @@ export default function WelfarePage() {
     <div className="space-y-6">
       <PageHeader
         title="Welfare"
-        description="Community welfare fund and member support"
+        description="Community welfare fund and member support. Contributions are recorded automatically from provider-confirmed M-Pesa payments."
         actions={
           <>
             <Button onClick={() => setOpenRequest(true)}>
