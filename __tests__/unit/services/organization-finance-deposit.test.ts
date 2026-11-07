@@ -6,7 +6,6 @@
  */
 import { withTransaction } from '@/lib/db';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
-import { ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
