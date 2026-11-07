@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
+// Cashless policy: only M-Pesa can be selected for new contribution records.
+// Historical cash rows remain readable; this schema does not rewrite them.
+
 export const CreateContributionSchema = z.object({
   memberId: z.string().uuid(),
   amount: z.number().positive('Amount must be positive'),
   contributionDate: z.string().date(),
   dueDate: z.string().date().optional().nullable(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']).optional().nullable(),
+  paymentMethod: z.enum(['mpesa']).optional().nullable(),
   mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 });
