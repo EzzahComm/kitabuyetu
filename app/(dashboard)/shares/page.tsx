@@ -565,6 +565,7 @@ function NewTransactionDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>New share transaction</DialogTitle>
+          <p className="text-sm text-muted-foreground">Member purchases and redemptions are unavailable until provider-backed payment allocation is enabled.</p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -575,10 +576,8 @@ function NewTransactionDialog({
                 {...register('type')}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="purchase">Purchase (member buys)</option>
                 <option value="allocation">Allocation (free shares)</option>
                 <option value="transfer">Transfer (between members)</option>
-                <option value="redemption">Redemption (member sells back)</option>
                 <option value="adjustment">Adjustment (admin correction)</option>
               </select>
             </div>
