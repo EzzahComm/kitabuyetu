@@ -506,13 +506,13 @@ export default function LoanDetailPage() {
             </div>
             <div className="space-y-1">
               <Label htmlFor="disburseRef">
-                Reference <span className="text-muted-foreground">(optional)</span>
+                M-Pesa receipt/reference (required)
               </Label>
               <Input
                 id="disburseRef"
                 value={disburseRef}
                 onChange={(e) => setDisburseRef(e.target.value)}
-                placeholder="Cheque no., bank ref…"
+                placeholder="M-Pesa receipt number"
               />
             </div>
           </div>
@@ -520,7 +520,7 @@ export default function LoanDetailPage() {
             <Button variant="outline" onClick={() => setDisburseOpen(false)}>
               Cancel
             </Button>
-            <Button disabled={!disburseDate} loading={loanAction.isPending} onClick={onDisburse}>
+            <Button disabled={!disburseDate || !disburseRef.trim()} loading={loanAction.isPending} onClick={onDisburse}>
               Mark disbursed
             </Button>
           </DialogFooter>
