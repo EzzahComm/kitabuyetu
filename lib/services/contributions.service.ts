@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ConflictError } from '@/lib/utils/errors';
+import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type {
@@ -219,6 +219,14 @@ export const contributionsService = {
   },
 
   async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
+    // Server-side enforcement: UI and import validation are not security boundaries.
+    if (data.paymentMethod && data.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Cashless policy: contributions can only be recorded via M-Pesa.');
+    }
+    if (data.paymentMethod === 'mpesa' && !data.mpesaReceiptNumber?.trim()) {
+      throw new ValidationError('An M-Pesa receipt is required to record a received contribution.');
+    }
+
     return withTransaction(ctx, async (client) => {
       // The target member must hold an active membership in THIS group —
       // RLS scopes group_id but never member_id (audit H-1). The returned
@@ -367,6 +375,10 @@ export const contributionsService = {
   },
 
   async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
+    if (data.paymentMethod && data.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Cashless policy: contribution updates can only use M-Pesa.');
+    }
+
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Contribution>(
         'SELECT * FROM contributions WHERE id = $1 AND group_id = $2',
@@ -375,6 +387,16 @@ export const contributionsService = {
       if (!existing[0]) throw new NotFoundError('Contribution', id);
 
       const prev = existing[0];
+
+      // Preserve completed historical rows, but require electronic evidence
+      // before a pending contribution can newly become completed.
+      if (data.status === 'completed' && prev.status !== 'completed') {
+        const method = data.paymentMethod ?? prev.payment_method;
+        const receipt = data.mpesaReceiptNumber ?? prev.mpesa_receipt_number;
+        if (method !== 'mpesa' || !receipt?.trim()) {
+          throw new ValidationError('A contribution can only be completed with an M-Pesa method and receipt reference.');
+        }
+      }
 
       const sets: string[] = [];
       const values: unknown[] = [];
