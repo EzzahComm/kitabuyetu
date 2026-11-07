@@ -393,7 +393,7 @@ export const sharesService = {
           total_amount: totalAmount,
           counterparty_member_id: null,
           payment_method: input.paymentMethod ?? null,
-          payment_reference: input.paymentReference ?? null,
+          payment_reference: null,
           certificate_serial: serial,
           notes: input.notes ?? null,
           created_by: ctx.userId,
