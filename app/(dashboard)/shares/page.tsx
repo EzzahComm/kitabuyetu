@@ -502,7 +502,10 @@ const txnSchema = z.object({
   paymentMethod: z.enum(['mpesa']).optional().or(z.literal('')),
   paymentReference: z.string().max(80).optional().or(z.literal('')),
   notes: z.string().max(1000).optional().or(z.literal('')),
-});
+}).refine(
+  (v) => !['purchase', 'redemption'].includes(v.type) || (v.paymentMethod === 'mpesa' && !!v.paymentReference?.trim()),
+  { path: ['paymentReference'], message: 'Share purchases/redemptions require an M-Pesa receipt/reference' },
+);
 type TxnForm = z.infer<typeof txnSchema>;
 
 function NewTransactionDialog({
