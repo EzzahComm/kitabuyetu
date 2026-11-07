@@ -19,7 +19,8 @@
  */
 import { CreateJournalSchema, SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
 import { MemberPayoutSchema, StkPushSchema } from '@/lib/validators/mpesa.schema';
-import { ReviewWelfareRequestSchema } from '@/lib/services/welfare.service';
+import { ReviewWelfareRequestSchema, RecordWelfarePoolSchema, DisburseWelfareSchema } from '@/lib/services/welfare.service';
+import { ContributionCsvRowSchema } from '@/lib/validators/import.schema';
 import {
   ApplyLoanSchema,
   RejectLoanSchema,
@@ -41,6 +42,20 @@ describe('callback-only money movement payloads', () => {
       description: 'Member payout',
       paymentMethod: 'mpesa',
       paymentReference: 'QAB123XYZ',
+    }).success).toBe(false);
+  });
+
+  it('rejects typed receipts for welfare and imported contributions', () => {
+    const memberId = '11111111-1111-4111-8111-111111111111';
+    expect(RecordWelfarePoolSchema.safeParse({
+      memberId, amount: 500, paymentMethod: 'mpesa', mpesaReceiptNumber: 'QAB123XYZ',
+    }).success).toBe(false);
+    expect(DisburseWelfareSchema.safeParse({
+      amountDisbursed: 500, paymentMethod: 'mpesa', mpesaReceiptNumber: 'QAB123XYZ',
+    }).success).toBe(false);
+    expect(ContributionCsvRowSchema.safeParse({
+      member_phone: '0712345678', amount: 500, contribution_date: '2026-08-04',
+      payment_method: 'mpesa', mpesa_receipt: 'QAB123XYZ',
     }).success).toBe(false);
   });
 
