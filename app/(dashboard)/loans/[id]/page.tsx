@@ -29,10 +29,8 @@ export default function LoanDetailPage() {
   const [b2cAmount, setB2cAmount] = useState('');
   const [b2cIdempotencyKey, setB2cIdempotencyKey] = useState('');
   const [b2cConfirmOpen, setB2cConfirmOpen] = useState(false);
-  // Only 'approve' can go through a bare confirm — RejectLoanSchema needs a
-  // reason and DisburseLoanSchema needs a date + payment method, so those two
-  // get real dialogs instead (previously all three posted just {action} and
-  // reject/disburse 400'd every time).
+  // Loan repayments are allocated by provider callbacks. Outbound loan
+  // disbursements use the M-Pesa B2C flow below; no manual receipt entry.
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
