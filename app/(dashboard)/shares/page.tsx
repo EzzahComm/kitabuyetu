@@ -489,7 +489,7 @@ export default function SharesPage() {
 // ── New-transaction dialog ────────────────────────────────────────────
 
 const txnSchema = z.object({
-  type: z.enum(['allocation', 'purchase', 'transfer', 'redemption', 'adjustment']),
+  type: z.enum(['allocation', 'transfer', 'adjustment']),
   memberId: z.string().uuid('Pick a member'),
   shareClassId: z.string().uuid('Pick a class'),
   quantity: z.coerce
@@ -499,13 +499,8 @@ const txnSchema = z.object({
   unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
   totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
   counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
-  paymentMethod: z.enum(['mpesa']).optional().or(z.literal('')),
-  paymentReference: z.string().max(80).optional().or(z.literal('')),
   notes: z.string().max(1000).optional().or(z.literal('')),
-}).refine(
-  (v) => !['purchase', 'redemption'].includes(v.type) || (v.paymentMethod === 'mpesa' && !!v.paymentReference?.trim()),
-  { path: ['paymentReference'], message: 'Share purchases/redemptions require an M-Pesa receipt/reference' },
-);
+}).strict();
 type TxnForm = z.infer<typeof txnSchema>;
 
 function NewTransactionDialog({
@@ -528,7 +523,7 @@ function NewTransactionDialog({
     formState: { errors, isSubmitting },
   } = useForm<TxnForm>({
     resolver: zodResolver(txnSchema),
-    defaultValues: { type: 'purchase' },
+    defaultValues: { type: 'allocation' },
   });
   const type = useWatch({ control, name: 'type' });
 
@@ -557,7 +552,6 @@ function NewTransactionDialog({
     }
   };
 
-  const showPayment = type === 'purchase' || type === 'redemption';
   const showCounterparty = type === 'transfer';
 
   return (
@@ -664,40 +658,6 @@ function NewTransactionDialog({
             </div>
           </div>
 
-          {showPayment && (
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="totalAmount">Total amount (optional)</Label>
-                <Input
-                  id="totalAmount"
-                  type="number"
-                  step={0.01}
-                  placeholder="Qty × unit price"
-                  {...register('totalAmount')}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentMethod">Payment method</Label>
-                <select
-                  id="paymentMethod"
-                  {...register('paymentMethod')}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  <option value="mpesa">M-Pesa</option>
-
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentReference">Reference</Label>
-                <Input
-                  id="paymentReference"
-                  placeholder="M-Pesa receipt/reference"
-                  {...register('paymentReference')}
-                />
-              </div>
-            </div>
-          )}
 
           <div className="space-y-1">
             <Label htmlFor="notes">Notes</Label>
