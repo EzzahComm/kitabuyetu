@@ -14,11 +14,7 @@ import { billingService } from '@/lib/services/billing.service';
 import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
-import type { TenantContext } from '@/lib/db';
 
-function ctxFor(groupId: string, userId: string): TenantContext {
-  return { userId, groupId, role: 'chairperson' };
-}
 
 async function lots(groupId: string) {
   return rawQuery<{ credits_added: string; remaining_credits: string; rate_applied: string }>(
