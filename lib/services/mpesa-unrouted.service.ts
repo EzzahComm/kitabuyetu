@@ -44,6 +44,7 @@ export async function listUnrouted(ctx: TenantContext): Promise<UnroutedRow[]> {
  *     mistaken payment handled out-of-band / reversed).
  */
 export async function resolveUnrouted(
+export async function resolveUnrouted(
   ctx: TenantContext,
   id: string,
   action: 'allocate' | 'dismiss',
