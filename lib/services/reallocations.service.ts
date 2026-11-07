@@ -81,7 +81,7 @@ export const reallocationsService = {
       }
       if (!contrib.payment_id) {
         throw new ValidationError(
-          'This contribution has no linked payment — correct cash/manual entries via the contribution edit flow',
+          'This contribution has no payment-spine ID; only provider-confirmed M-Pesa payments can be reallocated',
         );
       }
       if (contrib.member_id === data.toMemberId) {
