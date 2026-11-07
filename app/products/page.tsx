@@ -8,9 +8,9 @@ import { ProductTabsSection } from '@/components/marketing/sections/products';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/products',
-  title: 'Chama, SMS & Fundraising Tools for Groups',
+  title: 'Digital Tools for Community Organisations and Institutions',
   description:
-    'Bookkeeper for chama records, Chama Reminder for bulk SMS, Changi$ha for community fundraising and Enterprise for institutions: the Kitabu Yetu family.',
+    'An integrated family of digital tools for organisational finance, membership, communication, fundraising workflows and institutional programme management.',
 });
 
 /** The Finanza service.html layout: product tabs, then the call-back form. */
@@ -18,7 +18,7 @@ export default function ProductsPage() {
   return (
     <PageShell
       title="Products"
-      description="Four products, one platform — from the core ledger to the wider ecosystem it connects to."
+      description="A connected platform for managing organisations, strengthening accountability and supporting programme delivery."
       layout="sections"
     >
       <ProductTabsSection />

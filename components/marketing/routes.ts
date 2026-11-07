@@ -99,11 +99,17 @@ export function isNavGroup(entry: NavEntry): entry is NavGroup {
 
 export const ABOUT_ITEMS: NavLink[] = [
   {
-    label: 'Our Story',
+    label: 'Who We Are',
     href: ROUTES.about,
-    description: 'Why Kitabu Yetu exists, and the problem it set out to solve.',
+    description: 'Our story, mission, vision, values and approach.',
+  },
+  {
+    label: 'Mission, Vision & Values',
+    href: `${ROUTES.about}#mission-vision`,
+    description: 'The purpose and principles guiding our work.',
   },
   { label: 'Our Team', href: ROUTES.aboutTeam, description: 'The people and expertise behind the platform.' },
+  { label: 'Our Approach', href: `${ROUTES.about}#our-approach`, description: 'How we build and grow responsibly.' },
   { label: 'Impact', href: ROUTES.aboutImpact, description: 'What digitizing group administration is changing.' },
   { label: 'Careers', href: ROUTES.careers, description: 'Open roles, and how to join the team.' },
 ];
@@ -122,13 +128,21 @@ export const PRODUCT_ITEMS: NavLink[] = [
   {
     label: 'Fundraise / Changi$ha',
     href: ROUTES.fundraise,
-    description: 'M-Pesa fundraising, tracked to the shilling.',
+    description: 'Campaigns, supporter contributions and fundraising records.',
   },
-  { label: 'Enterprise', href: ROUTES.enterprise, description: 'Every group you support, one dashboard.' },
+  {
+    label: 'Enterprise',
+    href: ROUTES.enterprise,
+    description: 'Coordinate organisations, programmes and institutional reporting.',
+  },
 ];
 
 export const ECOSYSTEM_ITEMS: NavLink[] = [
-  { label: 'Donors', href: ROUTES.ecosystemDonors, description: 'Discover, support and monitor groups and projects.' },
+  {
+    label: 'Donors',
+    href: ROUTES.ecosystemDonors,
+    description: 'A developing pathway for institutional partnerships and community programmes.',
+  },
   {
     label: 'Multigroup Organizations',
     href: ROUTES.ecosystemOrganizations,
@@ -137,17 +151,21 @@ export const ECOSYSTEM_ITEMS: NavLink[] = [
   {
     label: 'Marketplace',
     href: ROUTES.ecosystemMarketplace,
-    description: 'Products, services and financial partners for groups.',
+    description: 'A developing network of relevant suppliers, service providers and partners.',
   },
   {
     label: 'Programs',
     href: ROUTES.ecosystemPrograms,
-    description: 'Grants, opportunities and interventions for qualifying groups.',
+    description: 'A developing pathway for programmes, learning and opportunities.',
   },
 ];
 
 export const PRICING_ITEMS: NavLink[] = [
-  { label: 'Kitabu Yetu', href: ROUTES.pricing, description: 'Full group bookkeeping with M-Pesa.' },
+  {
+    label: 'Bookkeeper',
+    href: ROUTES.pricing,
+    description: 'Financial and membership management for community organisations.',
+  },
   {
     label: 'Chama Reminder / Kumbusha',
     href: `${ROUTES.pricing}#chama-reminder`,
@@ -173,9 +191,9 @@ export const NAV_ITEMS: NavEntry[] = [
   { label: 'About', items: ABOUT_ITEMS },
   { label: 'Products', items: PRODUCT_ITEMS },
   { label: 'Ecosystem', items: ECOSYSTEM_ITEMS },
-  { label: 'Marketplace', href: ROUTES.ecosystemMarketplace },
+  { label: 'How It Works', href: '/how-it-works' },
   { label: 'Pricing', items: PRICING_ITEMS },
-  { label: 'Blog', href: ROUTES.resources },
+  { label: 'Resources', href: ROUTES.resources },
   { label: 'Contact', href: ROUTES.contact },
 ];
 

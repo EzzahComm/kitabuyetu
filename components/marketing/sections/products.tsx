@@ -117,7 +117,7 @@ export function ProductTabsSection({ id, headingAs = 'h2' }: { id?: string; head
         as={headingAs}
         align="center"
         pill="Our Products"
-        title="Four tools. One login."
+        title="Connected tools for every stage of organisational work."
         className="mb-12"
       />
       <ServiceTabs tabs={tabs} label="Kitabu Yetu products" />

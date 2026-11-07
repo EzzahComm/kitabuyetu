@@ -19,12 +19,12 @@ export function TrustSection({ id }: { id?: string }) {
               id="trust-heading"
               className="font-display text-[2rem] font-bold leading-[1.15] text-white sm:text-[2.5rem] xl:text-5xl"
             >
-              Built for money that belongs to many.
+              Built around trust, accountability and responsible access.
             </h2>
           </Reveal>
           <Reveal delay={150}>
             <p className="text-lg leading-relaxed text-brand-100/85">
-              Trust is the whole point. Every control below is live today.
+              Trust is foundational. These controls support responsible access to organisational records and operations.
             </p>
           </Reveal>
         </div>

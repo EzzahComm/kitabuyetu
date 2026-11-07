@@ -15,13 +15,13 @@ import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem',
-  title: 'The Ecosystem',
+  title: 'The Kitabu Yetu Development Ecosystem',
   description:
-    'Donors, multigroup organizations, the marketplace and funded programs — the people and institutions that work with groups on Kitabu Yetu.',
+    'A developing network intended to connect community organisations with institutional partners, programmes, services, learning and opportunities. Availability varies by capability.',
 });
 
 /**
- * The Kitabu Yetu Ecosystem — four pillars beyond the core products.
+ * The Kitabu Yetu Ecosystem — a progressive development layer around the core technology platform.
  *
  * Expanded from the live data-driven pillar grid to include full Benefits
  * sections for each pillar, ported from the template. This shows the vision
@@ -35,9 +35,9 @@ export default function EcosystemPage() {
       <SiteHeader />
       <main id="main" className="flex-1 pt-16 lg:pt-20">
         <SectionTitle preTitle="Ecosystem" title="Build the relationships around the group" titleAs="h1">
-          A group grows stronger when its records can open the right doors: funding, training, financial products,
-          professional support and markets. Kitabu Yetu connects those relationships without taking the group&apos;s own
-          book away from it.
+          Our development ecosystem is a growth layer around the Kitabu Yetu technology platform. It is being developed
+          progressively to help community organisations connect with relevant institutions, learning, services and
+          opportunities—while each organisation retains its own records and operating autonomy.
         </SectionTitle>
 
         <div id="donors">

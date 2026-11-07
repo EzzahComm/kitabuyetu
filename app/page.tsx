@@ -98,9 +98,17 @@ const PARTNER_LOGOS = [
 ] as const;
 
 const PROMISES = [
-  { icon: Unlock, title: 'No contract', body: 'Pay monthly. Stop any time.' },
-  { icon: Smartphone, title: 'All by M-Pesa', body: 'Your subscription and your members’ contributions.' },
-  { icon: UsersRound, title: 'Made for chamas', body: 'Not a business tool squeezed to fit.' },
+  { icon: Unlock, title: 'Accessible technology', body: 'Tools designed around real organisational workflows.' },
+  {
+    icon: Smartphone,
+    title: 'Connected operations',
+    body: 'Bring records, communication and programme information closer together.',
+  },
+  {
+    icon: UsersRound,
+    title: 'Built for organisations',
+    body: 'For community groups and the institutions that support them.',
+  },
 ];
 
 /** Matched 1:1 by index, so the two columns read as a direct correction. */
@@ -120,31 +128,34 @@ const WITH_KITABU = [
 ];
 
 const PAYMENT_STEPS = [
-  { title: 'Member pays by M-Pesa', body: 'The way they already send money.' },
-  { title: 'Payment is matched', body: 'Linked to the right member automatically.' },
-  { title: 'Books update', body: 'Balanced and confirmed by SMS. Done.' },
+  { title: 'Configure your organisation', body: 'Set up its structure, users, roles and operating workflows.' },
+  {
+    title: 'Capture everyday activity',
+    body: 'Keep membership, financial, communication and programme records connected.',
+  },
+  { title: 'Review and report', body: 'Give authorised teams reliable information for oversight and decisions.' },
 ];
 
 const ECOSYSTEM = [
   {
     icon: Banknote,
     title: 'Funding',
-    body: 'Donors and partners for group projects.',
+    body: 'Develop pathways to donors and partners for community-led initiatives.',
   },
   {
     icon: ShieldCheck,
     title: 'Financial products',
-    body: 'Loans and insurance for groups and members.',
+    body: 'Connect organisations with relevant financial-service providers as partnerships become available.',
   },
   {
     icon: GraduationCap,
     title: 'Professional knowledge',
-    body: 'Guidance on finance, farming and governance.',
+    body: 'Build access to practical learning, training and organisational capacity support.',
   },
   {
     icon: Store,
     title: 'Markets & services',
-    body: 'Buyers, suppliers and services for your projects.',
+    body: 'Develop pathways to appropriate suppliers, service providers and markets.',
   },
   {
     icon: FileText,
@@ -169,7 +180,7 @@ export default function Home() {
         {/* Partners */}
         <section aria-label="Partners" className="border-b border-brand-100 py-10">
           <Container className="flex flex-col items-center gap-6">
-            <p className="text-center font-display text-xl font-semibold text-finanza-dark">Our Partners</p>
+            <p className="text-center font-display text-xl font-semibold text-finanza-dark">Technology and Delivery</p>
             <ul className="flex flex-wrap items-center justify-center gap-5">
               {PARTNER_LOGOS.map((partner) => (
                 <li
@@ -203,14 +214,15 @@ export default function Home() {
                 id="about-heading"
                 className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
               >
-                Your group already works. Now the books will too.
+                The Digital Operating System for Community Organisations.
               </h2>
               <p className="mb-4 leading-relaxed text-finanza-text">
-                The problem isn&apos;t discipline. It&apos;s one book in one person&apos;s handwriting, and M-Pesa
-                messages matched to names the night before a meeting.
+                Community organisations and the institutions that support them coordinate people, finances,
+                communication and programmes across fragmented systems.
               </p>
               <p className="mb-8 leading-relaxed text-finanza-text">
-                Kitabu Yetu puts members, money and payments in one place — in books that always balance.
+                Kitabu Yetu brings these essential processes into practical digital infrastructure—helping organisations
+                improve management, strengthen accountability and coordinate their work as they grow.
               </p>
               <ul className="space-y-5">
                 {PROMISES.map((promise) => (
@@ -235,7 +247,7 @@ export default function Home() {
             id="problem-heading"
             align="center"
             pill="The Problem"
-            title="Still running the group from a notebook?"
+            title="Are your organisation’s essential processes still disconnected?"
             className="mb-12"
           />
           <div className="grid gap-6 md:grid-cols-2">
@@ -275,8 +287,8 @@ export default function Home() {
               <FinanzaHeading
                 id="how-heading"
                 pill="How It Works"
-                title="Member pays. Books update. Done."
-                lede="No evening of matching M-Pesa messages to names."
+                title="Organisations coordinate. Records become useful. Decisions improve."
+                lede="Bring operational information together so teams can make clearer, more accountable decisions."
               />
               <div className="my-8">
                 <Emphasis>Treasurers get their evenings back.</Emphasis>
@@ -328,8 +340,8 @@ export default function Home() {
               <FinanzaHeading
                 id="ecosystem-heading"
                 pill="Ecosystem"
-                title="Clean records open doors."
-                lede="Your track record connects you to funding, partners and markets beyond your savings."
+                title="Stronger organisations build stronger communities."
+                lede="Reliable organisational systems create a stronger foundation for accountability, collaboration and sustainable growth."
               />
               <ul className="mt-8 space-y-6">
                 {ECOSYSTEM.map((item) => (
@@ -343,7 +355,7 @@ export default function Home() {
                 ))}
               </ul>
               <div className="my-8">
-                <Emphasis>Run the group today. Grow it tomorrow.</Emphasis>
+                <Emphasis>Technology first. Stronger connections over time.</Emphasis>
               </div>
               <div className="flex flex-wrap gap-3">
                 <Link href={ROUTES.ecosystemMarketplace} className={btnPrimary}>

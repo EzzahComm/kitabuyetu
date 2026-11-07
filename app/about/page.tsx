@@ -1,72 +1,92 @@
 import type { Metadata } from 'next';
 import Image from 'next/image';
 import Link from 'next/link';
-import { BarChart3, HandHeart, Lightbulb, LineChart, ShieldCheck, Wallet } from 'lucide-react';
+import {
+  Handshake,
+  ShieldCheck,
+  Lightbulb,
+  UsersRound,
+  Scale,
+  HeartHandshake,
+  Wallet,
+  BarChart3,
+  Network,
+} from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { ROUTES } from '@/components/marketing/routes';
 import { Reveal } from '@/components/marketing/reveal';
-import { StoryTabs } from '@/components/marketing/finanza-tabs';
-import {
-  FeatureBox,
-  FinanzaHeading,
-  FinanzaSection,
-  IconBadge,
-  Pill,
-  btnOutline,
-} from '@/components/marketing/finanza';
+import { FinanzaHeading, FinanzaSection, IconBadge, Pill, btnOutline } from '@/components/marketing/finanza';
 import { CtaBand } from '@/components/marketing/sections/cta';
-import { KitabuFacts } from '@/components/marketing/sections/products';
-import { FounderCard, JoinTeamCard } from '@/components/marketing/sections/team';
-import { TestimonialsSection } from '@/components/marketing/sections/testimonials';
 import { PHOTOS } from '@/components/marketing/photos';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/about',
-  title: 'About Us — Digital Records for Kenyan Groups',
+  title: 'About Kitabu Yetu | Technology for Stronger Community Organisations',
   description:
-    'Why Kitabu Yetu exists: to give chamas, welfare groups and SACCOs across Kenya simple, trustworthy digital records, and what that has changed for them.',
+    'Meet Kitabu Yetu: an impact-driven technology company equipping community organisations and the institutions that support them with accessible digital infrastructure.',
 });
 
 const VALUES = [
   {
-    icon: HandHeart,
-    title: 'Community',
-    body: 'We listen to treasurers and members before we build.',
+    icon: Scale,
+    title: 'Accountability',
+    body: 'We make responsible management, clear records and transparent decisions easier to practise.',
+  },
+  {
+    icon: UsersRound,
+    title: 'Inclusion',
+    body: 'We build accessible tools for organisations of different sizes, structures and levels of digital readiness.',
   },
   {
     icon: Lightbulb,
-    title: 'Product',
-    body: 'Complicated group work, made simple.',
+    title: 'Innovation',
+    body: 'We solve practical organisational problems with useful, dependable technology.',
   },
   {
     icon: ShieldCheck,
-    title: 'Trust',
-    body: 'Your group’s money and records are our responsibility.',
+    title: 'Integrity',
+    body: 'We handle information responsibly and communicate honestly about what our products can do.',
+  },
+  {
+    icon: Handshake,
+    title: 'Collaboration',
+    body: 'We work alongside organisations, institutions and partners to strengthen the communities they serve.',
+  },
+  {
+    icon: HeartHandshake,
+    title: 'Impact',
+    body: 'We focus on measurable improvements in organisational capability, accountability and programme delivery.',
   },
 ];
 
-const IMPACT = [
-  { icon: Wallet, title: 'Manage', body: 'Members, contributions, loans and welfare.' },
-  { icon: BarChart3, title: 'Understand', body: 'Reports that show where the money went.' },
-  { icon: LineChart, title: 'Grow', body: 'A track record that opens doors.' },
+const PILLARS = [
+  {
+    icon: Wallet,
+    title: 'Manage',
+    body: 'Membership, contributions, savings, loans, welfare and organisational records.',
+  },
+  {
+    icon: BarChart3,
+    title: 'Account',
+    body: 'Reliable financial records, reporting and clearer oversight for authorised people.',
+  },
+  {
+    icon: Network,
+    title: 'Connect',
+    body: 'Communication, institutional coordination and a growing network of opportunities and services.',
+  },
 ];
 
-/**
- * About Kitabu Yetu — the Finanza about.html layout (image + Story/Mission/
- * Vision tabs, value badges, facts, team) carrying the company's own story,
- * team positioning and impact commitment. The tabs are Story / Team / Impact
- * rather than an invented mission statement.
- */
 export default function AboutPage() {
   return (
     <PageShell
-      title="About Us"
-      description="Simple, trusted records for the groups Kenyans already run."
+      title="About Kitabu Yetu"
+      description="The Digital Operating System for Community Organisations."
       layout="sections"
     >
       <FinanzaSection id="our-story" labelledBy="story-heading" className="pt-8 lg:pt-12">
-        <div className="mb-8 grid items-end gap-8 lg:grid-cols-2">
+        <div className="grid items-center gap-10 lg:grid-cols-2">
           <Reveal>
             <Image
               src={PHOTOS.vslaReading.src}
@@ -76,124 +96,169 @@ export default function AboutPage() {
               placeholder="blur"
             />
           </Reveal>
-          <Reveal delay={150}>
-            <Pill>Our Story</Pill>
+          <Reveal delay={120}>
+            <Pill>Who We Are</Pill>
             <h2
               id="story-heading"
               className="mb-5 font-display text-[2rem] font-bold leading-[1.15] text-finanza-dark sm:text-[2.5rem] xl:text-5xl"
             >
-              Most groups already keep good records
+              Digital infrastructure for the organisations that move communities forward.
             </h2>
-            <p className="mb-6 leading-relaxed text-finanza-text">
-              The trouble was never discipline. It was one book in one person&apos;s handwriting, and M-Pesa messages
-              matched to names the night before every meeting.
+            <p className="mb-4 leading-relaxed text-finanza-text">
+              Kitabu Yetu is an impact-driven technology company building digital infrastructure for community
+              organisations and the institutions that support them.
             </p>
-            <StoryTabs
-              label="About Kitabu Yetu"
-              tabs={[
-                {
-                  value: 'story',
-                  label: 'Our Story',
-                  content: (
-                    <p>
-                      Kitabu Yetu puts members, money and payments in one place — in books that always balance. The
-                      group works the way it always has. The book just stops living in one person&apos;s bag.
-                    </p>
-                  ),
-                },
-                {
-                  value: 'team',
-                  label: 'Our Team',
-                  content: (
-                    <p>
-                      Engineers, finance people and community workers — building with the groups who use Kitabu Yetu,
-                      not just for them.
-                    </p>
-                  ),
-                },
-                {
-                  value: 'impact',
-                  label: 'Impact',
-                  content: (
-                    <p>
-                      We&apos;ll publish verified numbers as we grow. Our standard today: records close on time, members
-                      see their own numbers, and organizations can trust the figures.
-                    </p>
-                  ),
-                },
-              ]}
-            />
+            <p className="mb-4 leading-relaxed text-finanza-text">
+              Community groups, cooperatives, churches, associations, CBOs and development programmes are essential to
+              local progress. Yet many still depend on fragmented systems, manual records and disconnected communication
+              to manage people, money and activities.
+            </p>
+            <p className="leading-relaxed text-finanza-text">
+              We bring these essential processes together through practical, accessible technology—helping organisations
+              operate more efficiently, strengthen accountability and build the reliable records needed to grow.
+            </p>
           </Reveal>
         </div>
-        <Reveal className="rounded-lg border border-brand-100 p-6">
-          <ul className="grid gap-6 lg:grid-cols-3">
-            {VALUES.map((value, i) => (
-              <li
-                key={value.title}
-                className={
-                  i < VALUES.length - 1
-                    ? 'flex gap-4 border-b border-brand-100 pb-6 lg:border-b-0 lg:border-r lg:pb-0'
-                    : 'flex gap-4'
-                }
-              >
-                <IconBadge icon={value.icon} />
-                <div>
-                  <h3 className="font-display text-xl font-semibold text-finanza-dark">{value.title}</h3>
-                  <p className="text-finanza-text">{value.body}</p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </Reveal>
       </FinanzaSection>
 
-      <KitabuFacts />
-
-      <FinanzaSection id="team" labelledBy="team-heading">
+      <FinanzaSection id="mission-vision" labelledBy="mission-heading" className="bg-brand-50/60">
         <FinanzaHeading
-          id="team-heading"
+          id="mission-heading"
           align="center"
-          pill="Our Team"
-          title="Built with the community"
-          className="mb-6"
+          pill="Our Purpose"
+          title="A stronger foundation for every organisation."
+          className="mb-10"
         />
-        <div className="mx-auto grid max-w-3xl gap-6 md:grid-cols-2">
-          <FounderCard />
-          <JoinTeamCard />
-        </div>
-        <div className="mt-4 text-center">
-          <Link href={ROUTES.aboutTeam} className={btnOutline}>
-            Meet the team
-          </Link>
+        <div className="grid gap-6 md:grid-cols-2">
+          <Reveal className="rounded-lg border border-brand-100 bg-white p-8">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-brand-500">Our Mission</p>
+            <h3 className="font-display text-2xl font-semibold leading-snug text-finanza-dark">
+              To equip community organisations and the institutions that support them with accessible digital technology
+              that strengthens organisational management, financial accountability, communication and programme impact.
+            </h3>
+          </Reveal>
+          <Reveal delay={120} className="rounded-lg border border-brand-100 bg-white p-8">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wider text-brand-500">Our Vision</p>
+            <h3 className="font-display text-2xl font-semibold leading-snug text-finanza-dark">
+              A future where every community organisation is digitally empowered, financially accountable and connected
+              to opportunities for sustainable growth.
+            </h3>
+          </Reveal>
         </div>
       </FinanzaSection>
 
-      <FinanzaSection id="impact" labelledBy="impact-heading" className="bg-brand-50/60">
+      <FinanzaSection id="what-we-do" labelledBy="approach-heading">
         <FinanzaHeading
-          id="impact-heading"
+          id="approach-heading"
           align="center"
-          pill="Impact"
-          title="What gets easier"
-          lede="Verified numbers will follow. What we hold ourselves to today:"
+          pill="What We Do"
+          title="Technology first. Connection that creates opportunity."
+          lede="We are building two complementary layers: a dependable operating platform and a development ecosystem that can grow around it."
           className="mb-12"
         />
         <div className="grid gap-6 md:grid-cols-3">
-          {IMPACT.map((item, i) => (
-            <Reveal key={item.title} delay={i * 120}>
-              <FeatureBox icon={item.icon} title={item.title} className="h-full">
-                {item.body}
-              </FeatureBox>
+          {PILLARS.map((item, i) => (
+            <Reveal key={item.title} delay={i * 100} className="rounded-lg border border-brand-100 bg-white p-7">
+              <IconBadge icon={item.icon} />
+              <h3 className="mt-5 font-display text-xl font-semibold text-finanza-dark">{item.title}</h3>
+              <p className="mt-2 leading-relaxed text-finanza-text">{item.body}</p>
             </Reveal>
           ))}
         </div>
-        <p className="mt-10 text-center">
-          <Link href={ROUTES.aboutImpact} className="font-medium text-brand-500 hover:text-brand-700">
-            Read more about our impact →
-          </Link>
-        </p>
+        <div className="mt-10 rounded-lg bg-brand-50 p-7">
+          <h3 className="mb-2 font-display text-xl font-semibold text-finanza-dark">The Technology Platform</h3>
+          <p className="leading-relaxed text-finanza-text">
+            Our products support financial and membership management, group communication, fundraising workflows and
+            institutional programme oversight. Each organisation retains its own records, roles and operating rules.
+          </p>
+          <h3 className="mb-2 mt-6 font-display text-xl font-semibold text-finanza-dark">The Development Ecosystem</h3>
+          <p className="leading-relaxed text-finanza-text">
+            Alongside the platform, we are progressively developing pathways to relevant partners, training, services,
+            programmes and opportunities. This ecosystem will be introduced responsibly as capabilities and partnerships
+            are established.
+          </p>
+        </div>
       </FinanzaSection>
 
-      <TestimonialsSection />
+      <FinanzaSection id="who-we-serve" labelledBy="audience-heading" className="bg-brand-50/60">
+        <FinanzaHeading
+          id="audience-heading"
+          align="center"
+          pill="Who We Serve"
+          title="Built for organisations of every scale."
+          lede="From a community group maintaining its first digital ledger to an institution coordinating a portfolio of programmes."
+          className="mb-10"
+        />
+        <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {[
+            'Chamas and VSLAs',
+            'Self-help and welfare groups',
+            'Community-based organisations',
+            'NGOs and development programmes',
+            'Churches and faith-based organisations',
+            'Cooperatives and associations',
+            'Networks and federations',
+            'Community projects and initiatives',
+            'Institutional and programme teams',
+          ].map((item) => (
+            <li
+              key={item}
+              className="rounded-lg border border-brand-100 bg-white px-5 py-4 font-medium text-finanza-dark"
+            >
+              {item}
+            </li>
+          ))}
+        </ul>
+      </FinanzaSection>
+
+      <FinanzaSection id="values" labelledBy="values-heading">
+        <FinanzaHeading
+          id="values-heading"
+          align="center"
+          pill="Our Values"
+          title="The principles behind the platform."
+          className="mb-12"
+        />
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {VALUES.map((value, i) => (
+            <Reveal key={value.title} delay={(i % 3) * 80} className="rounded-lg border border-brand-100 p-6">
+              <IconBadge icon={value.icon} />
+              <h3 className="mt-4 font-display text-xl font-semibold text-finanza-dark">{value.title}</h3>
+              <p className="mt-2 leading-relaxed text-finanza-text">{value.body}</p>
+            </Reveal>
+          ))}
+        </div>
+      </FinanzaSection>
+
+      <FinanzaSection id="our-approach" labelledBy="approach-values-heading" className="bg-brand-50/60">
+        <FinanzaHeading
+          id="approach-values-heading"
+          align="center"
+          pill="Our Approach"
+          title="Practical technology. Responsible growth."
+          lede="We listen to the organisations using our tools, build around real workflows and prioritise trust, usability and sustainable adoption."
+          className="mb-10"
+        />
+        <div className="mx-auto max-w-3xl space-y-4 text-finanza-text">
+          <p>
+            We extend the platform in stages, protecting existing users and keeping core operations dependable as new
+            capabilities are introduced.
+          </p>
+          <p>
+            We respect organisational autonomy: each organisation should retain appropriate control over its
+            information, financial arrangements, users and approval processes.
+          </p>
+          <p>
+            We distinguish what is available today from what is being developed. We will not present planned
+            marketplace, partnership or integration capabilities as live services until they are ready.
+          </p>
+        </div>
+        <div className="mt-8 text-center">
+          <Link href={ROUTES.enterprise} className={btnOutline}>
+            Explore Kitabu Yetu Enterprise
+          </Link>
+        </div>
+      </FinanzaSection>
 
       <CtaBand />
     </PageShell>
