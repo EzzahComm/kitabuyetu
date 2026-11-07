@@ -50,8 +50,9 @@ export const DEFAULT_ACCOUNTS = [
 
 /**
  * Cashless controls for manual journals. Account 1001 is the legacy combined
- * Cash/M-Pesa account; manual postings to it are prohibited. We also block
- * cash/petty-cash aliases created by groups. Provider/system generated entries
+ * Cash/M-Pesa account and 1002 is the bank account; manual postings to either
+ * are prohibited. We also block cash, bank, and mobile-money aliases created
+ * by groups. Provider/system generated entries
  * continue through dedicated service posting paths and are not affected here.
  */
 async function assertNoManualCashAccount(
@@ -66,14 +67,14 @@ async function assertNoManualCashAccount(
       WHERE group_id = $1 AND id = ANY($2)`,
     [groupId, accountIds],
   );
-  const cashAccounts = rows.filter(
+  const liquidPaymentAccounts = rows.filter(
     (account) =>
-      account.account_code === '1001' ||
-      /\b(cash|petty\s*cash|cash\s*on\s*hand)\b/i.test(account.name),
+      ['1001', '1002'].includes(account.account_code) ||
+      /\b(cash|petty\s*cash|cash\s*on\s*hand|bank|m[\s-]?pesa|mobile\s*money)\b/i.test(account.name),
   );
-  if (cashAccounts.length > 0) {
+  if (liquidPaymentAccounts.length > 0) {
     throw new ValidationError(
-      `Cashless policy: manual journal entries cannot post to cash accounts (${cashAccounts.map((a) => a.account_code + ' — ' + a.name).join(', ')}). Record receipts/payments through the approved electronic payment workflow.`,
+      `Cashless policy: manual journal entries cannot post to cash, bank, or mobile-money accounts (${liquidPaymentAccounts.map((a) => a.account_code + ' — ' + a.name).join(', ')}). Record receipts/payments through the approved electronic payment workflow.`,
     );
   }
 }
