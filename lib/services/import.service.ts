@@ -772,6 +772,7 @@ export const importService = {
     ctx: TenantContext,
     jobId: string,
   ): Promise<ImportJob & { imported: number; skipped: number }> {
+    throw new ValidationError('Contribution imports cannot create completed payments. Only provider-confirmed M-Pesa callbacks may post contributions.');
     return withTransaction(ctx, async (client) => {
       const { rows: jobRows } = await client.query<ImportJob & { preview_rows: PreparedContributionRow[] }>(
         `SELECT * FROM import_jobs WHERE id = $1 AND group_id = $2 FOR UPDATE`,
