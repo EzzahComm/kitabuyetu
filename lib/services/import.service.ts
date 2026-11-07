@@ -571,6 +571,7 @@ export const importService = {
     ctx: TenantContext,
     csvBuffer: Buffer,
   ): Promise<{ imported: number; errors: ImportRowError[] }> {
+    throw new ValidationError('Manual contribution imports are disabled. Historical records require a separate controlled history-import workflow; new receipts come only from provider callbacks.');
     const rows = parseCsv(csvBuffer);
     if (rows.length > MAX_ROWS) throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
 
@@ -649,6 +650,7 @@ export const importService = {
     csvBuffer: Buffer,
     filename: string | null,
   ): Promise<ImportJob & { preview_rows: PreparedContributionRow[] }> {
+    throw new ValidationError('Manual contribution imports are disabled. New payments must be confirmed by the M-Pesa provider callback.');
     const rawRows = parseCsv(csvBuffer);
     if (rawRows.length === 0) throw new ValidationError('CSV contains no data rows');
     if (rawRows.length > MAX_ROWS) throw new ValidationError(`CSV exceeds maximum of ${MAX_ROWS} rows`);
