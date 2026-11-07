@@ -32,9 +32,19 @@ import { BulkSmsSchema } from '@/lib/validators/sms.schema';
 import { RecordManualPaymentSchema } from '@/lib/validators/billing.schema';
 import { PayAllocationSchema, BulkPayAllocationsSchema } from '@/lib/validators/dividends.schema';
 import { CreateShareTransactionSchema } from '@/lib/validators/shares.schema';
-import { DisburseSchema } from '@/lib/validators/organization.schema';
+import { DepositSchema, DisburseSchema, TopUpSmsCreditsSchema } from '@/lib/validators/organization.schema';
 
 describe('callback-only money movement payloads', () => {
+  it('rejects organization wallet deposits, organization-to-group disbursements, and SMS-credit top-ups until provider flows exist', () => {
+    expect(DepositSchema.safeParse({ amount: 5000, source: 'donor grant' }).success).toBe(false);
+    expect(DisburseSchema.safeParse({
+      groupId: '11111111-1111-4111-8111-111111111111',
+      amount: 5000,
+      disbursementType: 'grant',
+    }).success).toBe(false);
+    expect(TopUpSmsCreditsSchema.safeParse({ amountKes: 5000, reference: 'typed reference' }).success).toBe(false);
+  });
+
   it('rejects cash, bank, cheque and standing-order organization disbursement methods', () => {
     const base = {
       groupId: '11111111-1111-4111-8111-111111111111',
