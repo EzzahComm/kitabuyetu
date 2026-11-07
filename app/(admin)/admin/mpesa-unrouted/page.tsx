@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useDebouncedValue } from '@/hooks/use-debounced-value';
-import { Search, Wallet, CheckCircle2, XCircle, RefreshCw } from 'lucide-react';
+import { Search, Wallet, XCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageHeader } from '@/components/shared/page-header';
