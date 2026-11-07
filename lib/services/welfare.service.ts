@@ -289,65 +289,6 @@ export const welfareService = {
 
   async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
     throw new ValidationError('Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.');
-  async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
-    return withTransaction(ctx, async (client) => {
-      // The target member must hold an active membership in THIS group (audit
-      // H-1); its id is stamped on the row (§6a).
-      const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
-
-      const { rows } = await client.query(
-        `INSERT INTO welfare_pool_contributions
-           (group_id, member_id, group_membership_id, amount, contribution_type, payment_method,
-            mpesa_receipt_number, period_month, period_year, recorded_by, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-        [
-          ctx.groupId,
-          data.memberId,
-          membershipId,
-          data.amount,
-          data.contributionType,
-          data.paymentMethod ?? null,
-          data.mpesaReceiptNumber ?? null,
-          data.periodMonth ?? null,
-          data.periodYear ?? null,
-          ctx.userId,
-          data.notes ?? null,
-        ],
-      );
-
-      // Record audit log for welfare pool contribution — user-triggered
-      await client.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          ctx.groupId,
-          ctx.userId,
-          'welfarePoolContribution.create',
-          'welfare_pool_contribution',
-          rows[0].id,
-          null,
-          JSON.stringify({
-            member_id: data.memberId,
-            amount: data.amount,
-            contribution_type: data.contributionType,
-          }),
-        ],
-      );
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: money coming in with previously
-      // zero GL trace.
-      await postTemplatedJournal(
-        client,
-        ctx.groupId,
-        ctx.userId,
-        'welfare_pool_contribution',
-        `Welfare pool contribution — ${data.contributionType}`,
-        { amount: data.amount },
-        { reference: rows[0].id, memberId: data.memberId },
-      );
-
-      return rows[0];
-    });
   },
 
   async listPoolContributions(ctx: TenantContext, params: { page: number; limit: number }) {
