@@ -42,7 +42,18 @@ const contribution = (over: Record<string, unknown> = {}) => ({
     },
   ],
 });
-const paymentAllocated = { rows: [{ id: 'pay-1', allocation_status: 'allocated' }] };
+const paymentAllocated = (amount = '5000.00', over: Record<string, unknown> = {}) => ({
+  rows: [{
+    id: 'pay-1',
+    allocation_status: 'allocated',
+    status: 'completed',
+    payment_method: 'mpesa',
+    mpesa_receipt_number: 'RX123',
+    group_id: 'grp-1',
+    amount,
+    ...over,
+  }],
+});
 
 describe('reallocationsService.initiate', () => {
   const input = { contributionId: 'contrib-1', toMemberId: 'member-b', reason: 'Posted to wrong member' };
@@ -68,10 +79,26 @@ describe('reallocationsService.initiate', () => {
     await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('rejects a payment that is not provider-confirmed and completed', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { status: 'pending' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects a receipt mismatch between the payment spine and contribution', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { mpesa_receipt_number: 'OTHER' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it('parks above-threshold corrections pending approval without executing', async () => {
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce(contribution({ amount: '50000.00' }));
-    mockQuery.mockResolvedValueOnce(paymentAllocated);
+    mockQuery.mockResolvedValueOnce(paymentAllocated('50000.00'));
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'realloc-1', status: 'pending_approval' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] }); // audit log: reallocation.create
@@ -87,7 +114,7 @@ describe('reallocationsService.initiate', () => {
   it('executes below-threshold corrections immediately', async () => {
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce(contribution({ amount: '5000.00' }));
-    mockQuery.mockResolvedValueOnce(paymentAllocated);
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00'));
     mockQuery.mockResolvedValueOnce({ rows: [{ threshold: '10000.00' }] });
     mockQuery.mockResolvedValueOnce({
       rows: [
@@ -110,7 +137,7 @@ describe('reallocationsService.initiate', () => {
     // executeReallocation (original had no journal → mirrors skipped):
     mockQuery.mockResolvedValueOnce(contribution()); // void original RETURNING
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] }); // corrected insert
-    mockQuery.mockResolvedValueOnce({ rows: [] }); // spine transition
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pay-1' }] }); // spine transition
     mockQuery.mockResolvedValueOnce({ rows: [] }); // payment_events
     mockQuery.mockResolvedValueOnce({ rows: [] }); // outbox
     mockQuery.mockResolvedValueOnce({ rows: [] }); // realloc finalise
@@ -173,7 +200,7 @@ describe('reallocationsService.approve', () => {
       },
     );
     mockQuery.mockResolvedValueOnce({ rows: [{ id: 'contrib-2' }] });
-    mockQuery.mockResolvedValueOnce({ rows: [] });
+    mockQuery.mockResolvedValueOnce({ rows: [{ id: 'pay-1' }] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
     mockQuery.mockResolvedValueOnce({ rows: [] });
