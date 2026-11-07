@@ -33,7 +33,7 @@ export const ReviewWelfareRequestSchema = z.object({
 
 export const DisburseWelfareSchema = z.object({
   paymentMethod: z.enum(['mpesa']),
-  mpesaReceiptNumber: z.string().optional(),
+  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt is required'),
   amountDisbursed: z.coerce.number().positive(),
   notes: z.string().optional(),
 });
