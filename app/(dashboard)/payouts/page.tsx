@@ -206,7 +206,6 @@ export default function DisbursementsPage() {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [confirming, setConfirming] = useState(false);
 
@@ -289,8 +288,7 @@ export default function DisbursementsPage() {
     !elig ||
     amt <= 0 ||
     !!amountError ||
-    description.trim().length < 3 ||
-    false;
+    description.trim().length < 3;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['payouts'] });
 
@@ -302,7 +300,6 @@ export default function DisbursementsPage() {
     setAmount('');
     setDescription('');
     setNotes('');
-    setPaymentReference('');
     // One key per submission: a double-click, refresh-retry or network retry
     // returns the same disbursement instead of creating a second one.
     setIdempotencyKey(crypto.randomUUID());
@@ -321,7 +318,6 @@ export default function DisbursementsPage() {
           description: description.trim(),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
           paymentMethod: method,
-          ...(paymentReference.trim() ? { paymentReference: paymentReference.trim() } : {}),
         },
         { headers: { 'Idempotency-Key': idempotencyKey } },
       ); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
