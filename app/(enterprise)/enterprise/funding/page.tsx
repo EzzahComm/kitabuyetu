@@ -305,17 +305,17 @@ export default function FundingPortalPage() {
         description="Fund, monitor and support your linked groups"
         actions={
           <>
-            <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
+            <Button size="sm" variant="outline" className="gap-1.5 h-9" disabled>
               <ArrowDownToLine size={15} /> Deposit
             </Button>
-            <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
+            <Button size="sm" className="gap-1.5 h-9" disabled>
               <ArrowRightLeft size={15} /> Disburse funds
             </Button>
           </>
         }
       />
 
-      {/* Financial position */}
+      <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Organization wallet deposits and group transfers are temporarily unavailable until verified M-Pesa or KCB Buni provider flows are connected.</p>\n\n      {/* Financial position */}
       {isLoading ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
