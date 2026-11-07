@@ -7,7 +7,7 @@ jest.mock('@/lib/db', () => ({
   withTransaction: jest.fn(),
 }));
 
-const ctx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' };
+const ctx = { groupId: 'grp-1', userId: 'treasurer-1', role: 'treasurer' as const };
 
 describe('unrouted M-Pesa receipts', () => {
   beforeEach(() => jest.clearAllMocks());
