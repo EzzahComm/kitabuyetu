@@ -617,6 +617,11 @@ export const billingService = {
   },
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
+    if (!paymentId) {
+      throw new ValidationError(
+        'Manual SMS-credit top-ups are disabled. Only a completed provider-confirmed M-Pesa payment can add credits.',
+      );
+    }
     // The confirmation is sent AFTER this transaction commits, never inside
     // it. First attempt put it inside and CI's app_tenant (real RLS) job
     // caught the consequence immediately: top-ups credited 0 instead of
@@ -633,6 +638,22 @@ export const billingService = {
     //
     // Anything best-effort therefore belongs outside the money transaction.
     const confirm = await withTransaction(ctx, async (client) => {
+      const { rows: verifiedPayments } = await client.query<{ id: string }>(
+        `SELECT id FROM payments
+         WHERE id = $1
+           AND group_id = $2
+           AND status = 'completed'
+           AND payment_method = 'mpesa'
+           AND mpesa_receipt_number IS NOT NULL
+           AND amount = $3
+         FOR SHARE`,
+        [paymentId, ctx.groupId, amountKes.toFixed(2)],
+      );
+      if (!verifiedPayments[0]) {
+        throw new ValidationError(
+          'SMS credits require a matching completed M-Pesa payment with a provider receipt for this group and amount',
+        );
+      }
       // MIN across every active subscription, matching reserve_sms_credits'
       // own rule exactly (migration 127). These two must agree: this decides
       // how many credits a top-up buys, that one decides what a send costs, and
