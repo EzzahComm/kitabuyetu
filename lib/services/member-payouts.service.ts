@@ -319,6 +319,11 @@ export const memberPayoutsService = {
       const prior = await lockMemberPayout(db, id, null, ['awaiting_platform']);
       const recipient = await resolveMemberPayoutRecipient(db, prior.group_id, prior.member_id as string);
       if (!recipient) throw new ValidationError('The recipient is no longer an active member of the group');
+      if (prior.payment_method !== 'mpesa') {
+        throw new ValidationError(
+          'Legacy cash and bank-transfer payouts cannot be signed off. Decline this request and resubmit using M-Pesa.',
+        );
+      }
 
       await db.query(
         `INSERT INTO settlement_approvals (subject_type, subject_id, group_id, approver_id, approver_kind, decision)
