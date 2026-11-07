@@ -80,6 +80,19 @@ describe('SMS top-up crediting', () => {
     expect(await ledgerCount(paymentId)).toBe(1);
   });
 
+  it('rejects a completed payment without a provider receipt', async () => {
+    const [payment] = await rawQuery<{ id: string }>(
+      `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, channel)
+       VALUES ($1, 100, 'mpesa', 'completed', NOW(), 'stk') RETURNING id`,
+      [groupId],
+    );
+
+    await expect(billingService.addSmsCredits(ctx, 100, payment.id))
+      .rejects.toThrow(/provider receipt/i);
+    expect(await creditBalance(groupId)).toBe(0);
+    expect(await ledgerCount(payment.id)).toBe(0);
+  });
+
   it('is exactly-once per payment — a replayed callback must not double-credit', async () => {
     const paymentId = await createPayment(groupId, 100);
 
