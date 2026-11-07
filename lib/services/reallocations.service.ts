@@ -91,8 +91,17 @@ export const reallocationsService = {
       // Spine row must still be in 'allocated'.
       const {
         rows: [payment],
-      } = await client.query<{ id: string; allocation_status: string }>(
-        `SELECT id, allocation_status FROM payments WHERE id = $1 FOR UPDATE`,
+      } = await client.query<{
+        id: string;
+        allocation_status: string;
+        status: string;
+        payment_method: string;
+        mpesa_receipt_number: string | null;
+        group_id: string;
+        amount: string;
+      }>(
+        `SELECT id, allocation_status, status, payment_method, mpesa_receipt_number, group_id, amount
+         FROM payments WHERE id = $1 FOR UPDATE`,
         [contrib.payment_id],
       );
       if (!payment || payment.allocation_status !== 'allocated') {
