@@ -30,8 +30,6 @@ const schema = z.object({
   memberId: z.string().min(1, 'Member required'),
   amount: z.coerce.number().positive(),
   contributionDate: z.string().min(1, 'Date required'),
-  paymentMethod: z.enum(['mpesa']),
-  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt required'),
   notes: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
@@ -62,7 +60,7 @@ export default function ContributionsPage() {
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { paymentMethod: 'mpesa', contributionDate: now.toISOString().split('T')[0] },
+    defaultValues: { contributionDate: now.toISOString().split('T')[0] },
   });
 
   const onSubmit = async (values: FormValues) => {
@@ -146,7 +144,7 @@ export default function ContributionsPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Record contribution</DialogTitle>
+            <DialogTitle>Create contribution obligation</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="space-y-1">
@@ -197,15 +195,6 @@ export default function ContributionsPage() {
                   </p>
                 )}
               </div>
-              <div className="space-y-1">
-                <Label>Payment method</Label>
-                <select
-                  {...register('paymentMethod')}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="mpesa">M-Pesa</option>
-                </select>
-              </div>
               <div className="space-y-1 sm:col-span-2">
                 <Label>Contribution date</Label>
                 <Input type="date" {...register('contributionDate')} />
@@ -214,16 +203,12 @@ export default function ContributionsPage() {
                 )}
               </div>
             </div>
-            <div className="space-y-1">
-              <Label>M-Pesa receipt reference</Label>
-              <Input placeholder="M-Pesa receipt code" required {...register('mpesaReceiptNumber')} />
-            </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
               <Button type="submit" loading={isSubmitting}>
-                Record
+                Save pending obligation
               </Button>
             </DialogFooter>
           </form>
