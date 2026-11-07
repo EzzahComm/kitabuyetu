@@ -102,7 +102,7 @@ in their passbook.
 - Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
 - Manually typed M-Pesa receipt/reference values are rejected by the contribution, welfare, loan, share, dividend, billing, payout, and reconciliation entry points; a reference is not proof of settlement.
 
-- Manual journal creation and draft posting reject account 1001 (the legacy Cash/M-Pesa combined account) and accounts named Cash, Petty Cash, or Cash on Hand. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a cash account. Historical posted journals remain unchanged.
+- Manual journal creation and draft posting reject accounts 1001 (legacy Cash/M-Pesa), 1002 (Bank), and any account named Cash, Bank, M-Pesa, or Mobile Money. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a liquid-payment account. Historical posted journals remain unchanged.
 
 
 ## Group-wide mobile-money-only payment entry
@@ -114,3 +114,11 @@ New group-member financial payment records must not be entered or marked paid as
 The only human correction path is the existing audited reallocation workflow for an already-recorded provider-confirmed M-Pesa payment. It requires the immutable payment ID and verifies completed status, M-Pesa method, matching receipt, group, and amount. The original provider evidence is preserved; corrections are audited, idempotent, and subject to maker-checker approval above the configured threshold. This workflow currently covers M-Pesa-linked savings contributions only.
 
 Unrouted receipts cannot be manually allocated to a member or used to activate a subscription. They may only be dismissed after review; a correction must use the eligible audited reallocation path. Manual share purchases/redemptions and dividend payment posting remain disabled until provider-backed allocation/disbursement flows are implemented. This phase does not implement KCB Buni transfer execution.
+
+Additional pathways closed by the cashless audit:
+
+- Organization wallet deposits and organization-to-group disbursements/approvals are disabled until real inbound/outbound provider transfers are connected. A ledger-only transfer is not proof that money moved.
+- Group and organization SMS-credit top-ups require a matching completed M-Pesa STK payment with provider receipt, group, and exact amount. Manual grants and reference-only top-ups are rejected; the backfill script also accepts only receipt-backed STK payments.
+- Fine mark-paid actions are disabled until a verified M-Pesa callback can settle fines.
+- Generic manual journals cannot post to cash, bank, or M-Pesa/mobile-money accounts. Provider/system-generated postings remain available.
+- Support and marketing copy now describe the M-Pesa-only contribution workflow; legacy cash/bank history remains available for read-only reporting.
