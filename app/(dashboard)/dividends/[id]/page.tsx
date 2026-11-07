@@ -668,7 +668,6 @@ function BulkPayDialog({
   open: boolean;
   count: number;
   onOpenChange: (v: boolean) => void;
-  onConfirm: (method: string, reference: string | undefined) => Promise<void>;
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
