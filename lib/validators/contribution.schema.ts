@@ -15,7 +15,7 @@ export const CreateContributionSchema = z.object({
 
 export const UpdateContributionSchema = z.object({
   status: z.enum(['pending', 'completed', 'failed', 'cancelled', 'overdue']).optional(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']).optional().nullable(),
+  paymentMethod: z.enum(['mpesa']).optional().nullable(),
   mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
 });
