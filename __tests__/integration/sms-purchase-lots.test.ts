@@ -128,7 +128,7 @@ describe('SMS purchase lots', () => {
   });
 
   it('draws a lot down when messages are actually consumed', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(groupId, officerId, 90);
     const before = Number((await lots(groupId))[0].remaining_credits);
 
     const [log] = await rawQuery<{ id: string }>(
@@ -148,7 +148,7 @@ describe('SMS purchase lots', () => {
 
   it('does not draw a lot for an allowance-funded message', async () => {
     // An allowance send consumes no PURCHASED credit, so no lot may move.
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(groupId, officerId, 90);
     const before = Number((await lots(groupId))[0].remaining_credits);
 
     const [log] = await rawQuery<{ id: string }>(
