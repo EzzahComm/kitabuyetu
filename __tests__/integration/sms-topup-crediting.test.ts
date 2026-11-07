@@ -36,7 +36,7 @@ async function provision(groupId: string): Promise<void> {
 /** Creates a completed payment row to hang the credit off, as the callback would. */
 async function createPayment(groupId: string, amount: number): Promise<string> {
   const [row] = await rawQuery<{ id: string }>(
-    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
      VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3)
      RETURNING id`,
     [groupId, amount, `SMS-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`],
