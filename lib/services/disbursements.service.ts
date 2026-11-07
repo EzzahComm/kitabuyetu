@@ -26,7 +26,7 @@ import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 import { resolveMemberPayoutRecipient } from './member-balances.service';
 
 export type PayoutPurpose = 'savings_withdrawal' | 'merry_go_round' | 'other';
-export type PayoutMethod = 'mpesa' | 'cash' | 'bank_transfer';
+export type PayoutMethod = 'mpesa';
 
 /** A member disbursement (migration 218). Workflow and office rules live in member-payouts.service.ts. */
 export interface MemberPayoutSpec {
@@ -35,7 +35,6 @@ export interface MemberPayoutSpec {
   description: string;
   notes?: string | null;
   paymentMethod: PayoutMethod;
-  paymentReference?: string | null;
   /** The initiator's live office — re-verified by the migration-218 trigger. */
   initiatorRole: 'chairperson' | 'secretary';
 }
@@ -130,18 +129,19 @@ export const disbursementsService = {
       // — a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
-      // A bank-transfer member disbursement draws on 1002 Bank Account; every
-      // other disbursement on 1001 Cash and M-Pesa.
-      const sourceCode = input.member?.paymentMethod === 'bank_transfer' ? '1002' : '1001';
+      // Every payout is an M-Pesa B2C transfer. The legacy 1001 account is
+      // retained for historical balances, but no cash/bank execution is allowed.
+      if (input.member && input.member.paymentMethod !== 'mpesa') {
+        throw new ValidationError('Disbursements are M-Pesa-only.');
+      }
+      const sourceCode = '1001';
       const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
         `SELECT * FROM lock_group_cash_account($1, $2)`,
         [ctx.groupId, sourceCode],
       );
       if (!acctRows[0]) {
         throw new ValidationError(
-          sourceCode === '1002'
-            ? 'Group has no active Bank Account (1002) to disburse from'
-            : 'Group has no active Cash/M-Pesa account (1001) to disburse from',
+          'Group has no active M-Pesa funding account (1001) to disburse from',
         );
       }
       const cashAccountId = acctRows[0].id;
@@ -207,7 +207,7 @@ export const disbursementsService = {
           input.member?.description ?? null,
           input.member?.notes ?? null,
           input.member?.paymentMethod ?? null,
-          input.member?.paymentReference ?? null,
+          null,
           input.member?.initiatorRole ?? null,
         ],
       );
