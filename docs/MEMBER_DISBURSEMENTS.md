@@ -97,7 +97,7 @@ in their passbook.
 ## Cashless inflows and outflows (PR #245)
 
 - New member payout requests are M-Pesa only; platform sign-off for legacy cash/bank payouts is blocked.
-- New contribution records and contribution imports reject cash, cheque, offline bank transfer and standing-order methods.
+- Manual contribution entry creates pending obligations only; manual contribution CSV import/preview/commit is disabled.
 - Contribution entry creates a pending obligation only. A client cannot submit an M-Pesa receipt or mark a contribution completed; only a verified provider callback/status confirmation can settle it.
 - Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
 - Manually typed M-Pesa receipt/reference values are rejected by the contribution, welfare, loan, share, dividend, billing, payout, and reconciliation entry points; a reference is not proof of settlement.
