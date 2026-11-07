@@ -854,8 +854,8 @@ export const HOME_FAQS: [question: string, answer: string][] = [
     'Yes, on every plan. Members pay through a prompt on their phone or your PayBill, and payouts go straight to their M-Pesa.',
   ],
   [
-    'Can members pay by something other than M-Pesa?',
-    'Yes. Record cash, bank or cheque by hand. M-Pesa payments record themselves.',
+    'Can members record cash, bank or cheque payments?',
+    'No. New contribution inflows must be received electronically through M-Pesa. Cash, cheque and offline bank-transfer entries are disabled; existing historical records remain available.',
   ],
   [
     'Can we bring in our existing records?',
