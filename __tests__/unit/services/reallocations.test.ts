@@ -95,6 +95,22 @@ describe('reallocationsService.initiate', () => {
     await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
   });
 
+  it('rejects a payment belonging to a different group', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5000.00', { group_id: 'other-group' }));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
+  it('rejects an amount mismatch between the payment spine and contribution', async () => {
+    mockQuery.mockResolvedValueOnce(membershipRow);
+    mockQuery.mockResolvedValueOnce(contribution());
+    mockQuery.mockResolvedValueOnce(paymentAllocated('5001.00'));
+
+    await expect(reallocationsService.initiate(ctx, input)).rejects.toBeInstanceOf(ValidationError);
+  });
+
   it('parks above-threshold corrections pending approval without executing', async () => {
     mockQuery.mockResolvedValueOnce(membershipRow);
     mockQuery.mockResolvedValueOnce(contribution({ amount: '50000.00' }));
