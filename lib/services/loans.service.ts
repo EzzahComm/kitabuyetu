@@ -340,6 +340,8 @@ export const loansService = {
   },
 
   async disburse(ctx: TenantContext, id: string, data: DisburseLoanInput): Promise<Loan> {
+    throw new ValidationError('Manual loan disbursement is disabled. Initiate the M-Pesa B2C transfer and wait for the provider callback.');
+  async disburse(ctx: TenantContext, id: string, data: DisburseLoanInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Loan>(`SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [
         id,
