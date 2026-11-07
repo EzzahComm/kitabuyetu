@@ -93,7 +93,7 @@ describe('SMS credit ledger', () => {
   });
 
   it('records a consume and stays reconciled', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(ctxFor(groupId, officerId), 90);
     const before = await balance(groupId);
 
     const logId = await reserveOne(groupId, 1.8);
@@ -113,7 +113,7 @@ describe('SMS credit ledger', () => {
     // reserved_sms_credits on the same account and net to zero, so recording
     // either would make the ledger permanently disagree with the balance it
     // exists to verify.
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(ctxFor(groupId, officerId), 90);
     const before = await balance(groupId);
 
     const logId = await reserveOne(groupId, 0.9);
@@ -127,7 +127,7 @@ describe('SMS credit ledger', () => {
   it('keeps allowance-covered sends out of the money column but records them', async () => {
     // An allowance send consumes a message and moves NO money. If its value
     // landed in `amount` the ledger would under-report the balance forever.
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(ctxFor(groupId, officerId), 90);
     const before = await balance(groupId);
 
     const logId = await reserveOne(groupId, 0.9, 0.9); // fully allowance-covered
@@ -144,7 +144,7 @@ describe('SMS credit ledger', () => {
   });
 
   it('is append-only', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(ctxFor(groupId, officerId), 90);
 
     await expect(rawQuery(`UPDATE sms_credit_ledger SET amount = 999 WHERE group_id = $1`, [groupId])).rejects.toThrow(
       /append-only/,
