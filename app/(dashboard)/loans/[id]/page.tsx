@@ -32,8 +32,8 @@ const repaySchema = z.object({
   installmentNumber: z.coerce.number().int().min(1),
   amountPaid: z.coerce.number().positive(),
   paymentDate: z.string().min(1),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
-  mpesaReceiptNumber: z.string().optional(),
+  paymentMethod: z.enum(['mpesa']),
+  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt required'),
   penaltyAmount: z.coerce.number().min(0).optional(),
 });
 
