@@ -51,8 +51,8 @@ async function lotDrift(groupId: string): Promise<number> {
 
 async function topUp(groupId: string, userId: string, amount: number): Promise<void> {
   const [payment] = await rawQuery<{ id: string }>(
-    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
-     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3) RETURNING id`,
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk') RETURNING id`,
     [groupId, amount, `SMS-1794070222599-25339`],
   );
   await billingService.addSmsCredits({ userId, groupId, role: 'chairperson' }, amount, payment.id);
