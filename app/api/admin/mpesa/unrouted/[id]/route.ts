@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
-import { ok } from '@/lib/utils/response';
+import { ok, badRequest } from '@/lib/utils/response';
 import { resolveUnroutedPayment } from '@/lib/services/admin.service';
 import { z } from 'zod';
 
@@ -13,9 +13,8 @@ const schema = z.object({
 }).strict();
 
 /**
- * Resolve an unrouted M-Pesa payment — allocate to a member's contribution,
- * activate a subscription, or dismiss. super_admin only: every non-dismiss
- * action creates real money movement, the same bar as updateGroupStatus above.
+ * Dismiss an unrouted M-Pesa payment after review. Allocation and subscription
+ * activation from this queue are disabled; corrections use audited reallocation.
  */
 export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return withPlatformRole(req, 'super_admin', async (auth) => {
