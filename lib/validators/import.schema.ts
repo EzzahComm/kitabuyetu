@@ -127,7 +127,8 @@ const blankableDate = z.preprocess(normaliseDate, z.string().date('Date must be 
 const requiredDate = (fieldName: string) =>
   z.preprocess(normaliseDate, z.string().date(`${fieldName} must be a date in YYYY-MM-DD or DD/MM/YYYY format`));
 
-const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
+// Cashless policy for new contribution imports. Legacy cash records remain untouched.
+const PAYMENT_METHODS = ['mpesa'] as const;
 
 export const ContributionCsvRowSchema = z.object({
   member_phone: z.string().min(1, 'member_phone is required'),
