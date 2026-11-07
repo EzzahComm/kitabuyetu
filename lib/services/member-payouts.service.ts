@@ -41,7 +41,6 @@ import {
   disbursementsService,
   dispatchDisbursement,
   type DisbursementRow,
-  type PayoutMethod,
   type PayoutPurpose,
 } from './disbursements.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
