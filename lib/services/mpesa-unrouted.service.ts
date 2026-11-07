@@ -54,7 +54,7 @@ export async function resolveUnrouted(
   // manually converted into a completed contribution. Reallocation will be
   // exposed only for an existing provider-confirmed payment whose allocation
   // state was explicitly invalidated, using its immutable payment ID.
-  if (action === 'allocate') {
+  if (String(action) === 'allocate') {
     throw new ValidationError('New allocation of unrouted receipts is disabled. Only reallocation of an existing invalidated provider-confirmed payment is permitted.');
   }
 
