@@ -28,7 +28,7 @@ Chairperson | Secretary   initiate        → pending_approval   funds reserved 
 Treasurer (≠ initiator)   approve         → awaiting_platform
                           reject (reason) → rejected            reservation released, initiator notified
 Kitabu Yetu (super_admin) sign off        → M-Pesa: approved → dispatched → completed (B2C callback)
-                                          → cash / bank: completed, in the same DB transaction
+                                          → legacy cash / bank rows: historic workflow only; new requests are M-Pesa-only
                           decline         → rejected            reservation released, initiator notified
 Initiator                 cancel          → cancelled           (before money moves)
 ```
@@ -79,10 +79,15 @@ left, so the row is marked completed and flagged rather than lost.
 UI: `/payouts` (group), `/admin/disbursements` (Kitabu Yetu). Members see completed and in-progress disbursements
 in their passbook.
 
+## Cashless rollout status
+
+- **New member payout requests are M-Pesa-only.** The server schema rejects `cash` and `bank_transfer` for new submissions; the form does not offer those methods.
+- Historical cash and bank-transfer rows remain readable and auditable. They are not deleted or rewritten.
+- Bank-transfer automation through KCB Buni is a separate integration phase. Do not mark a new bank payout complete until the provider confirms the transfer and reconciliation is in place.
+
 ## Known limits / follow-ups
 
-- Cash and bank disbursements are recorded as paid at Kitabu Yetu's sign-off; the officers hand over the cash or
-  make the transfer against that record. There is no separate "paid" confirmation step.
+- Legacy cash and bank rows were recorded as paid at Kitabu Yetu's sign-off; this historic behavior is retained for audit display, not offered for new requests.
 - Supporting documents: the codebase has no document-attachment store for group transactions; minutes or
   references go in **notes** / **payment reference**.
 - "Request correction" is reject-with-reason followed by a new submission.
