@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
-import { ok, badRequest } from '@/lib/utils/response';
+import { ok } from '@/lib/utils/response';
 import { resolveUnroutedPayment } from '@/lib/services/admin.service';
 import { z } from 'zod';
 
@@ -23,16 +23,6 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
     const body = await req.json();
     const parsed = schema.safeParse(body);
     if (!parsed.success) return badRequest(parsed.error.errors[0].message);
-
-    if (parsed.data.action === 'allocate' && (!parsed.data.groupId || !parsed.data.memberId)) {
-      return badRequest('groupId and memberId are required to allocate');
-    }
-    if (
-      parsed.data.action === 'activate_subscription' &&
-      (!parsed.data.groupId || !parsed.data.planType || !parsed.data.product)
-    ) {
-      return badRequest('groupId, planType and product are required to activate a subscription');
-    }
 
     const result = await resolveUnroutedPayment(id, parsed.data.action, {
       groupId: parsed.data.groupId,
