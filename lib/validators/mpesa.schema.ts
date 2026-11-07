@@ -62,8 +62,7 @@ export const MemberPayoutSchema = z
     description: z.string().trim().min(3, 'Describe the purpose (3+ characters)').max(200),
     notes: z.string().trim().max(500).optional(),
     paymentMethod: z.enum(['mpesa']).default('mpesa'),
-    paymentReference: z.string().trim().max(100).optional(),
-  });
+  }).strict();
 
 export type MemberPayoutInput = z.input<typeof MemberPayoutSchema>;
 
