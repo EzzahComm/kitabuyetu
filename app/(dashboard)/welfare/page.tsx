@@ -56,7 +56,8 @@ const poolSchema = z.object({
   memberId: z.string().min(1, 'Member required'),
   amount: z.coerce.number().positive(),
   contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']).optional(),
+  paymentMethod: z.enum(['mpesa']).default('mpesa'),
+  mpesaReceiptNumber: z.string().min(1, 'M-Pesa receipt required'),
   notes: z.string().optional(),
 });
 
@@ -104,7 +105,7 @@ export default function WelfarePage() {
   });
   const poolForm = useForm<WelfarePoolFormInput, unknown, WelfarePoolForm>({
     resolver: zodResolver(poolSchema),
-    defaultValues: { contributionType: 'regular' },
+    defaultValues: { contributionType: 'regular', paymentMethod: 'mpesa' },
   });
 
   const onSubmitRequest = async (values: WelfareRequestForm) => {
