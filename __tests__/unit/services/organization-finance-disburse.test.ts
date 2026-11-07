@@ -6,7 +6,7 @@
  */
 import { withDb, withTransaction, withAdminDb } from '@/lib/db';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
-import { ValidationError, ForbiddenError, NotFoundError } from '@/lib/utils/errors';
+import { ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
