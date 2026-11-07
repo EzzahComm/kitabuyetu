@@ -906,6 +906,7 @@ export async function addOrganizationSmsCredits(
   actorUserId: string | null,
   opts: { reference?: string; notes?: string; paymentId?: string | null } = {},
 ): Promise<{ creditsAdded: number; newBalance: number; rateApplied: number } | null> {
+  throw new ValidationError('Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected');
   if (!(amountKes > 0)) throw new ValidationError('Amount must be positive');
 
   const result = await withAdminDb(async (db) => {
