@@ -69,7 +69,7 @@ async function assertNoManualCashAccount(
   const cashAccounts = rows.filter(
     (account) =>
       account.account_code === '1001' ||
-      /\\b(cash|petty\\s*cash|cash\\s*on\\s*hand)\\b/i.test(account.name),
+      /\b(cash|petty\s*cash|cash\s*on\s*hand)\b/i.test(account.name),
   );
   if (cashAccounts.length > 0) {
     throw new ValidationError(
