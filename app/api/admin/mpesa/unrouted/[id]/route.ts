@@ -26,11 +26,7 @@ export function PATCH(req: NextRequest, { params }: { params: Promise<{ id: stri
 
     const result = await resolveUnroutedPayment(id, parsed.data.action, {
       groupId: parsed.data.groupId,
-      memberId: parsed.data.memberId,
       notes: parsed.data.notes,
-      planType: parsed.data.planType,
-      product: parsed.data.product,
-      billingCycle: parsed.data.billingCycle,
       adminId: auth.userId,
     });
     return ok(result);
