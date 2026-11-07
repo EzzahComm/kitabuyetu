@@ -21,8 +21,8 @@
  * reallocation_approval_threshold wait in 'pending_approval' until a
  * DIFFERENT officer approves; below the threshold they execute immediately
  * under single control. Scope v1: M-Pesa-linked savings contributions within
- * one group (cash corrections use the existing contribution edit flow;
- * cross-product corrections route through the unrouted queue).
+ * one group. Legacy/manual rows and provider-recovery rows without a payment
+ * spine ID are never eligible; unmatched receipts cannot be allocated here.
  */
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
