@@ -92,3 +92,12 @@ in their passbook.
   references go in **notes** / **payment reference**.
 - "Request correction" is reject-with-reason followed by a new submission.
 - A failed M-Pesa dispatch (Daraja refused the POST) releases the funds and shows as failed; no SMS is sent for it.
+
+
+## Cashless inflows and outflows (PR #245)
+
+- New member payout requests are M-Pesa only; platform sign-off for legacy cash/bank payouts is blocked.
+- New contribution records and contribution imports reject cash, cheque, offline bank transfer and standing-order methods.
+- A contribution cannot be marked newly completed unless its method is M-Pesa and an M-Pesa receipt reference is present.
+- Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
+- This app-level receipt-reference check is not itself a provider verification: production recognition should rely on the M-Pesa callback/reconciliation path, not merely a typed receipt number.
