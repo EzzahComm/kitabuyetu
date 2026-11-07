@@ -75,7 +75,6 @@ export const CreateShareTransactionSchema = z
     counterpartyMemberId: z.string().uuid().optional().nullable(),
 
     paymentMethod: z.enum(PAYMENT_METHODS).optional().nullable(),
-    paymentReference: z.string().max(80).optional().nullable(),
 
     notes: z.string().max(1000).optional().nullable(),
     postedAt: z.string().datetime().optional(),
@@ -91,10 +90,6 @@ export const CreateShareTransactionSchema = z
   .refine((v) => !['purchase', 'redemption'].includes(v.type), {
     path: ['type'],
     message: 'Manual share purchases and redemptions are disabled until provider-backed allocation is available',
-  })
-  .refine((v) => !v.paymentReference?.trim(), {
-    path: ['paymentReference'],
-    message: 'Manual payment references are not accepted',
   })
   .refine(
     // Non-adjustment types require positive quantity from the API; the
