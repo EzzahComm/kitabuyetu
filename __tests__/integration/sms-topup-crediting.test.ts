@@ -36,10 +36,10 @@ async function provision(groupId: string): Promise<void> {
 /** Creates a completed payment row to hang the credit off, as the callback would. */
 async function createPayment(groupId: string, amount: number): Promise<string> {
   const [row] = await rawQuery<{ id: string }>(
-    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date)
-     VALUES ($1, $2, 'mpesa', 'completed', NOW())
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3)
      RETURNING id`,
-    [groupId, amount],
+    [groupId, amount, `SMS-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`],
   );
   return row.id;
 }
@@ -97,24 +97,15 @@ describe('SMS top-up crediting', () => {
     expect(await ledgerCount(paymentId)).toBe(1);
   });
 
-  it('still allows repeated manual grants, which carry no payment_id', async () => {
-    await billingService.addSmsCredits(ctx, 50, undefined);
-    await billingService.addSmsCredits(ctx, 50, undefined);
-
-    // Both apply: UNIQUE(payment_id) does not constrain NULLs in Postgres.
-    //
-    // 111.12, not the 111.11 a single KES 100 grant produces: sms_credits is
-    // NUMERIC(15,2), so each grant rounds on the way in — 50/0.90 = 55.5556
-    // banks to 55.56 twice, where 100/0.90 = 111.1111 banks to 111.11 once.
-    // Pre-existing behaviour of splitting a top-up, sub-cent and in the
-    // group's favour; asserted here so the rounding is deliberate, not a
-    // surprise the next person has to re-derive.
-    expect(await creditBalance(groupId)).toBeCloseTo(111.12, 2);
+  it('rejects repeated manual grants without a provider payment ID', async () => {
+    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(/Manual SMS-credit top-ups are disabled/i);
+    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(/Manual SMS-credit top-ups are disabled/i);
+    expect(await creditBalance(groupId)).toBe(0);
     const [row] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_credits WHERE group_id = $1 AND payment_id IS NULL`,
+      `SELECT count(*) AS n FROM sms_credits WHERE group_id = $1`,
       [groupId],
     );
-    expect(Number(row.n)).toBe(2);
+    expect(Number(row.n)).toBe(0);
   });
 
   it('credits distinct payments independently', async () => {
