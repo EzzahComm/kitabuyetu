@@ -1811,7 +1811,7 @@ export async function resolveUnroutedPayment(
     billingCycle?: BillingCycle;
   },
 ): Promise<{ success: true }> {
-  if (action !== 'dismiss') {
+  if (String(action) !== 'dismiss') {
     throw new ValidationError('Manual allocation of unrouted M-Pesa receipts is disabled. Only audited reallocation of an existing provider-confirmed payment is permitted.');
   }
   return withAdminDb(async (db: PoolClient) => {
