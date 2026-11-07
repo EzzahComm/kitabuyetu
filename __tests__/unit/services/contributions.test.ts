@@ -39,6 +39,14 @@ describe('callback-only contribution policy', () => {
     expect(UpdateContributionSchema.safeParse({ status: 'completed' }).success).toBe(false);
   });
 
+  it('rejects direct service attempts to complete a contribution', async () => {
+    await expect(
+      contributionsService.update(ctx, 'c-1', { status: 'completed' } as never),
+    ).rejects.toThrow(/only a verified M-Pesa provider callback/i);
+    expect(withTransaction).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
+  });
+
   it('creates a pending obligation and never posts a journal', async () => {
     const pendingContribution = {
       id: 'c-1',
