@@ -609,61 +609,11 @@ export const billingService = {
     });
   },
 
-  async recordPayment(ctx: TenantContext, data: RecordManualPaymentInput): Promise<Payment> {
-    throw new ValidationError('Manual invoice payment entry is disabled. Only verified M-Pesa callbacks may settle invoices.');
-    return withTransaction(ctx, async (client) => {
-      const { rows } = await client.query<Payment>(
-        `INSERT INTO payments
-           (group_id, invoice_id, amount, payment_method, status, payment_date, recorded_by,
-            mpesa_receipt_number, notes)
-         VALUES ($1,$2,$3,$4,'completed',$5,$6,$7,$8) RETURNING *`,
-        [
-          ctx.groupId,
-          data.invoiceId ?? null,
-          data.amount.toFixed(2),
-          data.paymentMethod,
-          data.paymentDate,
-          ctx.userId,
-          data.mpesaReceiptNumber ?? null,
-          data.notes ?? null,
-        ],
-      );
-
-      if (data.invoiceId) {
-        await client.query(
-          `UPDATE invoices
-           SET paid_amount = paid_amount + $1,
-               status = CASE WHEN paid_amount + $1 >= total_amount THEN 'completed' ELSE status END
-           WHERE id = $2`,
-          [data.amount.toFixed(2), data.invoiceId],
-        );
-      }
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: the seeded 5003 Platform
-      // Subscription expense account was previously dead code — no payment
-      // path ever posted to it.
-      //
-      // Skipped for a group with no chart of accounts (migration 140). This is
-      // reachable: /api/v1/billing is outside the subscription lock, so a
-      // Chama-Reminder-only group can record a payment here, and the template
-      // needs accounts 1001 and 5003 — it would fail with an account-codes
-      // error that says nothing about the real cause. Recording the payment
-      // still matters to such a group; posting a journal it has no ledger for
-      // does not.
-      if (await hasChartOfAccounts(client, ctx.groupId)) {
-        await postTemplatedJournal(
-          client,
-          ctx.groupId,
-          ctx.userId,
-          'subscription_payment',
-          `Platform subscription payment${data.invoiceId ? ` — invoice ${data.invoiceId}` : ''}`,
-          { amount: data.amount },
-          { reference: rows[0].id },
-        );
-      }
-
-      return rows[0];
-    });
+  async recordPayment(
+    _ctx: TenantContext,
+    _data: RecordManualPaymentInput,
+  ): Promise<Payment> {
+    throw new ValidationError('Manual invoice payment entry is disabled. Only verified M-Pesa provider callbacks may settle invoices.');
   },
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
