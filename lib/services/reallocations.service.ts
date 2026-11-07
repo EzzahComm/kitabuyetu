@@ -98,6 +98,19 @@ export const reallocationsService = {
       if (!payment || payment.allocation_status !== 'allocated') {
         throw new ConflictError(`Payment is not in an allocatable state (${payment?.allocation_status ?? 'missing'})`);
       }
+      // Never reallocate a manually typed reference, pending payment, reversed
+      // transaction, or a payment whose immutable evidence does not match the
+      // original domain row. Provider callback is the only completion source.
+      if (
+        payment.status !== 'completed' ||
+        payment.payment_method !== 'mpesa' ||
+        !payment.mpesa_receipt_number ||
+        payment.mpesa_receipt_number !== contrib.mpesa_receipt_number ||
+        payment.group_id !== ctx.groupId ||
+        Number(payment.amount) !== Number(contrib.amount)
+      ) {
+        throw new ValidationError('Only a completed, provider-confirmed M-Pesa payment linked to this contribution can be reallocated');
+      }
 
       const {
         rows: [grp],
@@ -373,11 +386,16 @@ async function executeReallocation(client: PoolClient, realloc: ReallocationRow,
   );
 
   // 5. Spine transition + event chain (§11).
-  await client.query(
-    `UPDATE payments SET allocation_status = 'reallocated'
-     WHERE  id = $1 AND allocation_status = 'allocated'`,
+  const { rows: transitioned } = await client.query<{ id: string }>(
+    `UPDATE payments
+     SET allocation_status = 'reallocated'
+     WHERE id = $1 AND allocation_status = 'allocated' AND status = 'completed'
+     RETURNING id`,
     [realloc.payment_id],
   );
+  if (!transitioned[0]) {
+    throw new ConflictError('Payment allocation changed before reallocation could complete');
+  }
   await client.query(
     `INSERT INTO payment_events (payment_id, event, actor, detail)
      VALUES ($1, 'reallocated', $2, $3::jsonb)`,
