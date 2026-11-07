@@ -32,8 +32,20 @@ import { BulkSmsSchema } from '@/lib/validators/sms.schema';
 import { RecordManualPaymentSchema } from '@/lib/validators/billing.schema';
 import { PayAllocationSchema, BulkPayAllocationsSchema } from '@/lib/validators/dividends.schema';
 import { CreateShareTransactionSchema } from '@/lib/validators/shares.schema';
+import { DisburseSchema } from '@/lib/validators/organization.schema';
 
 describe('callback-only money movement payloads', () => {
+  it('rejects cash, bank, cheque and standing-order organization disbursement methods', () => {
+    const base = {
+      groupId: '11111111-1111-4111-8111-111111111111',
+      amount: 1000,
+      disbursementType: 'grant',
+    };
+    for (const paymentMethod of ['cash', 'bank_transfer', 'cheque', 'standing_order']) {
+      expect(DisburseSchema.safeParse({ ...base, paymentMethod }).success).toBe(false);
+    }
+  });
+
   it('rejects a manually supplied member payout reference', () => {
     expect(MemberPayoutSchema.safeParse({
       memberId: '11111111-1111-4111-8111-111111111111',
