@@ -66,8 +66,8 @@ async function reserveOne(groupId: string, credits: number, fromAllowance = 0): 
 
 async function topUp(ctx: TenantContext, amount: number): Promise<void> {
   const [payment] = await rawQuery<{ id: string }>(
-    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
-     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3) RETURNING id`,
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk') RETURNING id`,
     [ctx.groupId, amount, `SMS-1794070212599-956826`],
   );
   await billingService.addSmsCredits(ctx, amount, payment.id);
@@ -161,8 +161,8 @@ describe('SMS credit ledger', () => {
     // record nothing — otherwise the ledger claims a movement the balance
     // never made.
     const [payment] = await rawQuery<{ id: string }>(
-      `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
-       VALUES ($1, 90, 'mpesa', 'completed', CURRENT_DATE, $2) RETURNING id`,
+      `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
+       VALUES ($1, 90, 'mpesa', 'completed', CURRENT_DATE, $2, 'stk') RETURNING id`,
       [groupId, `SMS-${Date.now()}`],
     );
 
