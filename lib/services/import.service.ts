@@ -5,14 +5,12 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { isValidKenyanPhone, normalizePhone } from '@/lib/utils/phone';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import {
-  ContributionCsvRowSchema,
   LoanCsvRowSchema,
   MEMBER_CSV_COLUMNS,
   MemberCsvRowSchema,
   resolveCsvHeader,
   resolveHeaderFor,
   type MemberCsvColumn,
-  type ContributionCsvRow,
   type ImportKind,
 } from '@/lib/validators/import.schema';
 import type { PoolClient } from 'pg';
