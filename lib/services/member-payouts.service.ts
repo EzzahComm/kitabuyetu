@@ -5,8 +5,7 @@
  *
  *   chairperson | secretary  initiate()          → pending_approval  (funds reserved)
  *   treasurer (≠ initiator)  treasurerApprove()  → awaiting_platform
- *   Kitabu Yetu backoffice   platformApprove()   → M-Pesa: approved → dispatched → completed (B2C callback)
- *                                                → cash / bank: completed, in the same transaction
+ *   Kitabu Yetu backoffice   platformApprove()   → approved → dispatched → completed (B2C callback)
  *   treasurer / platform     reject*()           → rejected   (reservation released)
  *   initiator                cancel()            → cancelled  (reservation released)
  *
@@ -62,7 +61,7 @@ export interface InitiateMemberPayoutInput {
   purpose: PayoutPurpose;
   description: string;
   notes?: string;
-  paymentMethod: PayoutMethod;
+  paymentMethod: 'mpesa';
   idempotencyKey: string;
 }
 
@@ -329,51 +328,9 @@ export const memberPayoutsService = {
         [id, prior.group_id, adminUserId],
       );
 
-      if (prior.payment_method === 'mpesa') {
-        const { rows } = await db.query<DisbursementRow>(
-          `UPDATE disbursement_requests
-           SET    status = 'approved', platform_approved_by = $2, platform_approved_at = NOW()
-           WHERE  id = $1 RETURNING *`,
-          [id, adminUserId],
-        );
-        await audit(
-          db,
-          prior,
-          null,
-          'member_payout.platform_approve',
-          { status: prior.status },
-          {
-            status: 'approved',
-            platform_approved_by: adminUserId,
-          },
-        );
-        return rows[0];
-      }
-
-      // Cash / bank: final balance check against the source account, which
-      // already carries this payout's own reservation.
-      const { rows: acct } = await db.query<{ balance: string; reserved_amount: string }>(
-        `SELECT balance, reserved_amount FROM accounts WHERE id = $1 FOR UPDATE`,
-        [prior.cash_account_id],
-      );
-      if (!acct[0] || parseFloat(acct[0].balance) - parseFloat(acct[0].reserved_amount) < 0) {
-        throw new ValidationError('Insufficient group funds to execute this disbursement');
-      }
-
-      const posted = await postMemberPayoutJournal(db, {
-        disbursementRequestId: id,
-        charge: 0,
-        receipt: null,
-        mpesaTransactionId: null,
-        strict: true,
-      });
-      if (posted !== 'posted') throw new ValidationError('Ledger posting failed — nothing was recorded');
-
-      await releaseReservation(db, prior);
       const { rows } = await db.query<DisbursementRow>(
         `UPDATE disbursement_requests
-         SET    status = 'completed', completed_at = NOW(),
-                platform_approved_by = $2, platform_approved_at = NOW()
+         SET    status = 'approved', platform_approved_by = $2, platform_approved_at = NOW()
          WHERE  id = $1 RETURNING *`,
         [id, adminUserId],
       );
@@ -383,20 +340,12 @@ export const memberPayoutsService = {
         null,
         'member_payout.platform_approve',
         { status: prior.status },
-        {
-          status: 'completed',
-          platform_approved_by: adminUserId,
-          journal_entry_id: rows[0].journal_entry_id,
-        },
+        { status: 'approved', platform_approved_by: adminUserId },
       );
       return rows[0];
     });
 
-    if (row.status === 'approved') {
-      await dispatchDisbursement(row.id);
-    } else {
-      await notifyMemberPayout(row.id, 'completed');
-    }
+    await dispatchDisbursement(row.id);
     return row;
   },
 
