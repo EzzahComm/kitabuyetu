@@ -13,7 +13,7 @@ import {
   postSystemJournal,
   postContributionJournal,
 } from '@/lib/services/accounting.service';
-import { ForbiddenError, NotFoundError } from '@/lib/utils/errors';
+import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
 
 jest.mock('@/lib/db', () => ({
   withDb: jest.fn(),
@@ -465,3 +465,27 @@ describe('reconcileGLCashToMpesaBalance', () => {
     expect(insertCall[0]).toContain('gl_cash_mismatch');
   });
 });
+
+describe('cashless manual journal controls', () => {
+  it.each([
+    [{ account_code: '1002', name: 'Bank Account' }],
+    [{ account_code: '1099', name: 'M-Pesa Wallet' }],
+    [{ account_code: '1098', name: 'Mobile Money Clearing' }],
+  ])('rejects manual journals to liquid payment accounts: %o', async (account) => {
+    mockQuery.mockResolvedValueOnce({ rows: [account] });
+
+    await expect(
+      accountingService.createJournalEntry(ctx, {
+        entryDate: '2026-11-07',
+        description: 'Manual electronic funds entry',
+        lines: [
+          { accountId: '00000000-0000-4000-8000-000000000001', debit: 100, credit: 0 },
+          { accountId: '00000000-0000-4000-8000-000000000002', debit: 0, credit: 100 },
+        ],
+      }),
+    ).rejects.toBeInstanceOf(ValidationError);
+
+    expect(mockQuery).toHaveBeenCalledTimes(1);
+  });
+});
+
