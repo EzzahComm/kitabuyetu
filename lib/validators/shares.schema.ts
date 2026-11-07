@@ -74,14 +74,9 @@ export const CreateShareTransactionSchema = z
 
     counterpartyMemberId: z.string().uuid().optional().nullable(),
 
-    paymentMethod: z.enum(PAYMENT_METHODS).optional().nullable(),
-    // Accepted only so the validator can explicitly reject legacy clients that
-    // still send a typed receipt/reference.
-    paymentReference: z.string().max(80).optional().nullable(),
-
     notes: z.string().max(1000).optional().nullable(),
     postedAt: z.string().datetime().optional(),
-  })
+  }).strict()
   .refine((v) => v.type !== 'transfer' || !!v.counterpartyMemberId, {
     path: ['counterpartyMemberId'],
     message: 'counterpartyMemberId is required for transfers',
