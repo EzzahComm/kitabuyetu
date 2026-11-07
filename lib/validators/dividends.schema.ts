@@ -57,14 +57,14 @@ export const PayAllocationSchema = z.object({
   paymentMethod: z.enum(PAYMENT_METHODS),
   paymentReference: z.string().min(1, 'M-Pesa receipt/reference is required').max(80),
   notes: z.string().max(500).optional().nullable(),
-});
+}).refine(() => false, { message: 'Manual dividend payment recording is disabled.' });
 
 export const BulkPayAllocationsSchema = z.object({
   allocationIds: z.array(z.string().uuid()).min(1).max(500),
   paymentMethod: z.enum(PAYMENT_METHODS),
   paymentReference: z.string().min(1, 'M-Pesa receipt/reference is required').max(80),
   notes: z.string().max(500).optional().nullable(),
-});
+}).refine(() => false, { message: 'Manual bulk dividend payment recording is disabled.' });
 
 export type CreateDividendDeclarationInput = z.infer<typeof CreateDividendDeclarationSchema>;
 export type UpdateDividendDeclarationInput = z.infer<typeof UpdateDividendDeclarationSchema>;
