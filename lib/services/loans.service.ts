@@ -453,6 +453,8 @@ export const loansService = {
   },
 
   async recordRepayment(ctx: TenantContext, loanId: string, data: RecordRepaymentInput): Promise<LoanRepayment> {
+    throw new ValidationError('Manual loan repayment recording is disabled. Only provider-confirmed M-Pesa callbacks can settle repayments.');
+  async recordRepayment(ctx: TenantContext, loanId: string, data: RecordRepaymentInput): Promise<LoanRepayment> {
     return withTransaction(ctx, async (client) => {
       const { rows: installment } = await client.query<LoanRepayment>(
         `SELECT * FROM loan_repayments
