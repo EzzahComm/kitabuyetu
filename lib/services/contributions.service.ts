@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
+import { NotFoundError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type {
