@@ -30,7 +30,7 @@ const schema = z.object({
   memberId: z.string().min(1, 'Member required'),
   amount: z.coerce.number().positive(),
   contributionDate: z.string().min(1, 'Date required'),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque']),
+  paymentMethod: z.enum(['mpesa']),
   mpesaReceiptNumber: z.string().optional(),
   notes: z.string().optional(),
 });
@@ -204,9 +204,6 @@ export default function ContributionsPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="cheque">Cheque</option>
                 </select>
               </div>
               <div className="space-y-1 sm:col-span-2">
@@ -218,8 +215,8 @@ export default function ContributionsPage() {
               </div>
             </div>
             <div className="space-y-1">
-              <Label>M-Pesa reference (optional)</Label>
-              <Input placeholder="QAB1234XYZ" {...register('mpesaReceiptNumber')} />
+              <Label>M-Pesa reference</Label>
+              <Input placeholder="M-Pesa receipt code" {...register('mpesaReceiptNumber')} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setOpen(false)}>
