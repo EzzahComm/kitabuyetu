@@ -26,9 +26,9 @@ import { paymentRequestsService } from './payment-requests.service';
 import { postTemplatedJournal } from './posting-templates.service';
 import type { IssueFineInput, WaiveFineInput, CancelFineInput, FineQueryInput } from '@/lib/validators/fine.schema';
 
-function rejectManualFineSettlement(): void {
+function rejectFinePaymentFlowUntilProviderIntegration(): void {
   throw new ValidationError(
-    'Manual fine settlement is disabled until a verified M-Pesa provider-payment flow is connected',
+    'Fine payment collection and settlement are disabled until a verified M-Pesa callback flow is connected',
   );
 }
 
@@ -257,6 +257,7 @@ export const finesService = {
   },
 
   async initiateCollection(ctx: TenantContext, id: string) {
+    rejectFinePaymentFlowUntilProviderIntegration();
     const fine = await withDb(ctx, async (client) => {
       const {
         rows: [f],
@@ -332,11 +333,11 @@ export const finesService = {
    * realized revenue for the group (postTemplatedJournal('fine_collection'),
    * see posting-templates.service.ts, rather than an ad-hoc journal insert).
    *
-   * Disabled until a verified M-Pesa callback can settle fines; no officer
-   * confirmation or cash collection may create a paid fine.
+   * Disabled until a verified M-Pesa callback can collect and settle fines; no
+   * officer confirmation or cash collection may create a paid fine.
    */
   async markPaid(ctx: TenantContext, id: string) {
-    rejectManualFineSettlement();
+    rejectFinePaymentFlowUntilProviderIntegration();
     return withTransaction(ctx, async (client) => {
       const {
         rows: [fine],
