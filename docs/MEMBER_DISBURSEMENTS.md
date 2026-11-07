@@ -98,15 +98,19 @@ in their passbook.
 
 - New member payout requests are M-Pesa only; platform sign-off for legacy cash/bank payouts is blocked.
 - New contribution records and contribution imports reject cash, cheque, offline bank transfer and standing-order methods.
-- A contribution cannot be marked newly completed unless its method is M-Pesa and an M-Pesa receipt reference is present.
+- Contribution entry creates a pending obligation only. A client cannot submit an M-Pesa receipt or mark a contribution completed; only a verified provider callback/status confirmation can settle it.
 - Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
-- This app-level receipt-reference check is not itself a provider verification: production recognition should rely on the M-Pesa callback/reconciliation path, not merely a typed receipt number.
+- Manually typed M-Pesa receipt/reference values are rejected by the contribution, welfare, loan, share, dividend, billing, payout, and reconciliation entry points; a reference is not proof of settlement.
 
 - Manual journal creation and draft posting reject account 1001 (the legacy Cash/M-Pesa combined account) and accounts named Cash, Petty Cash, or Cash on Hand. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a cash account. Historical posted journals remain unchanged.
 
 
 ## Group-wide mobile-money-only payment entry
 
-New group-member financial payment records must not be entered or marked paid as cash, cheque, bank transfer, standing order, or other offline method. This applies to contributions, welfare pool payments and welfare disbursements, loan repayments and disbursements, share purchases/redemptions, and dividend allocation payments. New entries use M-Pesa only and require an M-Pesa receipt/reference wherever the workflow represents a payment as received or paid. Historical cash records remain readable and are not rewritten.
+New group-member financial payment records must not be entered or marked paid as cash, cheque, bank transfer, standing order, or other offline method. This applies to contributions, welfare pool payments and welfare disbursements, loan repayments and disbursements, share purchases/redemptions, dividend allocations, member payouts, and invoice payments. Historical cash/bank records remain readable and are not rewritten.
 
-A receipt/reference typed by a group leader is supporting evidence, not proof of provider settlement. M-Pesa callback/reconciliation or equivalent provider confirmation is still required before describing the transaction as provider-verified. This Phase 1 work does not make every workflow provider-integrated or implement KCB Buni.
+**No manual M-Pesa receipt entry is permitted.** A group leader, treasurer, platform administrator, or other client must not type a receipt/reference to create, complete, reconcile, or post a payment. Contribution forms can create pending obligations only. Completed inflows/outflows are created by verified M-Pesa provider callbacks or an equivalent provider status confirmation. Manual contribution CSV imports and manual invoice-payment entry are disabled.
+
+The only human correction path is the existing audited reallocation workflow for an already-recorded provider-confirmed M-Pesa payment. It requires the immutable payment ID and verifies completed status, M-Pesa method, matching receipt, group, and amount. The original provider evidence is preserved; corrections are audited, idempotent, and subject to maker-checker approval above the configured threshold. This workflow currently covers M-Pesa-linked savings contributions only.
+
+Unrouted receipts cannot be manually allocated to a member or used to activate a subscription. They may only be dismissed after review; a correction must use the eligible audited reallocation path. Manual share purchases/redemptions and dividend payment posting remain disabled until provider-backed allocation/disbursement flows are implemented. This phase does not implement KCB Buni transfer execution.
