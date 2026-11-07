@@ -42,7 +42,7 @@ describe('callback-only contribution policy', () => {
   it('rejects direct service attempts to complete a contribution', async () => {
     await expect(
       contributionsService.update(ctx, 'c-1', { status: 'completed' } as never),
-    ).rejects.toThrow(/only a verified M-Pesa provider callback/i);
+    ).rejects.toThrow(/only be completed by a verified M-Pesa provider callback/i);
     expect(withTransaction).not.toHaveBeenCalled();
     expect(mockQuery).not.toHaveBeenCalled();
   });
