@@ -534,9 +534,6 @@ export async function postMemberPayoutJournal(
   const template = await resolvePostingTemplate(db, 'member_payout', { groupId: row.group_id });
   const post = async (charge: number) => {
     let lines = buildTemplateLines(template, { amount, charge });
-    if (row.payment_method === 'bank_transfer') {
-      lines = lines.map((l) => (l.credit ? { ...l, accountCode: '1002' } : l));
-    }
     return postSystemJournal(db, row.group_id, row.initiated_by, description, lines, {
       reference: row.reference,
       memberId: row.member_id as string,
