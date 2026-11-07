@@ -610,6 +610,7 @@ export const billingService = {
   },
 
   async recordPayment(ctx: TenantContext, data: RecordManualPaymentInput): Promise<Payment> {
+    throw new ValidationError('Manual invoice payment entry is disabled. Only verified M-Pesa callbacks may settle invoices.');
     return withTransaction(ctx, async (client) => {
       const { rows } = await client.query<Payment>(
         `INSERT INTO payments
