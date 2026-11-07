@@ -14,11 +14,8 @@ export const UpgradePlanSchema = z.object({
 export const RecordManualPaymentSchema = z.object({
   invoiceId: z.string().uuid().optional().nullable(),
   amount: z.number().positive(),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order']),
-  paymentDate: z.string().datetime(),
-  mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
-}).refine(() => false, {
+}).strict().refine(() => false, {
   message: 'Manual invoice payment entry is disabled. Invoice settlement must come from a verified M-Pesa provider callback.',
 });
 
