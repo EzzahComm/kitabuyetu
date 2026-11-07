@@ -46,7 +46,8 @@ export const UpdateShareClassSchema = z.object({
 export const SHARE_TXN_TYPES = ['allocation', 'purchase', 'transfer', 'redemption', 'adjustment'] as const;
 export type ShareTxnTypeInput = (typeof SHARE_TXN_TYPES)[number];
 
-export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'other'] as const;
+// Cashless policy: no new share transaction can be recorded as cash/offline.
+export const PAYMENT_METHODS = ['mpesa'] as const;
 
 /**
  * Single create-transaction shape that covers all txn flavours. The service
