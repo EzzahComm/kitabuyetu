@@ -130,12 +130,8 @@ export default function MpesaUnroutedPage() {
     try {
       await resolve.mutateAsync({
         id: target.id,
-        action,
-        groupId: action === 'dismiss' ? groupId || undefined : groupId,
-        memberId: action === 'allocate' ? memberId : undefined,
-        planType: action === 'activate_subscription' ? planType : undefined,
-        product: action === 'activate_subscription' ? product : undefined,
-        billingCycle: action === 'activate_subscription' ? cycle : undefined,
+        action: 'dismiss',
+        groupId: groupId || undefined,
         notes: notes || undefined,
       });
       toast({
