@@ -12,11 +12,11 @@ const Schema = z.object({
   notes: z.string().max(500).optional(),
 }).strict();
 
-/** POST /api/v1/mpesa/unrouted/[id]/resolve — allocate to a member or dismiss (treasurer+). */
+/** POST /api/v1/mpesa/unrouted/[id]/resolve — dismiss an unrouted receipt after review (treasurer+). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPermission(req, 'payments.request', async (auth) => {
     try {
-      // Sensitive op (§2.5): allocation of unrouted money re-checks epochs.
+      // Sensitive operation (§2.5): re-check live permissions before dismissal.
       // Re-verify against LIVE roles.permissions, not just the token's claim.
       const freshPermissions = await assertAuthFresh(auth);
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'payments.request');
