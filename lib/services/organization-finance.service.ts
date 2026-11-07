@@ -166,6 +166,18 @@ export interface OrgDisbursement {
   payment_reference: string | null;
 }
 
+function rejectUnverifiedOrganizationWalletDeposit(): void {
+  throw new ValidationError(
+    'Organization wallet deposits are disabled until an inbound M-Pesa provider-confirmation flow is connected',
+  );
+}
+
+function rejectUnverifiedOrganizationDisbursement(): void {
+  throw new ValidationError(
+    'Organization-to-group disbursements are disabled until a verified M-Pesa or KCB Buni transfer flow is connected',
+  );
+}
+
 const orgId = (ctx: TenantContext): string => {
   // super_admins may act on a specific organization passed via context.
   if (!ctx.organizationId) throw new ValidationError('Organization context is required');
@@ -745,7 +757,7 @@ export const organizationFinanceService = {
     input: { amount: number; source?: string; reference?: string; notes?: string },
   ): Promise<{ wallet: OrgWallet; ledgerEntryId: string }> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    throw new ValidationError('Organization wallet deposits are disabled until an inbound M-Pesa provider-confirmation flow is connected');
+    rejectUnverifiedOrganizationWalletDeposit();
 
     return withTransaction(ctx, async (db) => {
       const wallet = await getWalletForUpdate(db, orgId(ctx));
@@ -1418,7 +1430,7 @@ export const organizationFinanceService = {
     input: DisburseInput,
   ): Promise<OrgDisbursement & { needsApproval: boolean }> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    throw new ValidationError('Organization-to-group disbursements are disabled until a verified M-Pesa or KCB Buni transfer flow is connected');
+    rejectUnverifiedOrganizationDisbursement();
 
     const disb = await withTransaction(ctx, async (db) => {
       const organizationId = orgId(ctx);
@@ -1622,7 +1634,7 @@ export const organizationFinanceService = {
   /** Second-officer approval (maker-checker) — approver ≠ creator. */
   async approveDisbursement(ctx: TenantContext, id: string): Promise<OrgDisbursement> {
     await organizationService.assertOrganizationCoordinator(ctx);
-    throw new ValidationError('Organization-to-group disbursement approval is disabled until a verified M-Pesa or KCB Buni transfer flow is connected');
+    rejectUnverifiedOrganizationDisbursement();
     const organizationId = orgId(ctx);
 
     await withTransaction(ctx, async (db) => {
