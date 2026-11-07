@@ -552,51 +552,12 @@ export default function DividendDetailPage() {
         onOpenChange={(open) => {
           if (!open) setPayOpen(null);
         }}
-        onConfirm={async (paymentMethod, paymentReference) => {
-          if (!payOpen) return;
-          try {
-            await api.post(`/dividends/${id}/allocations/${payOpen.id}/pay`, {
-              paymentMethod,
-              ...(paymentReference ? { paymentReference } : {}),
-            });
-            toast({ title: 'Payment recorded' });
-            setPayOpen(null);
-            await refresh();
-          } catch (e) {
-            toast({
-              variant: 'destructive',
-              title: 'Payment failed',
-              description: e instanceof ApiError ? e.message : '',
-            });
-          }
-        }}
       />
 
       <BulkPayDialog
         open={bulkOpen}
         count={selected.size}
         onOpenChange={setBulkOpen}
-        onConfirm={async (paymentMethod, paymentReference) => {
-          try {
-            const result = await api.post<{ paid: number; skipped: { id: string; reason: string }[] }>(
-              `/dividends/${id}/allocations/bulk-pay`,
-              { allocationIds: Array.from(selected), paymentMethod, ...(paymentReference ? { paymentReference } : {}) },
-            );
-            toast({
-              title: `Paid ${result.paid} allocation(s)`,
-              description: result.skipped.length > 0 ? `${result.skipped.length} skipped` : undefined,
-            });
-            setBulkOpen(false);
-            setSelected(new Set());
-            await refresh();
-          } catch (e) {
-            toast({
-              variant: 'destructive',
-              title: 'Bulk pay failed',
-              description: e instanceof ApiError ? e.message : '',
-            });
-          }
-        }}
       />
     </div>
   );
