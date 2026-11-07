@@ -143,6 +143,8 @@ export const ContributionCsvRowSchema = z.object({
     z.string().min(1, 'M-Pesa receipt is required for imported contributions').max(50),
   ),
   notes: blankableString(500),
+}).strict().refine(() => false, {
+  message: 'Manual contribution imports are disabled; only provider-confirmed M-Pesa callbacks may record contributions.',
 });
 
 // ── Loan import (Phase E7) ────────────────────────────────────────────────
