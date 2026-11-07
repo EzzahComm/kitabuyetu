@@ -287,7 +287,7 @@ export const STEPS: Step[] = [
   },
   {
     title: 'Start recording',
-    body: 'Record cash by hand. M-Pesa payments record themselves.',
+    body: 'Members pay by M-Pesa; verified provider confirmations post contributions automatically.',
   },
   {
     title: 'Always balanced',
