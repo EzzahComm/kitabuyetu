@@ -41,7 +41,8 @@ import type { Tone } from '@/lib/ui/tokens';
 import type { PaginatedResult } from '@/types/db.types';
 
 type Purpose = 'savings_withdrawal' | 'merry_go_round' | 'other';
-type Method = 'mpesa' | 'cash' | 'bank_transfer';
+type Method = 'mpesa' | 'cash' | 'bank_transfer'; // Includes legacy records for display.
+type NewPayoutMethod = 'mpesa';
 type PayoutStatus =
   | 'pending_approval'
   | 'awaiting_platform'
@@ -201,7 +202,7 @@ export default function DisbursementsPage() {
   const [search, setSearch] = useState('');
   const [memberId, setMemberId] = useState('');
   const [purpose, setPurpose] = useState<Purpose>('savings_withdrawal');
-  const [method, setMethod] = useState<Method>('mpesa');
+  const [method, setMethod] = useState<NewPayoutMethod>('mpesa');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
@@ -269,12 +270,11 @@ export default function DisbursementsPage() {
       .slice(0, 8);
   }, [members, search]);
 
-  const groupAvailable = elig ? (method === 'bank_transfer' ? elig.available.bank : elig.available.cash) : null;
+  const groupAvailable = elig ? elig.available.cash : null;
   const amountError = (() => {
     if (!amount) return null;
     if (!/^\d+$/.test(amount) || amt <= 0) return 'Enter a whole-shilling amount greater than zero';
     if (amt > 250_000) return 'At most KES 250,000 per disbursement';
-    if (elig && method === 'bank_transfer' && groupAvailable === null) return 'This group has no bank account set up';
     if (groupAvailable !== null && amt > groupAvailable) {
       return `Exceeds available group funds (${formatKES(groupAvailable)})`;
     }
@@ -290,7 +290,7 @@ export default function DisbursementsPage() {
     amt <= 0 ||
     !!amountError ||
     description.trim().length < 3 ||
-    (method === 'bank_transfer' && !paymentReference.trim());
+    false;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['payouts'] });
 
@@ -698,10 +698,10 @@ export default function DisbursementsPage() {
                 <select
                   id="payout-method"
                   value={method}
-                  onChange={(e) => setMethod(e.target.value as Method)}
+                  onChange={(e) => setMethod(e.target.value as NewPayoutMethod)}
                   className={selectClass}
                 >
-                  {(Object.keys(METHOD_LABEL) as Method[]).map((m) => (
+                  {(['mpesa'] as NewPayoutMethod[]).map((m) => (
                     <option key={m} value={m}>
                       {METHOD_LABEL[m]}
                     </option>
@@ -747,19 +747,6 @@ export default function DisbursementsPage() {
               />
             </div>
 
-            {method === 'bank_transfer' && (
-              <div className="space-y-1">
-                <Label htmlFor="payout-ref">Payee account / transfer reference</Label>
-                <Input
-                  id="payout-ref"
-                  className="h-11"
-                  value={paymentReference}
-                  maxLength={100}
-                  onChange={(e) => setPaymentReference(e.target.value)}
-                  placeholder="e.g. Equity 0123456789"
-                />
-              </div>
-            )}
 
             <div className="space-y-1">
               <Label htmlFor="payout-notes">Additional notes (optional)</Label>
