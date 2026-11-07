@@ -254,60 +254,6 @@ export const welfareService = {
   },
 
 
-      const {
-        rows: [req],
-      } = await client.query('SELECT * FROM welfare_requests WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
-      if (!req) throw new NotFoundError('Welfare request', id);
-      if (req.status !== 'approved') {
-        throw new ValidationError(`Cannot disburse a request with status '${req.status}'`);
-      }
-      const { rows } = await client.query(
-        `UPDATE welfare_requests SET
-           status='disbursed', amount_disbursed=$1, disbursed_by=$2, disbursed_at=now(),
-           payment_method=$3, mpesa_receipt_number=$4, notes=COALESCE($5, notes), updated_at=now()
-         WHERE id=$6 AND group_id=$7 RETURNING *`,
-        [
-          data.amountDisbursed,
-          ctx.userId,
-          data.paymentMethod,
-          data.mpesaReceiptNumber ?? null,
-          data.notes ?? null,
-          id,
-          ctx.groupId,
-        ],
-      );
-
-      // Record audit log for welfare request disbursement — user-triggered
-      await client.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          ctx.groupId,
-          ctx.userId,
-          'welfareRequest.disburse',
-          'welfare_request',
-          id,
-          JSON.stringify({ status: 'approved' }),
-          JSON.stringify({ status: 'disbursed', amount_disbursed: data.amountDisbursed }),
-        ],
-      );
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: a real cash payout with
-      // previously zero GL trace.
-      await postTemplatedJournal(
-        client,
-        ctx.groupId,
-        ctx.userId,
-        'welfare_disbursement',
-        `Welfare disbursement — ${req.request_type} (request ${id})`,
-        { amount: data.amountDisbursed },
-        { reference: id, memberId: req.member_id },
-      );
-
-      return rows[0];
-    });
-  },
-
   async getPoolSummary(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
       const {
