@@ -4,9 +4,6 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
 import { ArrowLeft, CheckCircle2, Loader2, Send, XCircle, Wallet, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,8 +14,6 @@ import { ConfirmDialog } from '@/components/shared/confirm-dialog';
 import { StatCard } from '@/components/shared/stat-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { useHasPermission } from '@/lib/auth/use-permission';
@@ -674,83 +669,30 @@ function CancelDialog({
   );
 }
 
-const paySchema = z.object({
-  paymentMethod: z.enum(['mpesa']),
-  paymentReference: z.string().min(1, 'M-Pesa receipt/reference is required'),
-});
-type PayForm = z.infer<typeof paySchema>;
-
 function PayDialog({
   allocation,
   onOpenChange,
-  onConfirm,
 }: {
   allocation: Allocation | null;
   onOpenChange: (v: boolean) => void;
   onConfirm: (method: string, reference: string | undefined) => Promise<void>;
 }) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting },
-  } = useForm<PayForm>({
-    resolver: zodResolver(paySchema),
-    defaultValues: { paymentMethod: 'mpesa' },
-  });
   if (!allocation) return null;
   return (
-    <Dialog
-      open={true}
-      onOpenChange={(v) => {
-        if (!v) {
-          reset();
-          onOpenChange(false);
-        }
-      }}
-    >
+    <Dialog open onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Record payment</DialogTitle>
+          <DialogTitle>Dividend payout pending provider integration</DialogTitle>
         </DialogHeader>
-        <p className="text-sm">
-          <strong>
-            {allocation.member_first_name} {allocation.member_last_name}
-          </strong>{' '}
-          · {fmtMoney(allocation.net_amount)}
+        <p className="text-sm text-muted-foreground">
+          Manual receipt entry is disabled. This allocation will only be marked paid after a verified payout-provider callback.
         </p>
-        <form
-          onSubmit={handleSubmit(async (v) => {
-            await onConfirm(v.paymentMethod, v.paymentReference?.trim() || undefined);
-            reset();
-          })}
-          className="space-y-3"
-        >
-          <div className="space-y-1">
-            <Label htmlFor="method">Payment method</Label>
-            <select
-              id="method"
-              {...register('paymentMethod')}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="mpesa">M-Pesa</option>
-              
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="ref">M-Pesa receipt/reference (required)</Label>
-            <Input id="ref" placeholder="M-Pesa receipt number" {...register('paymentReference')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Record payment
-            </Button>
-          </DialogFooter>
-        </form>
+        <p className="text-sm font-medium">
+          {allocation.member_first_name} {allocation.member_last_name} · {fmtMoney(allocation.net_amount)}
+        </p>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -760,70 +702,24 @@ function BulkPayDialog({
   open,
   count,
   onOpenChange,
-  onConfirm,
 }: {
   open: boolean;
   count: number;
   onOpenChange: (v: boolean) => void;
   onConfirm: (method: string, reference: string | undefined) => Promise<void>;
 }) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting },
-  } = useForm<PayForm>({
-    resolver: zodResolver(paySchema),
-    defaultValues: { paymentMethod: 'mpesa' },
-  });
   return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset();
-        onOpenChange(v);
-      }}
-    >
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Bulk pay {count} allocation(s)</DialogTitle>
+          <DialogTitle>Dividend payouts pending provider integration</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          M-Pesa payment reference is recorded against each selected allocation. Confirm this represents the payout batch. Already-paid or cancelled rows are
-          skipped.
+          Manual bulk receipt entry is disabled. {count} selected allocation(s) will only be marked paid after verified payout-provider callbacks.
         </p>
-        <form
-          onSubmit={handleSubmit(async (v) => {
-            await onConfirm(v.paymentMethod, v.paymentReference?.trim() || undefined);
-            reset();
-          })}
-          className="space-y-3"
-        >
-          <div className="space-y-1">
-            <Label htmlFor="bulkMethod">Payment method</Label>
-            <select
-              id="bulkMethod"
-              {...register('paymentMethod')}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="mpesa">M-Pesa</option>
-              
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="bulkRef">M-Pesa receipt/reference (required)</Label>
-            <Input id="bulkRef" placeholder="M-Pesa reference (bulk allocation)" {...register('paymentReference')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm bulk pay
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
