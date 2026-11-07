@@ -8,7 +8,7 @@
  * which are otherwise the same row in `loans`.
  *
  * Modelled on the real EZZAHCOMM → THE FIONA'S operation: capital arrives as a
- * cash allocation, and the group on-lends it to individual members.
+ * mobile-money funding allocation, and the group on-lends it to individual members.
  */
 import type { TenantContext } from '@/lib/db';
 import { loansService } from '@/lib/services/loans.service';
@@ -101,107 +101,18 @@ describe('loan funding attribution', () => {
     return loan.id;
   }
 
-  const disburseArgs = { disbursementDate: new Date().toISOString().slice(0, 10), paymentMethod: 'cash' as const };
-
-  it('defaults to internal savings when no funding plan is given (existing behaviour preserved)', async () => {
+  it('does not post loan funding attribution from a manual disbursement or typed receipt', async () => {
     const loanId = await approvedLoan(50_000);
-    await loansService.disburse(groupCtx(), loanId, disburseArgs as never);
-
-    const splits = await getLoanFundingSplits(groupCtx(), loanId);
-    expect(splits).toHaveLength(1);
-    expect(splits[0].sourceType).toBe('internal_savings');
-    expect(splits[0].amount).toBe(50_000);
-  });
-
-  it("attributes a loan to the organization's allocation when asked", async () => {
-    const loanId = await approvedLoan(200_000);
-    await loansService.disburse(groupCtx(), loanId, {
-      ...disburseArgs,
-      fundingPlan: [{ fundingSourceId: allocationSourceId, amount: 200_000 }],
-    } as never);
-
-    const splits = await getLoanFundingSplits(groupCtx(), loanId);
-    expect(splits).toHaveLength(1);
-    expect(splits[0].sourceType).toBe('organization_allocation');
-    expect(splits[0].amount).toBe(200_000);
-  });
-
-  it('supports a blended loan drawn from both savings and organization capital', async () => {
-    const loanId = await approvedLoan(100_000);
-    await loansService.disburse(groupCtx(), loanId, {
-      ...disburseArgs,
-      fundingPlan: [
-        { fundingSourceId: allocationSourceId, amount: 60_000 },
-        { fundingSourceId: internalSourceId, amount: 40_000 },
-      ],
-    } as never);
-
-    const splits = await getLoanFundingSplits(groupCtx(), loanId);
-    expect(splits).toHaveLength(2);
-    expect(splits.reduce((s, x) => s + x.amount, 0)).toBe(100_000);
-    expect(splits.find((s) => s.sourceType === 'organization_allocation')!.amount).toBe(60_000);
-    expect(splits.find((s) => s.sourceType === 'internal_savings')!.amount).toBe(40_000);
-  });
-
-  it('rejects a plan that does not sum to the principal', async () => {
-    const loanId = await approvedLoan(80_000);
     await expect(
       loansService.disburse(groupCtx(), loanId, {
-        ...disburseArgs,
-        fundingPlan: [{ fundingSourceId: internalSourceId, amount: 79_000 }],
+        disbursementDate: new Date().toISOString().slice(0, 10),
+        paymentMethod: 'mpesa',
+        mpesaReceiptNumber: 'FAKE-MANUAL-RECEIPT',
       } as never),
-    ).rejects.toThrow(/fully attributed/i);
+    ).rejects.toThrow(/Manual loan disbursement is disabled/i);
+
+    const splits = await getLoanFundingSplits(groupCtx(), loanId);
+    expect(splits).toHaveLength(0);
   });
 
-  it("rejects a plan referencing another group's funding source", async () => {
-    const { groupId: other } = await createTestGroup('chairperson');
-    const [foreign] = await rawQuery<{ id: string }>(
-      `SELECT id FROM group_funding_sources WHERE group_id = $1 AND source_type='internal_savings'`,
-      [other],
-    );
-
-    const loanId = await approvedLoan(30_000);
-    await expect(
-      loansService.disburse(groupCtx(), loanId, {
-        ...disburseArgs,
-        fundingPlan: [{ fundingSourceId: foreign.id, amount: 30_000 }],
-      } as never),
-    ).rejects.toThrow(/does not belong to this group/i);
-  });
-
-  describe('the database invariant (the real enforcement)', () => {
-    it('refuses to leave a disbursed loan partly attributed', async () => {
-      const loanId = await approvedLoan(60_000);
-      await loansService.disburse(groupCtx(), loanId, disburseArgs as never);
-
-      // Deleting a split from a disbursed loan breaks the sum — the deferred
-      // constraint trigger must reject it at commit.
-      await expect(rawQuery(`DELETE FROM loan_funding_splits WHERE loan_id = $1`, [loanId])).rejects.toThrow();
-    });
-
-    it('allows an approved (not yet disbursed) loan to have no splits at all', async () => {
-      const loanId = await approvedLoan(25_000);
-      const rows = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM loan_funding_splits WHERE loan_id = $1`, [
-        loanId,
-      ]);
-      expect(Number(rows[0].n)).toBe(0); // money is not out of the door yet
-    });
-  });
-
-  describe('organization-side visibility (D5)', () => {
-    it('exposes amounts and source, never member identity', async () => {
-      const loanId = await approvedLoan(70_000);
-      await loansService.disburse(groupCtx(), loanId, {
-        ...disburseArgs,
-        fundingPlan: [{ fundingSourceId: allocationSourceId, amount: 70_000 }],
-      } as never);
-
-      const splits = await getLoanFundingSplits(groupCtx(), loanId);
-      const keys = Object.keys(splits[0]);
-
-      // The shape an organization report is built from carries no PII.
-      expect(keys).toEqual(expect.arrayContaining(['fundingSourceId', 'amount', 'label', 'sourceType']));
-      expect(keys).not.toEqual(expect.arrayContaining(['firstName', 'lastName', 'phone', 'nationalId']));
-    });
-  });
 });
