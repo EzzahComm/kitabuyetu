@@ -89,6 +89,10 @@ export const CreateShareTransactionSchema = z
     message: 'counterpartyMemberId must be different from memberId',
   })
   .refine(
+    (v) => !['purchase', 'redemption'].includes(v.type) || (v.paymentMethod === 'mpesa' && !!v.paymentReference?.trim()),
+    { path: ['paymentReference'], message: 'Share purchases/redemptions require an M-Pesa method and receipt/reference' },
+  )
+  .refine(
     // Non-adjustment types require positive quantity from the API; the
     // service decides the DB sign per type.
     (v) => v.type === 'adjustment' || v.quantity > 0,
