@@ -18,6 +18,8 @@ export const RecordManualPaymentSchema = z.object({
   paymentDate: z.string().datetime(),
   mpesaReceiptNumber: z.string().max(50).optional().nullable(),
   notes: z.string().max(500).optional().nullable(),
+}).refine(() => false, {
+  message: 'Manual invoice payment entry is disabled. Invoice settlement must come from a verified M-Pesa provider callback.',
 });
 
 export const SmsTopupSchema = z.object({
