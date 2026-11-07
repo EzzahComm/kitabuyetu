@@ -103,3 +103,10 @@ in their passbook.
 - This app-level receipt-reference check is not itself a provider verification: production recognition should rely on the M-Pesa callback/reconciliation path, not merely a typed receipt number.
 
 - Manual journal creation and draft posting reject account 1001 (the legacy Cash/M-Pesa combined account) and accounts named Cash, Petty Cash, or Cash on Hand. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a cash account. Historical posted journals remain unchanged.
+
+
+## Group-wide mobile-money-only payment entry
+
+New group-member financial payment records must not be entered or marked paid as cash, cheque, bank transfer, standing order, or other offline method. This applies to contributions, welfare pool payments and welfare disbursements, loan repayments and disbursements, share purchases/redemptions, and dividend allocation payments. New entries use M-Pesa only and require an M-Pesa receipt/reference wherever the workflow represents a payment as received or paid. Historical cash records remain readable and are not rewritten.
+
+A receipt/reference typed by a group leader is supporting evidence, not proof of provider settlement. M-Pesa callback/reconciliation or equivalent provider confirmation is still required before describing the transaction as provider-verified. This Phase 1 work does not make every workflow provider-integrated or implement KCB Buni.
