@@ -62,7 +62,7 @@ export const PayAllocationSchema = z.object({
 export const BulkPayAllocationsSchema = z.object({
   allocationIds: z.array(z.string().uuid()).min(1).max(500),
   paymentMethod: z.enum(PAYMENT_METHODS),
-  paymentReference: z.string().max(80).optional().nullable(),
+  paymentReference: z.string().min(1, 'M-Pesa receipt/reference is required').max(80),
   notes: z.string().max(500).optional().nullable(),
 });
 
