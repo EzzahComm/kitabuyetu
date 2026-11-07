@@ -136,7 +136,7 @@ export const ContributionCsvRowSchema = z.object({
   contribution_date: requiredDate('contribution_date'),
   payment_method: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
-    z.enum(PAYMENT_METHODS, { message: 'Only M-Pesa contribution imports are accepted' }),
+    z.enum(PAYMENT_METHODS),
   ),
   mpesa_receipt: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
