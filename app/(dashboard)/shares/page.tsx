@@ -689,7 +689,7 @@ function NewTransactionDialog({
                 <Label htmlFor="paymentReference">Reference</Label>
                 <Input
                   id="paymentReference"
-                  placeholder="M-Pesa receipt or bank ref"
+                  placeholder="M-Pesa receipt/reference"
                   {...register('paymentReference')}
                 />
               </div>
