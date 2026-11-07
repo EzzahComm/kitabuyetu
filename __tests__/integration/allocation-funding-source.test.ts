@@ -18,7 +18,8 @@ import { createTestOrganization, createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
-// Disabled until the organization funding path is backed by verified provider transfers.\ndescribe.skip('allocation → group funding source (awaiting provider integration)', () => {
+// Disabled until the organization funding path is backed by verified provider transfers.
+describe.skip('allocation → group funding source (awaiting provider integration)', () => {
   let orgId: string, coordId: string, approverId: string;
   let groupId: string;
 
