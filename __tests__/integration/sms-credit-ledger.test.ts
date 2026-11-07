@@ -64,6 +64,15 @@ async function reserveOne(groupId: string, credits: number, fromAllowance = 0): 
   return log.id;
 }
 
+async function topUp(ctx: TenantContext, amount: number): Promise<void> {
+  const [payment] = await rawQuery<{ id: string }>(
+    `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3) RETURNING id`,
+    [ctx.groupId, amount, `SMS-1794070212599-956826`],
+  );
+  await billingService.addSmsCredits(ctx, amount, payment.id);
+}
+
 describe('SMS credit ledger', () => {
   let groupId: string;
   let officerId: string;
@@ -74,7 +83,7 @@ describe('SMS credit ledger', () => {
   });
 
   it('records a top-up and stays reconciled', async () => {
-    await billingService.addSmsCredits(ctxFor(groupId, officerId), 90);
+    await topUp(ctxFor(groupId, officerId), 90);
 
     const rows = await entries(groupId);
     expect(rows).toHaveLength(1);
@@ -152,9 +161,9 @@ describe('SMS credit ledger', () => {
     // record nothing — otherwise the ledger claims a movement the balance
     // never made.
     const [payment] = await rawQuery<{ id: string }>(
-      `INSERT INTO payments (group_id, amount, payment_method, status, payment_date)
-       VALUES ($1, 90, 'mpesa', 'completed', CURRENT_DATE) RETURNING id`,
-      [groupId],
+      `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number)
+       VALUES ($1, 90, 'mpesa', 'completed', CURRENT_DATE, $2) RETURNING id`,
+      [groupId, `SMS-${Date.now()}`],
     );
 
     await billingService.addSmsCredits(ctxFor(groupId, officerId), 90, payment.id);
@@ -189,7 +198,7 @@ describe('SMS credit ledger', () => {
     // takes the whole top-up transaction down with it — i.e. money received
     // and not credited, the exact failure mode migration 137 was written to
     // fix. Caught first by the existing top-up suite; pinned here at source.
-    await billingService.addSmsCredits({ userId: 'system', groupId, role: 'chairperson' }, 90);
+    await topUp({ userId: 'system', groupId, role: 'chairperson' }, 90);
 
     const rows = await entries(groupId);
     expect(rows).toHaveLength(1);
