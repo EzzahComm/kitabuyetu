@@ -675,7 +675,7 @@ function CancelDialog({
 }
 
 const paySchema = z.object({
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'other']),
+  paymentMethod: z.enum(['mpesa']),
   paymentReference: z.string().optional(),
 });
 type PayForm = z.infer<typeof paySchema>;
@@ -734,15 +734,12 @@ function PayDialog({
               className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
             >
               <option value="mpesa">M-Pesa</option>
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="cheque">Cheque</option>
-              <option value="other">Other</option>
+              
             </select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="ref">Reference (optional)</Label>
-            <Input id="ref" placeholder="M-Pesa receipt or bank ref" {...register('paymentReference')} />
+            <Label htmlFor="ref">M-Pesa receipt/reference (required)</Label>
+            <Input id="ref" placeholder="M-Pesa receipt number" {...register('paymentReference')} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -817,8 +814,8 @@ function BulkPayDialog({
             </select>
           </div>
           <div className="space-y-1">
-            <Label htmlFor="bulkRef">Reference (optional)</Label>
-            <Input id="bulkRef" placeholder="Common ref applied to every paid row" {...register('paymentReference')} />
+            <Label htmlFor="bulkRef">M-Pesa receipt/reference (required)</Label>
+            <Input id="bulkRef" placeholder="M-Pesa reference (bulk allocation)" {...register('paymentReference')} />
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
