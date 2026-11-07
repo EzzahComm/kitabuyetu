@@ -5,9 +5,8 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { DEFAULT_PRODUCT, type SubscriptionProduct, type PlanType, type BillingCycle } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
-import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
-import { IS_SANDBOX, markSpineAllocated, logPaymentEvent, spinePaymentId } from './mpesa-spine.service';
+import { markSpineAllocated } from './mpesa-spine.service';
 import { billingService } from './billing.service';
 import {
   PAYMENT_OWNER_TOTALS_SQL,
