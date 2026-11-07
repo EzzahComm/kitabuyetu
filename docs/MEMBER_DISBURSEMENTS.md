@@ -101,3 +101,5 @@ in their passbook.
 - A contribution cannot be marked newly completed unless its method is M-Pesa and an M-Pesa receipt reference is present.
 - Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
 - This app-level receipt-reference check is not itself a provider verification: production recognition should rely on the M-Pesa callback/reconciliation path, not merely a typed receipt number.
+
+- Manual journal creation and draft posting reject account 1001 (the legacy Cash/M-Pesa combined account) and accounts named Cash, Petty Cash, or Cash on Hand. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a cash account. Historical posted journals remain unchanged.
