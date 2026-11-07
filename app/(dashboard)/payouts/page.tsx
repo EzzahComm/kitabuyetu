@@ -789,7 +789,6 @@ export default function DisbursementsPage() {
             <Row label="Type" value={PURPOSE_LABEL[purpose]} />
             <Row label="Paid by" value={METHOD_LABEL[method]} />
             {method === 'mpesa' && <Row label="Phone" value={elig?.phone ?? '—'} />}
-            {paymentReference.trim() && <Row label="Reference" value={paymentReference.trim()} />}
             <Row label="Initiated by" value={`${user?.firstName ?? ''} ${user?.lastName ?? ''} — ${office ?? ''}`} />
             <Row label="Group" value={tenantUser?.groupName ?? '—'} />
             {groupAvailable !== null && (
