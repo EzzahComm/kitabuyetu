@@ -4,6 +4,7 @@ import { PageShell } from '@/components/marketing/page-shell';
 import { DonorLeaderboard } from '@/components/ecosystem/donor-leaderboard';
 import { listPublicActiveOrganizations } from '@/lib/services/organization.service';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { logger } from '@/lib/logger';
 
 export const metadata: Metadata = marketingMetadata({
   path: '/ecosystem/donors',
@@ -14,12 +15,21 @@ export const metadata: Metadata = marketingMetadata({
 async function EcosystemDonorsPage() {
   // Public, anonymous page — see listPublicActiveOrganizations's own header
   // for why this no longer reads via the Supabase anon-key client.
-  const activeOrgs = await listPublicActiveOrganizations(10);
+  const activeOrgs = await listPublicActiveOrganizations(10).catch((error: unknown) => {
+    logger.warn('[ecosystem donors] supporter rankings unavailable', {
+      errorType: error instanceof Error ? error.name : 'unknown',
+    });
+    return null;
+  });
 
   return (
     <PageShell title="Our Supporters" description="Meet the community of supporters making a difference.">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {activeOrgs.length === 0 ? (
+        {activeOrgs === null ? (
+          <p role="status" className="text-center text-muted-foreground lg:col-span-2">
+            Supporter rankings are temporarily unavailable.
+          </p>
+        ) : activeOrgs.length === 0 ? (
           <div className="text-center py-12 lg:col-span-2">
             <p className="text-gray-600 mb-4">No active organizations yet.</p>
             <p className="text-sm text-gray-500">Check back soon to see supporter leaderboards.</p>
