@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
+  Globe,
   Network,
   Users2,
   Banknote,
@@ -18,7 +19,9 @@ import {
   ClipboardList,
   Link2,
 } from 'lucide-react';
-import { useAuth } from '@/lib/auth/context';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '@/lib/api/client';
+import { isBackofficeUser, useAuth } from '@/lib/auth/context';
 import { WorkspaceSwitcher } from '@/components/enterprise/workspace-switcher';
 import { PortalSidebar, type PortalNavSection } from '@/components/shared/portal-sidebar';
 
@@ -93,6 +96,24 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
   const [open, setOpen] = React.useState(false);
   const { user, audience, isLoading } = useAuth();
 
+  const orgId = isBackofficeUser(user) ? user.organizationId : null;
+  const website = useQuery({
+    queryKey: ['website-access', orgId, user?.id],
+    enabled: !!orgId && audience === 'backoffice',
+    queryFn: () => adminApi.get<{ available: boolean }>('/organization/website?access=1'),
+    retry: false,
+  });
+  const sections = website.data?.available
+    ? NAV.map((section) =>
+        section.title === 'Developer & Brand'
+          ? {
+              ...section,
+              items: [{ href: '/enterprise/website', label: 'Website Studio', icon: Globe }, ...section.items],
+            }
+          : section,
+      )
+    : NAV;
+
   React.useEffect(() => {
     if (isLoading) return;
     if (!user || audience !== 'backoffice') {
@@ -138,7 +159,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
         open={open}
         onClose={() => setOpen(false)}
         variant="brand"
-        sections={NAV}
+        sections={sections}
         isActive={isActive}
         widthExpanded="w-[260px]"
         preNav={

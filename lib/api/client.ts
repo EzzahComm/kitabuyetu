@@ -201,6 +201,17 @@ export const api = {
  * fetch would silently lose the session-expiry redirect.
  */
 export const adminApi = {
+  async uploadImage(path: string, file: File): Promise<{ id: string; alt: string }> {
+    const res = await fetch(ADMIN_BASE + path, {
+      method: 'POST',
+      headers: { ...buildHeaders(undefined), 'Content-Type': file.type },
+      body: file,
+    });
+    if (res.status === 401) return handle401(res, !!readAccessTokenFromStorage());
+    const json = await res.json();
+    if (!json.success) throw new ApiError(json.error, json.code, res.status);
+    return json.data;
+  },
   get: <T>(path: string) => request<T>('GET', path, undefined, { base: ADMIN_BASE }),
   post: <T>(path: string, body: unknown) => request<T>('POST', path, body, { base: ADMIN_BASE }),
   patch: <T>(path: string, body: unknown) => request<T>('PATCH', path, body, { base: ADMIN_BASE }),

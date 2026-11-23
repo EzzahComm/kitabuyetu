@@ -15,7 +15,7 @@ import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient, ApiError } from '@/lib/api/client';
 import { getErrorMessage } from '@/lib/utils';
-import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
+import { resolvePostLoginPath, programLoginDestination } from '@/lib/auth/post-login-path';
 import { useToast } from '@/hooks/use-toast';
 import { isGroupSelectionNeeded } from '@/types/api.types';
 import type { NeedsGroupSelection } from '@/types/api.types';
@@ -62,7 +62,9 @@ export default function LoginPage() {
     // Already signed in and landed on /login. Resolve entitlements so a
     // reminder-only group is not bounced into a Kitabu Yetu shell it cannot use.
     if (user) {
-      void resolvePostLoginPath(isTenantUser(user) ? user.groupRole : undefined).then((path) => router.replace(path));
+      void resolvePostLoginPath(isTenantUser(user) ? user.groupRole : undefined).then((path) =>
+        router.replace(programLoginDestination(path, new URLSearchParams(window.location.search).get('program'))),
+      );
     }
   }, [user, router]);
 
@@ -92,7 +94,12 @@ export default function LoginPage() {
       if (rememberMe) localStorage.setItem(REMEMBERED_IDENTIFIER_KEY, values.identifier);
       else localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
       login(result);
-      router.push(await resolvePostLoginPath(result.member.groupRole));
+      router.push(
+        programLoginDestination(
+          await resolvePostLoginPath(result.member.groupRole),
+          new URLSearchParams(window.location.search).get('program'),
+        ),
+      );
     } catch (err) {
       const code = err instanceof ApiError ? ` (${err.code})` : '';
       toast({

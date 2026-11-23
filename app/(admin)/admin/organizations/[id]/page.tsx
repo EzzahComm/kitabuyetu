@@ -22,6 +22,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { WebsiteGrant } from '@/components/websites/website-grant';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -425,6 +426,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
         </CardContent>
       </Card>
 
+      <WebsiteGrant key={id} orgId={id} />
       <div className="grid gap-5 lg:grid-cols-3">
         {/* Assigned groups */}
         <Card className="lg:col-span-2">
