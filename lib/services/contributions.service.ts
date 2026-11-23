@@ -18,7 +18,8 @@ export const contributionsService = {
     params: ContributionQueryInput,
   ): Promise<PaginatedResult<Contribution & { member_name: string }>> {
     return withDb(ctx, async (client) => {
-      const { page, limit, memberId, status, from, to, sortDir } = params;
+      const { page, limit, status, from, to, sortDir } = params;
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
       const offset = (page - 1) * limit;
 
       const conditions: string[] = ['c.group_id = $1'];
@@ -210,8 +211,8 @@ export const contributionsService = {
         `SELECT c.*, m.first_name || ' ' || m.last_name AS member_name
          FROM contributions c
          JOIN members m ON m.id = c.member_id
-         WHERE c.id = $1 AND c.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE c.id = $1 AND c.group_id = $2${ctx.role === 'member' ? ' AND c.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Contribution', id);
       return rows[0];

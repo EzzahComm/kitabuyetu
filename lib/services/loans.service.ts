@@ -27,7 +27,8 @@ import type {
 export const loansService = {
   async list(ctx: TenantContext, params: LoanQueryInput): Promise<PaginatedResult<Loan & { member_name: string }>> {
     return withDb(ctx, async (client) => {
-      const { page, limit, memberId, status, from, to, sortDir } = params;
+      const { page, limit, status, from, to, sortDir } = params;
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
       const offset = (page - 1) * limit;
       const conditions: string[] = ['l.group_id = $1'];
       const values: unknown[] = [ctx.groupId];
@@ -81,10 +82,10 @@ export const loansService = {
         `SELECT lr.*, m.first_name || ' ' || m.last_name AS member_name
          FROM loan_repayments lr
          JOIN members m ON m.id = lr.member_id
-         WHERE lr.group_id = $1 AND lr.status = 'pending'
+         WHERE lr.group_id = $1 AND lr.status = 'pending'${ctx.role === 'member' ? ' AND lr.member_id = $3' : ''}
          ORDER BY lr.due_date ASC
          LIMIT $2`,
-        [ctx.groupId, limit],
+        ctx.role === 'member' ? [ctx.groupId, limit, ctx.userId] : [ctx.groupId, limit],
       );
       return rows;
     });
@@ -98,8 +99,8 @@ export const loansService = {
       const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(
         `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name, m.phone AS member_phone
          FROM loans l JOIN members m ON m.id = l.member_id
-         WHERE l.id = $1 AND l.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE l.id = $1 AND l.group_id = $2${ctx.role === 'member' ? ' AND l.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!loanRows[0]) throw new NotFoundError('Loan', id);
 
