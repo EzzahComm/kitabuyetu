@@ -88,9 +88,11 @@ The blocked endpoints are disabled at their application entry points. Legacy ser
 
 ## Needs my input
 
+The follow-up adds a read-only historical balance check under Data Import. Local PostgreSQL verification passed 65 tests across the historical balance, import permission, member payout and C2B hashed-MSISDN suites. All 30 historical balance tests also passed with the least-privileged tenant connection. These included matching two independent sets of member amounts against category totals, checking the tenant roster, and repeating a successful check without changing accounts, reservations or financial records. The publication and assisted-enrollment workflows and the bank sandbox requirements are described in [Opening balances and member payouts](../HISTORICAL_BALANCES_AND_PAYOUTS.md).
+
 1. **Non-phone and unbanked members.** Confirm whether payer-authorized proxy M-Pesa should be supported and how the member reference should be communicated. Use sandbox acceptance to prove attribution and dispute handling.
 2. **Historical financial records.** Approve the one-time onboarding window, dual-approval roles, and read-only display semantics. Decide how to present old balances without making them available for withdrawals.
-3. **Additional rails.** Confirm which non-M-Pesa providers to integrate. Existing bank and cheque labels are historical fields. Daraja B2B is an M-Pesa provider-backed rail. No independently confirmed card or external bank integration was verified here.
+3. **Additional rails.** KCB Buni and Equity Jenga were selected after this audit. Each needs contract-specific sandbox testing and reconciliation before activation. The existing bank and cheque labels are historical fields.
 4. **Medical appeal.** Have an authorized campaign owner verify the reported record and evidence that it is genuine. If it cannot be verified, use an approved administrative hold or hide workflow. Preserve the audit record.
 5. **Legal and privacy copy.** Obtain a policy review before changing retention or data-processing statements. No legal text changed in this pass.
 6. **Sandbox handoff.** Provide approved sandbox endpoints or mocks in environment settings for Redis, Daraja, SMS, and email to finish the remaining browser and reconciliation workflows.
