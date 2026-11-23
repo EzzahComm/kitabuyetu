@@ -287,7 +287,7 @@ export const STEPS: Step[] = [
   },
   {
     title: 'Start recording',
-    body: 'Record cash by hand. M-Pesa payments record themselves.',
+    body: 'Confirmed M-Pesa payments appear in your books automatically.',
   },
   {
     title: 'Always balanced',
@@ -756,7 +756,7 @@ export const CUSTOMER_PATHS: CustomerPath[] = [
     icon: Users,
     eyebrow: 'I run a group',
     title: 'Your members, money and meetings — sorted.',
-    body: 'Savings, loans, welfare and M-Pesa in one ledger. No more reconciling by hand.',
+    body: 'Savings, loans, welfare and M-Pesa in one ledger. Confirmed M-Pesa payments appear automatically.',
     audience: ['Chamas', 'Welfare groups', 'Investment clubs', 'SACCOs', 'VSLAs', 'Community groups'],
     href: ROUTES.startGroup,
     linkText: 'Start your group',
@@ -855,11 +855,11 @@ export const HOME_FAQS: [question: string, answer: string][] = [
   ],
   [
     'Can members pay by something other than M-Pesa?',
-    'Yes. Record cash, bank or cheque by hand. M-Pesa payments record themselves.',
+    'Use M-Pesa through a payment prompt or PayBill. The books update after M-Pesa confirms the payment.',
   ],
   [
     'Can we bring in our existing records?',
-    'Yes. Bring your members and past contributions in from a spreadsheet on any plan.',
+    'You can import your member list from a spreadsheet. Financial history imports are currently unavailable.',
   ],
   [
     "Can another group see our group's records?",

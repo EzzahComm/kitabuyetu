@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { DisbursementActionSchema as ActionSchema } from '@/lib/validators/organization.schema';
-import { ok, handleError } from '@/lib/utils/response';
+import { ok, handleError, confirmedPaymentRequired } from '@/lib/utils/response';
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -25,7 +25,7 @@ export async function POST(req: NextRequest, { params }: Ctx): Promise<Response>
       };
 
       if (input.action === 'approve') {
-        return ok(await organizationFinanceService.approveDisbursement(ctx, id));
+        return confirmedPaymentRequired();
       }
       return ok(await organizationFinanceService.rejectDisbursement(ctx, id, input.reason));
     } catch (err) {

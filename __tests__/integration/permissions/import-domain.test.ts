@@ -51,7 +51,7 @@ describe('Import domain permission gates (4-way role split)', () => {
     await resetDatabase();
   });
 
-  it('import.start: secretary is denied, treasurer CAN start a legacy contribution import', async () => {
+  it('import.start: secretary is forbidden and treasurer cannot import financial contributions', async () => {
     const csv = 'member_phone,amount,contribution_date,payment_method\n2547123456,1000,2026-01-01,cash\n';
 
     const denied = await importPost(
@@ -70,7 +70,8 @@ describe('Import domain permission gates (4-way role split)', () => {
         headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
       }),
     );
-    expect(allowed.status).not.toBe(403);
+    expect(allowed.status).toBe(409);
+    expect(await rawQuery('SELECT 1 FROM contributions WHERE group_id = $1', [groupId])).toHaveLength(0);
   });
 
   it('import.preview: member is denied, secretary CAN preview a members import', async () => {

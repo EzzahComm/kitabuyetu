@@ -1,8 +1,8 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { welfareService, RecordWelfarePoolSchema } from '@/lib/services/welfare.service';
-import { ok, created } from '@/lib/utils/response';
+import { welfareService } from '@/lib/services/welfare.service';
+import { ok, confirmedPaymentRequired } from '@/lib/utils/response';
 
 export async function GET(req: NextRequest): Promise<Response> {
   return withPermission(req, 'welfare.view', async (auth) => {
@@ -27,11 +27,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'welfare.manage', async (auth) => {
-    const body = await req.json();
-    const input = RecordWelfarePoolSchema.parse(body);
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-    return created(await welfareService.recordPoolContribution(ctx, input));
-  });
+export function POST(req: NextRequest): Promise<Response> {
+  return withPermission(req, 'welfare.manage', async () => confirmedPaymentRequired());
 }

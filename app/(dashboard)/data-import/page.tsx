@@ -124,7 +124,7 @@ const KIND_META: Record<Kind, { label: string; icon: LucideIcon; description: st
 const PREVIEW_VISIBLE_ROWS = 25;
 
 export default function DataImportPage() {
-  const [kind, setKind] = useState<Kind>('members');
+  const kind: Kind = 'members';
   const [phase, setPhase] = useState<Phase>('idle');
   const [job, setJob] = useState<ImportJob | null>(null);
   // UX_UI_OPTIMIZATION_AUDIT_2026-08.md M5 — rollback used to gate on a native
@@ -210,29 +210,6 @@ export default function DataImportPage() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <PageHeader className="flex-1" title="Data Import" />
-      </div>
-
-      {/* Kind selector — locked once a job is in flight */}
-      <div className="flex gap-2 flex-wrap">
-        {(Object.keys(KIND_META) as Kind[]).map((k) => {
-          const meta = KIND_META[k];
-          const Icon = meta.icon;
-          const active = k === kind;
-          const locked = phase !== 'idle';
-          return (
-            <button
-              key={k}
-              type="button"
-              disabled={locked}
-              onClick={() => setKind(k)}
-              className={`flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm transition-colors
-                ${active ? 'border-primary bg-primary text-primary-foreground' : 'border-input bg-background hover:bg-muted'}
-                ${locked ? 'cursor-not-allowed opacity-50' : ''}`}
-            >
-              <Icon size={14} /> {meta.label}
-            </button>
-          );
-        })}
       </div>
 
       <p className="text-sm text-muted-foreground">{KIND_META[kind].description}</p>

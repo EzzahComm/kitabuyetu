@@ -4,10 +4,7 @@ import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import { ArrowLeft, CheckCircle2, Loader2, Send, XCircle, Wallet, Coins } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Loader2, Send, XCircle, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { StatusPill } from '@/components/shared/status-pill';
@@ -129,9 +126,6 @@ export default function DividendDetailPage() {
 
   const [cancelOpen, setCancelOpen] = useState(false);
   const [approveOpen, setApproveOpen] = useState(false);
-  const [payOpen, setPayOpen] = useState<Allocation | null>(null);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
   const refresh = async () => {
@@ -195,8 +189,6 @@ export default function DividendDetailPage() {
 
   const allocItems = allocsQ.data?.items ?? [];
   const previewRows = previewQ.data?.rows ?? [];
-  const pendingSelectableIds = allocItems.filter((a) => a.status === 'pending').map((a) => a.id);
-  const allSelected = pendingSelectableIds.length > 0 && pendingSelectableIds.every((id) => selected.has(id));
 
   return (
     <div className="space-y-6">
@@ -246,11 +238,6 @@ export default function DividendDetailPage() {
               )}
               {decl.status === 'approved' && (
                 <>
-                  {canManageDividends && (
-                    <Button disabled={selected.size === 0} onClick={() => setBulkOpen(true)}>
-                      <Wallet className="mr-2 h-4 w-4" /> Pay selected ({selected.size})
-                    </Button>
-                  )}
                   {canApproveDividends && (
                     <Button variant="outline" onClick={() => setCancelOpen(true)}>
                       Cancel
@@ -391,41 +378,6 @@ export default function DividendDetailPage() {
               emptyIcon={Coins}
               emptyMessage="No allocations recorded."
               columns={[
-                ...(decl.status === 'approved' && canManageDividends
-                  ? [
-                      {
-                        key: '_select',
-                        header: (
-                          <input
-                            type="checkbox"
-                            checked={allSelected}
-                            onChange={(e) => {
-                              if (e.target.checked) setSelected(new Set(pendingSelectableIds));
-                              else setSelected(new Set());
-                            }}
-                            aria-label="Select all pending allocations"
-                          />
-                        ),
-                        render: (a: Allocation) =>
-                          a.status === 'pending' ? (
-                            <input
-                              type="checkbox"
-                              checked={selected.has(a.id)}
-                              onChange={(e) =>
-                                setSelected((prev) => {
-                                  const next = new Set(prev);
-                                  if (e.target.checked) next.add(a.id);
-                                  else next.delete(a.id);
-                                  return next;
-                                })
-                              }
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label={`Select ${a.member_first_name} ${a.member_last_name}`}
-                            />
-                          ) : null,
-                      },
-                    ]
-                  : []),
                 {
                   key: 'member',
                   header: 'Member',
@@ -505,19 +457,6 @@ export default function DividendDetailPage() {
                     </div>
                   ),
                 },
-                {
-                  key: 'actions',
-                  header: '',
-                  className: 'text-right',
-                  render: (a) =>
-                    decl.status === 'approved' &&
-                    a.status === 'pending' &&
-                    canManageDividends && (
-                      <Button size="sm" variant="outline" onClick={() => setPayOpen(a)}>
-                        <Wallet className="mr-1.5 h-3 w-3" /> Pay
-                      </Button>
-                    ),
-                },
               ]}
             />
           )}
@@ -546,58 +485,6 @@ export default function DividendDetailPage() {
             toast({
               variant: 'destructive',
               title: 'Cancel failed',
-              description: e instanceof ApiError ? e.message : '',
-            });
-          }
-        }}
-      />
-
-      <PayDialog
-        allocation={payOpen}
-        onOpenChange={(open) => {
-          if (!open) setPayOpen(null);
-        }}
-        onConfirm={async (paymentMethod, paymentReference) => {
-          if (!payOpen) return;
-          try {
-            await api.post(`/dividends/${id}/allocations/${payOpen.id}/pay`, {
-              paymentMethod,
-              ...(paymentReference ? { paymentReference } : {}),
-            });
-            toast({ title: 'Payment recorded' });
-            setPayOpen(null);
-            await refresh();
-          } catch (e) {
-            toast({
-              variant: 'destructive',
-              title: 'Payment failed',
-              description: e instanceof ApiError ? e.message : '',
-            });
-          }
-        }}
-      />
-
-      <BulkPayDialog
-        open={bulkOpen}
-        count={selected.size}
-        onOpenChange={setBulkOpen}
-        onConfirm={async (paymentMethod, paymentReference) => {
-          try {
-            const result = await api.post<{ paid: number; skipped: { id: string; reason: string }[] }>(
-              `/dividends/${id}/allocations/bulk-pay`,
-              { allocationIds: Array.from(selected), paymentMethod, ...(paymentReference ? { paymentReference } : {}) },
-            );
-            toast({
-              title: `Paid ${result.paid} allocation(s)`,
-              description: result.skipped.length > 0 ? `${result.skipped.length} skipped` : undefined,
-            });
-            setBulkOpen(false);
-            setSelected(new Set());
-            await refresh();
-          } catch (e) {
-            toast({
-              variant: 'destructive',
-              title: 'Bulk pay failed',
               description: e instanceof ApiError ? e.message : '',
             });
           }
@@ -669,167 +556,6 @@ function CancelDialog({
             Confirm cancel
           </Button>
         </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-const paySchema = z.object({
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'other']),
-  paymentReference: z.string().optional(),
-});
-type PayForm = z.infer<typeof paySchema>;
-
-function PayDialog({
-  allocation,
-  onOpenChange,
-  onConfirm,
-}: {
-  allocation: Allocation | null;
-  onOpenChange: (v: boolean) => void;
-  onConfirm: (method: string, reference: string | undefined) => Promise<void>;
-}) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting },
-  } = useForm<PayForm>({
-    resolver: zodResolver(paySchema),
-    defaultValues: { paymentMethod: 'mpesa' },
-  });
-  if (!allocation) return null;
-  return (
-    <Dialog
-      open={true}
-      onOpenChange={(v) => {
-        if (!v) {
-          reset();
-          onOpenChange(false);
-        }
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Record payment</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm">
-          <strong>
-            {allocation.member_first_name} {allocation.member_last_name}
-          </strong>{' '}
-          · {fmtMoney(allocation.net_amount)}
-        </p>
-        <form
-          onSubmit={handleSubmit(async (v) => {
-            await onConfirm(v.paymentMethod, v.paymentReference?.trim() || undefined);
-            reset();
-          })}
-          className="space-y-3"
-        >
-          <div className="space-y-1">
-            <Label htmlFor="method">Payment method</Label>
-            <select
-              id="method"
-              {...register('paymentMethod')}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="mpesa">M-Pesa</option>
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="cheque">Cheque</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="ref">Reference (optional)</Label>
-            <Input id="ref" placeholder="M-Pesa receipt or bank ref" {...register('paymentReference')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Record payment
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function BulkPayDialog({
-  open,
-  count,
-  onOpenChange,
-  onConfirm,
-}: {
-  open: boolean;
-  count: number;
-  onOpenChange: (v: boolean) => void;
-  onConfirm: (method: string, reference: string | undefined) => Promise<void>;
-}) {
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { isSubmitting },
-  } = useForm<PayForm>({
-    resolver: zodResolver(paySchema),
-    defaultValues: { paymentMethod: 'mpesa' },
-  });
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset();
-        onOpenChange(v);
-      }}
-    >
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Bulk pay {count} allocation(s)</DialogTitle>
-        </DialogHeader>
-        <p className="text-sm text-muted-foreground">
-          Same payment method/reference is recorded against each selected allocation. Already-paid or cancelled rows are
-          skipped.
-        </p>
-        <form
-          onSubmit={handleSubmit(async (v) => {
-            await onConfirm(v.paymentMethod, v.paymentReference?.trim() || undefined);
-            reset();
-          })}
-          className="space-y-3"
-        >
-          <div className="space-y-1">
-            <Label htmlFor="bulkMethod">Payment method</Label>
-            <select
-              id="bulkMethod"
-              {...register('paymentMethod')}
-              className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="mpesa">M-Pesa</option>
-              <option value="cash">Cash</option>
-              <option value="bank_transfer">Bank transfer</option>
-              <option value="cheque">Cheque</option>
-              <option value="other">Other</option>
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="bulkRef">Reference (optional)</Label>
-            <Input id="bulkRef" placeholder="Common ref applied to every paid row" {...register('paymentReference')} />
-          </div>
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Confirm bulk pay
-            </Button>
-          </DialogFooter>
-        </form>
       </DialogContent>
     </Dialog>
   );

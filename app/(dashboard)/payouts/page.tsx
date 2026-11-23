@@ -201,11 +201,9 @@ export default function DisbursementsPage() {
   const [search, setSearch] = useState('');
   const [memberId, setMemberId] = useState('');
   const [purpose, setPurpose] = useState<Purpose>('savings_withdrawal');
-  const [method, setMethod] = useState<Method>('mpesa');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [notes, setNotes] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
   const [idempotencyKey, setIdempotencyKey] = useState('');
   const [confirming, setConfirming] = useState(false);
 
@@ -269,28 +267,21 @@ export default function DisbursementsPage() {
       .slice(0, 8);
   }, [members, search]);
 
-  const groupAvailable = elig ? (method === 'bank_transfer' ? elig.available.bank : elig.available.cash) : null;
+  const groupAvailable = elig ? elig.available.cash : null;
   const amountError = (() => {
     if (!amount) return null;
     if (!/^\d+$/.test(amount) || amt <= 0) return 'Enter a whole-shilling amount greater than zero';
     if (amt > 250_000) return 'At most KES 250,000 per disbursement';
-    if (elig && method === 'bank_transfer' && groupAvailable === null) return 'This group has no bank account set up';
     if (groupAvailable !== null && amt > groupAvailable) {
       return `Exceeds available group funds (${formatKES(groupAvailable)})`;
     }
     if (elig && purpose === 'savings_withdrawal' && amt > elig.withdrawableSavings) {
       return `Exceeds ${elig.memberName}'s withdrawable savings (${formatKES(elig.withdrawableSavings)})`;
     }
-    if (elig && method === 'mpesa' && !elig.phone) return 'This member has no registered phone for M-Pesa';
+    if (elig && !elig.phone) return 'This member has no registered phone for M-Pesa';
     return null;
   })();
-  const formIncomplete =
-    !memberId ||
-    !elig ||
-    amt <= 0 ||
-    !!amountError ||
-    description.trim().length < 3 ||
-    (method === 'bank_transfer' && !paymentReference.trim());
+  const formIncomplete = !memberId || !elig || amt <= 0 || !!amountError || description.trim().length < 3;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['payouts'] });
 
@@ -298,11 +289,9 @@ export default function DisbursementsPage() {
     setSearch('');
     setMemberId('');
     setPurpose('savings_withdrawal');
-    setMethod('mpesa');
     setAmount('');
     setDescription('');
     setNotes('');
-    setPaymentReference('');
     // One key per submission: a double-click, refresh-retry or network retry
     // returns the same disbursement instead of creating a second one.
     setIdempotencyKey(crypto.randomUUID());
@@ -320,8 +309,7 @@ export default function DisbursementsPage() {
           purpose,
           description: description.trim(),
           ...(notes.trim() ? { notes: notes.trim() } : {}),
-          paymentMethod: method,
-          ...(paymentReference.trim() ? { paymentReference: paymentReference.trim() } : {}),
+          paymentMethod: 'mpesa',
         },
         { headers: { 'Idempotency-Key': idempotencyKey } },
       ); // gitleaks:allow — header name, not a secret; value is a client-generated crypto.randomUUID()
@@ -693,21 +681,6 @@ export default function DisbursementsPage() {
                   ))}
                 </select>
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="payout-method">Paid by</Label>
-                <select
-                  id="payout-method"
-                  value={method}
-                  onChange={(e) => setMethod(e.target.value as Method)}
-                  className={selectClass}
-                >
-                  {(Object.keys(METHOD_LABEL) as Method[]).map((m) => (
-                    <option key={m} value={m}>
-                      {METHOD_LABEL[m]}
-                    </option>
-                  ))}
-                </select>
-              </div>
             </div>
 
             <div className="space-y-1">
@@ -746,20 +719,6 @@ export default function DisbursementsPage() {
                 placeholder="e.g. Member emergency support"
               />
             </div>
-
-            {method === 'bank_transfer' && (
-              <div className="space-y-1">
-                <Label htmlFor="payout-ref">Payee account / transfer reference</Label>
-                <Input
-                  id="payout-ref"
-                  className="h-11"
-                  value={paymentReference}
-                  maxLength={100}
-                  onChange={(e) => setPaymentReference(e.target.value)}
-                  placeholder="e.g. Equity 0123456789"
-                />
-              </div>
-            )}
 
             <div className="space-y-1">
               <Label htmlFor="payout-notes">Additional notes (optional)</Label>
@@ -804,9 +763,8 @@ export default function DisbursementsPage() {
             {selected?.membership_no && <Row label="Member #" value={selected.membership_no} />}
             <Row label="Purpose" value={description.trim()} />
             <Row label="Type" value={PURPOSE_LABEL[purpose]} />
-            <Row label="Paid by" value={METHOD_LABEL[method]} />
-            {method === 'mpesa' && <Row label="Phone" value={elig?.phone ?? '—'} />}
-            {paymentReference.trim() && <Row label="Reference" value={paymentReference.trim()} />}
+            <Row label="Paid by" value={METHOD_LABEL.mpesa} />
+            <Row label="Phone" value={elig?.phone ?? '—'} />
             <Row label="Initiated by" value={`${user?.firstName ?? ''} ${user?.lastName ?? ''} — ${office ?? ''}`} />
             <Row label="Group" value={tenantUser?.groupName ?? '—'} />
             {groupAvailable !== null && (

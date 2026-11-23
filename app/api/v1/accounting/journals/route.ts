@@ -1,9 +1,8 @@
-﻿export const dynamic = 'force-dynamic';
+export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
-import { accountingService } from '@/lib/services/accounting.service';
-import { CreateJournalSchema, VoidJournalSchema, JournalQuerySchema } from '@/lib/validators/accounting.schema';
-import { ok, created } from '@/lib/utils/response';
+import { JournalQuerySchema } from '@/lib/validators/accounting.schema';
+import { ok, confirmedPaymentRequired } from '@/lib/utils/response';
 import type { JournalEntry } from '@/types/api.types';
 import type { PaginatedResult } from '@/types/db.types';
 
@@ -58,20 +57,6 @@ export async function GET(req: NextRequest): Promise<Response> {
   });
 }
 
-export async function POST(req: NextRequest): Promise<Response> {
-  return withPermission(req, 'accounting.manage', async (auth) => {
-    const body = await req.json();
-    const ctx = { userId: auth.userId, groupId: auth.groupId, role: auth.role };
-
-    if (body.action === 'post') {
-      return ok(await accountingService.postJournalEntry(ctx, body.id));
-    }
-    if (body.action === 'void') {
-      const input = VoidJournalSchema.parse(body);
-      return ok(await accountingService.voidJournalEntry(ctx, body.id, input));
-    }
-
-    const input = CreateJournalSchema.parse(body);
-    return created(await accountingService.createJournalEntry(ctx, input));
-  });
+export function POST(req: NextRequest): Promise<Response> {
+  return withPermission(req, 'accounting.manage', async () => confirmedPaymentRequired());
 }

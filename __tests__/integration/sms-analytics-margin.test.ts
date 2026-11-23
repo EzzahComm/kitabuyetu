@@ -435,13 +435,13 @@ describe('Organization SMS credit top-ups', () => {
         body: { amountKes: 450 },
       }),
     );
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
       [organizationId],
     );
-    expect(Number(account.sms_credits)).toBeCloseTo(500, 4); // 450 / 0.90
+    expect(Number(account?.sms_credits ?? 0)).toBe(0);
   });
 
   it('a coordinator WITHOUT an organizationId claim is denied on the self-serve route', async () => {
@@ -455,7 +455,7 @@ describe('Organization SMS credit top-ups', () => {
     expect(res.status).toBe(403);
   });
 
-  it("super_admin can grant/correct ANY organization's balance via the by-id route", async () => {
+  it('super_admin cannot credit an organization without a confirmed payment', async () => {
     const res = await adminTopUpPost(
       buildRequest(`/api/admin/organizations/${organizationId}/sms-credits`, {
         method: 'POST',
@@ -464,13 +464,13 @@ describe('Organization SMS credit top-ups', () => {
       }),
       { params: Promise.resolve({ id: organizationId }) },
     );
-    expect(res.status).toBe(201);
+    expect(res.status).toBe(409);
 
     const [account] = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,
       [organizationId],
     );
-    expect(Number(account.sms_credits)).toBeCloseTo(1000, 4);
+    expect(Number(account?.sms_credits ?? 0)).toBe(0);
   });
 
   it('a support-role caller is denied on both super_admin SMS-billing routes — support is read-only', async () => {

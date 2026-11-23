@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
-import { errorResponse, ok } from '@/lib/utils/response';
+import { confirmedPaymentRequired, ok } from '@/lib/utils/response';
 
 interface RouteParams {
   params: Promise<{ jobId: string }>;
@@ -24,9 +24,6 @@ export async function POST(req: NextRequest, { params }: RouteParams): Promise<R
     const job = await importService.getJob(ctx, jobId);
 
     if (job.kind === 'members') return ok(await importService.commitMembers(ctx, jobId));
-    if (job.kind === 'contributions') return ok(await importService.commitContributions(ctx, jobId));
-    if (job.kind === 'loans') return ok(await importService.commitLoans(ctx, jobId));
-
-    return errorResponse(`Unsupported import kind: ${job.kind}`, 'VALIDATION_ERROR', 422);
+    return confirmedPaymentRequired();
   });
 }

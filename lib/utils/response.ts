@@ -16,6 +16,15 @@ export function noContent(): NextResponse {
   return new NextResponse(null, { status: 204 });
 }
 
+/** Legacy money-entry endpoints reject writes until a verified payment flow is available. */
+export function confirmedPaymentRequired() {
+  return errorResponse(
+    'This action is unavailable. Use the supported provider-confirmed payment workflow.',
+    'CONFIRMED_PAYMENT_REQUIRED',
+    409,
+  );
+}
+
 export function errorResponse(message: string, code: string, status = 400): NextResponse<ApiError> {
   return NextResponse.json({ success: false, error: message, code }, { status });
 }

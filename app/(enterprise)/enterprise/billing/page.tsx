@@ -13,18 +13,12 @@
  * organization never self-serve changes its plan, only Kitabu Yetu staff do.
  */
 
-import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { MessageSquare, ArrowDownToLine, Sparkles } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { MessageSquare, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { PageHeader } from '@/components/shared/page-header';
 import { StatCard } from '@/components/shared/stat-card';
 import { SectionHeader } from '@/components/shared/dashboard-sections';
-import { useToast } from '@/hooks/use-toast';
 import { organizationApi } from '@/lib/api/endpoints';
 import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import { formatDate, formatKES } from '@/lib/utils';
@@ -32,8 +26,6 @@ import { formatDate, formatKES } from '@/lib/utils';
 const CAP_LABEL = (n: number | null) => (n === null ? 'Unlimited' : n.toLocaleString());
 
 export default function OrganizationBillingPage() {
-  const [topUpOpen, setTopUpOpen] = useState(false);
-
   const { data, isLoading } = useQuery({
     queryKey: enterpriseKeys.smsCredits(),
     queryFn: () => organizationApi.smsCredits(),
@@ -51,11 +43,6 @@ export default function OrganizationBillingPage() {
       <PageHeader
         title="Billing"
         description="This organization's plan and SMS credits — separate from the capital wallet on the Funding Portal."
-        actions={
-          <Button size="sm" className="gap-1.5 h-9" onClick={() => setTopUpOpen(true)}>
-            <ArrowDownToLine size={15} /> Top up SMS
-          </Button>
-        }
       />
 
       <div className="space-y-3">
@@ -145,84 +132,6 @@ export default function OrganizationBillingPage() {
           </CardContent>
         </Card>
       </div>
-
-      <SmsCreditsTopUpDialog open={topUpOpen} onClose={() => setTopUpOpen(false)} />
     </div>
-  );
-}
-
-function SmsCreditsTopUpDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [amount, setAmount] = useState('');
-  const [reference, setReference] = useState('');
-
-  const topUp = useMutation({
-    mutationFn: () =>
-      organizationApi.topUpSmsCredits({
-        amountKes: parseFloat(amount),
-        reference: reference || undefined,
-      }),
-    onSuccess: (result) => {
-      qc.invalidateQueries({ queryKey: enterpriseKeys.smsCredits() });
-      toast({
-        title: 'SMS credits added',
-        description: `${result.creditsAdded.toLocaleString()} credits — new balance ${result.newBalance.toLocaleString()}.`,
-      });
-      setAmount('');
-      setReference('');
-      onClose();
-    },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Top-up failed', description: e.message }),
-  });
-
-  const valid = parseFloat(amount) > 0;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Top up SMS credits</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Amount (KES)</Label>
-            <Input
-              type="number"
-              min={1}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="5000"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Reference <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <Input
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              placeholder="e.g. bank transfer ref"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Recorded as a manual top-up — no M-Pesa payment is collected here. Bank/M-Pesa settlement is reconciled
-            separately.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => topUp.mutate()} disabled={!valid || topUp.isPending}>
-            Top up
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }

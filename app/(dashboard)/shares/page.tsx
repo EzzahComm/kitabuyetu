@@ -1,38 +1,19 @@
 'use client';
 
-import { useState } from 'react';
 import Link from 'next/link';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
-import {
-  Coins,
-  Plus,
-  Users,
-  TrendingUp,
-  Layers,
-  Settings as SettingsIcon,
-  Loader2,
-  Wallet,
-  ListTree,
-  Trophy,
-} from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { Coins, Users, TrendingUp, Layers, Settings as SettingsIcon, Wallet, ListTree, Trophy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PageHeader } from '@/components/shared/page-header';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
-import { api, ApiError } from '@/lib/api/client';
+import { api } from '@/lib/api/client';
 import { downloadAuthenticated } from '@/lib/utils/download';
 import type { PaginatedResult } from '@/types/db.types';
-import { useHasPermission } from '@/lib/auth/use-permission';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -92,13 +73,6 @@ interface ShareTxn {
   counterparty_last_name: string | null;
   notes: string | null;
 }
-interface MemberRow {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
-}
-
 const fmtMoney = (v: string | number | null | undefined) => {
   const n = Number(v ?? 0);
   return new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES', maximumFractionDigits: 2 }).format(n);
@@ -116,10 +90,6 @@ const TYPE_BADGE: Record<string, 'default' | 'success' | 'secondary' | 'warning'
 
 export default function SharesPage() {
   const { toast } = useToast();
-  const qc = useQueryClient();
-  const [open, setOpen] = useState(false);
-  const canManage = useHasPermission('shares.manage');
-
   const summaryQ = useQuery<GroupSummary>({
     queryKey: ['shares', 'summary'],
     queryFn: () => api.get<GroupSummary>('/shares/summary'),
@@ -137,16 +107,6 @@ export default function SharesPage() {
     queryFn: () => api.get<PaginatedResult<ShareTxn>>('/shares/transactions?limit=50'),
   });
 
-  const onTxnCreated = async () => {
-    setOpen(false);
-    await Promise.all([
-      qc.invalidateQueries({ queryKey: ['shares', 'summary'] }),
-      qc.invalidateQueries({ queryKey: ['shares', 'holdings'] }),
-      qc.invalidateQueries({ queryKey: ['shares', 'ledger'] }),
-    ]);
-    toast({ title: 'Transaction posted' });
-  };
-
   const summary = summaryQ.data;
   const classes = classesQ.data?.items ?? [];
   const noClasses = !classesQ.isLoading && classes.length === 0;
@@ -155,7 +115,7 @@ export default function SharesPage() {
     <div className="space-y-6">
       <PageHeader
         title="Share Capital"
-        description="Allocate, sell, transfer and redeem member shares."
+        description="View member share holdings and transaction history."
         actions={
           <>
             <Button asChild variant="outline">
@@ -163,11 +123,6 @@ export default function SharesPage() {
                 <SettingsIcon size={16} className="mr-2" /> Share classes
               </Link>
             </Button>
-            {canManage && (
-              <Button disabled={noClasses} onClick={() => setOpen(true)}>
-                <Plus size={16} className="mr-2" /> New transaction
-              </Button>
-            )}
           </>
         }
       />
@@ -480,241 +435,6 @@ export default function SharesPage() {
           </Tabs>
         </>
       )}
-
-      <NewTransactionDialog open={open} onOpenChange={setOpen} classes={classes} onPosted={onTxnCreated} />
     </div>
-  );
-}
-
-// ── New-transaction dialog ────────────────────────────────────────────
-
-const txnSchema = z.object({
-  type: z.enum(['allocation', 'purchase', 'transfer', 'redemption', 'adjustment']),
-  memberId: z.string().uuid('Pick a member'),
-  shareClassId: z.string().uuid('Pick a class'),
-  quantity: z.coerce
-    .number()
-    .int()
-    .refine((n) => n !== 0, 'Quantity is required'),
-  unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
-  totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
-  counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'other']).optional().or(z.literal('')),
-  paymentReference: z.string().max(80).optional().or(z.literal('')),
-  notes: z.string().max(1000).optional().or(z.literal('')),
-});
-type TxnForm = z.infer<typeof txnSchema>;
-
-function NewTransactionDialog({
-  open,
-  onOpenChange,
-  classes,
-  onPosted,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-  classes: ShareClass[];
-  onPosted: () => void;
-}) {
-  const { toast } = useToast();
-  const {
-    register,
-    handleSubmit,
-    control,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<TxnForm>({
-    resolver: zodResolver(txnSchema),
-    defaultValues: { type: 'purchase' },
-  });
-  const type = useWatch({ control, name: 'type' });
-
-  // Member list for picker. Cap at 200 active members — typeahead is a P2 feature.
-  const membersQ = useQuery<{ items: MemberRow[] }>({
-    queryKey: ['shares', 'member-picker'],
-    queryFn: () => api.get<{ items: MemberRow[] }>('/members?status=active&limit=200'),
-    enabled: open,
-  });
-  const members = membersQ.data?.items ?? [];
-
-  const onSubmit = async (values: TxnForm) => {
-    try {
-      // Empty strings → undefined so the validator's `.optional()` accepts.
-      const body: Record<string, unknown> = {};
-      for (const [k, v] of Object.entries(values)) {
-        if (v === '' || v === undefined) continue;
-        body[k] = v;
-      }
-      await api.post('/shares/transactions', body);
-      reset();
-      onPosted();
-    } catch (err) {
-      const msg = err instanceof ApiError ? err.message : 'Failed to post transaction';
-      toast({ variant: 'destructive', title: 'Failed', description: msg });
-    }
-  };
-
-  const showPayment = type === 'purchase' || type === 'redemption';
-  const showCounterparty = type === 'transfer';
-
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(v) => {
-        if (!v) reset();
-        onOpenChange(v);
-      }}
-    >
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>New share transaction</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="type">Type</Label>
-              <select
-                id="type"
-                {...register('type')}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="purchase">Purchase (member buys)</option>
-                <option value="allocation">Allocation (free shares)</option>
-                <option value="transfer">Transfer (between members)</option>
-                <option value="redemption">Redemption (member sells back)</option>
-                <option value="adjustment">Adjustment (admin correction)</option>
-              </select>
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="shareClassId">Share class</Label>
-              <select
-                id="shareClassId"
-                {...register('shareClassId')}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">— Select —</option>
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.name} ({c.code}) — {fmtMoney(c.current_value ?? c.par_value)}
-                  </option>
-                ))}
-              </select>
-              {errors.shareClassId && <p className="text-xs text-red-600">{errors.shareClassId.message}</p>}
-            </div>
-          </div>
-
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <Label htmlFor="memberId">{type === 'transfer' ? 'From member' : 'Member'}</Label>
-              <select
-                id="memberId"
-                {...register('memberId')}
-                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-              >
-                <option value="">— Select —</option>
-                {members.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.first_name} {m.last_name} ({m.phone})
-                  </option>
-                ))}
-              </select>
-              {errors.memberId && <p className="text-xs text-red-600">{errors.memberId.message}</p>}
-            </div>
-
-            {showCounterparty && (
-              <div className="space-y-1">
-                <Label htmlFor="counterpartyMemberId">To member</Label>
-                <select
-                  id="counterpartyMemberId"
-                  {...register('counterpartyMemberId')}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.first_name} {m.last_name} ({m.phone})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-
-            <div className="space-y-1">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input id="quantity" type="number" step={1} placeholder="100" {...register('quantity')} />
-              {errors.quantity && <p className="text-xs text-red-600">{errors.quantity.message}</p>}
-              {type === 'adjustment' && (
-                <p className="text-xs text-muted-foreground">Negative values reduce the holding.</p>
-              )}
-            </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="unitPrice">Unit price (optional)</Label>
-              <Input
-                id="unitPrice"
-                type="number"
-                step={0.01}
-                placeholder="Defaults to class current/par value"
-                {...register('unitPrice')}
-              />
-            </div>
-          </div>
-
-          {showPayment && (
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="totalAmount">Total amount (optional)</Label>
-                <Input
-                  id="totalAmount"
-                  type="number"
-                  step={0.01}
-                  placeholder="Qty × unit price"
-                  {...register('totalAmount')}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentMethod">Payment method</Label>
-                <select
-                  id="paymentMethod"
-                  {...register('paymentMethod')}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentReference">Reference</Label>
-                <Input
-                  id="paymentReference"
-                  placeholder="M-Pesa receipt or bank ref"
-                  {...register('paymentReference')}
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-1">
-            <Label htmlFor="notes">Notes</Label>
-            <Input id="notes" placeholder="Optional context for the audit log" {...register('notes')} />
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Post transaction
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
   );
 }

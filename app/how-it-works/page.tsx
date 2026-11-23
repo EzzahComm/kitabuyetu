@@ -84,13 +84,13 @@ const theEdges = {
       icon: <ListChecks />,
     },
     {
-      title: 'Cash still counts',
-      desc: 'Cash collected at the meeting is recorded by hand, in the same books.',
+      title: 'Payments post after confirmation',
+      desc: 'M-Pesa confirms the payment before it appears in the ledger.',
       icon: <Banknote />,
     },
     {
       title: 'Money goes out the same way',
-      desc: 'Loans, welfare and dividends go straight to members’ M-Pesa — approved first, then confirmed.',
+      desc: 'Supported loan and member payouts are sent through M-Pesa. The ledger updates on provider confirmation.',
       icon: <TrendingUp />,
     },
   ],

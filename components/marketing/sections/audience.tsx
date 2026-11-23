@@ -111,9 +111,9 @@ const COMMUNITIES: CommunityCard[] = [
   {
     eyebrow: "Women's savings groups & VSLAs",
     title: 'The savings, the loans and the social fund — in one ledger.',
-    body: 'Meet the way you always have. The record lives in one shared book.',
+    body: 'Meet in person or online and keep confirmed M-Pesa payments in one shared book.',
     points: [
-      'Record cash by hand — M-Pesa payments record themselves',
+      'Confirmed M-Pesa payments appear in the ledger automatically',
       'Loans, repayments and welfare tracked member by member',
       'Every member checks her own balance',
     ],

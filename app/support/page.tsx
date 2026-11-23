@@ -52,7 +52,7 @@ const FAQ_CATEGORIES: { heading: string; items: [string, string][] }[] = [
       ],
       [
         'Can members pay by something other than M-Pesa?',
-        'A group can record cash, bank transfer or cheque contributions directly in the ledger as well — M-Pesa is the only channel that posts automatically.',
+        'Kitabu Yetu records contributions when M-Pesa confirms payment through a phone prompt or PayBill.',
       ],
     ],
   },

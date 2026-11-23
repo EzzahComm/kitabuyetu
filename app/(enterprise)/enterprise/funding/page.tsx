@@ -159,16 +159,6 @@ const PROGRAM_TYPES = [
   ['investment', 'Investment'],
 ] as const;
 
-const DISBURSEMENT_TYPES = [
-  ['grant', 'Grant'],
-  ['revolving_fund', 'Revolving Fund'],
-  ['loan_capital', 'Loan Capital'],
-  ['matching_contribution', 'Matching Contribution'],
-  ['seed_capital', 'Seed Capital'],
-  ['emergency_support', 'Emergency Support'],
-  ['operational_support', 'Operational Support'],
-] as const;
-
 const INTEREST_METHOD_LABELS: Record<(typeof INTEREST_METHODS)[number], string> = {
   flat: 'Flat',
   reducing_balance: 'Reducing balance',
@@ -189,9 +179,7 @@ const STANDARD_WATERFALL: { order: ('penalty' | 'interest' | 'principal')[] } = 
 export default function FundingPortalPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
-  const [depositOpen, setDepositOpen] = useState(false);
   const [programOpen, setProgramOpen] = useState(false);
-  const [disburseOpen, setDisburseOpen] = useState(false);
   const [viewProgramId, setViewProgramId] = useState<string | null>(null);
 
   const { data: dash, isLoading } = useQuery<DashboardPayload>({
@@ -300,20 +288,7 @@ export default function FundingPortalPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader
-        title="Funding Portal"
-        description="Fund, monitor and support your linked groups"
-        actions={
-          <>
-            <Button size="sm" variant="outline" className="gap-1.5 h-9" onClick={() => setDepositOpen(true)}>
-              <ArrowDownToLine size={15} /> Deposit
-            </Button>
-            <Button size="sm" className="gap-1.5 h-9" onClick={() => setDisburseOpen(true)}>
-              <ArrowRightLeft size={15} /> Disburse funds
-            </Button>
-          </>
-        }
-      />
+      <PageHeader title="Funding Portal" description="Fund, monitor and support your linked groups" />
 
       {/* Financial position */}
       {isLoading ? (
@@ -781,90 +756,9 @@ export default function FundingPortalPage() {
         </CardContent>
       </Card>
 
-      <DepositDialog open={depositOpen} onClose={() => setDepositOpen(false)} />
       <ProgramDialog open={programOpen} onClose={() => setProgramOpen(false)} />
       <ProgramGroupsDialog programId={viewProgramId} onClose={() => setViewProgramId(null)} />
-      <DisburseDialog
-        open={disburseOpen}
-        onClose={() => setDisburseOpen(false)}
-        groups={linkedGroups}
-        programs={(dash?.programs ?? []).filter((pr) => pr.status === 'active')}
-      />
     </div>
-  );
-}
-
-// ─── Deposit dialog ───────────────────────────────────────────────────────────
-
-function DepositDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [amount, setAmount] = useState('');
-  const [source, setSource] = useState('');
-
-  const deposit = useMutation({
-    mutationFn: () =>
-      organizationApi.deposit({
-        amount: parseFloat(amount),
-        source: source || undefined,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
-      toast({ title: 'Deposit recorded', description: 'Wallet balance updated.' });
-      setAmount('');
-      setSource('');
-      onClose();
-    },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Deposit failed', description: e.message }),
-  });
-
-  const ok = parseFloat(amount) > 0;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Record a deposit</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Amount (KES)</Label>
-            <Input
-              type="number"
-              min={1}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="1000000"
-            />
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Funding source <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <Input
-              value={source}
-              onChange={(e) => setSource(e.target.value)}
-              placeholder="e.g. World Bank FY26 tranche"
-            />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Recorded on the organization ledger. Bank/M-Pesa settlement is reconciled separately.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => deposit.mutate()} disabled={!ok || deposit.isPending}>
-            Record deposit
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
 
@@ -1182,144 +1076,6 @@ function ProgramGroupsDialog({ programId, onClose }: { programId: string | null;
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>
             Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ─── Disburse dialog ──────────────────────────────────────────────────────────
-
-function DisburseDialog({
-  open,
-  onClose,
-  groups,
-  programs,
-}: {
-  open: boolean;
-  onClose: () => void;
-  groups: { groupId: string; groupName: string }[];
-  programs: Program[];
-}) {
-  const qc = useQueryClient();
-  const { toast } = useToast();
-  const [groupId, setGroupId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [type, setType] = useState<(typeof DISBURSEMENT_TYPES)[number][0]>('grant');
-  const [programId, setProgramId] = useState('');
-  const [notes, setNotes] = useState('');
-
-  const disburse = useMutation({
-    mutationFn: () =>
-      organizationApi.disburse({
-        groupId,
-        amount: parseFloat(amount),
-        disbursementType: type,
-        fundingProgramId: programId || undefined,
-        notes: notes || undefined,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: enterpriseKeys.all });
-      toast({ title: 'Funds disbursed', description: 'Both ledgers updated.' });
-      setGroupId('');
-      setAmount('');
-      setNotes('');
-      setProgramId('');
-      setType('grant');
-      onClose();
-    },
-    onError: (e: Error) => toast({ variant: 'destructive', title: 'Disbursement failed', description: e.message }),
-  });
-
-  const ok = !!groupId && parseFloat(amount) > 0;
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(o) => {
-        if (!o) onClose();
-      }}
-    >
-      <DialogContent className="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Disburse funds to a group</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <div className="space-y-1">
-            <Label>Group</Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={groupId}
-              onChange={(e) => setGroupId(e.target.value)}
-            >
-              <option value="">Select a linked group…</option>
-              {groups.map((g) => (
-                <option key={g.groupId} value={g.groupId}>
-                  {g.groupName}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <Label>Type</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={type}
-                onChange={(e) => setType(e.target.value as (typeof DISBURSEMENT_TYPES)[number][0])}
-              >
-                {DISBURSEMENT_TYPES.map(([v, l]) => (
-                  <option key={v} value={v}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="space-y-1">
-              <Label>Amount (KES)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="250000"
-              />
-            </div>
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Fund from program <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <select
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={programId}
-              onChange={(e) => setProgramId(e.target.value)}
-            >
-              <option value="">Wallet (no program)</option>
-              {programs.map((pr) => (
-                <option key={pr.id} value={pr.id}>
-                  {pr.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1">
-            <Label>
-              Notes <span className="text-muted-foreground text-xs">(optional)</span>
-            </Label>
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Purpose / milestone" />
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Debits the organization wallet and posts a balanced journal entry (Cash / External Funding) in the
-            group&apos;s own books — atomically.
-          </p>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button onClick={() => disburse.mutate()} disabled={!ok || disburse.isPending}>
-            Disburse
           </Button>
         </DialogFooter>
       </DialogContent>

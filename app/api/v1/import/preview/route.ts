@@ -4,10 +4,10 @@ import { withPermission } from '@/lib/auth/middleware';
 import { importService } from '@/lib/services/import.service';
 import { billingService } from '@/lib/services/billing.service';
 import { IMPORT_KINDS, type ImportKind } from '@/lib/validators/import.schema';
-import { created, errorResponse } from '@/lib/utils/response';
+import { created, errorResponse, confirmedPaymentRequired } from '@/lib/utils/response';
 
 /**
- * POST /api/v1/import/preview?type=members|contributions|loans
+ * POST /api/v1/import/preview?type=members
  * multipart/form-data with `file` field. Parses + validates the CSV and
  * returns an import_job in 'previewed' status that the UI can render
  * before the caller confirms with /[jobId]/commit.
@@ -23,6 +23,8 @@ export async function POST(req: NextRequest): Promise<Response> {
         422,
       );
     }
+
+    if (type !== 'members') return confirmedPaymentRequired();
 
     await billingService.assertFeatureAccess(ctx, 'historicalImport');
 
@@ -45,12 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const buffer = Buffer.from(await file.arrayBuffer());
     const filename = file.name || null;
 
-    const job =
-      type === 'members'
-        ? await importService.previewMembers(ctx, buffer, filename)
-        : type === 'contributions'
-          ? await importService.previewContributions(ctx, buffer, filename)
-          : /* loans */ await importService.previewLoans(ctx, buffer, filename);
+    const job = await importService.previewMembers(ctx, buffer, filename);
 
     return created(job);
   });

@@ -47,7 +47,7 @@ describe('Contributions/Shares/Dividends permission gates', () => {
     await resetDatabase();
   });
 
-  it('contributions.record: secretary is denied, treasurer CAN record a contribution', async () => {
+  it('contributions.record: secretary is forbidden and treasurer cannot record a contribution from a typed amount', async () => {
     const body = { memberId, amount: 1000, contributionDate: '2026-01-01' };
     const denied = await contributionsPost(
       buildRequest('/api/v1/contributions', {
@@ -65,7 +65,9 @@ describe('Contributions/Shares/Dividends permission gates', () => {
         headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
       }),
     );
-    expect(allowed.status).toBe(201);
+    expect(allowed.status).toBe(409);
+    expect(await allowed.json()).toMatchObject({ code: 'CONFIRMED_PAYMENT_REQUIRED' });
+    expect(await rawQuery('SELECT 1 FROM contributions WHERE group_id = $1', [groupId])).toHaveLength(0);
   });
 
   it('contributions.view: secretary is denied non-contributors report, treasurer is allowed', async () => {
@@ -117,7 +119,7 @@ describe('Contributions/Shares/Dividends permission gates', () => {
     expect(allowed.status).toBe(201);
   });
 
-  it('shares.reverse: treasurer cannot reverse a share transaction, only chairperson can (passes the gate; 404 on the fake id is expected)', async () => {
+  it('shares.reverse: treasurer is forbidden and chairperson cannot post an unconfirmed reversal', async () => {
     const denied = await shareReversePost(
       buildRequest(`/api/v1/shares/transactions/${FAKE_ID}/reverse`, {
         method: 'POST',
@@ -136,7 +138,7 @@ describe('Contributions/Shares/Dividends permission gates', () => {
       }),
       { params: Promise.resolve({ id: FAKE_ID }) },
     );
-    expect(passesGate.status).not.toBe(403);
+    expect(passesGate.status).toBe(409);
   });
 
   it('dividends.manage: secretary is denied declaring a dividend, treasurer is allowed', async () => {

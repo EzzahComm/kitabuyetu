@@ -17,7 +17,6 @@ import {
   useActivateSmsTiers,
   useSetSmsProviderCost,
   useSmsMargin,
-  useAdminTopUpOrganizationSmsCredits,
   useSetOrganizationSmsRate,
 } from '@/hooks/use-admin';
 import { getErrorMessage, formatKES } from '@/lib/utils';
@@ -49,11 +48,8 @@ export default function SmsPricingPage() {
   const saveCost = useSetSmsProviderCost();
   const { data: margin, isLoading: marginLoading } = useSmsMargin();
 
-  const topUpOrg = useAdminTopUpOrganizationSmsCredits();
   const setOrgRate = useSetOrganizationSmsRate();
-  const [topUpTarget, setTopUpTarget] = useState<{ id: string; name: string } | null>(null);
   const [rateTarget, setRateTarget] = useState<{ id: string; name: string } | null>(null);
-  const [topUpAmount, setTopUpAmount] = useState('');
   const [newRate, setNewRate] = useState('');
 
   const cost = data?.providerCost ? Number(data.providerCost.unit_cost) : null;
@@ -93,24 +89,6 @@ export default function SmsPricingPage() {
       onError: (e) =>
         toast({ variant: 'destructive', title: 'Could not switch price list', description: getErrorMessage(e) }),
     });
-  };
-
-  const handleTopUp = () => {
-    if (!topUpTarget) return;
-    topUpOrg.mutate(
-      { organizationId: topUpTarget.id, amountKes: Number(topUpAmount) },
-      {
-        onSuccess: (r) => {
-          toast({
-            title: 'SMS credits added',
-            description: `${r.creditsAdded.toLocaleString()} credits — new balance ${r.newBalance.toLocaleString()}.`,
-          });
-          setTopUpTarget(null);
-          setTopUpAmount('');
-        },
-        onError: (e) => toast({ variant: 'destructive', title: 'Top-up failed', description: getErrorMessage(e) }),
-      },
-    );
   };
 
   const handleSetRate = () => {
@@ -464,14 +442,6 @@ export default function SmsPricingPage() {
                                 size="sm"
                                 variant="outline"
                                 className="h-7 px-2 text-xs"
-                                onClick={() => setTopUpTarget({ id: o.organizationId, name: o.organizationName })}
-                              >
-                                Top up
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="h-7 px-2 text-xs"
                                 onClick={() => setRateTarget({ id: o.organizationId, name: o.organizationName })}
                               >
                                 Set rate
@@ -494,49 +464,6 @@ export default function SmsPricingPage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      {/* Top up an organization's SMS credits — super_admin correcting/granting a
-          balance, previously impossible: there was no admin tool for this at all. */}
-      <Dialog
-        open={!!topUpTarget}
-        onOpenChange={(o) => {
-          if (!o) setTopUpTarget(null);
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Top up {topUpTarget?.name}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label>Amount (KES)</Label>
-              <Input
-                type="number"
-                min={1}
-                value={topUpAmount}
-                onChange={(e) => setTopUpAmount(e.target.value)}
-                placeholder="5000"
-              />
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Credits are computed at this organization&apos;s current negotiated rate. Recorded as a manual top-up — no
-              M-Pesa payment is collected here.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setTopUpTarget(null)}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleTopUp}
-              loading={topUpOrg.isPending}
-              disabled={!topUpAmount || Number.isNaN(Number(topUpAmount)) || Number(topUpAmount) <= 0}
-            >
-              Add credits
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {/* Set an organization's negotiated per-SMS rate — the column has existed
           since migration 051 but nothing has ever written to it before this. */}
