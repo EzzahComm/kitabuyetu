@@ -26,15 +26,18 @@ from the migrations (a preview branch, staging, local) left them open: a
 replay with Supabase-style default grants exposed six definer functions, not
 two.
 
-**Fix (`20261004000000_210_lock_down_security_definer_rpcs.sql`, idempotent):**
+**Fix (`20261004044936_210_lock_down_security_definer_rpcs.sql`, idempotent):**
 
-1. Revoke the two known exposures from PUBLIC, anon and authenticated.
-2. Sweep every `SECURITY DEFINER` function in `public` the same way. In
-   production this changes only the two functions above.
+1. Revoke organization registration access from `PUBLIC`, `anon` and `authenticated`.
+2. Apply the same revoke to every `SECURITY DEFINER` function in `public`. In
+   timestamp order, migration 211 has already removed campaign registration.
 3. `ALTER DEFAULT PRIVILEGES ... REVOKE EXECUTE ON FUNCTIONS FROM anon,
 authenticated`, so new functions are no longer auto-granted to those roles.
    Postgres's built-in PUBLIC grant remains, so a migration still has to revoke
    it; the test below enforces that.
+
+The source timestamps match the production migration ledger for migrations 210
+(`20261004044936`) and 213 (`20261004051704`).
 
 `service_role` and `app_tenant` keep their access. The app reaches these
 functions over its own pg pool, never through PostgREST.

@@ -30,7 +30,7 @@
 -- and app_tenant keep the access they already have.
 --
 -- Three steps:
---   1. Revoke the two known-open functions.
+--   1. Revoke organization registration and close campaign registration if it still exists.
 --   2. Sweep: no SECURITY DEFINER function in public may be executable by
 --      PUBLIC, anon or authenticated. In production this is a no-op beyond (1)
 --      -- it makes a rebuilt database match production.
@@ -42,10 +42,12 @@
 -- Idempotent: every statement is safe to re-run.
 -- =============================================================================
 
--- ─── 1. The two known exposures ─────────────────────────────────────────────
+-- ─── 1. Organization registration ─────────────────────────────────────────
 
 REVOKE EXECUTE ON FUNCTION public.register_organization(jsonb) FROM PUBLIC, anon, authenticated;
-REVOKE EXECUTE ON FUNCTION public.register_campaign(jsonb)     FROM PUBLIC, anon, authenticated;
+
+-- Migration 211 runs first in timestamp order and removes campaign registration.
+-- The sweep below also covers installations where the function still exists.
 
 -- ─── 2. Sweep every SECURITY DEFINER function in public ─────────────────────
 
