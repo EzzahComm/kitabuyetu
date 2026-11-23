@@ -177,7 +177,11 @@ export const PRICING_ITEMS: NavLink[] = [
     href: `${ROUTES.pricing}#changisha`,
     description: 'Plans from KES 100 a month, plus a small fee per withdrawal.',
   },
-  { label: 'Enterprise', href: `${ROUTES.pricing}#enterprise`, description: 'Many groups, priced by agreement.' },
+  {
+    label: 'Enterprise',
+    href: `${ROUTES.pricing}#enterprise`,
+    description: 'Plans for organisations overseeing multiple groups.',
+  },
 ];
 
 /**

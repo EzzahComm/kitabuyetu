@@ -9,6 +9,7 @@ import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { JsonLd, faqPageJsonLd } from '@/components/marketing/json-ld';
 import {
   CHANGISHA_PRICING,
+  ORGANIZATION_PLAN_MONTHLY_FEES,
   PLAN_MONTHLY_FEES,
   PLAN_SMS_ALLOWANCE,
   PLAN_COPY,
@@ -241,23 +242,26 @@ export default function PricingPage() {
                 Enterprise
               </h3>
             </div>
-            <p className="font-display text-4xl font-bold">By agreement</p>
+            <p className="font-display text-4xl font-bold">
+              From KES {ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString('en-KE')}
+              <span className="ml-2 text-base font-medium">/ month</span>
+            </p>
             <p className="mt-2 flex-1 text-brand-100/85">
-              For organizations overseeing many groups — one dashboard, portfolio reports and programme funding. Priced
-              by the groups and members you oversee.
+              For organizations overseeing multiple groups, with portfolio reports and programme funding. Group products
+              and implementation services are priced separately.
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Link
-                href={ROUTES.contact}
+                href={ROUTES.startOrganization}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg bg-white px-8 py-3 font-medium text-brand-500 transition-colors hover:bg-brand-100"
               >
-                Book a demo
+                Create a workspace
               </Link>
               <Link
-                href={ROUTES.enterprise}
+                href={`${ROUTES.enterprise}#enterprise-services`}
                 className="inline-flex min-h-12 items-center justify-center gap-2 rounded-lg border border-white/60 px-8 py-3 font-medium text-white transition-colors hover:bg-white/10"
               >
-                Explore Enterprise <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                See setup and integration fees <ArrowRight aria-hidden="true" className="h-4 w-4" />
               </Link>
             </div>
           </section>

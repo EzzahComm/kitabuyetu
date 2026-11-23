@@ -4,12 +4,63 @@ import { Building2, ClipboardCheck, BarChart3, ShieldCheck, UsersRound, Workflow
 import { PageShell } from '@/components/marketing/page-shell';
 import { CONTACT, ROUTES } from '@/components/marketing/routes';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
+import { ORGANIZATION_PLAN_FEATURES, ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
+
+const standardPlans = ['starter', 'growth', 'premium'] as const;
+const formatKes = (amount: number) => `KES ${amount.toLocaleString('en-KE')}`;
+
+const services = [
+  {
+    name: 'Website development',
+    price: `${formatKes(25_000)} one-time`,
+    description:
+      'Up to five pages using your supplied content and branding, with a mobile layout, contact form and a link to Kitabu Yetu registration. The site is hosted separately.',
+  },
+  {
+    name: 'SMS sender ID registration',
+    price: `${formatKes(13_000)} per sender ID`,
+    description:
+      'Application preparation, submission and coordination with the SMS provider. Activation requires provider approval. SMS credits are billed separately.',
+  },
+  {
+    name: 'Assisted onboarding',
+    price: `${formatKes(10_000)} one-time`,
+    description: 'Help setting up your workspace, preparing branded invitation copy and testing the signup links.',
+  },
+  {
+    name: 'Managed website hosting and maintenance',
+    price: `From ${formatKes(3_000)} / month`,
+    description: 'Hosting, backups, updates and minor edits within the agreed scope.',
+  },
+  {
+    name: 'Domain purchase or renewal',
+    price: 'Registrar cost',
+    description: 'For new domains and renewals. An existing domain can normally be used for a subdomain.',
+  },
+  {
+    name: 'Custom API integration',
+    price: `From ${formatKes(25_000)} one-time`,
+    description:
+      'Scope a connection between Kitabu Yetu and one external system, such as a CRM or programme management platform.',
+  },
+  {
+    name: 'Custom M-Pesa PayBill integration and automation',
+    price: `${formatKes(25_000)} one-time per integration`,
+    description:
+      'Configure your approved PayBill and agree how payment notifications, matching and reconciliation will work. Safaricom charges are separate.',
+  },
+  {
+    name: 'Bank integration and automation',
+    price: `${formatKes(100_000)} one-time per integration`,
+    description:
+      'Implement and test an agreed workflow for one bank connection. Supported actions depend on the bank’s APIs, approvals and credentials. Bank charges are separate.',
+  },
+] as const;
 
 export const metadata: Metadata = marketingMetadata({
   path: '/enterprise-solutions',
   title: 'Kitabu Yetu Enterprise | Digital Infrastructure for Institutions',
-  description:
-    'Coordinate community organisations and development programmes with portfolio oversight, programme administration, field coordination and accountable reporting.',
+  description: `Enterprise plans from ${formatKes(ORGANIZATION_PLAN_MONTHLY_FEES.starter)} per month. See pricing for websites, branded onboarding, SMS sender IDs, and custom API, M-Pesa PayBill and bank integrations.`,
 });
 
 const CAPABILITIES = [
@@ -75,25 +126,74 @@ export default function EnterpriseSolutionsPage() {
         federations, faith-based networks and other institutions supporting multiple community organisations.
       </p>
 
-      <h2>Implementation that fits your programme</h2>
-      <ol className="ml-5 list-decimal space-y-2">
-        <li>
-          <strong>Discover:</strong> understand your programme structure, organisations, reporting needs and operating
-          context.
-        </li>
-        <li>
-          <strong>Configure:</strong> agree roles, access, workflows, reporting and implementation scope.
-        </li>
-        <li>
-          <strong>Onboard:</strong> prepare participating organisations and train the relevant teams.
-        </li>
-        <li>
-          <strong>Operate:</strong> coordinate activities and review information through authorised dashboards.
-        </li>
-        <li>
-          <strong>Improve:</strong> assess adoption, data quality and programme outcomes together.
-        </li>
-      </ol>
+      <section aria-labelledby="enterprise-plans" className="scroll-mt-28 space-y-4">
+        <h2 id="enterprise-plans">Enterprise plans</h2>
+        <p>
+          Start online with Enterprise Starter. Contact our team to arrange Growth, Premium or a custom Premium+
+          agreement.
+        </p>
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {standardPlans.map((plan) => {
+            const { maxLinkedGroups, maxStaff } = ORGANIZATION_PLAN_FEATURES[plan];
+
+            return (
+              <li key={plan} className="rounded-lg border border-brand-100 bg-brand-50/40 p-4">
+                <h3 className="capitalize">{plan}</h3>
+                <p className="mt-1 font-semibold text-finanza-dark">
+                  {formatKes(ORGANIZATION_PLAN_MONTHLY_FEES[plan])} / month
+                </p>
+                <p className="mt-1 text-sm">
+                  {maxLinkedGroups === null ? 'Unlimited linked groups' : `Up to ${maxLinkedGroups} linked groups`}
+                  {' · '}
+                  {maxStaff} staff seats
+                </p>
+              </li>
+            );
+          })}
+          <li className="rounded-lg border border-brand-100 bg-brand-50/40 p-4">
+            <h3>Premium+</h3>
+            <p className="mt-1 font-semibold text-finanza-dark">From {formatKes(25_000)} / month</p>
+            <p className="mt-1 text-sm">Custom terms, branding and support.</p>
+          </li>
+        </ul>
+        <p>
+          Group products such as Bookkeeper and Chama Reminder are billed separately. Organizations can arrange to
+          sponsor group subscriptions. A group’s existing subscription stays in place when it links to Enterprise. SMS
+          usage and applicable payment fees are separate. <Link href={ROUTES.pricing}>See group pricing</Link>.
+        </p>
+      </section>
+
+      <section aria-labelledby="enterprise-services" className="scroll-mt-28 space-y-4">
+        <h2 id="enterprise-services">Setup and integration services</h2>
+        <p>
+          Request a quote for the services you need. For payment and API integrations, we confirm the provider,
+          credentials, supported workflows and testing before activation. Your quote states any applicable taxes and
+          third-party fees.
+        </p>
+        <dl className="divide-y divide-brand-100 rounded-lg border border-brand-100">
+          {services.map(({ name, price, description }) => (
+            <div key={name} className="grid gap-x-4 px-4 py-4 sm:grid-cols-[1fr_auto]">
+              <dt className="font-semibold text-finanza-dark">{name}</dt>
+              <dd className="font-semibold text-finanza-dark">{price}</dd>
+              <dd className="mt-1 text-sm sm:col-span-2">{description}</dd>
+            </div>
+          ))}
+        </dl>
+        <Link href={ROUTES.contact}>Request an implementation quote</Link>
+      </section>
+
+      <section aria-labelledby="enterprise-onboarding" className="space-y-3">
+        <h2 id="enterprise-onboarding">Branded group onboarding</h2>
+        <p>
+          Ask about a dedicated signup address on your domain, such as <code>join.yourorganisation.example</code>.
+          Custom-domain group and member signup is planned. When available, the planned rate is {formatKes(2_000)} /
+          month on Starter, with one subdomain included on Growth and Premium.
+        </p>
+        <p>
+          For now, you can create an Enterprise workspace, use standard Kitabu Yetu signup links and request to link
+          existing groups. Contact us to scope branded onboarding for your programme.
+        </p>
+      </section>
 
       <h2>Data responsibility by design</h2>
       <p>
