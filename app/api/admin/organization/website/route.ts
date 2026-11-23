@@ -1,3 +1,4 @@
+import { readWebsiteJson } from '@/lib/websites/request-body';
 import { NextRequest } from 'next/server';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { hasWebsiteStudio, websiteStudio, updateWebsite } from '@/lib/services/organization-websites.service';
@@ -15,6 +16,6 @@ export function GET(req: NextRequest) {
 }
 export function POST(req: NextRequest) {
   return withOrganizationAccess(req, 'organization.branding.manage', async (ctx) =>
-    ok(await updateWebsite(ctx, websiteCommand.parse(await req.json()))),
+    ok(await updateWebsite(ctx, websiteCommand.parse(await readWebsiteJson(req)))),
   );
 }

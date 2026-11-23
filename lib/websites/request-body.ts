@@ -20,3 +20,12 @@ export async function readLimitedBody(request: Request, limit: number) {
   }
   return Buffer.concat(chunks);
 }
+
+export async function readWebsiteJson(request: Request, limit = 64 * 1024): Promise<unknown> {
+  const bytes = await readLimitedBody(request, limit);
+  try {
+    return JSON.parse(bytes.toString('utf8'));
+  } catch {
+    throw new ValidationError('Send a valid JSON request.');
+  }
+}

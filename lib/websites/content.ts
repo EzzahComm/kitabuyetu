@@ -6,7 +6,7 @@ const copy = (max: number) =>
     .trim()
     .max(max)
     .refine((value) => !/[<>]/.test(value), 'Use plain text.');
-const title = copy(150).refine((value) => value.length > 0, 'Enter a title.');
+const title = copy(255).refine((value) => value.length > 0, 'Enter a title.');
 const selection = z
   .array(z.string().uuid())
   .max(24)

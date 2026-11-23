@@ -1,3 +1,4 @@
+import { readWebsiteJson } from '@/lib/websites/request-body';
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withPlatformRole } from '@/lib/auth/middleware';
@@ -27,7 +28,7 @@ export function PUT(req: NextRequest, { params }: Context) {
     const input = z
       .object({ slug: siteSlug, enabled: z.boolean(), editorial: siteFields.optional() })
       .strict()
-      .parse(await req.json());
+      .parse(await readWebsiteJson(req));
     return ok(await provisionWebsite(id, input.slug, input.enabled, auth.userId, input.editorial));
   });
 }

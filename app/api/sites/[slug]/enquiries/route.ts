@@ -1,16 +1,10 @@
-import { readLimitedBody } from '@/lib/websites/request-body';
+import { readWebsiteJson } from '@/lib/websites/request-body';
 import type { NextRequest } from 'next/server';
 import { enquiryInput, receiveEnquiry } from '@/lib/services/website-enquiries.service';
-import { errorResponse, handleError, ok } from '@/lib/utils/response';
+import { handleError, ok } from '@/lib/utils/response';
 export async function POST(req: NextRequest, { params }: { params: Promise<{ slug: string }> }) {
   try {
-    const bytes = await readLimitedBody(req, 8192);
-    let data: unknown;
-    try {
-      data = JSON.parse(bytes.toString('utf8'));
-    } catch {
-      return errorResponse('Invalid enquiry.', 'VALIDATION_ERROR', 422);
-    }
+    const data = await readWebsiteJson(req, 8192);
     await receiveEnquiry(
       (await params).slug,
       enquiryInput.parse(data),

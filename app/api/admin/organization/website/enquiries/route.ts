@@ -1,3 +1,4 @@
+import { readWebsiteJson } from '@/lib/websites/request-body';
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
@@ -11,7 +12,7 @@ export function PATCH(req: NextRequest) {
     const { id } = z
       .object({ id: z.string().uuid() })
       .strict()
-      .parse(await req.json());
+      .parse(await readWebsiteJson(req));
     await handleWebsiteEnquiry(ctx, id);
     return ok({ handled: true });
   });

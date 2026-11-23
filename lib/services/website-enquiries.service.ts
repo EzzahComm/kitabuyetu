@@ -22,12 +22,17 @@ export async function receiveEnquiry(slug: string, input: z.infer<typeof enquiry
   return withAdminDb(async (db) => {
     const row = (
       await db.query<{ organization_id: string }>(
-        `SELECT organization_id FROM organization_websites
-      WHERE slug=$1 AND public.get_published_organization_website($1)->>'acceptEnquiries'='true' FOR UPDATE`,
+        'SELECT organization_id FROM organization_websites WHERE slug=$1 AND enabled AND publication IS NOT NULL FOR UPDATE',
         [slug],
       )
     ).rows[0];
     if (!row) throw new NotFoundError('Website enquiries');
+    // Take a fresh READ COMMITTED snapshot after any concurrent publish/withdraw releases the lock.
+    const publication = await db.query(
+      "SELECT public.get_published_organization_website($1)->>'acceptEnquiries' AS accepts",
+      [slug],
+    );
+    if (publication.rows[0].accepts !== 'true') throw new NotFoundError('Website enquiries');
     const org = row.organization_id;
     const existing = (
       await db.query(

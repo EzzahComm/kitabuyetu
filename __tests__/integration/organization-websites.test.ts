@@ -282,3 +282,25 @@ it('keeps artwork tenant-scoped and publishes only the reviewed, normalized imag
     }),
   ).rejects.toThrow(/belonging/);
 });
+
+it('blocks enquiries after a lead publishes a revision with enquiries closed', async () => {
+  const saved = await publish();
+  await updateWebsite(a, {
+    action: 'save',
+    slug,
+    revision: saved.revision,
+    draft: { ...saved.draft, acceptEnquiries: false },
+  });
+  const reviewed = await websiteStudio(a);
+  await updateWebsite(a, { action: 'publish', slug, revision: reviewed.revision, digest: reviewed.preview!.digest });
+  expect((await enquiry(randomUUID())).status).toBe(404);
+  expect(await websiteInbox(a)).toEqual([]);
+});
+
+it('returns a validation response for unreadable or oversized website commands', async () => {
+  const { NextRequest } = await import('next/server');
+  const post = (body: string) =>
+    manage(new NextRequest('http://localhost' + path, { method: 'POST', headers: headers(a), body }));
+  expect((await post('{')).status).toBe(422);
+  expect((await post('x'.repeat(65 * 1024))).status).toBe(413);
+});
