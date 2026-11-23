@@ -344,10 +344,14 @@ export async function assignGroupToOrganization(
     await db.query(
       `
       INSERT INTO public.organization_group_access
-        (organization_id, group_id, access_level, granted_by, is_active)
-      VALUES ($1, $2, $3::organization_access_level, $4, true)
+        (organization_id, group_id, access_level, granted_by, is_active, status, reviewed_by, reviewed_at)
+      VALUES ($1, $2, $3::organization_access_level, $4, true, 'approved', $4, now())
       ON CONFLICT (organization_id, group_id) DO UPDATE SET
         is_active    = true,
+        status       = 'approved',
+        reviewed_by  = EXCLUDED.reviewed_by,
+        reviewed_at  = EXCLUDED.reviewed_at,
+        rejection_reason = NULL,
         access_level = EXCLUDED.access_level,
         granted_by   = EXCLUDED.granted_by,
         granted_at   = NOW(),
