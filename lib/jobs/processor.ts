@@ -257,6 +257,13 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
     const handlerResult = await handleJob(job);
     const durationMs = Date.now() - startedAt;
 
+    if (handlerResult.deferSeconds) {
+      await scheduleRetry(job.id, job.attempts, handlerResult.deferSeconds, handlerResult.message);
+      await logJob(job.id, 'retried', handlerResult.message, durationMs);
+      result.retried++;
+      return;
+    }
+
     await markJobCompleted(job.id);
     await logJob(job.id, 'completed', handlerResult.message, durationMs);
 

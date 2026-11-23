@@ -1,3 +1,4 @@
+import { shouldPauseScheduledSmsJob, shouldPauseScheduledBulkSms } from '@/lib/services/sms-dispatch-policy';
 /**
  * Job handlers — one function per JobType.
  * Each handler must be:
@@ -16,6 +17,7 @@ import { toIsoWeekKey } from './week';
 
 export interface HandlerResult {
   message: string;
+  deferSeconds?: number;
   [key: string]: unknown;
 }
 
@@ -24,6 +26,12 @@ export interface HandlerResult {
  * Throws on failure — the processor catches and handles retry/backoff.
  */
 export async function handleJob(job: Job): Promise<HandlerResult> {
+  if (await shouldPauseScheduledSmsJob(job)) {
+    return { message: 'Scheduled SMS dispatch is paused' };
+  }
+  if (job.type === 'sms_bulk_send' && (await shouldPauseScheduledBulkSms(job.payload))) {
+    return { message: 'Scheduled bulk SMS deferred during dispatch pause', deferSeconds: 3600 };
+  }
   switch (job.type) {
     case 'enterprise_webhook_delivery': {
       const { deliverEnterpriseWebhook } = await import('@/lib/enterprise-integration/webhooks');

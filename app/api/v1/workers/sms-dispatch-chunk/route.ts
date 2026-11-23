@@ -90,6 +90,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   }
 
   try {
+    const { shouldPauseScheduledBulkSms } = await import('@/lib/services/sms-dispatch-policy');
+    if (await shouldPauseScheduledBulkSms(payload)) {
+      return NextResponse.json(
+        { success: false, error: 'Scheduled SMS dispatch is paused' },
+        { status: 503, headers: { 'Retry-After': '3600' } },
+      );
+    }
     const { smsService } = await import('@/lib/services/sms.service');
 
     const varsByPhone = payload.varsByPhone ? new Map(Object.entries(payload.varsByPhone)) : undefined;
