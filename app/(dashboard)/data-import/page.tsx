@@ -26,6 +26,7 @@ import { PaginatedTable, singlePage } from '@/components/shared/paginated-table'
 import { StatCard } from '@/components/shared/stat-card';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
+import { HistoricalBalanceCheck } from './historical-balance-check';
 
 /**
  * Unified bulk-import wizard. Drives all kinds (members / contributions /
@@ -246,6 +247,8 @@ export default function DataImportPage() {
           }}
         />
       )}
+
+      {phase === 'idle' && <HistoricalBalanceCheck />}
 
       <ConfirmDialog
         open={rollbackOpen}
