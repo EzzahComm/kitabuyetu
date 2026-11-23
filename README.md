@@ -59,6 +59,23 @@ DATABASE_URL=postgresql://kitabuyetu:changeme@127.0.0.1:5432/kitabuyetu npm run 
 
 For the least-privileged suite, follow the role provisioning step in the [CI workflow](.github/workflows/ci.yml), then set `TENANT_DATABASE_URL` for the same disposable database and run `npm run test:integration:app-tenant`.
 
+## Communication maintenance
+
+Member notifications start in [notifications.service.ts](lib/services/notifications.service.ts). SMS delivery and billing use [sms.service.ts](lib/services/sms.service.ts). Transactional email uses the [email provider](lib/email/provider.ts). The [job handlers](lib/jobs/handlers.ts) show which operations run asynchronously.
+
+Run the unit tests for these paths locally. Run the integration command against the disposable database described above. It covers delivery deduplication, consent, credit accounting and messaging permissions.
+
+```bash
+npm run test:ci -- --runInBand --testPathPatterns='sms|email|notification|whatsapp'
+DATABASE_URL="${TEST_DATABASE_URL:?Set TEST_DATABASE_URL to the disposable database URI}" npm run test:integration -- --testPathPatterns='sms|email|notification|whatsapp'
+```
+
+For reminder incidents, start with the [troubleshooting guide](docs/SMS_REMINDER_TROUBLESHOOTING.md). The [SMS invariants](docs/audits/SMS-INVARIANTS-v3.md) record the billing, delivery and tenant-isolation expectations behind the tests.
+
+## API and group integrations
+
+The [Postman collection](Kitabu_Yetu_API.postman_collection.json) defaults to `http://127.0.0.1:3000`. Set local variables for your test account, then copy the access token and rotating refresh token from each successful sign-in or refresh response. The [group domain guide](docs/integrations/GROUP-DOMAINS.md) covers sign-in from externally hosted group websites.
+
 ## Deployment
 
-Vercel build and deployment steps are in [CI](.github/workflows/ci.yml). Deployment setup, service bindings, and environment variables are documented in [DEPLOY.md](DEPLOY.md) and [.env.example](.env.example). The Docker images in the local setup provide PostgreSQL and Redis.
+The [CI workflow](.github/workflows/ci.yml) tests the build and deploys qualifying changes to Vercel. Deployment setup, service bindings, and environment variables are documented in [DEPLOY.md](DEPLOY.md) and [.env.example](.env.example). The Docker images in the local setup provide PostgreSQL and Redis.

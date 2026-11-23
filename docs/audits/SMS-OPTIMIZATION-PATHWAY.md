@@ -1,5 +1,7 @@
 # SMS-OPTIMIZATION-PATHWAY
 
+> This August 2026 remediation plan records findings at the time of the audit. Check the [September re-audit](SMS-REAUDIT-2026-09-02.md) and [current regression tests](../../README.md#communication-maintenance) before scheduling work from it.
+
 **Companion to:** `SMS-AUDIT-v3-FINDINGS.md` (2026-08-31)
 **Rule:** every item traces to at least one GAP-ID and carries a falsifiable closure test. An item tracing to no gap is scope creep and has been deleted.
 **Bias:** PostgreSQL-enforced correctness over application-enforced, per brief §11. Where a constraint or lock closes a gap, no rewrite is proposed.

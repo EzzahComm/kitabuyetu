@@ -208,11 +208,8 @@ const envObjectSchema = z.object({
   // ── Public (client-exposed) ─────────────────────────────────────────────────
   NEXT_PUBLIC_MPESA_PAYBILL: z.string().optional(),
 
-  // ── Supabase JS client (Storage + Realtime) ───────────────────────────────
-  // Not required for core auth/DB (which use raw pg), but needed for
-  // Storage uploads, Realtime subscriptions, and the Supabase SSR client.
+  // Server-side storage for reports and uploaded documents.
   NEXT_PUBLIC_SUPABASE_URL: z.string().url().optional(),
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: z.string().optional(),
   SUPABASE_SERVICE_ROLE_KEY: z.string().optional(),
 });
 

@@ -37,7 +37,7 @@ Comprehensive UI optimization audit identified **10 specific opportunities** for
 - **Source:** 2 libraries (lucide-react: 40+ files, @tabler/icons-react: 4 files)
 - **Target:** lucide-react exclusively
 - **Files to Update:**
-  - `components/Toast.tsx`
+  - The legacy toast component was removed during repository cleanup.
   - `components/layout/sidebar.tsx`
   - `components/marketing/callback-form.tsx`
   - `components/marketing/social-links.tsx`
@@ -101,7 +101,7 @@ refactor(icons): consolidate to lucide-react, remove @tabler/icons-react
 
 **Locations:**
 
-1. `/components/Toast.tsx` - Line 135: `console.log('Toast:', toast)`
+1. The legacy toast component and its console logger have been removed.
 2. `/components/ecosystem/donor-leaderboard.tsx` - `console.error` for failed fetches
 
 **Fix Pattern:**

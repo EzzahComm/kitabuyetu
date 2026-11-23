@@ -18,7 +18,7 @@ regexes = [
   # developer; 64 hex chars, so it trips the high-entropy rule.
   '''bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919''',
 
-  # CAPITAL POINT CHAMA's groups.id, in scripts/resolve-last-2-unrouted.ts.
+  # Historical group UUID from a retired receipt-reconciliation script.
   # A primary-key UUID, not a credential — generic-api-key fires on its hex
   # entropy alone, with no keyword involved.
   #
@@ -40,15 +40,10 @@ regexes = [
   '''b2cIdempotencyKey''',
 
   # Supabase anon (publishable) key for project qztcgryhoanennsizcll, in
-  # Kitabu_Yetu_Production.postman_environment.json (commit 1da41ded).
+  # the retired production Postman export (commit 1da41ded).
   # gitleaks' generic `jwt` rule flags any JWT-shaped string on sight, with
-  # no way to distinguish a sensitive token from a key that is DESIGNED to be
-  # public: this is the exact same value already shipped in the site's
-  # client-side JS bundle as NEXT_PUBLIC_SUPABASE_ANON_KEY, and Supabase's
-  # entire security model is built on that — anon-key requests are subject to
-  # RLS, never bypass it. Rotating it would fix nothing (a fresh anon key
-  # would be just as public) and would only break every existing client. Pin
-  # by value, not commit, per the lesson above.
+  # The historical value is a public anon key governed by database RLS.
+  # Match its exact value so other JWTs are still scanned.
   '''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InF6dGNncnlob2FuZW5uc2l6Y2xsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgxMTUzNzUsImV4cCI6MjA5MzY5MTM3NX0\.eC5nLIn9DqLwUd4CNALq9SREUq67cWq4DrcSBAtXLak''',
 ]
 # generic-api-key false positive: 'Idempotency-Key': b2cIdempotencyKey in the

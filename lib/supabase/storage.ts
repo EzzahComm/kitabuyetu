@@ -3,17 +3,7 @@
  * (migration 176). Used by report-export.service.ts's job handler to upload
  * a generated report artifact and to mint short-lived signed URLs for it.
  *
- * Deliberately NOT the SSR client in lib/supabase/server.ts: that wrapper is
- * cookie-based (`next/headers`), built for a request/Server-Component
- * context. The job handler that uploads reports runs from lib/jobs/
- * handlers.ts, invoked by /api/cron — there is no request or cookie jar
- * there. This is a plain `@supabase/supabase-js` client instead, exactly
- * the shape createAdminClient() uses (service-role key, bypasses RLS) minus
- * the cookie plumbing neither the job handler nor this route need.
- *
- * The client singleton itself now lives in admin-client.ts, shared with
- * resume-storage.ts (Phase 12) — same env vars, same bucket either module
- * might use, no reason for two singletons.
+ * Background jobs and request handlers share the server-side client from admin-client.ts.
  */
 import { getSupabaseAdminClient } from './admin-client';
 

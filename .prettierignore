@@ -9,7 +9,6 @@ coverage/
 # Generated — reformatting these just creates churn the generator undoes
 next-env.d.ts
 package-lock.json
-yarn.lock
 
 # SQL migrations are hand-formatted and reviewed as SQL, not as prettier's idea
 # of SQL; and prettier has no SQL parser here anyway.

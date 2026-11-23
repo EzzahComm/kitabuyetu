@@ -1,5 +1,7 @@
 # Phase 1.2 Track A - Audit Logging Implementation Report
 
+> Historical audit-logging inventory from September 2026. The completion counts and proposed tasks describe that revision.
+
 ## Final Status: NEAR COMPLETION WITH ROADMAP FOR REMAINING SERVICES
 
 **Report Date:** 2026-09-16  

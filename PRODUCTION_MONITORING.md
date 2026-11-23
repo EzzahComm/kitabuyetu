@@ -1,21 +1,17 @@
-# Production Monitoring - Kitabu Yetu
+# Production monitoring
 
-**Date:** 2026-09-18  
-**Status:** ✅ LIVE & VERIFIED  
-**Deployment:** https://www.kitabuyetu.co.ke
+Use the deployment serving the configured application origin in the Vercel project dashboard. Check the linked Supabase and Upstash projects for database and Redis metrics.
 
----
+## Health probes
 
-## Dashboard Links
+Set `APP_ORIGIN` to the HTTPS origin being monitored. The liveness endpoint returns the application status. The authenticated deep probe checks PostgreSQL and Redis and returns 503 when either check fails.
 
-| Service          | URL                                                                              | Purpose                                                    |
-| ---------------- | -------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| **Vercel**       | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu                              | Deployments, logs, analytics                               |
-| **Deployment**   | https://vercel.com/ezzahcomm-kitabu-yetu/kitabuyetu/CvkaRXM3r4XiVNo8SYzbWJ9xcAgm | Current prod deployment (dpl_CvkaRXM3r4XiVNo8SYzbWJ9xcAgm) |
-| **Supabase**     | https://supabase.com/dashboard/project/qztcgryhoanennsizcll                      | Database, RLS, auth                                        |
-| **Health Check** | https://www.kitabuyetu.co.ke/api/v1/health/deep                                  | System status                                              |
+```bash
+curl -fsS "${APP_ORIGIN:?Set APP_ORIGIN}/api/health"
+curl -fsS -H "x-worker-secret: ${WORKER_SECRET:?Set WORKER_SECRET}" "$APP_ORIGIN/api/health/deep"
+```
 
----
+Review errors in the current deployment logs and inspect job-queue status when either probe degrades. The [deployment guide](DEPLOY.md#5d-verify-the-schedule) has the scheduler and queue queries.
 
 ## Critical Metrics to Monitor
 
@@ -41,34 +37,13 @@
 
 - [ ] Campaign creation: Working
 - [ ] Campaign listing: Working
-- [ ] Account 4006: Backfilled to all groups
-- [ ] M-Pesa STK integration: Ready for testing
+- [ ] Monitor failed or pending STK confirmations in the payment queue.
 
 ### **Infrastructure**
 
 - [ ] Build time: < 5 minutes
 - [ ] Deployment success: 100%
 - [ ] No unhandled exceptions
-
----
-
-## Daily Checks (5 min)
-
-```bash
-# 1. Check health endpoint
-curl https://www.kitabuyetu.co.ke/api/v1/health/deep
-
-# 2. Check error logs
-# → Vercel Dashboard → Deployments → Prod → Logs
-
-# 3. Verify Supabase connectivity
-# → Supabase Dashboard → SQL Editor → SELECT 1
-
-# 4. Test key endpoints
-curl -X GET "https://www.kitabuyetu.co.ke/" -w "\nHTTP: %{http_code}\n"
-curl -X GET "https://www.kitabuyetu.co.ke/fundraise" -w "\nHTTP: %{http_code}\n"
-curl -X GET "https://www.kitabuyetu.co.ke/api/v1/health" -w "\nHTTP: %{http_code}\n"
-```
 
 ---
 
@@ -100,84 +75,8 @@ curl -X GET "https://www.kitabuyetu.co.ke/api/v1/health" -w "\nHTTP: %{http_code
 
 ---
 
-## Rollback Procedure
+## Recovery
 
-If critical issues occur:
+For an application regression, promote the last known working deployment in Vercel and repeat both health probes. Check outstanding queue jobs before resuming any paused worker.
 
-1. **Vercel Rollback:**
-   - Go to: Vercel Dashboard → Deployments
-   - Click previous deployment
-   - Click "Promote to Production"
-   - Verify via health check
-
-2. **Database Rollback:**
-   - Supabase Dashboard → Database → Backups
-   - Restore from last good backup
-   - Verify data integrity
-
-3. **Notify Users:**
-   - Post status to support channels
-   - Provide ETA for resolution
-
----
-
-## Pending Items
-
-### High Priority
-
-- [ ] Run account 4006 backfill SQL (Supabase dashboard)
-- [ ] Admin approve test campaign
-- [ ] Test donation flow (M-Pesa STK)
-
-### Medium Priority
-
-- [ ] Set up automated monitoring alerts
-- [ ] Configure log aggregation
-- [ ] Test disaster recovery
-
-### Low Priority
-
-- [ ] Performance optimization audit
-- [ ] Security penetration test
-- [ ] Load testing (>1000 concurrent users)
-
----
-
-## Success Metrics (Post-Launch)
-
-**Week 1:**
-
-- ✅ Zero critical errors
-- ✅ All endpoints responding
-- ✅ Auth flow working perfectly
-- ✅ Changi$ha campaigns processing
-
-**Month 1:**
-
-- ✅ 50+ test users onboarded
-- ✅ 10+ campaigns created
-- ✅ $10k+ in donations processed
-- ✅ <1% error rate sustained
-
-**Q4 2026:**
-
-- ✅ 1000+ active groups
-- ✅ 100+ concurrent users
-- ✅ $100k+ monthly transaction volume
-- ✅ 99.9%+ uptime
-
----
-
-## Support Contacts
-
-| Role         | Contact          | Timezone |
-| ------------ | ---------------- | -------- |
-| Engineering  | Polycap Akoth    | EAT      |
-| Platform Ops | Vercel Support   | UTC      |
-| Database     | Supabase Support | UTC      |
-
----
-
-**Last Updated:** 2026-09-18  
-**Next Review:** 2026-09-25  
-**Status:** ✅ PRODUCTION READY
+For a data incident, identify the affected time range and verify the Supabase backup in a recovery environment. Reconcile intervening ledger entries and payment callbacks before a production cutover. Share incident status and recovery progress through the support channel.

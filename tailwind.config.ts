@@ -25,24 +25,7 @@ const MARKETING_SCOPE = 'html:has([data-marketing-theme])';
 const config: Config = {
   darkMode: 'class',
 
-  /*
-   * IMPORTANT:
-   * The real Kitabu Yetu application lives under src/.
-   * Tailwind must scan src/app and src/components or utilities
-   * used by those files may not be generated.
-   */
-  content: [
-    './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/components/**/*.{js,ts,jsx,tsx,mdx}',
-    './src/app/**/*.{js,ts,jsx,tsx,mdx}',
-
-    /*
-     * Preserve compatibility with any legacy/root-level components.
-     */
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ['./app/**/*.{js,ts,jsx,tsx,mdx}', './components/**/*.{js,ts,jsx,tsx,mdx}'],
 
   theme: {
     container: {

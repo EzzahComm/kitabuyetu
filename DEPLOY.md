@@ -18,33 +18,19 @@
 ### 1a. Create project
 
 1. Go to https://supabase.com and create a new project.
-2. Note your **Project Ref** (e.g. `qztcgryhoanennsizcll`).
+2. Copy the project reference from its dashboard.
 
 ### 1b. Get the DATABASE_URL
 
-> ⚠️ Use the Supavisor **session-mode pooler** (port 5432, host
-> `aws-0-<region>.pooler.supabase.com`) — NOT the direct connection
-> (`db.[PROJECT-REF].supabase.co:5432`, IPv6-only and unreachable from
-> Vercel/Lambda's IPv4-only outbound networking) and NOT the transaction-mode
-> pooler (port 6543, which does not preserve `SET LOCAL` across queries — the
-> app relies on this for Row Level Security tenant context). Session mode and
-> transaction mode both live behind port 5432/6543 respectively on the same
-> pooler host; only the port differs, not the host — don't confuse this with
-> the direct-connection host.
-
-**Supabase Dashboard → Settings → Database → Connection string → URI, "Session pooler" tab**
-
-```
-postgresql://postgres:[PASSWORD]@aws-0-[REGION].pooler.supabase.com:5432/postgres
-```
+Use the Supavisor **Session pooler** URI from the project's **Connect** dialog. Copy the supplied username, hostname and port. Set `DATABASE_URL` for the server's administrative connection and `TENANT_DATABASE_URL` for the `app_tenant` connection to the same database. The tenant pool runs group requests with row-level security. [Role provisioning](scripts/ops/create-app-tenant-role.sql)
 
 ### 1c. Push migrations
 
 ```bash
-npm install -g supabase
-supabase login
-supabase link --project-ref [YOUR-PROJECT-REF]
-supabase db push
+npx supabase login
+npx supabase link --project-ref "$SUPABASE_PROJECT_REF"
+npx supabase db push --dry-run
+npx supabase db push
 ```
 
 Verify in **Supabase Dashboard → Table Editor** that all tables were created.
@@ -60,15 +46,13 @@ WHERE schemaname = 'public'
 ORDER BY tablename;
 ```
 
-Every table should show `rowsecurity = true`.
+Check that tenant-owned tables have RLS enabled. Exercise both group contexts against a disposable database with the [least-privileged integration suite](README.md#build-and-tests).
 
 ---
 
 ## Part 2 — Upstash Redis
 
-1. Go to https://console.upstash.com and create a free Redis database.
-2. Copy the **ioredis** compatible URL (starts with `rediss://`).
-3. Set it as `REDIS_URL` in Vercel environment variables.
+Create an Upstash Redis database. Set `REDIS_URL` to its credential-bearing `rediss://` connection string. The app uses the Upstash HTTPS REST interface for session storage and rate limiting.
 
 ---
 
@@ -102,30 +86,27 @@ vercel link
 
 ### 4c. Set environment variables
 
-Add every variable from `.env.example` in:  
-**Vercel Dashboard → Project → Settings → Environment Variables**
+Configure the production values in **Vercel Dashboard → Project → Settings → Environment Variables**. The local template includes optional provider settings. [Environment template](.env.example)
 
-Required variables:
-
-| Variable                  | Where to get                                                                                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `DATABASE_URL`            | Supabase → Settings → Database → URI, "Session pooler" tab (port 5432, `aws-0-<region>.pooler.supabase.com` host — see 1b above)                                                                               |
-| `TENANT_DATABASE_URL`     | Optional. Same host/pooler as `DATABASE_URL`, connecting as the least-privileged `app_tenant` role instead of `postgres` — see `scripts/ops/create-app-tenant-role.sql`. Unset = falls back to `DATABASE_URL`. |
-| `REDIS_URL`               | Upstash console → ioredis URL                                                                                                                                                                                  |
-| `JWT_SECRET`              | `openssl rand -hex 32`                                                                                                                                                                                         |
-| `ENCRYPTION_KEY`          | `openssl rand -hex 32`                                                                                                                                                                                         |
-| `WORKER_SECRET`           | `openssl rand -hex 32`                                                                                                                                                                                         |
-| `CRON_SECRET`             | `openssl rand -hex 32` (you choose — same value goes into Supabase pg_cron SQL)                                                                                                                                |
-| `MPESA_CONSUMER_KEY`      | Safaricom Daraja portal                                                                                                                                                                                        |
-| `MPESA_CONSUMER_SECRET`   | Safaricom Daraja portal                                                                                                                                                                                        |
-| `MPESA_SHORTCODE`         | Safaricom Daraja portal                                                                                                                                                                                        |
-| `MPESA_PASSKEY`           | Safaricom Daraja portal                                                                                                                                                                                        |
-| `MPESA_CALLBACK_BASE_URL` | `https://kitabuyetu.vercel.app` (no trailing slash, callback paths derived)                                                                                                                                    |
-| `TEXTSMS_API_KEY`         | TextSMS Kenya dashboard                                                                                                                                                                                        |
-| `TEXTSMS_PARTNER_ID`      | TextSMS Kenya dashboard                                                                                                                                                                                        |
-| `RESEND_API_KEY`          | Resend dashboard                                                                                                                                                                                               |
-| `EMAIL_FROM`              | Verified sender address in Resend                                                                                                                                                                              |
-| `NEXT_PUBLIC_APP_URL`     | Your Vercel deployment URL                                                                                                                                                                                     |
+| Variable                  | Where to get                                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`            | Supabase → Settings → Database → URI, "Session pooler" tab (port 5432, `aws-0-<region>.pooler.supabase.com` host — see 1b above) |
+| `TENANT_DATABASE_URL`     | Required in production. Use the session-pooler URI for the least-privileged `app_tenant` role (see section 1b).                  |
+| `REDIS_URL`               | Upstash connection string with its REST credential (section 2)                                                                   |
+| `JWT_SECRET`              | `openssl rand -hex 32`                                                                                                           |
+| `ENCRYPTION_KEY`          | `openssl rand -hex 32`                                                                                                           |
+| `WORKER_SECRET`           | `openssl rand -hex 32`                                                                                                           |
+| `CRON_SECRET`             | `openssl rand -hex 32` (you choose — same value goes into Supabase pg_cron SQL)                                                  |
+| `MPESA_CONSUMER_KEY`      | Safaricom Daraja portal                                                                                                          |
+| `MPESA_CONSUMER_SECRET`   | Safaricom Daraja portal                                                                                                          |
+| `MPESA_SHORTCODE`         | Safaricom Daraja portal                                                                                                          |
+| `MPESA_PASSKEY`           | Safaricom Daraja portal                                                                                                          |
+| `MPESA_CALLBACK_BASE_URL` | The deployment’s HTTPS callback origin                                                                                           |
+| `TEXTSMS_API_KEY`         | TextSMS Kenya dashboard                                                                                                          |
+| `TEXTSMS_PARTNER_ID`      | TextSMS Kenya dashboard                                                                                                          |
+| `RESEND_API_KEY`          | Resend dashboard                                                                                                                 |
+| `EMAIL_FROM`              | Verified sender address in Resend                                                                                                |
+| `NEXT_PUBLIC_APP_URL`     | Your Vercel deployment URL                                                                                                       |
 
 ### 4d. Deploy
 
@@ -135,22 +116,19 @@ vercel --prod
 
 ### 4e. Verify the deployment
 
-```bash
-# Health check
-curl -I https://kitabuyetu.vercel.app/api/v1/groups
+Set `APP_ORIGIN` to the deployed HTTPS origin. The liveness endpoint is public.
 
-# Manual cron trigger (replace YOUR_WORKER_SECRET)
-curl -X POST https://kitabuyetu.vercel.app/api/v1/workers/cron \
-  -H "Authorization: Bearer YOUR_WORKER_SECRET"
+```bash
+curl -fsS "${APP_ORIGIN:?Set APP_ORIGIN}/api/health"
 ```
+
+The [monitoring guide](PRODUCTION_MONITORING.md) covers database and Redis connectivity.
 
 ---
 
 ## Part 5 — Supabase Scheduler (pg_cron + pg_net)
 
-> **Why not Vercel Cron?**  
-> Vercel Hobby plan limits cron jobs to once per day.  
-> Supabase pg_cron runs in the database itself — no plan restrictions.
+> The scheduler uses Supabase `pg_cron` and `pg_net` to call the application every five minutes.
 
 ### 5a. Enable extensions
 
@@ -162,7 +140,7 @@ In **Supabase Dashboard → Database → Extensions**, enable:
 ### 5b. Run the job queue migration
 
 ```bash
-supabase db push
+npx supabase db push
 ```
 
 This applies `supabase/migrations/20260526120000_041_job_queue.sql` which creates the `job_queue` and `job_logs` tables.
@@ -182,7 +160,7 @@ SELECT cron.schedule(
                  'Content-Type',  'application/json',
                  'Authorization', 'Bearer YOUR_CRON_SECRET'
                ),
-    body    := jsonb_build_object('source', 'pg_cron')::text
+    body    := jsonb_build_object('source', 'pg_cron')
   );
   $$
 );
@@ -208,29 +186,14 @@ SELECT cron.schedule(
 );
 ```
 
-Live on production (project qztcgryhoanennsizcll) as of 2026-09-15: jobid 3,
-runs nightly at 03:00 UTC. The existing ~47 MB of accumulated bloat at the
-time this was added was reclaimed with a one-off `DELETE ... WHERE
-start_time < now() - interval '7 days'` followed by `VACUUM FULL
-cron.job_run_details` (52.9 MB → 1.15 MB); the same `VACUUM FULL` was also
-run once on `net._http_response` (41.5 MB → 80 KB, pg_net's own 6-hour
-cleanup DELETE was already correct — this table's problem was purely
-historical bloat from before that started working). Both need to be run as
-a role with ownership of the `net`/`cron` schemas' tables (owned by
-`supabase_admin`) — confirmed the Supabase-managed `postgres` role can do
-this directly via the SQL Editor / MCP despite `pg_roles.rolsuper = false`
-and not being a member of `supabase_admin`, so no support ticket was
-needed. If `VACUUM FULL` ever fails with a permission error on a different
-project, that's the fallback to reach for.
-
 ### 5d. Verify the schedule
 
 ```sql
 -- See all scheduled jobs
-SELECT * FROM cron.job;
+SELECT jobid, jobname, schedule, active FROM cron.job;
 
 -- See recent execution history
-SELECT * FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
+SELECT jobid, runid, status, start_time, end_time FROM cron.job_run_details ORDER BY start_time DESC LIMIT 20;
 
 -- See job queue state
 SELECT status, count(*) FROM job_queue GROUP BY status;
@@ -256,7 +219,7 @@ SELECT cron.alter_job(
                    'Content-Type',  'application/json',
                    'Authorization', 'Bearer YOUR_CRON_SECRET'
                  ),
-      body    := jsonb_build_object('source', 'pg_cron')::text
+      body    := jsonb_build_object('source', 'pg_cron')
     );
   $$
 );
@@ -285,9 +248,7 @@ SELECT cron.alter_job(
 - [ ] Set `MPESA_ENV=production` in Vercel env vars
 - [ ] Update shortcode + passkey to production values
 - [ ] Ensure `MPESA_CALLBACK_BASE_URL` is your production Vercel URL (HTTPS, no trailing slash)
-- [ ] Register callback URL (one-time): `POST /api/v1/mpesa/register-urls` with your Bearer token
-- [ ] Vercel deployment IPs are dynamic — do NOT whitelist Vercel IPs at Safaricom.  
-      Safaricom's IP whitelist is applied at **our** callback (we validate their IPs, not the reverse).
+- [ ] Register C2B callback URLs using the authenticated platform administrator endpoint `POST /api/admin/mpesa/register-c2b` with a super-admin backoffice session. The GET handler shows the configured callback URLs.
 
 ---
 
@@ -302,26 +263,8 @@ SELECT cron.alter_job(
 ## Quick reference
 
 ```bash
-# Tail production logs
 vercel logs --prod
-
-# Redeploy after a code change
-git push origin main   # auto-deploys if connected to GitHub
-
-# Run migrations after a schema change (includes 013_job_queue.sql)
-supabase db push
-
-# Trigger cron manually (uses WORKER_SECRET — separate from CRON_SECRET)
-curl -X POST https://kitabuyetu.vercel.app/api/v1/workers/cron \
-  -H "Authorization: Bearer YOUR_WORKER_SECRET"
-
-# Trigger via the pg_cron endpoint (uses CRON_SECRET)
-curl -X POST https://kitabuyetu.vercel.app/api/cron \
-  -H "Authorization: Bearer YOUR_CRON_SECRET" \
-  -H "Content-Type: application/json" \
-  -d '{"source":"manual"}'
-
-# Inspect job queue in Supabase SQL Editor
-# SELECT status, count(*) FROM job_queue GROUP BY status;
-# SELECT * FROM job_logs ORDER BY created_at DESC LIMIT 50;
+npx supabase migration list --linked
 ```
+
+For an intentional queue run, send a POST to `/api/cron` with the configured `CRON_SECRET` in the Authorization bearer header. The handler enqueues due work and processes a batch.

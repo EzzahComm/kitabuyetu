@@ -640,10 +640,7 @@ async function handleLoanDueAlerts(job: Job): Promise<HandlerResult> {
     failed = 0;
   for (const r of rows) {
     const overdue = r.days_until_due < 0;
-    // 'L' — loan repayment — the same product-suffix convention
-    // parseAccountRef()/composeMembershipNo() already document
-    // (lib/utils/membership-no.ts) and the one-off Fionas disbursement SMS
-    // already used by hand (scripts/send-fionas-disbursement-sms.ts).
+    // The L suffix directs this payment to loan repayment (lib/utils/membership-no.ts).
     const accountNumber = `${r.membership_no}L`;
     const body = overdue
       ? renderBuiltin(TEMPLATE_KEYS.LOAN_OVERDUE, {

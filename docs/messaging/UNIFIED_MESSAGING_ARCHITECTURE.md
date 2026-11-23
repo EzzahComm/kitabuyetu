@@ -1,5 +1,7 @@
 # Unified Messaging Architecture — Implementation Plan
 
+> This plan records the August 2026 design and delivery sequence. The [communication maintenance guide](../../README.md#communication-maintenance) points to the current implementation and regression tests.
+
 **Date:** 2026-08-06
 **Status:** Phase 1 shipped (PRs #33/#34). **Phase 2a shipped** (migration 123 — reservation, attribution, five paths unified). Decisions A and B resolved 2026-08-06 (§7); Decision C still open. Phase 2b (bundled allowance, then billing on) is next. **Phase 3 item 10 shipped out of sequence, 2026-08-11** (§5, chunked QStash bulk-SMS dispatch) — pulled forward ahead of Phase 2b/4/5 because the Chama Reminder product ([`docs/chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md`](../chama-reminder/CHAMA_REMINDER_ARCHITECTURE_INTEGRATION.md)) depends on broadcast-scale SMS being safe before its portal (that report's Phase 4) ships.
 

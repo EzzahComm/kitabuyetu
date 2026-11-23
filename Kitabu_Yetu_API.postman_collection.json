@@ -20,13 +20,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"groupName\": \"Test Group\",\n  \"groupType\": \"chama\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"User\",\n  \"phone\": \"+254700000000\",\n  \"email\": \"test@example.com\",\n  \"password\": \"SecurePassword123!\",\n  \"creatorRole\": \"chairperson\",\n  \"primaryObjective\": \"savings\"\n}"
+              "raw": "{\n  \"groupName\": \"Local QA Group\",\n  \"groupType\": \"chama\",\n  \"firstName\": \"Test\",\n  \"lastName\": \"Officer\",\n  \"phone\": \"{{phone}}\",\n  \"password\": \"{{password}}\",\n  \"countyId\": \"{{county_id}}\",\n  \"creatorRole\": \"chairperson\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/register",
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "auth", "register"]
-            }
+            },
+            "description": "Use a disposable local database. Select a county_id from GET /api/v1/jurisdictions/counties before registration."
           }
         },
         {
@@ -41,13 +47,19 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"phone\": \"+254700000000\",\n  \"password\": \"SecurePassword123!\"\n}"
+              "raw": "{\n  \"identifier\": \"{{identifier}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
             },
             "url": {
               "raw": "{{base_url}}/api/v1/auth/login",
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "auth", "login"]
-            }
+            },
+            "description": "Use your test phone number or email. If the response requests group selection, resubmit with the selected groupCode."
           }
         },
         {
@@ -58,17 +70,23 @@
               {
                 "key": "Content-Type",
                 "value": "application/json"
-              },
-              {
-                "key": "Authorization",
-                "value": "Bearer {{refresh_token}}"
               }
             ],
             "url": {
               "raw": "{{base_url}}/api/v1/auth/refresh",
               "host": ["{{base_url}}"],
               "path": ["api", "v1", "auth", "refresh"]
-            }
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "description": "Use the new accessToken and refreshToken returned by each successful refresh."
           }
         }
       ]
@@ -77,7 +95,7 @@
       "name": "Groups",
       "item": [
         {
-          "name": "List Groups",
+          "name": "List My Group Memberships",
           "request": {
             "method": "GET",
             "header": [
@@ -87,26 +105,9 @@
               }
             ],
             "url": {
-              "raw": "{{api_base}}/v1/groups",
-              "host": ["{{api_base}}"],
-              "path": ["v1", "groups"]
-            }
-          }
-        },
-        {
-          "name": "Get Group Details",
-          "request": {
-            "method": "GET",
-            "header": [
-              {
-                "key": "Authorization",
-                "value": "Bearer {{access_token}}"
-              }
-            ],
-            "url": {
-              "raw": "{{api_base}}/v1/groups/{{group_id}}",
-              "host": ["{{api_base}}"],
-              "path": ["v1", "groups", "{{group_id}}"]
+              "raw": "{{base_url}}/api/v1/auth/memberships",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "memberships"]
             }
           }
         }
@@ -126,15 +127,9 @@
               }
             ],
             "url": {
-              "raw": "{{api_base}}/v1/members?groupId={{group_id}}",
-              "host": ["{{api_base}}"],
-              "path": ["v1", "members"],
-              "query": [
-                {
-                  "key": "groupId",
-                  "value": "{{group_id}}"
-                }
-              ]
+              "raw": "{{base_url}}/api/v1/members",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "members"]
             }
           }
         },
@@ -149,9 +144,9 @@
               }
             ],
             "url": {
-              "raw": "{{api_base}}/v1/members/{{member_id}}",
-              "host": ["{{api_base}}"],
-              "path": ["v1", "members", "{{member_id}}"]
+              "raw": "{{base_url}}/api/v1/members/{{member_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "members", "{{member_id}}"]
             }
           }
         }
@@ -171,15 +166,9 @@
               }
             ],
             "url": {
-              "raw": "{{api_base}}/v1/contributions?groupId={{group_id}}",
-              "host": ["{{api_base}}"],
-              "path": ["v1", "contributions"],
-              "query": [
-                {
-                  "key": "groupId",
-                  "value": "{{group_id}}"
-                }
-              ]
+              "raw": "{{base_url}}/api/v1/contributions",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "contributions"]
             }
           }
         }
@@ -206,9 +195,9 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{base_url}}/fundraise/campaign-slug",
+              "raw": "{{base_url}}/fundraise/{{campaign_slug}}",
               "host": ["{{base_url}}"],
-              "path": ["fundraise", "campaign-slug"]
+              "path": ["fundraise", "{{campaign_slug}}"]
             }
           }
         }
@@ -228,9 +217,9 @@
               }
             ],
             "url": {
-              "raw": "{{admin_api}}/analytics",
-              "host": ["{{admin_api}}"],
-              "path": ["analytics"]
+              "raw": "{{base_url}}/api/admin/analytics",
+              "host": ["{{base_url}}"],
+              "path": ["api", "admin", "analytics"]
             }
           }
         }
@@ -240,23 +229,53 @@
   "variable": [
     {
       "key": "base_url",
-      "value": "https://www.kitabuyetu.co.ke"
+      "value": "http://127.0.0.1:3000",
+      "type": "string"
     },
     {
-      "key": "api_base",
-      "value": "https://www.kitabuyetu.co.ke/api"
+      "key": "identifier",
+      "value": "",
+      "type": "string"
     },
     {
-      "key": "admin_api",
-      "value": "https://www.kitabuyetu.co.ke/api/admin"
+      "key": "password",
+      "value": "",
+      "type": "string"
     },
     {
-      "key": "supabase_url",
-      "value": "https://qztcgryhoanennsizcll.supabase.co"
+      "key": "phone",
+      "value": "",
+      "type": "string"
     },
     {
-      "key": "supabase_anon_key",
-      "value": ""
+      "key": "county_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "admin_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "member_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "campaign_slug",
+      "value": "",
+      "type": "string"
     }
   ]
 }

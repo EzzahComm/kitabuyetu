@@ -21,19 +21,7 @@ const orgId = (ctx: TenantContext): string => {
 };
 
 /**
- * Public read for the anonymous /ecosystem/donors page. Previously read via
- * the Supabase anon-key PostgREST client (`lib/supabase/server.ts`), which
- * bypasses this codebase's whole custom-JWT/Postgres architecture and made
- * the page's safety depend entirely on the `organizations_select` RLS policy
- * (migration 050) — which requires `is_super_admin()` or the caller's own
- * org, so for a genuinely anonymous visitor it silently returned zero rows.
- * Worse: it filtered on `.eq('status', 'active')`, a column `organizations`
- * has never had (migration 007 defines `is_active BOOLEAN`, never renamed or
- * supplemented with a `status` column anywhere) — so on top of the RLS block,
- * the query itself errored at PostgREST, silently swallowed by `orgs || []`.
- * Mirrors campaigns.service.ts's public-read pattern instead: withAdminDb
- * with the real column and a minimal projection baked into the SQL, never
- * through PostgREST/anon grants.
+ * Public donor directory. Keep the projection limited to public fields on active organizations.
  */
 export interface PublicOrganizationSummary {
   id: string;

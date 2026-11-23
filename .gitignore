@@ -9,10 +9,10 @@ out/
 build/
 dist/
 
-# Environment — NEVER commit real secrets
-.env
-.env.local
-.env.*.local
+# Environment files, except the setup template and disposable CI fixtures
+.env*
+!.env.example
+!.env.test
 
 # Supabase local state
 supabase/.temp/
@@ -31,14 +31,10 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
-# Standalone output (built by CI, not source-controlled)
-.next/standalone/
-
 # TypeScript incremental build cache
 *.tsbuildinfo
 
-.vercel
-.env*.local
+.vercel/
 
 # Jest coverage output
 coverage/
@@ -46,13 +42,6 @@ coverage/
 # Codebase health report output (scripts/health/report.mjs)
 .health/
 
-.vercel
-# Every local env file is ignored by default (added by `vercel link`).
-# .env.test is the deliberate exception: CI reads it from the repo, and it
-# holds only throwaway test values. Without this negation a delete-and-re-add
-# would silently drop it and every integration run would lose its config.
-.env*
-!.env.test
 # Generated optimization backups — never lint these
 .optimization/
 
