@@ -1,5 +1,5 @@
 import { AppError, ValidationError } from '@/lib/utils/errors';
-export async function readLimitedBody(request: Request, limit: number) {
+async function readLimitedBody(request: Request, limit: number) {
   const reader = request.body?.getReader();
   if (!reader) throw new ValidationError('Request body is required.');
   const chunks: Uint8Array[] = [];
@@ -11,7 +11,7 @@ export async function readLimitedBody(request: Request, limit: number) {
       size += value.byteLength;
       if (size > limit) {
         await reader.cancel();
-        throw new AppError('Upload is too large.', 'PAYLOAD_TOO_LARGE', 413);
+        throw new AppError('Request is too large.', 'PAYLOAD_TOO_LARGE', 413);
       }
       chunks.push(value);
     }
@@ -21,7 +21,7 @@ export async function readLimitedBody(request: Request, limit: number) {
   return Buffer.concat(chunks);
 }
 
-export async function readWebsiteJson(request: Request, limit = 64 * 1024): Promise<unknown> {
+export async function readConnectionJson(request: Request, limit = 2048): Promise<unknown> {
   const bytes = await readLimitedBody(request, limit);
   try {
     return JSON.parse(bytes.toString('utf8'));

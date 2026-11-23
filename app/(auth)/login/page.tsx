@@ -15,7 +15,8 @@ import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { authApi } from '@/lib/api/endpoints';
 import { configureApiClient, ApiError } from '@/lib/api/client';
 import { getErrorMessage } from '@/lib/utils';
-import { resolvePostLoginPath, programLoginDestination } from '@/lib/auth/post-login-path';
+import { connectionReturn } from '@/lib/group-domains/protocol';
+import { resolvePostLoginPath } from '@/lib/auth/post-login-path';
 import { useToast } from '@/hooks/use-toast';
 import { isGroupSelectionNeeded } from '@/types/api.types';
 import type { NeedsGroupSelection } from '@/types/api.types';
@@ -63,7 +64,7 @@ export default function LoginPage() {
     // reminder-only group is not bounced into a Kitabu Yetu shell it cannot use.
     if (user) {
       void resolvePostLoginPath(isTenantUser(user) ? user.groupRole : undefined).then((path) =>
-        router.replace(programLoginDestination(path, new URLSearchParams(window.location.search).get('program'))),
+        router.replace(connectionReturn(new URLSearchParams(window.location.search).get('connect')) ?? path),
       );
     }
   }, [user, router]);
@@ -95,10 +96,8 @@ export default function LoginPage() {
       else localStorage.removeItem(REMEMBERED_IDENTIFIER_KEY);
       login(result);
       router.push(
-        programLoginDestination(
-          await resolvePostLoginPath(result.member.groupRole),
-          new URLSearchParams(window.location.search).get('program'),
-        ),
+        connectionReturn(new URLSearchParams(window.location.search).get('connect')) ??
+          (await resolvePostLoginPath(result.member.groupRole)),
       );
     } catch (err) {
       const code = err instanceof ApiError ? ` (${err.code})` : '';

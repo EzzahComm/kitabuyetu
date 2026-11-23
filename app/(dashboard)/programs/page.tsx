@@ -96,14 +96,7 @@ function BrowsePanel({ isChairperson }: { isChairperson: boolean }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
       {programs.map((p) => (
-        <Card
-          key={p.id}
-          id={'program-' + p.slug}
-          className="target:ring-2 target:ring-brand-500"
-          ref={(node) => {
-            if (node && location.hash === '#program-' + p.slug) node.scrollIntoView({ block: 'center' });
-          }}
-        >
+        <Card key={p.id}>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">{p.name}</CardTitle>
             <CardDescription>{p.organizationName}</CardDescription>

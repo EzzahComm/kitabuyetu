@@ -60,10 +60,3 @@ export async function resolvePostLoginPath(groupRole?: string): Promise<string> 
   const entitlements = await billingApi.entitlements().catch(() => undefined);
   return postLoginPath(groupRole, entitlements);
 }
-
-/** A website may select a published programme by slug after normal group sign-in. */
-export function programLoginDestination(defaultPath: string, program: string | null): string {
-  if (defaultPath !== '/dashboard' || !program || program.length > 240 || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(program))
-    return defaultPath;
-  return '/programs#program-' + program;
-}

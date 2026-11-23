@@ -1,3 +1,4 @@
+import { assertActiveMembership } from './membership-guard';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError } from '@/lib/utils/errors';
 import { z } from 'zod';
@@ -180,6 +181,8 @@ export const meetingsService = {
 
   async create(ctx: TenantContext, data: CreateMeetingInput) {
     return withTransaction(ctx, async (client) => {
+      if (data.chairedBy) await assertActiveMembership(client, ctx.groupId, data.chairedBy);
+      if (data.secretaryId) await assertActiveMembership(client, ctx.groupId, data.secretaryId);
       const { rows } = await client.query(
         `INSERT INTO meetings
            (group_id, title, meeting_type, scheduled_at, venue, is_virtual,
@@ -239,6 +242,9 @@ export const meetingsService = {
         rows: [meeting],
       } = await client.query('SELECT * FROM meetings WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
       if (!meeting) throw new NotFoundError('Meeting', id);
+
+      if (data.chairedBy) await assertActiveMembership(client, ctx.groupId, data.chairedBy);
+      if (data.secretaryId) await assertActiveMembership(client, ctx.groupId, data.secretaryId);
 
       const prev = meeting;
       const updates: string[] = ['updated_at=now()'];

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { DomainSettings } from '@/components/groups/domain-settings';
 import { PageHeader } from '@/components/shared/page-header';
 import { useAuth, isTenantUser } from '@/lib/auth/context';
 import { useCertificateFile } from '@/components/groups/signup-extras-fields';
@@ -202,6 +203,9 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6 max-w-2xl">
       <PageHeader title="Settings" />
+      {isTenantUser(user) && user.groupRole === 'chairperson' && (
+        <DomainSettings key={user.groupId} groupId={user.groupId} userId={user.id} />
+      )}
 
       {membershipNo && (
         // Payment instructions (payment architecture §1.7): the Membership

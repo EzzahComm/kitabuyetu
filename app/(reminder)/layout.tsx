@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard,
+  Link as LinkIcon,
   Users2,
   Send,
   BellRing,
@@ -181,7 +182,17 @@ export default function ReminderLayout({ children }: { children: React.ReactNode
         open={open}
         onClose={() => setOpen(false)}
         variant="brand"
-        sections={NAV}
+        sections={
+          isTenantUser(user) && user.groupRole === 'chairperson'
+            ? [
+                ...NAV,
+                {
+                  title: 'Group settings',
+                  items: [{ href: '/reminder/group-domain', label: 'Website sign-in', icon: LinkIcon }],
+                },
+              ]
+            : NAV
+        }
         isActive={isActive}
         widthExpanded="w-[240px]"
         logo={() => (

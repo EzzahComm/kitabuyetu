@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { domainScopeFor, isDomainToken } from '@/lib/group-domains/protocol';
 import { jwtVerify, type JWTPayload } from 'jose';
 
 // ─── Rate limiting (Upstash REST — Edge-compatible) ───────────────────────────
@@ -306,6 +307,14 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     return unauthorized('Missing or malformed Authorization header');
   }
   const token = authHeader.slice(7);
+
+  // Opaque partner tokens have no trusted claims here. Only named operations
+  // reach withAuth, which resolves the live grant and membership from Postgres.
+  if (isDomainToken(token)) {
+    if (!(await checkRateLimit(`ip:${ip}`, RL_LIMIT_IP))) return rateLimited();
+    if (!domainScopeFor(req.method, pathname)) return forbidden('This route does not accept a website connection.');
+    return NextResponse.next({ request: { headers: sanitizedHeaders(req) } });
+  }
 
   let payload: KyJwtPayload;
   try {

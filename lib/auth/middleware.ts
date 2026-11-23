@@ -7,6 +7,7 @@ import type { MemberRole, PlatformRole } from '@/types/enums';
 import { requireRole, requireOneOf } from './rbac';
 import { requirePermission, requireAnyPermission } from './permissions';
 import { requireOrganizationPermission, type OrganizationPermission } from './organization-permissions';
+import { domainScopeFor, isDomainToken } from '@/lib/group-domains/protocol';
 import { assertSubscriptionActive } from './subscription-gate';
 
 // ─── Tenant (consumer) context ─────────────────────────────────────────
@@ -56,23 +57,27 @@ export function getAuthContext(req: NextRequest): AuthContext {
  * Higher-order handler that extracts auth context and passes it to the handler.
  * Handles all AppError and unexpected errors uniformly.
  */
-export function withAuth<T extends unknown[]>(
+export async function withAuth<T extends unknown[]>(
   req: NextRequest,
   handler: (auth: AuthContext, ...args: T) => Promise<Response>,
   ...args: T
 ): Promise<Response> {
   try {
-    const auth = getAuthContext(req);
-    // Every tenant route reaches the handler through here — withRole,
-    // withOneOf, withPermission and withAnyPermission all delegate to it — so
-    // this is the one place a paid-subscription check covers the whole tenant
-    // surface. The gate carves out the routes a locked group needs in order to
-    // pay; see lib/auth/subscription-gate.ts.
-    return assertSubscriptionActive(req, auth)
-      .then(() => handler(auth, ...args))
-      .catch(handleError);
+    const header = req.headers.get('authorization');
+    const bearer = header?.startsWith('Bearer ') ? header.slice(7) : '';
+    let auth: AuthContext;
+    if (isDomainToken(bearer)) {
+      const scope = domainScopeFor(req.method, req.nextUrl.pathname);
+      if (!scope) throw new ForbiddenError('This route does not accept a website connection.');
+      const { domainIdentity } = await import('@/lib/group-domains/service');
+      auth = await domainIdentity(bearer, scope);
+    } else {
+      auth = getAuthContext(req);
+    }
+    await assertSubscriptionActive(req, auth);
+    return await handler(auth, ...args);
   } catch (err) {
-    return Promise.resolve(handleError(err));
+    return handleError(err);
   }
 }
 
