@@ -145,6 +145,7 @@ export interface BackofficeContext {
   userId: string;
   platformRole: AdminPlatformRole;
   organizationId?: string;
+  organizationLocked?: true;
 }
 
 /**
@@ -167,7 +168,12 @@ export function getBackofficeContext(req: NextRequest): BackofficeContext {
   if (platformRole !== 'super_admin' && platformRole !== 'support' && platformRole !== 'organization_coordinator') {
     throw new ForbiddenError(`Role '${platformRole}' is not a valid backoffice role`);
   }
-  return { userId, platformRole, organizationId };
+  return {
+    userId,
+    platformRole,
+    organizationId,
+    ...(req.headers.get('x-organization-locked') === 'true' ? { organizationLocked: true } : {}),
+  };
 }
 
 /** Higher-order handler for backoffice routes. Mirrors withAuth's shape. */

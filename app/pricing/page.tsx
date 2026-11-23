@@ -225,7 +225,7 @@ export default function PricingPage() {
               <Link href={ROUTES.fundraise} className={btnPrimary}>
                 See live campaigns
               </Link>
-              <Link href={ROUTES.contact} className={btnOutline}>
+              <Link href={ROUTES.startCampaign} className={btnOutline}>
                 Start a campaign
               </Link>
             </div>

@@ -19,8 +19,9 @@ export async function GET(req: NextRequest): Promise<Response> {
            FROM organization_members om
            JOIN organizations o ON o.id = om.organization_id
            WHERE om.member_id = $1 AND om.status = 'active' AND o.is_active = TRUE
+             AND ($2::uuid IS NULL OR o.id = $2)
            ORDER BY o.name`,
-          [auth.userId],
+          [auth.userId, auth.organizationLocked ? auth.organizationId : null],
         );
         return rows;
       });

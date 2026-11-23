@@ -100,6 +100,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       // so this can return 0, 1, or many rows.
       let organizationId: string | undefined;
       let orgChoices: NeedsOrgSelection['organizations'] | undefined;
+      if (challenge.lockedOrganizationId && member.platform_role !== 'organization_coordinator') return null;
       if (member.platform_role === 'organization_coordinator') {
         const { rows: orgs } = await client.query<{ id: string; name: string; org_role: 'lead' | 'staff' }>(
           `SELECT o.id, o.name, om.org_role
@@ -109,7 +110,10 @@ export async function POST(req: NextRequest): Promise<Response> {
           [member.id],
         );
         if (orgs.length === 0) return null;
-        if (orgs.length === 1) {
+        if (challenge.lockedOrganizationId) {
+          if (!orgs.some((org) => org.id === challenge.lockedOrganizationId)) return null;
+          organizationId = challenge.lockedOrganizationId;
+        } else if (orgs.length === 1) {
           organizationId = orgs[0].id;
         } else if (input.organizationId) {
           // Re-submission after the client showed an org chooser.
@@ -204,7 +208,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         );
       });
 
-      return issueBackofficeTokens(req, member, organizationId);
+      return issueBackofficeTokens(req, member, organizationId, Boolean(challenge.lockedOrganizationId));
     }
 
     // ── challenge.kind === 'verify' ────────────────────────────────────
@@ -257,7 +261,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
     });
 
-    return issueBackofficeTokens(req, member, organizationId);
+    return issueBackofficeTokens(req, member, organizationId, Boolean(challenge.lockedOrganizationId));
   } catch (err) {
     return handleError(err);
   }
@@ -269,12 +273,14 @@ async function issueBackofficeTokens(
   req: NextRequest,
   member: MemberRow,
   organizationId: string | undefined,
+  organizationLocked: boolean,
 ): Promise<Response> {
   const accessToken = signBackofficeAccessToken({
     sub: member.id,
     aud: 'backoffice',
     platformRole: member.platform_role as AdminPlatformRole,
     organizationId,
+    ...(organizationLocked ? { organizationLocked: true } : {}),
   });
   const { token: refreshToken } = signRefreshToken(member.id, 'backoffice');
   const rtHash = hashToken(refreshToken);

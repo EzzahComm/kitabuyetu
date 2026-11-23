@@ -35,6 +35,9 @@ interface TargetRow {
 export async function POST(req: NextRequest): Promise<Response> {
   return withBackofficeAuth(req, async (auth) => {
     try {
+      if (auth.organizationLocked) {
+        return errorResponse('Sign in again to access a different organization.', 'ORG_SESSION_LOCKED', 403);
+      }
       const input = Schema.parse(await req.json());
       if (input.organizationId === auth.organizationId) {
         return errorResponse('You are already in this organization', 'SAME_ORG', 400);

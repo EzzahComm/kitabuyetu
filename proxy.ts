@@ -95,6 +95,7 @@ interface KyJwtPayload extends JWTPayload {
   // group_members.role_id -> roles.permissions. Missing on legacy tokens.
   permissions?: string[];
   // Backoffice claims
+  organizationLocked?: true;
   platformRole?: string;
   organizationId?: string;
 }
@@ -125,6 +126,7 @@ const CLAIM_HEADERS = [
   'x-role',
   'x-group-status',
   'x-organization-id',
+  'x-organization-locked',
   'x-platform-role',
   'x-membership-id',
   'x-membership-no',
@@ -401,6 +403,7 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
     }
     requestHeaders.set('x-platform-role', payload.platformRole);
     if (payload.organizationId) requestHeaders.set('x-organization-id', payload.organizationId);
+    if (payload.organizationLocked === true) requestHeaders.set('x-organization-locked', 'true');
   }
 
   return NextResponse.next({ request: { headers: requestHeaders } });

@@ -109,6 +109,41 @@ export default function EnterpriseSolutionsPage() {
         ownership of its own operations.
       </p>
 
+      <div className="flex flex-wrap gap-3 pt-5">
+        <Link
+          href={ROUTES.startOrganization}
+          className="rounded-md bg-brand-600 px-5 py-3 text-sm font-semibold !text-white transition-colors hover:bg-brand-700"
+        >
+          Sign up for Enterprise
+        </Link>
+        <Link
+          href="/enterprise/login"
+          className="rounded-md border border-brand-100 px-5 py-3 text-sm font-semibold text-finanza-dark! transition-colors hover:bg-brand-50/60"
+        >
+          Enterprise portal sign in
+        </Link>
+      </div>
+      <section aria-labelledby="enterprise-products" className="space-y-4">
+        <h2 id="enterprise-products">Get started with a Kitabu Yetu product</h2>
+        <ul className="grid gap-3 sm:grid-cols-3">
+          <li className="flex flex-col gap-2 rounded-lg border border-brand-100 p-4">
+            <h3>Bookkeeper</h3>
+            <p className="flex-1 text-sm">Manage group records, contributions and reports.</p>
+            <Link href={ROUTES.startGroup}>Register for Bookkeeper</Link>
+          </li>
+          <li className="flex flex-col gap-2 rounded-lg border border-brand-100 p-4">
+            <h3>Chama Reminder</h3>
+            <p className="flex-1 text-sm">Send reminders and keep members informed.</p>
+            <Link href={`${ROUTES.startGroup}?product=chama_reminder`}>Register for Chama Reminder</Link>
+          </li>
+          <li className="flex flex-col gap-2 rounded-lg border border-brand-100 p-4">
+            <h3>Changi$ha</h3>
+            <p className="flex-1 text-sm">Start fundraising with a registered group.</p>
+            <Link href={ROUTES.startCampaign}>Start a Changi$ha campaign</Link>
+          </li>
+        </ul>
+      </section>
+
       <h2>Designed for institutional work</h2>
       <div className="not-prose grid gap-5 pt-3 md:grid-cols-2">
         {CAPABILITIES.map((item) => (
@@ -202,20 +237,6 @@ export default function EnterpriseSolutionsPage() {
         data-protection requirements.
       </p>
 
-      <div className="flex flex-wrap gap-3 pt-5">
-        <Link
-          href={ROUTES.startOrganization}
-          className="rounded-md bg-brand-600 px-5 py-3 text-sm font-semibold !text-white transition-colors hover:bg-brand-700"
-        >
-          Create an Enterprise workspace
-        </Link>
-        <Link
-          href="/enterprise/login"
-          className="rounded-md border border-brand-100 px-5 py-3 text-sm font-semibold text-finanza-dark! transition-colors hover:bg-brand-50/60"
-        >
-          Enterprise portal sign in
-        </Link>
-      </div>
       <p className="pt-3 text-sm text-finanza-text">
         Contact our team at{' '}
         <a

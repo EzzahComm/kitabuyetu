@@ -80,7 +80,7 @@ const NAV: PortalNavSection[] = [
       // `soon: true` and disabling the link prevents customers from landing on
       // a screen that looks real but generates useless fake credentials
       // (docs/audits/UI_NAVIGATION_ANALYTICS_AUDIT.md §5.3).
-      { href: '#', label: 'API & Webhooks', icon: KeyRound, soon: true, disabled: true },
+      { href: '/enterprise/api-keys', label: 'API & Webhooks', icon: KeyRound },
       { href: '/enterprise/branding', label: 'White-label', icon: Palette },
       { href: '/enterprise/audit', label: 'Audit Trail', icon: ScrollText },
     ],

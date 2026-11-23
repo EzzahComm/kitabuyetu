@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { ROUTES } from '@/components/marketing/routes';
 import { Building2, ArrowLeft } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useBackofficeLogin } from '@/hooks/use-backoffice-login';
@@ -122,6 +123,15 @@ export default function EnterpriseLoginPage() {
             )}
           </CardContent>
         </Card>
+
+        {phase.kind === 'password' && (
+          <p className="text-center text-sm text-brand-blue-900">
+            New to Enterprise?{' '}
+            <Link href={ROUTES.startOrganization} className="font-semibold underline underline-offset-4">
+              Create an Enterprise workspace
+            </Link>
+          </p>
+        )}
 
         <p className="text-center text-xs text-brand-blue-900/40">
           Activity in this portal is logged. Unauthorised access is prosecutable.

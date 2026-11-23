@@ -8,7 +8,7 @@
  * app/api/v1/auth/admin/login/route.ts) and where each page's own UI
  * chooses to send the user after login.
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useForm, type UseFormReturn } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -70,6 +70,34 @@ export function useBackofficeLogin(surface: 'platform' | 'organization', redirec
   useEffect(() => {
     configureApiClient({ getToken: () => null, onUnauthorized: () => {} });
   }, []);
+
+  const handledOidc = useRef(false);
+  useEffect(() => {
+    if (surface !== 'organization' || handledOidc.current) return;
+    const url = new URL(window.location.href);
+    const result = url.searchParams.get('oidc');
+    if (!result) return;
+    handledOidc.current = true;
+    url.searchParams.delete('oidc');
+    window.history.replaceState(window.history.state, '', url);
+    const failure = () =>
+      toast({
+        variant: 'destructive',
+        title: 'Enterprise sign-in failed',
+        description: 'Start sign-in again or use your Kitabu Yetu password.',
+      });
+    if (result !== 'ready') {
+      failure();
+      return;
+    }
+    void fetch('/api/partner/v1/oidc/complete', { method: 'POST', credentials: 'same-origin' })
+      .then(async (res) => {
+        if (!res.ok) throw new Error('OIDC handoff failed');
+        const body = z.object({ data: z.object({ challenge: z.string().min(1) }) }).parse(await res.json());
+        setPhase({ kind: 'verify', challenge: body.data.challenge });
+      })
+      .catch(failure);
+  }, [surface, toast]);
 
   const onSubmitPassword = async (values: PasswordValues) => {
     setSubmitting(true);

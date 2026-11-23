@@ -25,6 +25,11 @@ export interface HandlerResult {
  */
 export async function handleJob(job: Job): Promise<HandlerResult> {
   switch (job.type) {
+    case 'enterprise_webhook_delivery': {
+      const { deliverEnterpriseWebhook } = await import('@/lib/enterprise-integration/webhooks');
+      return deliverEnterpriseWebhook(job.payload);
+    }
+
     case 'email_campaign_process':
       return handleEmailCampaignProcess();
 

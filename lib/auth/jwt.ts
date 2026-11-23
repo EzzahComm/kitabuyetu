@@ -40,7 +40,8 @@ export interface BackofficeAccessTokenPayload {
   sub: string; // member id
   aud: 'backoffice';
   platformRole: PlatformRole; // super_admin | support | organization_coordinator
-  organizationId?: string; // scope for organization_coordinator
+  organizationId?: string;
+  organizationLocked?: true; // scope for organization_coordinator
 }
 
 export type AccessTokenPayload = TenantAccessTokenPayload | BackofficeAccessTokenPayload;
@@ -170,6 +171,7 @@ interface MfaChallengePayload {
   sub: string;
   aud: 'backoffice_mfa';
   kind: MfaChallengeKind;
+  lockedOrganizationId?: string;
   secret?: string; // only present when kind === 'enrollment'
 }
 

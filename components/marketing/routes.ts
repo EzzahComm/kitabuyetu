@@ -18,6 +18,7 @@ export const ROUTES = {
   signIn: '/login',
   startGroup: '/register',
   startOrganization: '/register-organization',
+  startCampaign: '/start-campaign',
   pricing: '/pricing',
   contact: '/contact',
   support: '/support',

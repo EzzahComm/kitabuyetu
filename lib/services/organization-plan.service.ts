@@ -8,6 +8,7 @@
  * PLAN_FEATURES gating, chosen on purpose here).
  */
 import type { PoolClient } from 'pg';
+import { enqueueEnterpriseSubscriptionEvent } from '@/lib/enterprise-integration/webhooks';
 import { withAdminDb, withDb, type TenantContext } from '@/lib/db';
 import {
   NotFoundError,
@@ -206,6 +207,7 @@ export async function assignOrganizationPlanInTx(
     );
   }
 
+  await enqueueEnterpriseSubscriptionEvent(db, organizationId, after.id, after.started_at);
   return after;
 }
 
