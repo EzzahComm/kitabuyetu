@@ -144,8 +144,11 @@ export const RegisterSchema = z.object({
 // email is REQUIRED here unlike RegisterSchema's — organization-coordinator
 // login is email-only (AdminLoginSchema below), never phone, so a
 // coordinator without an email could never sign back in.
-// planType excludes 'premium_plus', which requires custom hand-entered
-// terms (assignOrganizationPlan) and stays a "Talk to us" sales conversation.
+// Public signup starts on Starter. Staff assign plans with bundled credits.
+const organizationSignupEmail = z.string().trim().toLowerCase().max(254).email('Enter a valid work email');
+
+export const OrganizationSignupEmailSchema = z.object({ email: organizationSignupEmail });
+
 export const RegisterOrganizationSchema = z.object({
   organizationName: z.string().min(3, 'Organization name must be at least 3 characters').max(255),
   organizationType: z.enum(ORGANIZATION_TYPES, {
@@ -161,20 +164,20 @@ export const RegisterOrganizationSchema = z.object({
   county: z.string().max(80).optional().or(z.literal('')),
   address: z.string().max(255).optional().or(z.literal('')),
 
-  planType: z.enum(['starter', 'growth', 'premium'], {
-    errorMap: () => ({ message: 'Choose a plan' }),
-  }),
+  planType: z.literal('starter').default('starter'),
 
   // First coordinator (the account signing up)
   firstName: z.string().min(2).max(100),
   lastName: z.string().min(2).max(100),
   phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),
-  email: z.string().email('A work email is required to sign in to the Enterprise portal'),
+  email: organizationSignupEmail,
+  verificationCode: z.string().regex(/^\d{6}$/, 'Enter the six-digit verification code'),
   password: z
     .string()
     .min(8, 'Password must be at least 8 characters')
     .regex(/[A-Z]/, 'Password must contain at least one uppercase letter')
-    .regex(/[0-9]/, 'Password must contain at least one number'),
+    .regex(/[0-9]/, 'Password must contain at least one number')
+    .refine((value) => new TextEncoder().encode(value).length <= 72, 'Use a password of at most 72 bytes'),
 });
 
 // Mirrors the public.create_additional_group RPC (migration 147). Group-only

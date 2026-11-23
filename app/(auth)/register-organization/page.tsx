@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import Link from 'next/link';
@@ -13,62 +13,63 @@ import { Label } from '@/components/ui/label';
 import { authApi } from '@/lib/api/endpoints';
 import { ApiError } from '@/lib/api/client';
 import { useToast } from '@/hooks/use-toast';
+import { OrganizationSignupEmailSchema, RegisterOrganizationSchema } from '@/lib/validators/auth.schema';
 import { getErrorMessage } from '@/lib/utils';
-import { ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_PLAN_COPY } from '@/types/enums';
+import { ORGANIZATION_TYPES, ORGANIZATION_TYPE_LABELS, ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
-// Mirrors lib/validators/auth.schema.ts's RegisterOrganizationSchema —
-// kept in sync manually, same convention as app/(auth)/register/page.tsx's
-// own comment about its server-side counterpart.
-const schema = z
-  .object({
-    organizationName: z.string().min(3, 'Organization name must be at least 3 characters'),
-    organizationType: z.enum(ORGANIZATION_TYPES, { errorMap: () => ({ message: 'Choose the type of organization' }) }),
-    registrationNumber: z.string().optional().or(z.literal('')),
-    organizationPhone: z.string().optional().or(z.literal('')),
-    organizationEmail: z.string().email('Invalid email').optional().or(z.literal('')),
-    county: z.string().optional().or(z.literal('')),
-    address: z.string().optional().or(z.literal('')),
+const schema = RegisterOrganizationSchema.extend({ confirm: z.string() }).refine(
+  (value) => value.password === value.confirm,
+  {
+    message: 'Passwords do not match',
+    path: ['confirm'],
+  },
+);
 
-    planType: z.enum(['starter', 'growth', 'premium'], { errorMap: () => ({ message: 'Choose a plan' }) }),
-
-    firstName: z.string().min(2, 'Required'),
-    lastName: z.string().min(2, 'Required'),
-    phone: z.string().regex(/^(?:\+254|0)[17]\d{8}$/, 'Valid Kenyan phone required'),
-    email: z.string().email('A work email is required to sign in to the Enterprise portal'),
-    password: z
-      .string()
-      .min(8, 'At least 8 characters')
-      .regex(/[A-Z]/, 'Needs an uppercase letter')
-      .regex(/[0-9]/, 'Needs a number'),
-    confirm: z.string(),
-  })
-  .refine((v) => v.password === v.confirm, { message: 'Passwords do not match', path: ['confirm'] });
-
-type FormValues = z.infer<typeof schema>;
-
-// premium_plus is deliberately excluded — it requires custom hand-negotiated
-// terms (organization-plan.service.ts), so it stays a "Talk to us" sales
-// conversation, not a self-serve option.
-const SELF_SERVE_PLANS = ORGANIZATION_PLAN_COPY.filter((p) => p.type !== 'premium_plus');
+type FormValues = z.input<typeof schema>;
 
 export default function RegisterOrganizationPage() {
   const router = useRouter();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [codeSentTo, setCodeSentTo] = useState<string>();
 
   const {
     register,
     handleSubmit,
-    watch,
-    setValue,
+    control,
+    setError,
+    clearErrors,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { planType: 'starter' },
   });
 
-  const planType = watch('planType');
-  const organizationType = watch('organizationType');
+  const email = useWatch({ control, name: 'email' });
+  const codeSent = Boolean(codeSentTo && codeSentTo === email?.trim().toLowerCase());
+
+  async function sendCode() {
+    const input = OrganizationSignupEmailSchema.safeParse({ email });
+    if (!input.success) {
+      setError('email', { message: 'Enter a valid work email.' });
+      return;
+    }
+    clearErrors('email');
+    setSendingCode(true);
+    try {
+      await authApi.sendOrganizationSignupCode(input.data.email);
+      setCodeSentTo(input.data.email);
+    } catch (error) {
+      toast({
+        title: 'Could not send your verification code',
+        description: getErrorMessage(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setSendingCode(false);
+    }
+  }
 
   async function onSubmit(values: FormValues) {
     setSubmitting(true);
@@ -81,7 +82,8 @@ export default function RegisterOrganizationPage() {
         organizationEmail: values.organizationEmail || undefined,
         county: values.county || undefined,
         address: values.address || undefined,
-        planType: values.planType,
+        planType: 'starter',
+        verificationCode: values.verificationCode,
         firstName: values.firstName,
         lastName: values.lastName,
         phone: values.phone,
@@ -109,8 +111,8 @@ export default function RegisterOrganizationPage() {
       <CardHeader>
         <CardTitle>Set up your Enterprise account</CardTitle>
         <CardDescription>
-          For institutions overseeing multiple groups — SACCOs, NGOs, foundations and other organizations. Your account
-          is active immediately.
+          Set up a workspace for your NGO, SACCO, foundation or other institution. Verify your work email to get
+          started.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -127,8 +129,7 @@ export default function RegisterOrganizationPage() {
               <select
                 id="organizationType"
                 className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm"
-                value={organizationType ?? ''}
-                onChange={(e) => setValue('organizationType', e.target.value as FormValues['organizationType'])}
+                {...register('organizationType')}
               >
                 <option value="">— Select —</option>
                 {ORGANIZATION_TYPES.map((t) => (
@@ -145,34 +146,18 @@ export default function RegisterOrganizationPage() {
             </div>
           </div>
 
-          <div className="space-y-3">
-            <h3 className="text-sm font-semibold text-muted-foreground">Plan</h3>
-            <div className="grid gap-3 sm:grid-cols-3">
-              {SELF_SERVE_PLANS.map((p) => (
-                <label
-                  key={p.type}
-                  className={`cursor-pointer rounded-lg border p-3 text-sm ${
-                    planType === p.type ? 'border-brand-500 ring-1 ring-brand-500' : 'border-input'
-                  }`}
-                >
-                  <input type="radio" value={p.type} className="sr-only" {...register('planType')} />
-                  <div className="font-semibold">{p.label}</div>
-                  <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-                    {p.features.slice(0, 3).map((f) => (
-                      <li key={f}>{f}</li>
-                    ))}
-                  </ul>
-                </label>
-              ))}
-            </div>
-            {errors.planType && <p className="text-sm text-destructive">{errors.planType.message}</p>}
-            <p className="text-xs text-muted-foreground">
-              Need Premium+ or custom terms?{' '}
-              <Link href="/enterprise-solutions" className="font-medium text-brand-600 hover:underline">
-                Talk to us
-              </Link>{' '}
-              instead.
+          <div className="rounded-lg border p-4 text-sm">
+            <h3 className="font-semibold">Enterprise Starter</h3>
+            <p className="mt-1 text-muted-foreground">
+              KES {ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString('en-KE')} per month. Includes up to five linked
+              groups, two staff seats and one active funding programme.
             </p>
+            <Link
+              href="/contact"
+              className="mt-2 inline-block font-medium text-brand-700 underline-offset-4 hover:underline"
+            >
+              Ask about other plans
+            </Link>
           </div>
 
           <div className="space-y-4">
@@ -191,32 +176,64 @@ export default function RegisterOrganizationPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" {...register('phone')} placeholder="07XXXXXXXX" />
+              <Input id="phone" type="tel" autoComplete="tel" {...register('phone')} placeholder="07XXXXXXXX" />
               {errors.phone && <p className="text-sm text-destructive">{errors.phone.message}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="email">Work email</Label>
-              <Input id="email" type="email" {...register('email')} />
-              {errors.email && <p className="text-sm text-destructive">{errors.email.message}</p>}
-              <p className="text-xs text-muted-foreground">
-                The Enterprise portal signs in by email, with mandatory two-factor authentication.
-              </p>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  className="min-w-48 flex-1"
+                  {...register('email')}
+                />
+                <Button type="button" variant="outline" onClick={sendCode} disabled={sendingCode}>
+                  {sendingCode ? 'Sending…' : codeSent ? 'Resend code' : 'Send code'}
+                </Button>
+              </div>
+              {errors.email && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errors.email.message}
+                </p>
+              )}
+              {codeSent && (
+                <p role="status" className="text-sm text-muted-foreground">
+                  Check your inbox for the six-digit code.
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="verificationCode">Email verification code</Label>
+              <Input
+                id="verificationCode"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                {...register('verificationCode')}
+              />
+              {errors.verificationCode && (
+                <p role="alert" className="text-sm text-destructive">
+                  {errors.verificationCode.message}
+                </p>
+              )}
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div className="space-y-1.5">
                 <Label htmlFor="password">Password</Label>
-                <Input id="password" type="password" {...register('password')} />
+                <Input id="password" type="password" autoComplete="new-password" {...register('password')} />
                 {errors.password && <p className="text-sm text-destructive">{errors.password.message}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="confirm">Confirm password</Label>
-                <Input id="confirm" type="password" {...register('confirm')} />
+                <Input id="confirm" type="password" autoComplete="new-password" {...register('confirm')} />
                 {errors.confirm && <p className="text-sm text-destructive">{errors.confirm.message}</p>}
               </div>
             </div>
           </div>
 
-          <Button type="submit" className="w-full" disabled={submitting}>
+          <Button type="submit" className="w-full" disabled={submitting || sendingCode}>
             {submitting ? 'Creating your organization…' : 'Create organization'}
           </Button>
 

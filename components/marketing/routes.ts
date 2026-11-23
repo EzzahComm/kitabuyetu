@@ -17,6 +17,7 @@ export const ROUTES = {
   home: '/',
   signIn: '/login',
   startGroup: '/register',
+  startOrganization: '/register-organization',
   pricing: '/pricing',
   contact: '/contact',
   support: '/support',

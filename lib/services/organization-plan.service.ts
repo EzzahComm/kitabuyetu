@@ -1,7 +1,6 @@
 /**
- * Organization subscription plans — real, enforced tiers assigned exclusively
- * by super_admin (organizations never self-serve a plan; only Kitabu Yetu
- * staff create organizations at all). See types/enums.ts's
+ * Organization subscription plans. Public signup provisions Starter. Staff
+ * assign paid upgrades and negotiated plans. See types/enums.ts's
  * ORGANIZATION_PLAN_FEATURES/_MONTHLY_FEES for the static tier definitions
  * this snapshots, and supabase/migrations/20260817000000_152_* for the schema
  * and the full rationale (mirrors subscriptions' snapshot-not-live-join shape;
@@ -95,6 +94,16 @@ export async function assignOrganizationPlan(
   adminId: string,
   opts: { custom?: CustomPlanTerms; notes?: string } = {},
 ): Promise<OrganizationSubscription> {
+  return withAdminDb((db) => assignOrganizationPlanInTx(db, organizationId, planType, adminId, opts));
+}
+
+export async function assignOrganizationPlanInTx(
+  db: PoolClient,
+  organizationId: string,
+  planType: OrganizationPlanType,
+  adminId: string,
+  opts: { custom?: CustomPlanTerms; notes?: string } = {},
+): Promise<OrganizationSubscription> {
   let snapshot: {
     monthlyFee: number;
     maxLinkedGroups: number | null;
@@ -137,69 +146,67 @@ export async function assignOrganizationPlan(
     };
   }
 
-  return withAdminDb(async (db) => {
-    const org = await db.query<{ id: string }>(`SELECT id FROM organizations WHERE id = $1`, [organizationId]);
-    if (!org.rows[0]) throw new NotFoundError('Organization', organizationId);
+  const org = await db.query<{ id: string }>(`SELECT id FROM organizations WHERE id = $1`, [organizationId]);
+  if (!org.rows[0]) throw new NotFoundError('Organization', organizationId);
 
-    const before = await getActiveSubscriptionForUpdate(db, organizationId);
-    if (before) {
-      await db.query(`UPDATE organization_subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`, [
-        before.id,
-      ]);
-    }
+  const before = await getActiveSubscriptionForUpdate(db, organizationId);
+  if (before) {
+    await db.query(`UPDATE organization_subscriptions SET status = 'cancelled', cancelled_at = NOW() WHERE id = $1`, [
+      before.id,
+    ]);
+  }
 
-    const { rows } = await db.query<OrganizationSubscription>(
-      `INSERT INTO organization_subscriptions
-         (organization_id, plan_type, monthly_fee, max_linked_groups, max_staff,
-          max_funding_programs, sms_allowance_included, white_label_branding,
-          advanced_reports, support_tier, is_custom, assigned_by, notes)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-       RETURNING *`,
-      [
-        organizationId,
-        planType,
-        snapshot.monthlyFee.toFixed(2),
-        snapshot.maxLinkedGroups,
-        snapshot.maxStaff,
-        snapshot.maxFundingPrograms,
-        snapshot.smsAllowanceIncluded.toFixed(2),
-        snapshot.whiteLabelBranding,
-        snapshot.advancedReports,
-        snapshot.supportTier,
-        snapshot.isCustom,
-        adminId,
-        opts.notes ?? null,
-      ],
+  const { rows } = await db.query<OrganizationSubscription>(
+    `INSERT INTO organization_subscriptions
+       (organization_id, plan_type, monthly_fee, max_linked_groups, max_staff,
+        max_funding_programs, sms_allowance_included, white_label_branding,
+        advanced_reports, support_tier, is_custom, assigned_by, notes)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     RETURNING *`,
+    [
+      organizationId,
+      planType,
+      snapshot.monthlyFee.toFixed(2),
+      snapshot.maxLinkedGroups,
+      snapshot.maxStaff,
+      snapshot.maxFundingPrograms,
+      snapshot.smsAllowanceIncluded.toFixed(2),
+      snapshot.whiteLabelBranding,
+      snapshot.advancedReports,
+      snapshot.supportTier,
+      snapshot.isCustom,
+      adminId,
+      opts.notes ?? null,
+    ],
+  );
+  const after = rows[0];
+
+  await db.query(
+    `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
+     VALUES ($1, 'organization.plan_assigned', 'organization', $2, $3::jsonb, $4::jsonb)`,
+    [
+      adminId,
+      organizationId,
+      JSON.stringify(before ? { plan_type: before.plan_type, monthly_fee: before.monthly_fee } : null),
+      JSON.stringify({ plan_type: after.plan_type, monthly_fee: after.monthly_fee }),
+    ],
+  );
+
+  // Grant the bundled SMS allowance immediately, same as a fresh top-up —
+  // see organization-plan-allowance.ts's granting helper for why this is a
+  // credited balance addition rather than the group side's separate
+  // used/included counter (deliberately simpler; see migration 152).
+  if (snapshot.smsAllowanceIncluded > 0) {
+    await grantSmsAllowanceInTx(
+      db,
+      organizationId,
+      snapshot.smsAllowanceIncluded,
+      adminId,
+      'Plan assignment allowance',
     );
-    const after = rows[0];
+  }
 
-    await db.query(
-      `INSERT INTO audit_logs (actor_id, action, resource_type, resource_id, old_values, new_values)
-       VALUES ($1, 'organization.plan_assigned', 'organization', $2, $3::jsonb, $4::jsonb)`,
-      [
-        adminId,
-        organizationId,
-        JSON.stringify(before ? { plan_type: before.plan_type, monthly_fee: before.monthly_fee } : null),
-        JSON.stringify({ plan_type: after.plan_type, monthly_fee: after.monthly_fee }),
-      ],
-    );
-
-    // Grant the bundled SMS allowance immediately, same as a fresh top-up —
-    // see organization-plan-allowance.ts's granting helper for why this is a
-    // credited balance addition rather than the group side's separate
-    // used/included counter (deliberately simpler; see migration 152).
-    if (snapshot.smsAllowanceIncluded > 0) {
-      await grantSmsAllowanceInTx(
-        db,
-        organizationId,
-        snapshot.smsAllowanceIncluded,
-        adminId,
-        'Plan assignment allowance',
-      );
-    }
-
-    return after;
-  });
+  return after;
 }
 
 /** Current plan + live usage against its caps — for the admin plan card and the org-facing Billing page. */

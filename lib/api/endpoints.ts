@@ -172,6 +172,8 @@ export const authApi = {
 
   changePassword: (body: ChangePasswordPayload) => api.post<{ changed: boolean }>('/auth/change-password', body),
   register: (body: RegisterPayload) => api.post<RegisterResult>('/auth/register', body),
+  sendOrganizationSignupCode: (email: string) =>
+    api.post<{ sent: boolean }>('/auth/register-organization/verification', { email }),
   registerOrganization: (body: RegisterOrganizationPayload) =>
     api.post<RegisterOrganizationResult>('/auth/register-organization', body),
   registerWithCertificate: (body: RegisterPayload, certificate: File) =>

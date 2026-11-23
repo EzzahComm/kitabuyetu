@@ -104,13 +104,13 @@ export default function EnterpriseSolutionsPage() {
 
       <div className="flex flex-wrap gap-3 pt-5">
         <Link
-          href={ROUTES.contact}
+          href={ROUTES.startOrganization}
           className="rounded-md bg-brand-600 px-5 py-3 text-sm font-semibold !text-white transition-colors hover:bg-brand-700"
         >
-          Discuss an Enterprise deployment
+          Create an Enterprise workspace
         </Link>
         <Link
-          href={ROUTES.orgPortal}
+          href="/enterprise/login"
           className="rounded-md border border-brand-100 px-5 py-3 text-sm font-semibold text-finanza-dark! transition-colors hover:bg-brand-50/60"
         >
           Enterprise portal sign in

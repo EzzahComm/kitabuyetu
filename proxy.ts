@@ -194,6 +194,8 @@ export async function proxy(req: NextRequest): Promise<NextResponse> {
   const PUBLIC_AUTH_PATHS = new Set([
     '/api/v1/auth/login',
     '/api/v1/auth/register',
+    '/api/v1/auth/register-organization',
+    '/api/v1/auth/register-organization/verification',
     '/api/v1/auth/refresh', // verifies its own refresh token from the body
     '/api/v1/auth/logout', // ditto
     '/api/v1/auth/admin/login',
