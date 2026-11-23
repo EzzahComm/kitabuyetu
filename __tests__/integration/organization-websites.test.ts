@@ -205,12 +205,19 @@ it('withdraws public access on suspension, global disable and unpublish', async 
   await updateWebsite(a, { action: 'unpublish', slug, revision: s.revision });
   expect(await publishedWebsite(slug)).toBeNull();
 });
-it('exposes only published snapshots to the anonymous database role', async () => {
+it('serves published snapshots through the server and denies direct database-client access', async () => {
   await publish();
   await withAdminDb(async (db) => {
-    await db.query('SET LOCAL ROLE anon');
     const result = await db.query('SELECT public.get_published_organization_website($1) AS site', [slug]);
     expect(result.rows[0].site.headline).toBe('Community programmes');
+    for (const role of ['anon', 'authenticated']) {
+      const allowed = await db.query(
+        "SELECT has_function_privilege($1,'public.get_published_organization_website(text)','EXECUTE') AS allowed",
+        [role],
+      );
+      expect(allowed.rows[0].allowed).toBe(false);
+    }
+    await db.query('SET LOCAL ROLE anon');
     expect(
       (await db.query("SELECT has_table_privilege(current_user,'organization_websites','SELECT') AS allowed")).rows[0]
         .allowed,

@@ -31,7 +31,7 @@ ALTER TABLE public.organization_website_publications ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.organization_websites, public.organization_website_publications FROM PUBLIC,anon,authenticated;
 
 CREATE FUNCTION public.get_published_organization_website(site_slug text) RETURNS jsonb
-LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
+LANGUAGE sql STABLE SECURITY INVOKER SET search_path = '' AS $$
   SELECT p.snapshot FROM public.organization_websites w
   JOIN public.organization_website_publications p ON (p.organization_id,p.revision) = (w.organization_id,w.publication)
   JOIN public.organizations o ON o.id = w.organization_id AND o.is_active
@@ -40,6 +40,6 @@ LANGUAGE sql STABLE SECURITY DEFINER SET search_path = '' AS $$
       AND applies_to = 'all' AND rollout_pct = 100
   )
 $$;
-REVOKE ALL ON FUNCTION public.get_published_organization_website(text) FROM PUBLIC;
-GRANT EXECUTE ON FUNCTION public.get_published_organization_website(text) TO anon,authenticated;
+REVOKE ALL ON FUNCTION public.get_published_organization_website(text) FROM PUBLIC,anon,authenticated;
+GRANT EXECUTE ON FUNCTION public.get_published_organization_website(text) TO postgres;
 COMMIT;

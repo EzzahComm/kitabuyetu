@@ -25,7 +25,7 @@ One Enterprise organization can now operate a website at `/sites/{slug}`. Each w
 
 ## Release and operations
 
-Apply migrations 219, 220 and 221 in order. They add website drafts, immutable-by-application publications, private artwork, enquiries and the default-off flag. The server owns table access. RLS denies client access to the tables, and an anonymous reader can call only the website-specific snapshot function for public website content. Media selected at publication is embedded in the snapshot so later asset removal cannot change an approved version. Each publish records its actor and revision in `audit_logs`.
+Apply migrations 219, 220 and 221 in order. They add website drafts, immutable-by-application publications, private artwork, enquiries and the default-off flag. The server owns table access. RLS and table grants deny direct client access. The public page reads the approved snapshot through the server database connection. The snapshot function uses invoker privileges and denies execution to anonymous and authenticated database clients. Media selected at publication is embedded in the snapshot so later asset removal cannot change an approved version. Each publish records its actor and revision in `audit_logs`.
 
 The initial release uses a platform path and dynamic rendering so suspension takes effect on the next request. Newspaper-style editorial text is plain text. The default photograph is illustrative and can be replaced with a consented client image. [Image source record](../../public/img/IMAGE_SOURCES.md)
 
