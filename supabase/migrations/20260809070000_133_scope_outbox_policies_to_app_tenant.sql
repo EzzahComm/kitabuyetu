@@ -32,10 +32,24 @@
 -- before replaying migrations) still exercises the real ALTER POLICY.
 -- =============================================================================
 
+-- Migration 058 removes these policies in the canonical replay. Older
+-- databases can still have them. Restrict the policies only when present.
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'app_tenant') THEN
-    EXECUTE 'ALTER POLICY event_outbox_all ON public.event_outbox TO app_tenant';
-    EXECUTE 'ALTER POLICY membership_no_counters_all ON public.membership_no_counters TO app_tenant';
+    IF EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'event_outbox' AND policyname = 'event_outbox_all'
+    ) THEN
+      EXECUTE 'ALTER POLICY event_outbox_all ON public.event_outbox TO app_tenant';
+    END IF;
+
+    IF EXISTS (
+      SELECT 1 FROM pg_policies
+      WHERE schemaname = 'public' AND tablename = 'membership_no_counters'
+        AND policyname = 'membership_no_counters_all'
+    ) THEN
+      EXECUTE 'ALTER POLICY membership_no_counters_all ON public.membership_no_counters TO app_tenant';
+    END IF;
   END IF;
 END $$;

@@ -1,0 +1,7 @@
+**
+!supabase/
+!supabase/migrations/
+!supabase/migrations/*.sql
+!scripts/
+!scripts/docker-init/
+!scripts/docker-init/00-bootstrap-roles.sql

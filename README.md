@@ -1,60 +1,64 @@
-<p align="center">
- <a href="https://web3templates.com/?ref=nextly_github_logo">
- <img src="https://user-images.githubusercontent.com/1884712/132941531-0fdd7acf-47ca-424e-b77f-1fab2e372a37.png" alt="W3T" width="100" height="41"/>
- </a> 
- <br>
- <br>
-</p>
+# Kitabu Yetu
 
-# Nextly - Landing Page Template with Next.js & Tailwind CSS
+Kitabu Yetu is a multi-tenant application for community organisations. This repository contains the public website, Bookkeeper, Chama Reminder, Changi$ha, the Enterprise portal, and the platform back office.
 
-Nextly is a free landing page & marketing website template for startups and indie projects. Its built with Next.js & TailwindCSS.
-And its completely open-source.
+The application uses Next.js App Router, React, TypeScript, and PostgreSQL. Next.js route handlers run the API and provider webhooks. Vercel hosts the application. Supabase supplies hosted PostgreSQL and storage. PostgreSQL stores the job queue, with cron entry points and optional Upstash QStash dispatch. M-Pesa Daraja handles payments, TextSMS handles SMS, and the configured email adapter handles transactional mail. Sanity supplies public resources and articles.
 
-![image](https://user-images.githubusercontent.com/1884712/121497169-03228680-c990-11eb-975a-e77fddc43de0.png)
+## Local setup
 
-## How to use
-
-Click on the [Use Template](https://github.com/surjithctly/nextly-template/generate) button on this page to clone this respository to your github account. Or you can also clone this respository using terminal or bash.
-
-### 1\. Clone this Repository
+Use Node.js 22 or later, npm, OpenSSL, and Docker Compose v2. Run these commands from the repository directory.
 
 ```bash
-git clone https://github.com/surjithctly/nextly-template.git
+npm ci --include=dev
+docker compose up --build -d --wait
+cp -n .env.example .env.local
 ```
 
-### 2\. Navigate to the directory
+PostgreSQL applies the SQL migrations and bootstraps the local Supabase roles on a new volume. Existing volumes are preserved. Use an isolated Compose project and new volumes when testing migration replay. For example, set `DB_PORT=55432 REDIS_PORT=56379` and use `docker compose -p kitabuyetu-test up --build -d --wait`. Update `DATABASE_URL` to match the PostgreSQL port.
 
-```
-cd nextly-template
-```
+Populate the three local keys before starting the app. This command fills only blank entries in `.env.local`.
 
-### 3\. Install dependencies
-
-```
-yarn install
-# or
-npm install
-```
-
-### 5\. Run Dev Server
-
-```
-yarn dev
-# or
+```bash
+node --input-type=module -e '
+  import { readFileSync, writeFileSync } from "node:fs";
+  import { randomBytes } from "node:crypto";
+  const file = ".env.local";
+  const contents = readFileSync(file, "utf8").replace(
+    /^(JWT_SECRET|ENCRYPTION_KEY|WORKER_SECRET)=$/gm,
+    (_, name) => `${name}=${randomBytes(32).toString("hex")}`,
+  );
+  writeFileSync(file, contents, { mode: 0o600 });
+'
 npm run dev
 ```
 
-## Deploy with Vercel
+The default sample configuration supports local rendering with a disposable database. The application uses the Upstash HTTPS REST API for sessions, locks, and caching. The Compose Redis service exposes the native Redis protocol. Use an isolated Upstash development endpoint and token or provider mocks for workflows that depend on Redis. Use Daraja sandbox or mocks for payments, and keep SMS, email, and other outbound integrations mocked or in dry run during local QA. Keep `.env.local` out of version control.
 
-Deploy this template using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Check development liveness and the public homepage.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https://github.com/surjithctly/nextly-template&project-name=nextly-template&repository-name=nextly-template)
+```bash
+curl -fsS http://127.0.0.1:3000/api/health
+curl -fsS http://127.0.0.1:3000/ -o /dev/null
+```
 
-## Author
+## Build and tests
 
-Surjith S M ( [@surjithctly](https://surjithctly.in/) )
+```bash
+npm run lint
+npm run format:check
+npm run typecheck
+npm run test:ci -- --runInBand
+npm run build
+```
 
----
+Next.js downloads font files during the production build. The integration suites create and delete fixtures and require a **disposable local database**. Run them sequentially when they use the same database.
 
-[![image](https://www.datocms-assets.com/31049/1618983297-powered-by-vercel.svg)](https://vercel.com/?utm_source=web3templates&utm_campaign=oss)
+```bash
+DATABASE_URL=postgresql://kitabuyetu:changeme@127.0.0.1:5432/kitabuyetu npm run test:integration
+```
+
+For the least-privileged suite, follow the role provisioning step in the [CI workflow](.github/workflows/ci.yml), then set `TENANT_DATABASE_URL` for the same disposable database and run `npm run test:integration:app-tenant`.
+
+## Deployment
+
+Vercel build and deployment steps are in [CI](.github/workflows/ci.yml). Deployment setup, service bindings, and environment variables are documented in [DEPLOY.md](DEPLOY.md) and [.env.example](.env.example). The Docker images in the local setup provide PostgreSQL and Redis.
