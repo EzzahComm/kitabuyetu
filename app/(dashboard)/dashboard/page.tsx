@@ -145,6 +145,7 @@ export default function DashboardPage() {
   // permission string (e.g. "Missing permission 'mpesa.view'") for a
   // perfectly normal, permanent state that a retry will never fix.
   const canViewMpesa = useHasPermission('mpesa.view');
+  const canViewAnalytics = useHasPermission('analytics.view');
   const canViewReports = useHasPermission('reports.view');
   const canViewContributions = useHasPermission('contributions.view');
   const canViewWelfare = useHasPermission('welfare.view');
@@ -229,6 +230,7 @@ export default function DashboardPage() {
     loans: { outstandingBalance: string };
   }>({
     queryKey: ['dashboard', 'executive-summary'],
+    enabled: canViewAnalytics,
     queryFn: () => api.get('/analytics/executive?period=12mo'),
     staleTime: 60_000,
   });
@@ -277,6 +279,7 @@ export default function DashboardPage() {
     !canViewWelfare && 'welfare',
     !canViewContributions && 'contribution follow-ups',
     !canViewReports && 'financial reports',
+    !canViewAnalytics && 'analytics',
   ].filter((s): s is string => Boolean(s));
 
   const totalMembers = membersData?.total ?? 0;
@@ -509,31 +512,35 @@ export default function DashboardPage() {
             className="transition-colors group-hover:border-primary/40"
           />
         </Link>
-        <Link href="/contributions" className="block group">
-          <StatCard
-            title="Total savings"
-            value={formatKES(totalSavings)}
-            description="All-time contributions"
-            icon={PiggyBank}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
-        <Link href="/loans" className="block group">
-          <StatCard
-            title="Outstanding loans"
-            value={formatKES(outstandingLoans)}
-            icon={TrendingDown}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
-        <Link href="/contributions" className="block group">
-          <StatCard
-            title="This month's contributions"
-            value={formatKES(thisMonthContribs)}
-            icon={ReceiptText}
-            className="transition-colors group-hover:border-primary/40"
-          />
-        </Link>
+        {canViewAnalytics && (
+          <>
+            <Link href="/contributions" className="block group">
+              <StatCard
+                title="Total savings"
+                value={formatKES(totalSavings)}
+                description="All-time contributions"
+                icon={PiggyBank}
+                className="transition-colors group-hover:border-primary/40"
+              />
+            </Link>
+            <Link href="/loans" className="block group">
+              <StatCard
+                title="Outstanding loans"
+                value={formatKES(outstandingLoans)}
+                icon={TrendingDown}
+                className="transition-colors group-hover:border-primary/40"
+              />
+            </Link>
+            <Link href="/contributions" className="block group">
+              <StatCard
+                title="This month's contributions"
+                value={formatKES(thisMonthContribs)}
+                icon={ReceiptText}
+                className="transition-colors group-hover:border-primary/40"
+              />
+            </Link>
+          </>
+        )}
       </div>
 
       {/* Zone 2b — Upcoming loan repayments */}

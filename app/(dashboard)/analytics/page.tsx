@@ -1,5 +1,6 @@
 'use client';
 
+import { useHasPermission } from '@/lib/auth/use-permission';
 import { useState } from 'react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
@@ -98,12 +99,14 @@ const PERIOD_OPTIONS: { value: Period; label: string }[] = [
 ];
 
 export default function AnalyticsPage() {
+  const canViewAnalytics = useHasPermission('analytics.view');
   const [period, setPeriod] = useState<Period>('12mo');
   const [exporting, setExporting] = useState<string | null>(null);
   const { toast } = useToast();
 
   const summaryQ = useQuery<ExecutiveSummary>({
     queryKey: ['analytics', 'executive', period],
+    enabled: canViewAnalytics,
     queryFn: () => api.get<ExecutiveSummary>(`/analytics/executive?period=${period}`),
   });
 
@@ -127,6 +130,15 @@ export default function AnalyticsPage() {
       setExporting(null);
     }
   };
+
+  if (!canViewAnalytics) {
+    return (
+      <Alert>
+        <AlertTitle>Analytics access required</AlertTitle>
+        <AlertDescription>Your role does not have permission to view analytics.</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">
