@@ -1,5 +1,6 @@
 'use client';
 
+import { useHasPermission } from '@/lib/auth/use-permission';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -92,8 +93,10 @@ const TIER_TONE: Record<HighRiskMember['reliabilityTier'], Tone> = {
 };
 
 export default function RiskAnalysisPage() {
+  const canViewAnalytics = useHasPermission('analytics.view');
   const riskQ = useQuery<RiskAnalysis>({
     queryKey: ['analytics', 'risk'],
+    enabled: canViewAnalytics,
     queryFn: () => api.get<RiskAnalysis>('/analytics/risk'),
   });
   const r = riskQ.data;
@@ -104,6 +107,15 @@ export default function RiskAnalysisPage() {
     (r?.highRiskMembers.length ?? 0) +
     (r?.idleMembers.length ?? 0) +
     (r?.staleWelfareRequests.length ?? 0);
+
+  if (!canViewAnalytics) {
+    return (
+      <Alert>
+        <AlertTitle>Risk analysis access required</AlertTitle>
+        <AlertDescription>Your role does not have permission to view risk analysis.</AlertDescription>
+      </Alert>
+    );
+  }
 
   return (
     <div className="space-y-6">

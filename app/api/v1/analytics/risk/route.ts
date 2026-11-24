@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { withAuth } from '@/lib/auth/middleware';
+import { withPermission } from '@/lib/auth/middleware';
 import { analyticsService } from '@/lib/services/analytics.service';
 import { ok } from '@/lib/utils/response';
 
@@ -14,11 +14,12 @@ import { ok } from '@/lib/utils/response';
  * not a paginated report. Drill-down filtered list views land in E8.3.
  */
 export async function GET(req: NextRequest): Promise<Response> {
-  return withAuth(req, async (auth) => {
+  return withPermission(req, 'analytics.view', async (auth) => {
     const risk = await analyticsService.getRiskAnalysis({
       userId: auth.userId,
       groupId: auth.groupId,
       role: auth.role,
+      organizationId: auth.organizationId,
     });
     return ok(risk);
   });

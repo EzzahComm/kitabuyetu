@@ -132,11 +132,16 @@ export interface ExecutiveSummary {
 
 // ─── Service ────────────────────────────────────────────────────────────
 
+// A cached result must have the same RLS context as an uncached read.
+function analyticsCacheScope(ctx: TenantContext): string {
+  return JSON.stringify([ctx.groupId, ctx.userId, ctx.role, ctx.organizationId ?? null]);
+}
+
 export const analyticsService = {
   async getExecutiveSummary(ctx: TenantContext, period: AnalyticsPeriod): Promise<ExecutiveSummary> {
     const { interval, grain } = periodToInterval(period);
 
-    return cached(keys.cache('executive-summary', `${ctx.groupId}:${period}`), 60, () =>
+    return cached(keys.cache('executive-summary', `${analyticsCacheScope(ctx)}:${period}`), 60, () =>
       withDb(ctx, async (client) => {
         const groupId = ctx.groupId;
 
@@ -515,7 +520,7 @@ export const analyticsService = {
   // ── Risk analysis (E8.2) ─────────────────────────────────────────────
 
   async getRiskAnalysis(ctx: TenantContext): Promise<RiskAnalysis> {
-    return cached(keys.cache('risk-analysis', ctx.groupId), 60, () =>
+    return cached(keys.cache('risk-analysis', analyticsCacheScope(ctx)), 60, () =>
       withDb(ctx, async (client) => {
         const groupId = ctx.groupId;
         const [overdueLoans, defaultedLoans, riskMembers, idleMembers, staleWelfare] = await Promise.all([
