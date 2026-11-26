@@ -236,6 +236,27 @@ export function withOrganizationAccess(
 ): Promise<Response> {
   return withBackofficeAuth(req, async (bo) => {
     requireOrganizationPermission({ role: bo.platformRole, organizationId: bo.organizationId }, permission);
+    if (bo.platformRole === 'organization_coordinator') {
+      // A signed session can outlive a membership revocation or role change.
+      const { withAdminDb } = await import('@/lib/db');
+      const hasActiveMembership = await withAdminDb(async (client) => {
+        const { rows } = await client.query<{ allowed: boolean }>(
+          `SELECT EXISTS (
+             SELECT 1
+             FROM organization_members om
+             JOIN organizations o ON o.id = om.organization_id AND o.is_active
+             JOIN members m ON m.id = om.member_id AND m.is_active
+             WHERE om.member_id = $1 AND om.organization_id = $2
+               AND om.status = 'active' AND m.platform_role = 'organization_coordinator'
+           ) AS allowed`,
+          [bo.userId, bo.organizationId],
+        );
+        return rows[0]?.allowed === true;
+      });
+      if (!hasActiveMembership) {
+        throw new ForbiddenError('Active organization membership is required');
+      }
+    }
     if (
       bo.organizationId &&
       permission !== 'organization.plan.view' &&
