@@ -33,6 +33,10 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
     return { message: 'Scheduled bulk SMS deferred during dispatch pause', deferSeconds: 3600 };
   }
   switch (job.type) {
+    case 'enterprise_invoice': {
+      const { sendEnterpriseInvoice } = await import('@/lib/services/enterprise-billing.service');
+      return sendEnterpriseInvoice();
+    }
     case 'enterprise_webhook_delivery': {
       const { deliverEnterpriseWebhook } = await import('@/lib/enterprise-integration/webhooks');
       return deliverEnterpriseWebhook(job.payload);

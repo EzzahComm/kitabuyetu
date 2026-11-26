@@ -55,7 +55,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   // a non-200 makes Safaricom retry — previously we acked unconditionally and
   // a callback arriving during an outage was silently lost. The DLQ replay
   // job recovers processing failures from the audit row.
-  const callbackId = await logMpesaCallback('stk_push', callerIp, rawBody);
+  // Persist the app-generated attempt alongside the authenticated callback for replay.
+  delete body.enterpriseAttempt;
+  const attempt = req.nextUrl.searchParams.get('enterpriseAttempt');
+  if (attempt) body.enterpriseAttempt = attempt;
+  const callbackId = await logMpesaCallback('stk_push', callerIp, JSON.stringify(body));
   if (!callbackId && DURABLE_ACK) {
     logger.error('[mpesa/callback] audit write failed — asking Safaricom to retry');
     return NextResponse.json({ ResultCode: 1, ResultDesc: 'Retry' }, { status: 503 });

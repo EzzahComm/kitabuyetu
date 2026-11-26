@@ -1,6 +1,9 @@
 'use client';
 
 import * as React from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
+import { organizationApi } from '@/lib/api/endpoints';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
@@ -92,6 +95,7 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
   const router = useRouter();
   const [open, setOpen] = React.useState(false);
   const { user, audience, isLoading } = useAuth();
+  const organizationId = user && 'organizationId' in user ? user.organizationId : undefined;
 
   React.useEffect(() => {
     if (isLoading) return;
@@ -109,6 +113,17 @@ export default function EnterpriseLayout({ children }: { children: React.ReactNo
 
   const ready =
     !isLoading && !!user && audience === 'backoffice' && ENTERPRISE_ROLES.includes(user.platformRole as EnterpriseRole);
+
+  const { data: billing } = useQuery({
+    queryKey: enterpriseKeys.billing(organizationId),
+    queryFn: organizationApi.subscriptionBilling,
+    enabled: ready && !!organizationId,
+    refetchInterval: 60000,
+  });
+  const needsBilling = billing?.state === 'awaiting_payment' || billing?.state === 'unassigned';
+  React.useEffect(() => {
+    if (ready && needsBilling && pathname !== '/enterprise/billing') router.replace('/enterprise/billing');
+  }, [ready, needsBilling, pathname, router]);
 
   const isActive = (href: string) => (href === '/enterprise' ? pathname === href : pathname.startsWith(href));
 

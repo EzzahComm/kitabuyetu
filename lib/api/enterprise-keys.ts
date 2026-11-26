@@ -43,6 +43,7 @@ export const enterpriseKeys = {
   auditLogs: (page?: number, search?: string) => [...enterpriseKeys.all, 'audit-logs', page, search] as const,
   branding: () => [...enterpriseKeys.all, 'branding'] as const,
   smsCredits: () => [...enterpriseKeys.all, 'sms-credits'] as const,
+  billing: (id?: string) => [...enterpriseKeys.all, 'billing', id] as const,
   plan: () => [...enterpriseKeys.all, 'plan'] as const,
   // Distinct from `programs`/`programGroups` above, which are funding_programs
   // (budget/disbursement). groupPrograms is the unrelated recruitment/

@@ -684,6 +684,16 @@ export const reportsApi = {
 // Organization
 // ------------------------------------------------------------------
 export const organizationApi = {
+  subscriptionBilling: () =>
+    adminApi.get<{
+      state: 'trial' | 'paid' | 'complimentary' | 'awaiting_payment' | 'unassigned';
+      trial_ends_at?: string;
+      paid_until?: string;
+      reference?: string;
+      balance?: string;
+      paybill?: string;
+    }>('/organization/billing'),
+  payInvoice: (phone: string) => adminApi.post('/organization/billing', { phone }),
   profile: () => adminApi.get<OrganizationProfile>('/organization/profile'),
   groups: (params?: { page?: number; limit?: number }) =>
     adminApi.get<PaginatedResult<OrganizationGroupSummary>>(`/organization/groups${buildQuery(params ?? {})}`),

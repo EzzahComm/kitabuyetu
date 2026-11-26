@@ -13,6 +13,7 @@
  * organization never self-serve changes its plan, only Kitabu Yetu staff do.
  */
 
+import { useAuth } from '@/lib/auth/context';
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MessageSquare, ArrowDownToLine, Sparkles } from 'lucide-react';
@@ -32,6 +33,16 @@ import { formatDate, formatKES } from '@/lib/utils';
 const CAP_LABEL = (n: number | null) => (n === null ? 'Unlimited' : n.toLocaleString());
 
 export default function OrganizationBillingPage() {
+  const { user } = useAuth();
+  const organizationId = user && 'organizationId' in user ? user.organizationId : undefined;
+  const [phone, setPhone] = useState('');
+  const billing = useQuery({
+    queryKey: enterpriseKeys.billing(organizationId),
+    queryFn: organizationApi.subscriptionBilling,
+    refetchInterval: 15000,
+  });
+  const prompt = useMutation({ mutationFn: () => organizationApi.payInvoice(phone) });
+  const account = billing.data;
   const [topUpOpen, setTopUpOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
@@ -58,6 +69,36 @@ export default function OrganizationBillingPage() {
         }
       />
 
+      <Card>
+        <CardContent className="space-y-3 py-4" aria-live="polite">
+          {billing.isLoading && 'Loading subscription status…'}
+          {billing.isError && 'Subscription status could not be loaded.'}
+          {account?.state === 'trial' && (
+            <>
+              Free trial through {formatDate(account.trial_ends_at!)}. We will email your invoice when the trial ends.
+            </>
+          )}
+          {account?.state === 'paid' && <>Paid through {formatDate(account.paid_until!)}.</>}
+          {account?.state === 'complimentary' && 'Your plan has no monthly charge.'}
+          {account?.state === 'unassigned' && 'Contact Kitabu Yetu to assign a plan.'}
+          {account?.reference && (
+            <>
+              <h2 className="font-semibold">Invoice {account.reference}</h2>
+              <p>
+                Pay {formatKES(account.balance!)} to M-Pesa PayBill {account.paybill} using account {account.reference}{' '}
+                to unlock access.
+              </p>
+              <Label htmlFor="invoice-phone">M-Pesa phone number</Label>
+              <Input id="invoice-phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <Button disabled={!phone || prompt.isPending} onClick={() => prompt.mutate()}>
+                Request STK push
+              </Button>
+              {prompt.isSuccess && <p>Check your phone for the M-Pesa prompt.</p>}
+              {prompt.isError && <p>{prompt.error.message}</p>}
+            </>
+          )}
+        </CardContent>
+      </Card>
       <div className="space-y-3">
         <SectionHeader title="Plan" subtitle="Assigned by Kitabu Yetu staff — contact them to change your plan." />
         <Card>

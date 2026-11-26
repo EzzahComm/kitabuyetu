@@ -71,6 +71,13 @@ export async function validateC2BAccount(billRef: string | null | undefined): Pr
   try {
     // A real Changi$ha campaign account can be all digits after 'CH', which
     // would otherwise read as a (bad) membership number and be rejected.
+    const reference = billRef?.trim().toUpperCase();
+    if (reference && /^EN[A-F0-9]{10}$/.test(reference)) {
+      const invoice = await withAdminDb((db) =>
+        db.query('SELECT 1 FROM enterprise_invoices WHERE reference=$1 AND settled_at IS NULL', [reference]),
+      );
+      return invoice.rowCount ? { accept: true } : { accept: false, reason: 'unknown_account' };
+    }
     const campaignCode = parseCampaignAccountCode(billRef);
     if (campaignCode) {
       const known = await withAdminDb(async (db) => {
@@ -166,6 +173,14 @@ export async function handleC2BConfirmation(
   const route = parseBillRefNumber(body.BillRefNumber);
 
   await withAdminDb(async (db) => {
+    const reference = body.BillRefNumber?.trim().toUpperCase();
+    if (reference && /^EN[A-F0-9]{10}$/.test(reference)) {
+      if (!process.env.MPESA_SHORTCODE || String(body.BusinessShortCode) !== process.env.MPESA_SHORTCODE)
+        throw new Error('Unexpected enterprise PayBill.');
+      const { recordEnterpriseReceipt } = await import('./enterprise-billing.service');
+      await recordEnterpriseReceipt(db, reference, body.TransID, Number(body.TransAmount), 'paybill');
+      return;
+    }
     // 1. Idempotency — duplicate Safaricom retries return early.
     const { rows: existingPay } = await db.query<{ id: string }>(
       'SELECT id FROM payments WHERE mpesa_receipt_number=$1 LIMIT 1',

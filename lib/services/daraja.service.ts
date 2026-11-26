@@ -325,6 +325,7 @@ export function isValidCallbackToken(token: string | null): boolean {
 // ─── STK Push (M-Pesa Express) ────────────────────────────────────────────────
 
 export interface StkPushInput {
+  enterpriseAttempt?: string;
   phone: string;
   amount: number;
   accountReference: string;
@@ -346,26 +347,30 @@ export async function initiateStkPush(input: StkPushInput): Promise<StkPushRespo
   const password = getMpesaPassword(timestamp);
 
   const c = await makeClient();
-  const { data } = await withRetry(() =>
-    c.post<{
-      MerchantRequestID: string;
-      CheckoutRequestID: string;
-      ResponseCode: string;
-      ResponseDescription: string;
-      CustomerMessage: string;
-    }>('/mpesa/stkpush/v1/processrequest', {
-      BusinessShortCode: SHORTCODE,
-      Password: password,
-      Timestamp: timestamp,
-      TransactionType: 'CustomerPayBillOnline',
-      Amount: amount,
-      PartyA: phone,
-      PartyB: SHORTCODE,
-      PhoneNumber: phone,
-      CallBackURL: withCallbackToken(`${CALLBACK_BASE}/api/v1/mpesa/callback`),
-      AccountReference: input.accountReference.slice(0, 12),
-      TransactionDesc: input.description.slice(0, 20),
-    }),
+  const { data } = await withRetry(
+    () =>
+      c.post<{
+        MerchantRequestID: string;
+        CheckoutRequestID: string;
+        ResponseCode: string;
+        ResponseDescription: string;
+        CustomerMessage: string;
+      }>('/mpesa/stkpush/v1/processrequest', {
+        BusinessShortCode: SHORTCODE,
+        Password: password,
+        Timestamp: timestamp,
+        TransactionType: 'CustomerPayBillOnline',
+        Amount: amount,
+        PartyA: phone,
+        PartyB: SHORTCODE,
+        PhoneNumber: phone,
+        CallBackURL: withCallbackToken(
+          `${CALLBACK_BASE}/api/v1/mpesa/callback${input.enterpriseAttempt ? '?enterpriseAttempt=' + encodeURIComponent(input.enterpriseAttempt) : ''}`,
+        ),
+        AccountReference: input.accountReference.slice(0, 12),
+        TransactionDesc: input.description.slice(0, 20),
+      }),
+    input.enterpriseAttempt ? 1 : 3,
   );
 
   return {

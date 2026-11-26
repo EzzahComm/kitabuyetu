@@ -149,7 +149,8 @@ export default function RegisterOrganizationPage() {
           <div className="rounded-lg border p-4 text-sm">
             <h3 className="font-semibold">Enterprise Starter</h3>
             <p className="mt-1 text-muted-foreground">
-              KES {ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString('en-KE')} per month. Includes up to five linked
+              Start with a seven-day free trial. After your trial, pay by M-Pesa to continue at KES{' '}
+              {ORGANIZATION_PLAN_MONTHLY_FEES.starter.toLocaleString('en-KE')} per month. Includes up to five linked
               groups, two staff seats and one active funding programme.
             </p>
             <Link

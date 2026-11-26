@@ -236,6 +236,14 @@ export function withOrganizationAccess(
 ): Promise<Response> {
   return withBackofficeAuth(req, async (bo) => {
     requireOrganizationPermission({ role: bo.platformRole, organizationId: bo.organizationId }, permission);
+    if (
+      bo.organizationId &&
+      permission !== 'organization.plan.view' &&
+      !(permission === 'organization.sms.manage' && req.method === 'GET')
+    ) {
+      const { assertEnterpriseCoverage } = await import('@/lib/services/enterprise-billing.service');
+      await assertEnterpriseCoverage(bo.organizationId);
+    }
     return handler({
       userId: bo.userId,
       // No group, and that is the point. '' is the sentinel

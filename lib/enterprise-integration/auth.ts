@@ -84,5 +84,7 @@ export async function authenticateEnterpriseClient(
   if (decision[0] > 120 || decision[1] > 30) {
     throw new AppError('Integration rate limit exceeded.', 'RATE_LIMITED', 429);
   }
+  const { assertEnterpriseCoverage } = await import('@/lib/services/enterprise-billing.service');
+  if (scope !== 'billing.read') await assertEnterpriseCoverage(client.organizationId);
   return client;
 }

@@ -396,7 +396,9 @@ export async function grantDueOrganizationSmsAllowances(): Promise<{ organizatio
       `SELECT s.organization_id, s.sms_allowance_included AS allowance
        FROM organization_subscriptions s
        JOIN organization_billing_accounts ba ON ba.organization_id = s.organization_id
+       JOIN enterprise_coverage c ON c.organization_id=s.organization_id
        WHERE s.status = 'active' AND s.sms_allowance_included > 0
+         AND (greatest(c.trial_ends_at,c.paid_until)>now() OR s.monthly_fee=0)
          AND (
            ba.sms_allowance_period_start IS NULL
            OR ba.sms_allowance_period_start < (
