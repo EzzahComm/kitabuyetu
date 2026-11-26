@@ -70,7 +70,7 @@ export default function AdminDisbursementsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Member disbursements"
-        description="Treasurer-approved disbursements awaiting Kitabu Yetu sign-off. Signing off moves the money and posts both ledgers."
+        description="Treasurer-approved M-Pesa payouts awaiting Kitabu Yetu sign-off. Legacy cash/bank requests must be declined and resubmitted via M-Pesa."
       />
 
       {isLoading ? (
@@ -107,7 +107,9 @@ export default function AdminDisbursementsPage() {
                   <Button variant="outline" onClick={() => setDecliningId(r.id)}>
                     Decline
                   </Button>
-                  <Button onClick={() => setApproving(r)}>Sign off</Button>
+                  <Button onClick={() => setApproving(r)} disabled={r.payment_method !== 'mpesa'}>
+                    {r.payment_method === 'mpesa' ? 'Sign off' : 'Legacy method — blocked'}
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -131,7 +133,7 @@ export default function AdminDisbursementsPage() {
           warning={
             approving.payment_method === 'mpesa'
               ? "Signing off sends the money to the member's registered phone immediately."
-              : 'Signing off records the payment as made and posts the group and member ledgers.'
+              : 'Legacy cash/bank payouts are blocked. Decline and ask the group to resubmit via M-Pesa.'
           }
           confirmLabel="Sign off"
           onConfirm={() => onApprove(approving)}

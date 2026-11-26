@@ -21,8 +21,8 @@
  * reallocation_approval_threshold wait in 'pending_approval' until a
  * DIFFERENT officer approves; below the threshold they execute immediately
  * under single control. Scope v1: M-Pesa-linked savings contributions within
- * one group (cash corrections use the existing contribution edit flow;
- * cross-product corrections route through the unrouted queue).
+ * one group. Legacy/manual rows and provider-recovery rows without a payment
+ * spine ID are never eligible; unmatched receipts cannot be allocated here.
  */
 import type { PoolClient } from 'pg';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
@@ -81,7 +81,7 @@ export const reallocationsService = {
       }
       if (!contrib.payment_id) {
         throw new ValidationError(
-          'This contribution has no linked payment — correct cash/manual entries via the contribution edit flow',
+          'This contribution has no payment-spine ID; only provider-confirmed M-Pesa payments can be reallocated',
         );
       }
       if (contrib.member_id === data.toMemberId) {
@@ -91,12 +91,46 @@ export const reallocationsService = {
       // Spine row must still be in 'allocated'.
       const {
         rows: [payment],
-      } = await client.query<{ id: string; allocation_status: string }>(
-        `SELECT id, allocation_status FROM payments WHERE id = $1 FOR UPDATE`,
+      } = await client.query<{
+        id: string;
+        allocation_status: string;
+        status: string;
+        payment_method: string;
+        mpesa_receipt_number: string | null;
+        group_id: string;
+        amount: string;
+      }>(
+        `SELECT id, allocation_status, status, payment_method, mpesa_receipt_number, group_id, amount
+         FROM payments WHERE id = $1 FOR UPDATE`,
         [contrib.payment_id],
       );
       if (!payment || payment.allocation_status !== 'allocated') {
         throw new ConflictError(`Payment is not in an allocatable state (${payment?.allocation_status ?? 'missing'})`);
+      }
+      // Never reallocate a manually typed reference, pending payment, reversed
+      // transaction, or a payment whose immutable evidence does not match the
+      // original domain row. Provider callback is the only completion source.
+      if (
+        payment.status !== 'completed' ||
+        payment.payment_method !== 'mpesa' ||
+        !payment.mpesa_receipt_number ||
+        payment.mpesa_receipt_number !== contrib.mpesa_receipt_number ||
+        payment.group_id !== ctx.groupId ||
+        Number(payment.amount) !== Number(contrib.amount)
+      ) {
+        throw new ValidationError('Only a completed, provider-confirmed M-Pesa payment linked to this contribution can be reallocated');
+      }
+
+      // The payment row is already locked. Also prevent a second correction
+      // request while a maker-checker request for this same payment is pending.
+      const { rows: pendingReallocations } = await client.query<{ id: string }>(
+        `SELECT id FROM payment_reallocations
+         WHERE payment_id = $1 AND status = 'pending_approval'
+         LIMIT 1 FOR UPDATE`,
+        [payment.id],
+      );
+      if (pendingReallocations[0]) {
+        throw new ConflictError('This payment already has a reallocation awaiting approval');
       }
 
       const {
@@ -373,11 +407,16 @@ async function executeReallocation(client: PoolClient, realloc: ReallocationRow,
   );
 
   // 5. Spine transition + event chain (§11).
-  await client.query(
-    `UPDATE payments SET allocation_status = 'reallocated'
-     WHERE  id = $1 AND allocation_status = 'allocated'`,
+  const { rows: transitioned } = await client.query<{ id: string }>(
+    `UPDATE payments
+     SET allocation_status = 'reallocated'
+     WHERE id = $1 AND allocation_status = 'allocated' AND status = 'completed'
+     RETURNING id`,
     [realloc.payment_id],
   );
+  if (!transitioned[0]) {
+    throw new ConflictError('Payment allocation changed before reallocation could complete');
+  }
   await client.query(
     `INSERT INTO payment_events (payment_id, event, actor, detail)
      VALUES ($1, 'reallocated', $2, $3::jsonb)`,

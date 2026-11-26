@@ -43,6 +43,9 @@ async function findUncredited(): Promise<UncreditedTopup[]> {
               ON s.checkout_request_id = p.mpesa_checkout_request_id
        WHERE  s.purpose = 'sms_topup'
          AND  p.status  = 'completed'
+         AND  p.payment_method = 'mpesa'
+         AND  p.channel = 'stk'
+         AND  p.mpesa_receipt_number IS NOT NULL
          AND  NOT EXISTS (
                 SELECT 1 FROM sms_credits sc WHERE sc.payment_id = p.id
               )

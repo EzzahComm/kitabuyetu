@@ -7,23 +7,16 @@ import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError } from '@/lib/utils/response';
 
-const Schema = z
-  .object({
-    action: z.enum(['allocate', 'dismiss']),
-    memberId: z.string().uuid().optional(),
-    notes: z.string().max(500).optional(),
-  })
-  .superRefine((v, ctx) => {
-    if (v.action === 'allocate' && !v.memberId) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['memberId'], message: 'memberId is required to allocate' });
-    }
-  });
+const Schema = z.object({
+  action: z.literal('dismiss'),
+  notes: z.string().max(500).optional(),
+}).strict();
 
-/** POST /api/v1/mpesa/unrouted/[id]/resolve — allocate to a member or dismiss (treasurer+). */
+/** POST /api/v1/mpesa/unrouted/[id]/resolve — dismiss an unrouted receipt after review (treasurer+). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPermission(req, 'payments.request', async (auth) => {
     try {
-      // Sensitive op (§2.5): allocation of unrouted money re-checks epochs.
+      // Sensitive operation (§2.5): re-check live permissions before dismissal.
       // Re-verify against LIVE roles.permissions, not just the token's claim.
       const freshPermissions = await assertAuthFresh(auth);
       requirePermission({ role: auth.role, permissions: freshPermissions }, 'payments.request');
@@ -31,7 +24,6 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
       const { id } = await params;
       const input = Schema.parse(await req.json());
       await resolveUnrouted({ userId: auth.userId, groupId: auth.groupId, role: auth.role }, id, input.action, {
-        memberId: input.memberId,
         notes: input.notes,
       });
       return ok({ resolved: true });

@@ -48,6 +48,7 @@ interface ContributionRow {
   status: string;
   payment_method: string | null;
   mpesa_receipt_number: string | null;
+  payment_id: string | null;
   contribution_date: string;
 }
 interface MemberRow {
@@ -99,10 +100,11 @@ export default function ReallocationsPage() {
   });
 
   const items = data?.items ?? [];
-  // Only completed M-Pesa contributions with a linked receipt can be corrected
-  // here (cash entries are edited directly on the contribution).
+  // Only completed M-Pesa contributions linked to an existing payment-spine row
+  // are eligible. STK recovery rows without a payment ID and legacy/manual rows
+  // are intentionally excluded from reallocation.
   const correctable = (contribData?.items ?? []).filter(
-    (c) => c.status === 'completed' && c.payment_method === 'mpesa' && c.mpesa_receipt_number,
+    (c) => c.status === 'completed' && c.payment_method === 'mpesa' && c.mpesa_receipt_number && c.payment_id,
   );
   const members = membersData?.items ?? [];
   const chosen = correctable.find((c) => c.id === contributionId);

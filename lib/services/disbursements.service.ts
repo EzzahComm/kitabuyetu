@@ -27,7 +27,7 @@ import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 import { resolveMemberPayoutRecipient } from './member-balances.service';
 
 export type PayoutPurpose = 'savings_withdrawal' | 'merry_go_round' | 'other';
-export type PayoutMethod = 'mpesa' | 'cash' | 'bank_transfer';
+export type PayoutMethod = 'mpesa';
 
 /** A member disbursement (migration 218). Workflow and office rules live in member-payouts.service.ts. */
 export interface MemberPayoutSpec {
@@ -36,7 +36,6 @@ export interface MemberPayoutSpec {
   description: string;
   notes?: string | null;
   paymentMethod: PayoutMethod;
-  paymentReference?: string | null;
   /** The initiator's live office — re-verified by the migration-218 trigger. */
   initiatorRole: 'chairperson' | 'secretary';
 }
@@ -153,6 +152,9 @@ export const disbursementsService = {
       // — a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
+      if (input.member && input.member.paymentMethod !== 'mpesa') {
+        throw new ValidationError('Disbursements are M-Pesa-only.');
+      }
       const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
         `SELECT * FROM lock_group_cash_account($1, '1001')`,
         [ctx.groupId],
@@ -221,7 +223,7 @@ export const disbursementsService = {
           input.member?.description ?? null,
           input.member?.notes ?? null,
           input.member?.paymentMethod ?? null,
-          input.member?.paymentReference ?? null,
+          null,
           input.member?.initiatorRole ?? null,
         ],
       );

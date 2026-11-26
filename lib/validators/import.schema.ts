@@ -127,7 +127,8 @@ const blankableDate = z.preprocess(normaliseDate, z.string().date('Date must be 
 const requiredDate = (fieldName: string) =>
   z.preprocess(normaliseDate, z.string().date(`${fieldName} must be a date in YYYY-MM-DD or DD/MM/YYYY format`));
 
-const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
+// Cashless policy for new contribution imports. Legacy cash records remain untouched.
+const PAYMENT_METHODS = ['mpesa'] as const;
 
 export const ContributionCsvRowSchema = z.object({
   member_phone: z.string().min(1, 'member_phone is required'),
@@ -135,10 +136,15 @@ export const ContributionCsvRowSchema = z.object({
   contribution_date: requiredDate('contribution_date'),
   payment_method: z.preprocess(
     (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v?.toString().trim().toLowerCase()),
-    z.enum(PAYMENT_METHODS).optional(),
+    z.enum(PAYMENT_METHODS),
   ),
-  mpesa_receipt: blankableString(50),
+  mpesa_receipt: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().min(1, 'M-Pesa receipt is required for imported contributions').max(50),
+  ),
   notes: blankableString(500),
+}).strict().refine(() => false, {
+  message: 'Manual contribution imports are disabled; only provider-confirmed M-Pesa callbacks may record contributions.',
 });
 
 // ── Loan import (Phase E7) ────────────────────────────────────────────────

@@ -39,7 +39,7 @@ describe('Billing/Fines permission gates', () => {
     await resetDatabase();
   });
 
-  it('billing.manage: treasurer is denied on all 3 billing routes, chairperson is allowed', async () => {
+  it('billing.manage: treasurer is denied; manual SMS top-ups are blocked even for chairpersons', async () => {
     const deniedInvoices = await invoicesGet(
       buildRequest('/api/v1/billing/invoices', {
         headers: authHeaders({ userId: memberId, groupId, role: 'treasurer', permissions: treasurerPerms }),
@@ -70,7 +70,7 @@ describe('Billing/Fines permission gates', () => {
         headers: authHeaders({ userId: memberId, groupId, role: 'chairperson', permissions: chairpersonPerms }),
       }),
     );
-    expect(allowedTopup.status).toBe(200);
+    expect(allowedTopup.status).toBeGreaterThanOrEqual(400);
 
     const deniedPlan = await plansPost(
       buildRequest('/api/v1/billing/plans', {

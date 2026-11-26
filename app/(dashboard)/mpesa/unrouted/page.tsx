@@ -16,7 +16,6 @@ import { PageHeader } from '@/components/shared/page-header';
 import { useToast } from '@/hooks/use-toast';
 import { api, ApiError } from '@/lib/api/client';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
-import type { PaginatedResult } from '@/types/db.types';
 
 interface Unrouted {
   id: string;
@@ -26,12 +25,6 @@ interface Unrouted {
   bill_ref: string | null;
   reason: string;
   created_at: string;
-}
-interface MemberRow {
-  id: string;
-  first_name: string;
-  last_name: string;
-  phone: string;
 }
 
 const REASON_LABEL: Record<string, string> = {
@@ -48,7 +41,6 @@ export default function UnroutedPage() {
   const { toast } = useToast();
   const qc = useQueryClient();
   const [active, setActive] = useState<Unrouted | null>(null);
-  const [memberId, setMemberId] = useState('');
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -56,41 +48,30 @@ export default function UnroutedPage() {
     queryKey: ['mpesa', 'unrouted'],
     queryFn: () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
   });
-  const { data: membersData } = useQuery<PaginatedResult<MemberRow>>({
-    queryKey: ['mpesa', 'unrouted', 'members'],
-    queryFn: () => api.get<PaginatedResult<MemberRow>>('/members?status=active&limit=200'),
-    enabled: !!active,
-  });
+
 
   const items = data?.items ?? [];
-  const members = membersData?.items ?? [];
 
   const openResolve = (row: Unrouted) => {
     setActive(row);
-    setMemberId('');
     setNotes('');
   };
 
-  const resolve = async (action: 'allocate' | 'dismiss') => {
+  const resolve = async () => {
     if (!active) return;
-    if (action === 'allocate' && !memberId) {
-      toast({ variant: 'destructive', title: 'Pick a member to allocate to' });
-      return;
-    }
     setBusy(true);
     try {
       await api.post(`/mpesa/unrouted/${active.id}/resolve`, {
-        action,
-        memberId: action === 'allocate' ? memberId : undefined,
+        action: 'dismiss',
         notes: notes || undefined,
       });
-      toast({ title: action === 'allocate' ? 'Receipt allocated' : 'Receipt dismissed' });
+      toast({ title: 'Receipt dismissed' });
       setActive(null);
       await qc.invalidateQueries({ queryKey: ['mpesa', 'unrouted'] });
     } catch (err) {
       toast({
         variant: 'destructive',
-        title: 'Resolve failed',
+        title: 'Dismiss failed',
         description: err instanceof ApiError ? err.message : '',
       });
     } finally {
@@ -108,7 +89,7 @@ export default function UnroutedPage() {
         </Link>
         <PageHeader
           title="Unrouted receipts"
-          description="Payments that landed but couldn't be matched to a member automatically."
+          description="Provider-confirmed receipts that could not be matched automatically. They cannot be manually posted as contributions."
           className="flex-1"
         />
       </div>
@@ -173,7 +154,7 @@ export default function UnroutedPage() {
       <Dialog open={!!active} onOpenChange={(o) => !o && setActive(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Resolve receipt</DialogTitle>
+            <DialogTitle>Review unrouted receipt</DialogTitle>
           </DialogHeader>
           {active && (
             <div className="space-y-4">
@@ -186,33 +167,16 @@ export default function UnroutedPage() {
                   {active.bill_ref ? ` · Ref ${active.bill_ref}` : ''}
                 </p>
               </div>
+              <p className="text-sm text-muted-foreground">Manual allocation is disabled. Only an existing provider-confirmed payment can be corrected through the audited reallocation workflow.</p>
               <div className="space-y-1">
-                <Label>Allocate to member</Label>
-                <select
-                  value={memberId}
-                  onChange={(e) => setMemberId(e.target.value)}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select member…</option>
-                  {members.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.first_name} {m.last_name} — {m.phone}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Notes (optional)</Label>
+                <Label>Review notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Reason / context" />
               </div>
             </div>
           )}
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => resolve('dismiss')} disabled={busy}>
+            <Button variant="outline" onClick={() => resolve()} disabled={busy}>
               Dismiss
-            </Button>
-            <Button onClick={() => resolve('allocate')} loading={busy}>
-              Allocate as contribution
             </Button>
           </DialogFooter>
         </DialogContent>

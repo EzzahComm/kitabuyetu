@@ -28,7 +28,7 @@ Chairperson | Secretary   initiate        → pending_approval   funds reserved 
 Treasurer (≠ initiator)   approve         → awaiting_platform
                           reject (reason) → rejected            reservation released, initiator notified
 Kitabu Yetu (super_admin) sign off        → M-Pesa: approved → dispatched → completed (B2C callback)
-                                          → cash / bank: completed, in the same DB transaction
+                                          → legacy cash / bank rows: sign-off blocked; decline and resubmit via M-Pesa
                           decline         → rejected            reservation released, initiator notified
 Initiator                 cancel          → cancelled           (before money moves)
 ```
@@ -79,11 +79,46 @@ left, so the row is marked completed and flagged rather than lost.
 UI: `/payouts` (group), `/admin/disbursements` (Kitabu Yetu). Members see completed and in-progress disbursements
 in their passbook.
 
+## Cashless rollout status
+
+- **New member payout requests are M-Pesa-only.** The server schema rejects `cash` and `bank_transfer` for new submissions; the form does not offer those methods.
+- Historical cash and bank-transfer rows remain readable and auditable. They are not deleted or rewritten. Any legacy request still awaiting platform sign-off is blocked and should be declined; ask the group to resubmit via M-Pesa.
+- Bank-transfer automation through KCB Buni is a separate integration phase. Do not mark a new bank payout complete until the provider confirms the transfer and reconciliation is in place.
+
 ## Known limits / follow-ups
 
-- Cash and bank disbursements are recorded as paid at Kitabu Yetu's sign-off; the officers hand over the cash or
-  make the transfer against that record. There is no separate "paid" confirmation step.
+- Legacy cash and bank rows were recorded as paid at Kitabu Yetu's sign-off; this historic behavior is retained for audit display, not offered for new requests.
 - Supporting documents: the codebase has no document-attachment store for group transactions; minutes or
   references go in **notes** / **payment reference**.
 - "Request correction" is reject-with-reason followed by a new submission.
 - A failed M-Pesa dispatch (Daraja refused the POST) releases the funds and shows as failed; no SMS is sent for it.
+
+
+## Cashless inflows and outflows (PR #245)
+
+- New member payout requests are M-Pesa only; platform sign-off for legacy cash/bank payouts is blocked.
+- Manual contribution entry creates pending obligations only; manual contribution CSV import/preview/commit is disabled.
+- Contribution entry creates a pending obligation only. A client cannot submit an M-Pesa receipt or mark a contribution completed; only a verified provider callback/status confirmation can settle it.
+- Existing historical cash records are preserved for audit/reporting and are not automatically rewritten or deleted.
+- Manually typed M-Pesa receipt/reference values are rejected by the contribution, welfare, loan, share, dividend, billing, payout, and reconciliation entry points; a reference is not proof of settlement.
+
+- Manual journal creation and draft posting reject accounts 1001 (legacy Cash/M-Pesa), 1002 (Bank), and any account named Cash, Bank, M-Pesa, or Mobile Money. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a liquid-payment account. Historical posted journals remain unchanged.
+
+
+## Group-wide mobile-money-only payment entry
+
+New group-member financial payment records must not be entered or marked paid as cash, cheque, bank transfer, standing order, or other offline method. This applies to contributions, welfare pool payments and welfare disbursements, loan repayments and disbursements, share purchases/redemptions, dividend allocations, member payouts, and invoice payments. Historical cash/bank records remain readable and are not rewritten.
+
+**No manual M-Pesa receipt entry is permitted.** A group leader, treasurer, platform administrator, or other client must not type a receipt/reference to create, complete, reconcile, or post a payment. Contribution forms can create pending obligations only. Completed inflows/outflows are created by verified M-Pesa provider callbacks or an equivalent provider status confirmation. Manual contribution CSV imports and manual invoice-payment entry are disabled.
+
+The only human correction path is the existing audited reallocation workflow for an already-recorded provider-confirmed M-Pesa payment. It requires the immutable payment ID and verifies completed status, M-Pesa method, matching receipt, group, and amount. The original provider evidence is preserved; corrections are audited, idempotent, and subject to maker-checker approval above the configured threshold. This workflow currently covers M-Pesa-linked savings contributions only.
+
+Unrouted receipts cannot be manually allocated to a member or used to activate a subscription. They may only be dismissed after review; a correction must use the eligible audited reallocation path. Manual share purchases/redemptions and dividend payment posting remain disabled until provider-backed allocation/disbursement flows are implemented. This phase does not implement KCB Buni transfer execution.
+
+Additional pathways closed by the cashless audit:
+
+- Organization wallet deposits and organization-to-group disbursements/approvals are disabled until real inbound/outbound provider transfers are connected. A ledger-only transfer is not proof that money moved.
+- Group and organization SMS-credit top-ups require a matching completed M-Pesa STK payment with provider receipt, group, and exact amount. Manual grants and reference-only top-ups are rejected; the backfill script also accepts only receipt-backed STK payments.
+- Fine collection requests and mark-paid actions are disabled until a verified M-Pesa callback can collect and settle fines.
+- Generic manual journals cannot post to cash, bank, or M-Pesa/mobile-money accounts. Provider/system-generated postings remain available.
+- Support and marketing copy now describe the M-Pesa-only contribution workflow; legacy cash/bank history remains available for read-only reporting.

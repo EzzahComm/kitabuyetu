@@ -46,16 +46,14 @@ export const UpdateShareClassSchema = z.object({
 export const SHARE_TXN_TYPES = ['allocation', 'purchase', 'transfer', 'redemption', 'adjustment'] as const;
 export type ShareTxnTypeInput = (typeof SHARE_TXN_TYPES)[number];
 
-export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'other'] as const;
-
 /**
  * Single create-transaction shape that covers all txn flavours. The service
  * splits 'transfer' into the paired transfer_in / transfer_out rows.
  *
  *   - allocation: { memberId, classId, quantity > 0 } (free shares; unitPrice defaults to 0)
- *   - purchase:   { memberId, classId, quantity > 0, totalAmount, paymentMethod, paymentReference? }
+ *   - purchase:   disabled until a provider-confirmed M-Pesa allocation flow exists
  *   - transfer:   { memberId (from), counterpartyMemberId (to), classId, quantity > 0 }
- *   - redemption: { memberId, classId, quantity > 0, totalAmount, paymentMethod }
+ *   - redemption: disabled until a provider-confirmed M-Pesa payout flow exists
  *                 (quantity given as positive; service flips sign for the DB row)
  *   - adjustment: { memberId, classId, quantity (any non-zero), reason }
  */
@@ -73,12 +71,9 @@ export const CreateShareTransactionSchema = z
 
     counterpartyMemberId: z.string().uuid().optional().nullable(),
 
-    paymentMethod: z.enum(PAYMENT_METHODS).optional().nullable(),
-    paymentReference: z.string().max(80).optional().nullable(),
-
     notes: z.string().max(1000).optional().nullable(),
     postedAt: z.string().datetime().optional(),
-  })
+  }).strict()
   .refine((v) => v.type !== 'transfer' || !!v.counterpartyMemberId, {
     path: ['counterpartyMemberId'],
     message: 'counterpartyMemberId is required for transfers',
@@ -86,6 +81,10 @@ export const CreateShareTransactionSchema = z
   .refine((v) => v.type === 'transfer' || v.memberId !== v.counterpartyMemberId, {
     path: ['counterpartyMemberId'],
     message: 'counterpartyMemberId must be different from memberId',
+  })
+  .refine((v) => !['purchase', 'redemption'].includes(v.type), {
+    path: ['type'],
+    message: 'Manual share purchases and redemptions are disabled until provider-backed allocation is available',
   })
   .refine(
     // Non-adjustment types require positive quantity from the API; the

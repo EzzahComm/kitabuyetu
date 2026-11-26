@@ -48,6 +48,37 @@ export const DEFAULT_ACCOUNTS = [
   { code: '5004', name: 'Loan Write-offs', type: 'expense' },
 ];
 
+/**
+ * Cashless controls for manual journals. Account 1001 is the legacy combined
+ * Cash/M-Pesa account and 1002 is the bank account; manual postings to either
+ * are prohibited. We also block cash, bank, and mobile-money aliases created
+ * by groups. Provider/system generated entries
+ * continue through dedicated service posting paths and are not affected here.
+ */
+async function assertNoManualLiquidPaymentAccount(
+  client: PoolClient,
+  groupId: string,
+  accountIds: string[],
+): Promise<void> {
+  if (accountIds.length === 0) return;
+  const { rows } = await client.query<{ account_code: string; name: string }>(
+    `SELECT account_code, name
+       FROM accounts
+      WHERE group_id = $1 AND id = ANY($2)`,
+    [groupId, accountIds],
+  );
+  const liquidPaymentAccounts = rows.filter(
+    (account) =>
+      ['1001', '1002'].includes(account.account_code) ||
+      /\b(cash|petty\s*cash|cash\s*on\s*hand|bank|m[\s-]?pesa|mobile\s*money)\b/i.test(account.name),
+  );
+  if (liquidPaymentAccounts.length > 0) {
+    throw new ValidationError(
+      `Cashless policy: manual journal entries cannot post to cash, bank, or mobile-money accounts (${liquidPaymentAccounts.map((a) => a.account_code + ' — ' + a.name).join(', ')}). Record receipts/payments through the approved electronic payment workflow.`,
+    );
+  }
+}
+
 export interface SystemJournalLine {
   accountCode: string;
   debit?: number;
@@ -339,6 +370,7 @@ export const accountingService = {
     data: CreateJournalInput,
   ): Promise<JournalEntry & { lines: JournalLine[] }> {
     return withTransaction(ctx, async (client) => {
+      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, data.lines.map((line) => line.accountId));
       const { rows: jeRows } = await client.query<JournalEntry>(
         `INSERT INTO journal_entries (group_id, entry_date, reference, description, created_by)
          VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -383,6 +415,13 @@ export const accountingService = {
         [id, ctx.groupId],
       );
       if (!draftRows[0]) throw new NotFoundError('Draft journal entry', id);
+
+      // Re-check at posting time so pre-existing drafts cannot bypass the new
+      // cashless policy. Lock the target accounts through the transaction.
+      const { rows: draftLines } = await client.query<{ account_id: string }>(
+        `SELECT account_id FROM journal_lines WHERE journal_entry_id = $1`, [id],
+      );
+      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, draftLines.map((line) => line.account_id));
 
       // Maker-checker (ACCOUNTING_ARCHITECTURE_AUDIT.md §15): above the
       // group's threshold, the poster must differ from the creator. The DB

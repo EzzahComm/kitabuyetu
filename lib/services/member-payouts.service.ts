@@ -41,7 +41,6 @@ import {
   disbursementsService,
   dispatchDisbursement,
   type DisbursementRow,
-  type PayoutMethod,
   type PayoutPurpose,
 } from './disbursements.service';
 import { ForbiddenError, NotFoundError, ValidationError } from '@/lib/utils/errors';
@@ -61,8 +60,7 @@ export interface InitiateMemberPayoutInput {
   purpose: PayoutPurpose;
   description: string;
   notes?: string;
-  paymentMethod: PayoutMethod;
-  paymentReference?: string;
+  paymentMethod: 'mpesa';
   idempotencyKey: string;
 }
 
@@ -195,6 +193,10 @@ export const memberPayoutsService = {
       requireOffice(db, ctx, ['chairperson', 'secretary'], 'initiate a member disbursement'),
     );
 
+    if (input.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Member payouts are M-Pesa-only.');
+    }
+
     const row = await disbursementsService.initiateDisbursement(ctx, {
       member: {
         memberId: input.memberId,
@@ -202,7 +204,6 @@ export const memberPayoutsService = {
         description: input.description.trim(),
         notes: input.notes?.trim() || null,
         paymentMethod: input.paymentMethod,
-        paymentReference: input.paymentReference?.trim() || null,
         initiatorRole: office as 'chairperson' | 'secretary',
       },
       amount: input.amount,
@@ -479,11 +480,9 @@ export type MemberPayoutPostResult = 'not_member_payout' | 'already_posted' | 'p
  * rows, and is idempotent (row lock + journal_entry_id check) so a replayed
  * callback or a repost never double-posts.
  *
- * Bank-transfer payouts credit 1002 instead of the template's cash account.
  * `charge` (Safaricom's B2C fee) is folded into the same entry; when the chart
  * can't take it the payout still posts and the fee is recorded unlinked,
- * matching postLoanDisbursementJournal. With `strict`, a missing account
- * throws so the caller's transaction rolls back (cash/bank execution).
+ * matching postLoanDisbursementJournal. With `strict`, a missing account throws.
  */
 export async function postMemberPayoutJournal(
   db: PoolClient,
@@ -527,10 +526,7 @@ export async function postMemberPayoutJournal(
 
   const template = await resolvePostingTemplate(db, 'member_payout', { groupId: row.group_id });
   const post = async (charge: number) => {
-    let lines = buildTemplateLines(template, { amount, charge });
-    if (row.payment_method === 'bank_transfer') {
-      lines = lines.map((l) => (l.credit ? { ...l, accountCode: '1002' } : l));
-    }
+    const lines = buildTemplateLines(template, { amount, charge });
     return postSystemJournal(db, row.group_id, row.initiated_by, description, lines, {
       reference: row.reference,
       memberId: row.member_id as string,

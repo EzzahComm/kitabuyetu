@@ -489,7 +489,7 @@ export default function SharesPage() {
 // ── New-transaction dialog ────────────────────────────────────────────
 
 const txnSchema = z.object({
-  type: z.enum(['allocation', 'purchase', 'transfer', 'redemption', 'adjustment']),
+  type: z.enum(['allocation', 'transfer', 'adjustment']),
   memberId: z.string().uuid('Pick a member'),
   shareClassId: z.string().uuid('Pick a class'),
   quantity: z.coerce
@@ -499,10 +499,8 @@ const txnSchema = z.object({
   unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
   totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
   counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer', 'cheque', 'other']).optional().or(z.literal('')),
-  paymentReference: z.string().max(80).optional().or(z.literal('')),
   notes: z.string().max(1000).optional().or(z.literal('')),
-});
+}).strict();
 type TxnForm = z.infer<typeof txnSchema>;
 
 function NewTransactionDialog({
@@ -525,7 +523,7 @@ function NewTransactionDialog({
     formState: { errors, isSubmitting },
   } = useForm<TxnForm>({
     resolver: zodResolver(txnSchema),
-    defaultValues: { type: 'purchase' },
+    defaultValues: { type: 'allocation' },
   });
   const type = useWatch({ control, name: 'type' });
 
@@ -554,7 +552,6 @@ function NewTransactionDialog({
     }
   };
 
-  const showPayment = type === 'purchase' || type === 'redemption';
   const showCounterparty = type === 'transfer';
 
   return (
@@ -568,6 +565,7 @@ function NewTransactionDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>New share transaction</DialogTitle>
+          <p className="text-sm text-muted-foreground">Member purchases and redemptions are unavailable until provider-backed payment allocation is enabled.</p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -578,10 +576,8 @@ function NewTransactionDialog({
                 {...register('type')}
                 className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
               >
-                <option value="purchase">Purchase (member buys)</option>
                 <option value="allocation">Allocation (free shares)</option>
                 <option value="transfer">Transfer (between members)</option>
-                <option value="redemption">Redemption (member sells back)</option>
                 <option value="adjustment">Adjustment (admin correction)</option>
               </select>
             </div>
@@ -661,43 +657,6 @@ function NewTransactionDialog({
             </div>
           </div>
 
-          {showPayment && (
-            <div className="grid gap-3 md:grid-cols-3">
-              <div className="space-y-1">
-                <Label htmlFor="totalAmount">Total amount (optional)</Label>
-                <Input
-                  id="totalAmount"
-                  type="number"
-                  step={0.01}
-                  placeholder="Qty × unit price"
-                  {...register('totalAmount')}
-                />
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentMethod">Payment method</Label>
-                <select
-                  id="paymentMethod"
-                  {...register('paymentMethod')}
-                  className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">— Select —</option>
-                  <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank transfer</option>
-                  <option value="cheque">Cheque</option>
-                  <option value="other">Other</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor="paymentReference">Reference</Label>
-                <Input
-                  id="paymentReference"
-                  placeholder="M-Pesa receipt or bank ref"
-                  {...register('paymentReference')}
-                />
-              </div>
-            </div>
-          )}
 
           <div className="space-y-1">
             <Label htmlFor="notes">Notes</Label>

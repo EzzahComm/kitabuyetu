@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Plus, Wallet, CheckCircle2 } from 'lucide-react';
+import { Plus, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { StatusPill } from '@/components/shared/status-pill';
 import { Card, CardContent } from '@/components/ui/card';
@@ -17,10 +17,8 @@ import {
   useCreateWelfareRequest,
   useReviewWelfareRequest,
   useWelfarePool,
-  useRecordWelfarePoolContribution,
   type WelfareRequestRow,
 } from '@/hooks/use-welfare';
-import { useMembers } from '@/hooks/use-members';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -52,16 +50,6 @@ type WelfareRequestForm = z.infer<typeof requestSchema>;
 // call sites in this file for the same pattern.
 type WelfareRequestFormInput = z.input<typeof requestSchema>;
 
-const poolSchema = z.object({
-  memberId: z.string().min(1, 'Member required'),
-  amount: z.coerce.number().positive(),
-  contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']).optional(),
-  notes: z.string().optional(),
-});
-
-type WelfarePoolForm = z.infer<typeof poolSchema>;
-type WelfarePoolFormInput = z.input<typeof poolSchema>;
 
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
@@ -74,7 +62,6 @@ export default function WelfarePage() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatus] = useState('all');
   const [openRequest, setOpenRequest] = useState(false);
-  const [openPool, setOpenPool] = useState(false);
   const [reviewRow, setReviewRow] = useState<WelfareRequestRow | null>(null);
   const [approveAmount, setApproveAmount] = useState('');
   const [rejectReason, setRejectReason] = useState('');
@@ -92,21 +79,14 @@ export default function WelfarePage() {
   // zod's non-strict parse, leaving `limit` at its default of 20) — matches
   // the working contributions/page.tsx precedent (docs/audits/
   // optimization-2026-09).
-  const { data: membersData } = useMembers({ limit: 100, status: 'active' });
 
   const createReq = useCreateWelfareRequest();
-  const recordPool = useRecordWelfarePoolContribution();
   const reviewReq = useReviewWelfareRequest(reviewRow?.id ?? '');
 
   const reqForm = useForm<WelfareRequestFormInput, unknown, WelfareRequestForm>({
     resolver: zodResolver(requestSchema),
     defaultValues: { requestType: 'emergency', priority: 'normal' },
   });
-  const poolForm = useForm<WelfarePoolFormInput, unknown, WelfarePoolForm>({
-    resolver: zodResolver(poolSchema),
-    defaultValues: { contributionType: 'regular' },
-  });
-
   const onSubmitRequest = async (values: WelfareRequestForm) => {
     try {
       await createReq.mutateAsync(values);
@@ -118,16 +98,6 @@ export default function WelfarePage() {
     }
   };
 
-  const onSubmitPool = async (values: WelfarePoolForm) => {
-    try {
-      await recordPool.mutateAsync(values);
-      toast({ title: 'Welfare fund contribution recorded' });
-      setOpenPool(false);
-      poolForm.reset();
-    } catch (e) {
-      toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
-    }
-  };
 
   const openReview = (row: WelfareRequestRow) => {
     setReviewRow(row);
@@ -245,14 +215,9 @@ export default function WelfarePage() {
     <div className="space-y-6">
       <PageHeader
         title="Welfare"
-        description="Community welfare fund and member support"
+        description="Community welfare fund and member support. Contributions are recorded automatically from provider-confirmed M-Pesa payments."
         actions={
           <>
-            {canManage && (
-              <Button variant="outline" onClick={() => setOpenPool(true)}>
-                <Wallet size={16} className="mr-2" /> Record Fund Contribution
-              </Button>
-            )}
             <Button onClick={() => setOpenRequest(true)}>
               <Plus size={16} className="mr-2" /> Submit Request
             </Button>
@@ -384,73 +349,6 @@ export default function WelfarePage() {
               </Button>
               <Button type="submit" loading={reqForm.formState.isSubmitting}>
                 Submit Request
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
-      {/* Pool contribution dialog */}
-      <Dialog open={openPool} onOpenChange={setOpenPool}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Record Welfare Fund Contribution</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={poolForm.handleSubmit(onSubmitPool)} className="space-y-4">
-            <div className="space-y-1">
-              <Label>Member</Label>
-              <select
-                {...poolForm.register('memberId')}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select member…</option>
-                {(membersData?.items ?? []).map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.first_name} {m.last_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label>Amount (KES)</Label>
-                <Input type="number" step="0.01" {...poolForm.register('amount')} />
-              </div>
-              <div className="space-y-1">
-                <Label>Type</Label>
-                <select
-                  {...poolForm.register('contributionType')}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="regular">Regular</option>
-                  <option value="emergency_levy">Emergency Levy</option>
-                  <option value="special">Special</option>
-                  <option value="bereavement_levy">Bereavement Levy</option>
-                </select>
-              </div>
-              <div className="space-y-1">
-                <Label>Payment Method</Label>
-                <select
-                  {...poolForm.register('paymentMethod')}
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select…</option>
-                  <option value="mpesa">M-Pesa</option>
-                  <option value="cash">Cash</option>
-                  <option value="bank_transfer">Bank Transfer</option>
-                </select>
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Notes (optional)</Label>
-              <Input {...poolForm.register('notes')} />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setOpenPool(false)}>
-                Cancel
-              </Button>
-              <Button type="submit" loading={poolForm.formState.isSubmitting}>
-                Record
               </Button>
             </DialogFooter>
           </form>

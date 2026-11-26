@@ -306,7 +306,13 @@ describe('member disbursements', () => {
     });
   });
 
-  // ─── Workflow + reconciliation ──────────────────────────────────────────
+  // ─── Offline payment rejection ───────────────────────────────────────────
+
+  it.each(['cash', 'bank_transfer'])('rejects %s payouts without reserving funds', async (paymentMethod) => {
+    const result = await initiate(g, chair, { amount: 1_000, paymentMethod });
+    expect(result.status).toBe(422);
+    expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
+  });
 
   describe('workflow and ledger reconciliation', () => {
     it('100,000 − 10,000 provider-confirmed disbursement reconciles the group and member ledgers', async () => {
@@ -430,7 +436,12 @@ describe('member disbursements', () => {
       await act(g, chair, first.json.data!.id, { action: 'cancel' });
     });
 
-    it('double and concurrent approvals execute exactly once', async () => {
+    it('double and concurrent approvals dispatch exactly once; settlement waits for the provider callback', async () => {
+      (darajaB2C as jest.Mock).mockResolvedValueOnce({
+        conversationId: 'conv-concurrent-1',
+        originatorConversationId: 'oc-concurrent-1',
+        responseDescription: 'Accepted',
+      });
       const { json } = await initiate(g, chair, { amount: 3_000 });
       const id = json.data!.id;
       expect((await act(g, treasurer, id, { action: 'approve' })).status).toBe(200);
@@ -439,12 +450,14 @@ describe('member disbursements', () => {
       mockProviderDispatch('CONCURRENTPAYOUT');
       const results = await Promise.all([platform(id, 'approve'), platform(id, 'approve')]);
       expect(results.map((r) => r.status).sort()).toEqual([200, 422]);
+      expect((await row(id)).status).toBe('dispatched');
+      expect((await row(id)).journal_entry_id).toBeNull();
       await handleB2CResult(providerSuccess('CONCURRENTPAYOUT', 3_000), '127.0.0.1');
       const journals = await rawQuery(`SELECT 1 FROM journal_entries WHERE reference = $1`, [
         (await row(id)).reference,
       ]);
       expect(journals).toHaveLength(1);
-      expect(await cash(g.groupId)).toEqual({ balance: 62_000, reserved: 0 });
+      expect((await cash(g.groupId)).reserved).toBe(0);
     });
 
     it('concurrent requests cannot together exceed the available balance', async () => {
