@@ -8,7 +8,7 @@ For production, add `subirainternational.kitabuyetu.co.ke` to the dedicated proj
 
 ## Enterprise workspace
 
-Use Kitabu Yetu's existing organization setup and invitation flows to create Subira's workspace, approve the plan, and enroll its designated administrator. Trial staff sign in through the central Kitabu Yetu portal linked from the website. Keep database credentials on the central backend. Verify invitations and roles in staging with two test organizations. Confirm that authorized users can view their own records and that application routes, data queries, exports, and storage used by the agreed workflows enforce tenant boundaries.
+Use Subira's existing Kitabu Yetu workspace and verify the assigned plan and designated administrator. Open the [enterprise onboarding intake template](../../docs/integrations/ENTERPRISE-ONBOARDING-INTAKE.md) when onboarding a client. Trial staff sign in through the central Kitabu Yetu portal linked from the website. Keep database credentials on the central backend. Verify invitations and roles in staging with two test organizations. Confirm that authorized users can view their own records and that application routes, data queries, exports, and storage used by the agreed workflows enforce tenant boundaries.
 
 ## Enterprise API
 
