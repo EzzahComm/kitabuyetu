@@ -202,11 +202,13 @@ function replyToForCategory(category: string): string | undefined {
 }
 
 function categorize(key: string): string {
-  if (key.startsWith('invoice') || key.startsWith('payment') || key.startsWith('receipt')) return 'billing';
+  if (key.startsWith('invoice') || key.startsWith('payment') || key.startsWith('receipt') || key === 'quotation')
+    return 'billing';
   if (key.startsWith('loan')) return 'loan';
   if (key.startsWith('contribution')) return 'contribution';
   if (key.startsWith('newsletter')) return 'newsletter';
   if (key.startsWith('contact')) return 'contact';
-  if (key === 'welcome' || key === 'otp' || key === 'password_reset') return 'auth';
+  if (key === 'welcome' || key === 'otp' || key === 'password_reset' || key === 'group_verification_link')
+    return 'auth';
   return 'transactional';
 }

@@ -9,25 +9,25 @@ const GREEN = BRAND.colors.green;
 export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }> = {
   // ─── Auth ────────────────────────────────────────────────────────────────────
   welcome: {
-    subject: 'Welcome to Kitabu Yetu, {{name}}!',
+    subject: 'Your Kitabu Yetu account is ready',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Welcome, {{name}}!</h2>
       <p style="margin:0 0 12px;color:#374151;">Your account has been created for <strong>{{groupName}}</strong>.</p>
-      <p style="margin:0 0 20px;color:#374151;">You can now log in and start managing your group's finances.</p>
-      <a href="{{loginUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Log In Now</a>
-      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">Your temporary password is: <strong>{{tempPassword}}</strong><br>Please change it after first login.</p>
+      <p style="margin:0 0 20px;color:#374151;">Sign in to see your group and the tools available to you.</p>
+      <a href="{{loginUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Sign in to Kitabu Yetu</a>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">Temporary password: <strong>{{tempPassword}}</strong><br>Change it after your first sign-in and keep it private.</p>
     `,
   },
 
   otp: {
-    subject: 'Your Kitabu Yetu verification code: {{otp}}',
+    subject: 'Your Kitabu Yetu verification code',
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Verification Code</h2>
-      <p style="margin:0 0 20px;color:#374151;">Use the code below to verify your identity. It expires in <strong>{{expiresIn}}</strong>.</p>
+      <p style="margin:0 0 20px;color:#374151;">Enter this code on the Kitabu Yetu page where you requested it. It expires in <strong>{{expiresIn}}</strong>.</p>
       <div style="background:#f3f4f6;border-radius:8px;padding:24px;text-align:center;margin:0 0 20px;">
         <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#0B3C88;">{{otp}}</span>
       </div>
-      <p style="margin:0;font-size:13px;color:#6b7280;">If you did not request this code, please ignore this email.</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Keep this code private. If you did not request it, you can ignore this email.</p>
     `,
   },
 
@@ -36,7 +36,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Verify your group</h2>
       <p style="margin:0 0 12px;color:#374151;">Hi <strong>{{name}}</strong>,</p>
-      <p style="margin:0 0 20px;color:#374151;">Click the button below to verify <strong>{{groupName}}</strong> ({{groupCode}}) and activate your Kitabu Yetu account.</p>
+      <p style="margin:0 0 20px;color:#374151;">Verify <strong>{{groupName}}</strong> ({{groupCode}}) to activate your Kitabu Yetu group.</p>
       <a href="{{verifyUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Verify group</a>
       <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 24 hours. If you did not register a group on Kitabu Yetu, please ignore this email.</p>
     `,
@@ -197,7 +197,18 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <p style="margin:0 0 16px;color:#374151;font-style:italic;">{{notes}}</p>
       <p style="margin:0 0 8px;color:#374151;font-weight:600;">Payment Instructions:</p>
       <p style="margin:0 0 20px;color:#374151;">M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong></p>
-      <p style="margin:0;font-size:13px;color:#6b7280;">A PDF copy of this invoice is attached.</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Questions about this invoice? Reply to this email and include invoice {{invoiceNumber}}.</p>
+    `,
+  },
+
+  quotation: {
+    subject: 'Quotation {{quotationNumber}} from Kitabu Yetu',
+    body: `
+      <h2 style="margin:0 0 16px;color:#0B3C88;">Quotation {{quotationNumber}}</h2>
+      <p>Hi {{recipientName}},</p>
+      <p>Here is your quotation for {{serviceSummary}}.</p>
+      <p><strong>Quoted total:</strong> KES {{quotedTotal}}<br><strong>Valid through:</strong> {{validUntil}}</p>
+      <p>Reply with quotation {{quotationNumber}} to accept the proposal or ask a question. Payment instructions will come with the invoice.</p>
     `,
   },
 
@@ -218,7 +229,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <h2 style="margin:0 0 16px;color:#dc2626;">Second Overdue Notice — Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">Invoice {{invoiceNumber}} for <strong>KES {{amountDue}}</strong> is now <strong style="color:#dc2626;">{{daysOverdue}} days overdue</strong>.</p>
-      <p style="margin:0 0 20px;color:#374151;">Immediate payment is required. Late fees may apply. Please pay via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
+      <p style="margin:0 0 20px;color:#374151;">To clear the outstanding balance, pay via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
       <p style="margin:0;font-size:13px;color:#6b7280;">Contact <strong>{{adminEmail}}</strong> if you need to discuss a payment arrangement.</p>
     `,
   },
@@ -229,7 +240,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
       <h2 style="margin:0 0 16px;color:#dc2626;">FINAL NOTICE — Invoice {{invoiceNumber}}</h2>
       <p style="margin:0 0 12px;color:#374151;">Dear <strong>{{recipientName}}</strong>,</p>
       <p style="margin:0 0 20px;color:#374151;">This is your <strong>final notice</strong>. Invoice {{invoiceNumber}} for <strong>KES {{amountDue}}</strong> is <strong style="color:#dc2626;">{{daysOverdue}} days past due</strong>.</p>
-      <p style="margin:0 0 20px;color:#374151;">Failure to pay within 7 days may result in service suspension. Pay immediately via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
+      <p style="margin:0 0 20px;color:#374151;">Please pay the outstanding balance via M-Pesa Paybill <strong>{{shortcode}}</strong>, Account: <strong>{{invoiceNumber}}</strong>.</p>
       <p style="margin:0;font-size:13px;color:#6b7280;">To resolve this urgently, contact <strong>{{adminEmail}}</strong> or call <strong>{{adminPhone}}</strong>.</p>
     `,
   },
@@ -247,7 +258,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Method</td><td style="padding:8px;border:1px solid #e5e7eb;">{{paymentMethod}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Amount Paid</td><td style="padding:8px;border:1px solid #e5e7eb;color:${GREEN};font-weight:700;">KES {{amountPaid}}</td></tr>
       </table>
-      <p style="margin:0;font-size:13px;color:#6b7280;">A PDF receipt is attached for your records.</p>
+      <p style="margin:0;font-size:13px;color:#6b7280;">Keep receipt {{receiptNumber}} for your records. If anything looks incorrect, reply to this email with the receipt number.</p>
     `,
   },
 

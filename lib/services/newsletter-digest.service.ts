@@ -70,15 +70,15 @@ const MARKETING_TEMPLATES: Record<
   feature_highlight: {
     label: 'Feature highlight',
     description: 'Introduce what Kitabu Yetu does, with a signup CTA.',
-    subject: "Your group's records, finally in one place",
+    subject: 'See your group’s contributions, loans and statements in one place',
     htmlBody: `
       <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
-        Most savings groups still keep records in a notebook and an M-Pesa statement matched to names the night before a meeting. Kitabu Yetu puts contributions, loans and statements in one place every member can see for themselves.
+        Before your next meeting, give members a clear view of their savings and give officers one place to review the group’s records.
       </p>
       <ul style="margin:0 0 20px;padding-left:20px;font-size:14px;color:#4b5563;line-height:1.8;">
         <li>Contributions tracked automatically as members pay by M-Pesa</li>
         <li>Every member gets their own statement, any time</li>
-        <li>Officers get real financial reports, not a reconciled spreadsheet</li>
+        <li>Officers can review group financial reports</li>
       </ul>
       <p style="margin:0 0 24px;">${ctaButton('Create your free account', signUpUrl())}</p>
     `,
@@ -86,7 +86,7 @@ const MARKETING_TEMPLATES: Record<
   changisha_spotlight: {
     label: 'Changi$ha spotlight',
     description: 'Pitch fundraising-by-M-Pesa as a reason to sign up.',
-    subject: 'Raise money for your cause, in the open, by M-Pesa',
+    subject: 'Fundraise for your community with Changi$ha and M-Pesa',
     htmlBody: `
       <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
         Changi$ha is Kitabu Yetu's fundraising tool for harambees and community causes: donors give straight to an M-Pesa paybill, every contribution shows on a public page as it arrives, and funds are only released after review.
@@ -100,10 +100,10 @@ const MARKETING_TEMPLATES: Record<
   pricing_nudge: {
     label: 'Pricing & signup nudge',
     description: 'Straightforward CTA to see plans and register.',
-    subject: 'What it costs to put your group on Kitabu Yetu',
+    subject: 'See Kitabu Yetu plans for your savings group',
     htmlBody: `
       <p style="margin:0 0 16px;font-size:14px;color:#4b5563;line-height:1.6;">
-        Simple, per-group pricing — no hidden fees, no setup cost. See what it costs to move your group's records onto Kitabu Yetu, and sign up when you're ready.
+        Compare plans for your group and see what each plan includes before you sign up.
       </p>
       <p style="margin:0 0 24px;">${ctaButton('See pricing & sign up', `${officialAppUrl}/pricing`)}</p>
     `,
@@ -240,7 +240,8 @@ export async function renderDigestEmail(htmlBody: string, unsubscribeToken: stri
   const unsubscribeUrl = `${officialAppUrl}/newsletter/unsubscribe?token=${unsubscribeToken}`;
   const withFooterLink = `${htmlBody}
     <p style="margin:24px 0 0;font-size:12px;color:#9ca3af;text-align:center;">
-      <a href="${unsubscribeUrl}" style="color:#9ca3af;">Unsubscribe</a>
+      You’re receiving this because you subscribed to Kitabu Yetu updates.<br>
+      <a href="${unsubscribeUrl}" style="color:#4b5563;">Unsubscribe from Kitabu Yetu updates</a>
     </p>`;
   return wrapWithBranding(withFooterLink, branding);
 }
@@ -266,6 +267,7 @@ export async function drainDigestRecipients(limit = 40): Promise<DigestDrainResu
       email: string;
       subscriber_id: string;
       unsubscribe_token: string;
+      unsubscribed_at: Date | null;
       subject: string;
       html_body: string;
     }>(
@@ -283,7 +285,7 @@ export async function drainDigestRecipients(limit = 40): Promise<DigestDrainResu
        newsletter_digests nd,
        newsletter_subscribers ns
        WHERE ndr.id = claimed.id AND nd.id = ndr.digest_id AND ns.id = ndr.subscriber_id
-       RETURNING ndr.id, ndr.digest_id, ndr.email, ndr.subscriber_id, ns.unsubscribe_token,
+       RETURNING ndr.id, ndr.digest_id, ndr.email, ndr.subscriber_id, ns.unsubscribe_token, ns.unsubscribed_at,
                  nd.subject, nd.html_body`,
       [limit],
     ),
@@ -293,15 +295,17 @@ export async function drainDigestRecipients(limit = 40): Promise<DigestDrainResu
   let failed = 0;
 
   for (const r of rows) {
-    const html = await renderDigestEmail(r.html_body, r.unsubscribe_token);
-    const result = await sendEmailWithFallback({
-      to: r.email,
-      subject: r.subject,
-      html,
-      category: 'newsletter_digest',
-      referenceId: r.digest_id,
-      referenceType: 'newsletter_digest',
-    });
+    const result = r.unsubscribed_at
+      ? { success: false, error: 'Recipient unsubscribed before dispatch' }
+      : await sendEmailWithFallback({
+          to: r.email,
+          subject: r.subject,
+          html: await renderDigestEmail(r.html_body, r.unsubscribe_token),
+          templateKey: 'newsletter_digest',
+          category: 'newsletter_digest',
+          referenceId: r.digest_id,
+          referenceType: 'newsletter_digest',
+        });
 
     const status = result.success ? 'sent' : 'failed';
     if (result.success) sent++;
