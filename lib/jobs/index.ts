@@ -83,6 +83,7 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // the handler it guards and does the right thing the moment either
   // feature is actually used, with zero risk of silently orphaning future
   // work the way removing the enqueue outright would.
+  queued.enterprise_invoice = await safe('enterprise_invoice', {}, { priority: 5, dedup_key: 'enterprise_invoice' });
   queued.email_campaign_process = (await hasDueEmailSchedule())
     ? await safe('email_campaign_process', {}, { priority: 5, dedup_key: 'email_campaign_process' })
     : null;

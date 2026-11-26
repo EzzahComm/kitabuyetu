@@ -54,8 +54,9 @@ export async function POST(
     return ack();
   }
 
+  const callbackId = await logMpesaCallback('c2b_confirmation', callerIp, rawBody);
+  if (!callbackId) return NextResponse.json({ ResultCode: 1, ResultDesc: 'Retry' }, { status: 503 });
   after(async () => {
-    const callbackId = await logMpesaCallback('c2b_confirmation', callerIp, rawBody);
     try {
       await handleC2BConfirmation(body, callerIp);
       if (callbackId) await markCallbackProcessed(callbackId);

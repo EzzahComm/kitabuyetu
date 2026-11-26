@@ -286,6 +286,7 @@ export async function initiateSTKPush(params: StkPushParams): Promise<StkPushRes
 // ─── STK Callback ────────────────────────────────────────────────────────────
 
 export interface StkCallbackBody {
+  enterpriseAttempt?: string;
   Body: {
     stkCallback: {
       MerchantRequestID: string;
@@ -315,6 +316,25 @@ export async function handleSTKCallback(
 
   const cb = body.Body.stkCallback;
   const rawBody = JSON.stringify(body);
+
+  if (body.enterpriseAttempt)
+    return withAdminDb(async (db) => {
+      const { rows } = await db.query(
+        `UPDATE enterprise_stk_attempts SET checkout_id=$2,merchant_id=$3
+      WHERE id=$1 AND (checkout_id IS NULL OR (checkout_id=$2 AND merchant_id=$3)) RETURNING reference,amount`,
+        [body.enterpriseAttempt, cb.CheckoutRequestID, cb.MerchantRequestID],
+      );
+      if (!rows.length) throw new Error('Enterprise STK attempt mismatch.');
+      if (cb.ResultCode !== 0) return { success: false, mpesaReceiptNumber: null, amount: null, paymentId: null };
+      const items = cb.CallbackMetadata?.Item ?? [];
+      const receipt = items.find((i) => i.Name === 'MpesaReceiptNumber')?.Value;
+      const amount = Number(items.find((i) => i.Name === 'Amount')?.Value);
+      if (typeof receipt !== 'string' || amount !== Number(rows[0].amount))
+        throw new Error('Enterprise STK receipt needs reconciliation.');
+      const { recordEnterpriseReceipt } = await import('./enterprise-billing.service');
+      await recordEnterpriseReceipt(db, rows[0].reference, receipt, amount, 'stk');
+      return { success: true, mpesaReceiptNumber: receipt, amount, paymentId: null };
+    });
 
   // ── Failure branch ─────────────────────────────────────────────────────────
   if (cb.ResultCode !== 0) {

@@ -1,6 +1,7 @@
 export type JobStatus = 'pending' | 'processing' | 'completed' | 'failed';
 
 export type JobType =
+  | 'enterprise_invoice'
   | 'enterprise_webhook_delivery'
   | 'email_campaign_process' // Process due email schedules (every 5 min)
   | 'email_campaign_launch' // Ad-hoc: launch one email campaign (enqueued on demand)
