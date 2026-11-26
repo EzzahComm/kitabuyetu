@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { FileBarChart, TrendingUp, TrendingDown, Plus, PauseCircle, PlayCircle, BookOpen } from 'lucide-react';
+import { ExportReport, ReportSchedules, ReportLoadError } from '@/components/enterprise/report-controls';
 import { PageHeader } from '@/components/shared/page-header';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
@@ -42,7 +43,7 @@ function BudgetReportTab() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const canManagePrograms = useHasOrganizationPermission();
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: enterpriseKeys.reportsBudget(),
     queryFn: () => organizationApi.budgetReport(),
   });
@@ -74,6 +75,7 @@ function BudgetReportTab() {
       </div>
     );
   }
+  if (isError) return <ReportLoadError error={error} retry={refetch} />;
   if (items.length === 0) {
     return (
       <EmptyState
@@ -86,6 +88,7 @@ function BudgetReportTab() {
 
   return (
     <div className="space-y-3">
+      <ExportReport reportType="program_budget" />
       {items.map((p) => (
         <Card key={p.id}>
           <CardContent className="space-y-3 py-4">
@@ -148,7 +151,7 @@ function BudgetReportTab() {
 }
 
 function DonorSpendTab() {
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: enterpriseKeys.reportsDonor(),
     queryFn: () => organizationApi.donorSpendReport(),
   });
@@ -163,6 +166,7 @@ function DonorSpendTab() {
       </div>
     );
   }
+  if (isError) return <ReportLoadError error={error} retry={refetch} />;
   if (items.length === 0) {
     return (
       <EmptyState
@@ -175,6 +179,7 @@ function DonorSpendTab() {
 
   return (
     <div className="space-y-3">
+      <ExportReport reportType="donor_spend" />
       {items.map((d) => (
         <Card key={d.fundingSource}>
           <CardHeader className="pb-2">
@@ -448,10 +453,11 @@ export default function ReportsPage() {
       />
 
       <Tabs defaultValue="budget">
-        <TabsList>
+        <TabsList aria-label="Organization reports" className="h-auto max-w-full flex-wrap justify-start">
           <TabsTrigger value="budget">Budget variance</TabsTrigger>
           <TabsTrigger value="donor">Donor spend</TabsTrigger>
           <TabsTrigger value="trial">Trial balance</TabsTrigger>
+          <TabsTrigger value="schedules">Schedules</TabsTrigger>
         </TabsList>
         <TabsContent value="budget" className="mt-4">
           <BudgetReportTab />
@@ -461,6 +467,9 @@ export default function ReportsPage() {
         </TabsContent>
         <TabsContent value="trial" className="mt-4">
           <TrialBalanceTab />
+        </TabsContent>
+        <TabsContent value="schedules" className="mt-4">
+          <ReportSchedules />
         </TabsContent>
       </Tabs>
 

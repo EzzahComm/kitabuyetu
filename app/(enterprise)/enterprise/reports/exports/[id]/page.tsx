@@ -4,14 +4,18 @@ import { useParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { PageHeader } from '@/components/shared/page-header';
 import { Button } from '@/components/ui/button';
-import { adminApi } from '@/lib/api/client';
-import type { ExportRow } from '@/lib/services/report-export.service';
+import { organizationApi } from '@/lib/api/endpoints';
+import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 
 export default function ReportExportPage() {
   const { id } = useParams<{ id: string }>();
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ['enterprise', 'report-export', id],
-    queryFn: () => adminApi.get<ExportRow & { downloadUrl: string | null }>(`/organization/reports/export/${id}`),
+    queryKey: enterpriseKeys.reportExport(id),
+    queryFn: () => organizationApi.reportExport(id),
+    refetchInterval: ({ state }) =>
+      state.status === 'success' && (state.data?.status === 'pending' || state.data?.status === 'processing')
+        ? 5000
+        : false,
     staleTime: 0,
   });
 
@@ -22,7 +26,14 @@ export default function ReportExportPage() {
         breadcrumbs={[{ label: 'Reports', href: '/enterprise/reports' }, { label: 'Export' }]}
       />
       {isPending && <p>Loading report…</p>}
-      {isError && <p>This report is unavailable. Check that you are signed in to the correct organisation.</p>}
+      {isError && (
+        <div role="alert" className="space-y-2">
+          <p>This report is unavailable. Check that you are signed in to the correct organization.</p>
+          <Button variant="outline" onClick={() => void refetch()}>
+            Try again
+          </Button>
+        </div>
+      )}
       {!isError && data?.status === 'completed' && data.downloadUrl && (
         <Button asChild>
           <a href={data.downloadUrl}>Download report ({data.format.toUpperCase()})</a>
@@ -30,7 +41,7 @@ export default function ReportExportPage() {
       )}
       {!isError && data && !data.downloadUrl && data.status !== 'failed' && (
         <>
-          <p>
+          <p role="status">
             {data.status === 'completed'
               ? 'The download is temporarily unavailable.'
               : 'Your report is being generated.'}

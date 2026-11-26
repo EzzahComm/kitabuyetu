@@ -127,6 +127,8 @@ async function request<T>(
     return handle401(res, headers['Authorization']);
   }
 
+  if (res.status === 204) return undefined as T;
+
   const json = (await res.json()) as ApiResponse<T>;
 
   if (!json.success) {
