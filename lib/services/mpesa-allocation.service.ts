@@ -14,7 +14,7 @@ import type { ProductSuffix } from '@/lib/utils/membership-no';
 import { resolveProduct, type PaymentProduct, type ResolvedProduct } from '@/lib/utils/allocation-engine';
 import { findOpenRequests, fulfilRequest } from './payment-requests.service';
 import { postContributionJournal } from './accounting.service';
-import { postLoanRepaymentJournal } from './posting-templates.service';
+import { postLoanRepaymentJournal, postTemplatedJournal } from './posting-templates.service';
 import {
   IS_SANDBOX,
   markSpineAllocated,
@@ -340,6 +340,10 @@ export async function dispatchProduct(db: PoolClient, args: DispatchArgs): Promi
       await c2bToUnrouted(db, fulfil, 'other');
       break;
 
+    case 'registration':
+      await applyRegistrationFeeFromC2B(db, args);
+      break;
+
     default:
       // A9: a product with no registered handler is a configuration error —
       // page loudly, never silently fall back to savings.
@@ -356,6 +360,39 @@ export async function dispatchProduct(db: PoolClient, args: DispatchArgs): Promi
   if (args.requestId) {
     await fulfilRequest(db, args.requestId, await spinePaymentId(db, fulfil.receipt));
   }
+}
+
+/**
+ * Member joining fee paid to the group via PayBill. Group revenue: credits the
+ * group's 4003 Registration Fees account through the `registration_fee`
+ * template. Idempotent per M-Pesa receipt, so a replayed callback cannot
+ * double-post the income.
+ */
+export async function applyRegistrationFeeFromC2B(db: PoolClient, args: DispatchArgs): Promise<void> {
+  const { fulfil } = args;
+  const { rows } = await db.query<{ id: string }>(
+    `SELECT id FROM journal_entries
+      WHERE group_id = $1 AND reference = $2 AND status = 'posted'
+      LIMIT 1`,
+    [args.groupId, fulfil.receipt],
+  );
+  if (rows[0]) {
+    logger.info('[mpesa/allocation] registration fee already journaled — skipping', {
+      receipt: fulfil.receipt,
+      groupId: args.groupId,
+    });
+    return;
+  }
+
+  await postTemplatedJournal(
+    db,
+    args.groupId,
+    null,
+    'registration_fee',
+    `Member registration fee — receipt ${fulfil.receipt}`,
+    { amount: fulfil.amount },
+    { reference: fulfil.receipt },
+  );
 }
 
 /** Auto-routed PayBill welfare contribution (§3.5 dispatch; audit H-3). */
