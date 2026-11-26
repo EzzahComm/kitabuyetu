@@ -26,7 +26,7 @@ describe('Organization subscription plans', () => {
 
   beforeEach(async () => {
     await resetDatabase();
-    ({ organizationId, coordinatorId } = await createTestOrganization());
+    ({ organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false }));
   });
   afterAll(async () => {
     await resetDatabase();

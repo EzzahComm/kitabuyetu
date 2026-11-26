@@ -208,12 +208,19 @@ export async function createOrgCoordinator(): Promise<string> {
  * again itself afterward — that cancels this default and installs its own,
  * same as any real plan change would.
  */
-export async function createTestOrganization(): Promise<TestOrganization> {
+export async function createTestOrganization({ seedMembership = true } = {}): Promise<TestOrganization> {
   const org = await createOrganization({
     name: `Integration Test Org ${crypto.randomUUID().slice(0, 8)}`,
     type: 'ngo',
   });
   const coordinatorId = await createOrgCoordinator();
+  if (seedMembership) {
+    await rawQuery(
+      `INSERT INTO organization_members (organization_id, member_id, org_role)
+       VALUES ($1, $2, 'lead')`,
+      [(org as { id: string }).id, coordinatorId],
+    );
+  }
   await assignOrganizationPlan((org as { id: string }).id, 'premium_plus', coordinatorId, {
     custom: { monthlyFee: 0 },
   });
