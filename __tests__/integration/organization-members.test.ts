@@ -63,7 +63,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it('adds a brand-new member as staff and lists them', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
 
     const added = await addOrgStaff(organizationId, {
       phone: '0712340001',
@@ -85,7 +85,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it('links an existing member by phone without downgrading a different platform role they already hold', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     const existingSuperAdminId = await createOrgCoordinator(); // creates as organization_coordinator
     // Simulate this member already holding a MORE privileged role elsewhere.
     await rawQuery(`UPDATE members SET platform_role = 'super_admin' WHERE id = $1`, [existingSuperAdminId]);
@@ -108,7 +108,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it('rejects adding someone who is already active staff at the same org', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     await addOrgStaff(organizationId, {
       phone: '0712340002',
       firstName: 'B',
@@ -129,7 +129,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it("changes a staff member's role", async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     const added = await addOrgStaff(organizationId, {
       phone: '0712340003',
       firstName: 'C',
@@ -145,7 +145,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it('removing (archiving) staff proves the two-different-people maker-checker path is now reachable through real staff records, not just forged headers', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     // createTestOrganization()'s coordinator is a member with platform_role
     // = 'organization_coordinator', but createOrganization() never touches
     // organization_members (that table is new) — add them as lead explicitly
@@ -179,7 +179,7 @@ describe('organization staff (multi-staff organizations)', () => {
   });
 
   it('refuses to remove the last active lead', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     // createTestOrganization's coordinator isn't auto-added as organization_members
     // staff (that table is new) — add them as the org's lead explicitly first.
     await addOrgStaff(organizationId, {
@@ -202,7 +202,7 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
   });
 
   it('walks the full invited -> otp_sent -> verified -> completed state machine against real Postgres', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
 
     const invitation = await createOrgInvitation(organizationId, {
       email: 'amara@example.com',
@@ -243,7 +243,7 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
   });
 
   it('rejects an incorrect OTP and does not advance the invitation past otp_sent', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     await createOrgInvitation(organizationId, {
       email: 'b@example.com',
       phone: '0712350002',
@@ -260,7 +260,7 @@ describe('organization staff invitations (Phase 2 — email + phone-OTP)', () =>
   });
 
   it('rejects completing an invitation before OTP verification', async () => {
-    const { organizationId, coordinatorId } = await createTestOrganization();
+    const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
     await createOrgInvitation(organizationId, {
       email: 'c@example.com',
       phone: '0712350003',

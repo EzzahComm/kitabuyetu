@@ -27,8 +27,8 @@ beforeEach(async () => {
 });
 
 it('requires a live organization, an approved link and a matching product grant', async () => {
-  const { organizationId, coordinatorId } = await createTestOrganization();
-  const { organizationId: otherOrganization } = await createTestOrganization();
+  const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
+  const { organizationId: otherOrganization } = await createTestOrganization({ seedMembership: false });
   const { groupId } = await createTestGroup();
   const client: EnterpriseIntegrationClient = {
     organizationId,
@@ -61,7 +61,7 @@ it('requires a live organization, an approved link and a matching product grant'
 });
 
 it('queues a committed plan event and signs retry attempts with the same event identifier', async () => {
-  const { organizationId, coordinatorId } = await createTestOrganization();
+  const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
   const hook = {
     organizationId,
     endpointId: randomUUID(),
@@ -105,8 +105,8 @@ it('queues a committed plan event and signs retry attempts with the same event i
 });
 
 it('keeps an OIDC-authenticated staff session in its approved organization after MFA', async () => {
-  const { organizationId, coordinatorId } = await createTestOrganization();
-  const { organizationId: otherOrganization } = await createTestOrganization();
+  const { organizationId, coordinatorId } = await createTestOrganization({ seedMembership: false });
+  const { organizationId: otherOrganization } = await createTestOrganization({ seedMembership: false });
   await rawQuery(
     `INSERT INTO organization_members (organization_id, member_id, org_role, status)
      VALUES ($1,$3,'lead','active'),($2,$3,'lead','active')`,
