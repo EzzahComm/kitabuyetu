@@ -4,7 +4,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { memberPayoutsService } from '@/lib/services/member-payouts.service';
 import { ok } from '@/lib/utils/response';
 
-/** POST — Kitabu Yetu signs off: M-Pesa is dispatched; cash/bank executes and posts both ledgers. Super-admin only. */
+/** POST — Kitabu Yetu signs off: dispatches the M-Pesa payout. Super-admin only. */
 export function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withPlatformRole(req, 'super_admin', async (ctx) => {
     const { id } = await params;

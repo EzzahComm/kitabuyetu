@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const HR_EMPLOYMENT_TYPES = ['full_time', 'part_time', 'contract', 'intern'] as const;
 export const HR_EMPLOYMENT_STATUSES = ['active', 'on_leave', 'suspended', 'terminated'] as const;

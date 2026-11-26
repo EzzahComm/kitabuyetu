@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const RELIABILITY_TIERS = ['excellent', 'good', 'fair', 'poor', 'high_risk'] as const;
 

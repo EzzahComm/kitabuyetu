@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const HR_ONBOARDING_TASK_STATUSES = ['pending', 'in_progress', 'done', 'skipped'] as const;
 

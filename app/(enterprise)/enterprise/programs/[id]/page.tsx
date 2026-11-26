@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { adminApi } from '@/lib/api/client';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -127,6 +129,7 @@ export default function EnterpriseProgramDetailPage() {
         <TabsList>
           <TabsTrigger value="applications">Applications</TabsTrigger>
           <TabsTrigger value="invitations">Invitations</TabsTrigger>
+          <TabsTrigger value="reports">Reports</TabsTrigger>
         </TabsList>
         <TabsContent value="applications" className="mt-4">
           <ApplicationsPanel programId={id} />
@@ -134,8 +137,42 @@ export default function EnterpriseProgramDetailPage() {
         <TabsContent value="invitations" className="mt-4">
           <InvitationsPanel programId={id} />
         </TabsContent>
+        <TabsContent value="reports" className="mt-4">
+          <ProgramReportsPanel programId={id} />
+        </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+function ProgramReportsPanel({ programId }: { programId: string }) {
+  const { data, isPending, isError } = useQuery({
+    queryKey: ['enterprise', 'group-program-report', programId],
+    queryFn: () => adminApi.get<{ active: number; total: number }>(`/organization/group-programs/${programId}/reports`),
+  });
+
+  if (isPending) return <p>Loading programme report…</p>;
+  if (isError) return <p>The programme report could not be loaded.</p>;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>Group enrolment</CardTitle>
+        <CardDescription>Group memberships recorded for this programme.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <dl className="grid grid-cols-2 gap-4">
+          <div>
+            <dt>Active memberships</dt>
+            <dd className="text-2xl font-semibold">{data.active}</dd>
+          </div>
+          <div>
+            <dt>Total memberships</dt>
+            <dd className="text-2xl font-semibold">{data.total}</dd>
+          </div>
+        </dl>
+      </CardContent>
+    </Card>
   );
 }
 

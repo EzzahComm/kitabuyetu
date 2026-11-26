@@ -70,7 +70,7 @@ describe('redactPlatformStatsForRole', () => {
   const stats = {
     groups: { total: '10' },
     revenue: { total: '1000.00', this_month: '200.00', byProductPlan: [{ product: 'kitabu_yetu' }] },
-    subscriptions: { active_subscriptions: '4', mrr: '5000' },
+    subscriptions: { active_subscriptions: '4', mrr: '5000', enterprise_mrr: '2999', overdue_invoice_count: '1' },
     tickets: { total: '3' },
   };
 
@@ -82,6 +82,8 @@ describe('redactPlatformStatsForRole', () => {
     const out = redactPlatformStatsForRole(stats, 'support');
     expect(out).not.toHaveProperty('revenue');
     expect(out.subscriptions).not.toHaveProperty('mrr');
+    expect(out.subscriptions).not.toHaveProperty('enterprise_mrr');
+    expect(out.subscriptions).not.toHaveProperty('overdue_invoice_count');
     expect(out.subscriptions).toHaveProperty('active_subscriptions', '4');
     expect(out.groups).toEqual({ total: '10' });
     expect(out.tickets).toEqual({ total: '3' });

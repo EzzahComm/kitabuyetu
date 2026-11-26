@@ -20,7 +20,7 @@ import { withPermission } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';
 import { ok, badRequest } from '@/lib/utils/response';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 const OptOutSchema = z.object({
   phone: z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number'),

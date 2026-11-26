@@ -21,12 +21,13 @@
 import { withDb, withTransaction, withAdminDb, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError } from '@/lib/utils/errors';
 import { logger } from '@/lib/logger';
+import { normalizePhone } from '@/lib/utils/phone';
 import { getEffectiveThreshold } from './approval-policy.service';
 import { triggerDisbursementWatchdog } from '@/lib/queue/qstash';
 import { resolveMemberPayoutRecipient } from './member-balances.service';
 
 export type PayoutPurpose = 'savings_withdrawal' | 'merry_go_round' | 'other';
-export type PayoutMethod = 'mpesa' | 'cash' | 'bank_transfer';
+export type PayoutMethod = 'mpesa';
 
 /** A member disbursement (migration 218). Workflow and office rules live in member-payouts.service.ts. */
 export interface MemberPayoutSpec {
@@ -35,7 +36,6 @@ export interface MemberPayoutSpec {
   description: string;
   notes?: string | null;
   paymentMethod: PayoutMethod;
-  paymentReference?: string | null;
   /** The initiator's live office — re-verified by the migration-218 trigger. */
   initiatorRole: 'chairperson' | 'secretary';
 }
@@ -97,6 +97,9 @@ export const disbursementsService = {
     if (!input.idempotencyKey || input.idempotencyKey.length > 128) {
       throw new ValidationError('A valid idempotency key is required');
     }
+    if (input.member && input.member.paymentMethod !== 'mpesa') {
+      throw new ValidationError('Member disbursements require M-Pesa');
+    }
     if (input.member && input.loanId) {
       throw new ValidationError('A disbursement is either a loan disbursement or a member payout, not both');
     }
@@ -114,14 +117,33 @@ export const disbursementsService = {
       // Loan-linked payout: gate on approval status (fixes the pre-existing
       // defect where a rejected/already-disbursed loan could still be paid).
       if (input.loanId) {
-        const { rows: loanRows } = await db.query<{ id: string; status: string }>(
-          `SELECT id, status FROM loans WHERE id = $1 AND group_id = $2 FOR UPDATE`,
+        const { rows: loanRows } = await db.query<{ status: string; principal_amount: string; phone: string | null }>(
+          `SELECT l.status, l.principal_amount, m.phone
+             FROM loans l
+             JOIN group_members gm ON gm.group_id = l.group_id AND gm.member_id = l.member_id AND gm.status = 'active'
+             JOIN members m ON m.id = gm.member_id AND m.is_active
+            WHERE l.id = $1 AND l.group_id = $2 FOR UPDATE OF l`,
           [input.loanId, ctx.groupId],
         );
         if (!loanRows[0]) throw new NotFoundError('Loan', input.loanId);
         if (loanRows[0].status !== 'approved') {
           throw new ValidationError(`Only approved loans can be disbursed (current status: ${loanRows[0].status})`);
         }
+        const { principal_amount, phone } = loanRows[0];
+        if (input.amount !== Number(principal_amount)) {
+          throw new ValidationError('Disbursement amount must match the approved loan principal');
+        }
+        if (!phone || !input.phone || normalizePhone(input.phone) !== normalizePhone(phone)) {
+          throw new ValidationError('Disbursement must go to the borrower’s registered phone');
+        }
+        const { rowCount } = await db.query(
+          `SELECT 1 FROM disbursement_requests
+            WHERE loan_id = $1 AND group_id = $2
+              AND status IN ('pending_approval', 'approved', 'dispatched', 'completed', 'timed_out', 'reconciled')
+            LIMIT 1`,
+          [input.loanId, ctx.groupId],
+        );
+        if (rowCount) throw new ValidationError('This loan already has a disbursement awaiting a confirmed outcome');
       }
 
       // Balance check (C1): lock the group's cash account, require the
@@ -130,20 +152,14 @@ export const disbursementsService = {
       // — a plain SELECT ... FOR UPDATE here would also be checked against
       // accounts_update's is_system RLS policy (every real account is
       // is_system = true) even though this never issues a write itself.
-      // A bank-transfer member disbursement draws on 1002 Bank Account; every
-      // other disbursement on 1001 Cash and M-Pesa.
-      const sourceCode = input.member?.paymentMethod === 'bank_transfer' ? '1002' : '1001';
-      const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
-        `SELECT * FROM lock_group_cash_account($1, $2)`,
-        [ctx.groupId, sourceCode],
-      );
-      if (!acctRows[0]) {
-        throw new ValidationError(
-          sourceCode === '1002'
-            ? 'Group has no active Bank Account (1002) to disburse from'
-            : 'Group has no active Cash/M-Pesa account (1001) to disburse from',
-        );
+      if (input.member && input.member.paymentMethod !== 'mpesa') {
+        throw new ValidationError('Disbursements are M-Pesa-only.');
       }
+      const { rows: acctRows } = await db.query<{ id: string; balance: string; reserved_amount: string }>(
+        `SELECT * FROM lock_group_cash_account($1, '1001')`,
+        [ctx.groupId],
+      );
+      if (!acctRows[0]) throw new ValidationError('Group has no active Cash/M-Pesa account (1001) to disburse from');
       const cashAccountId = acctRows[0].id;
       const available = parseFloat(acctRows[0].balance) - parseFloat(acctRows[0].reserved_amount);
       if (input.amount > available) {
@@ -207,7 +223,7 @@ export const disbursementsService = {
           input.member?.description ?? null,
           input.member?.notes ?? null,
           input.member?.paymentMethod ?? null,
-          input.member?.paymentReference ?? null,
+          null,
           input.member?.initiatorRole ?? null,
         ],
       );
@@ -500,10 +516,8 @@ export async function findStuckDisbursements(): Promise<{
  * Fires the Daraja B2C call for an 'approved' row and flips it to
  * 'dispatched'. Idempotent against races: only a row still in 'approved'
  * transitions, so a concurrent reconciliation sweep or duplicate approval
- * can never dispatch twice. If the Daraja POST itself throws (network/5xx,
- * before any Safaricom response), the reservation is released and the row
- * marked failed — a stuck 'dispatched' row means Safaricom accepted the
- * request and a result callback is genuinely pending.
+ * can never dispatch twice. Dispatch errors leave the reservation in place
+ * because a transport or persistence failure can happen after provider acceptance.
  */
 export async function dispatchDisbursement(id: string): Promise<void> {
   const claimed = await withAdminDb(async (db) => {
@@ -516,13 +530,12 @@ export async function dispatchDisbursement(id: string): Promise<void> {
       command_id: string;
       occasion: string;
       initiated_by: string;
-      cash_account_id: string;
     }>(
       `UPDATE disbursement_requests
        SET    status = 'dispatched', dispatched_at = NOW()
        WHERE  id = $1 AND status = 'approved'
        RETURNING id, group_id, loan_id, phone, amount, command_id, occasion,
-                 initiated_by, cash_account_id`,
+                 initiated_by`,
       [id],
     );
     return rows[0] ?? null;
@@ -558,47 +571,17 @@ export async function dispatchDisbursement(id: string): Promise<void> {
         ],
       ),
     );
-
-    // Best-effort watchdog (B2C_DISBURSEMENT_AUDIT.md C5): if Safaricom's
-    // result callback never lands, this bounds how long the row can sit
-    // 'dispatched' before being surfaced as 'timed_out' instead of silently
-    // stuck forever. Never blocks/fails a real dispatch that already
-    // succeeded — see triggerDisbursementWatchdog's own non-throwing contract.
-    await triggerDisbursementWatchdog({ kind: 'disbursement', rowId: claimed.id });
-  } catch (err) {
-    // The Daraja POST never landed — release the hold and mark failed so the
-    // treasurer can see it and retry with a fresh idempotency key.
-    logger.error('[disbursements] dispatch failed before Daraja accepted the request', {
-      disbursementId: id,
-      err: String(err),
-    });
-    const failureReason = `Dispatch error: ${String(err).slice(0, 500)}`;
-    await withAdminDb(async (db) => {
-      await db.query(`UPDATE accounts SET reserved_amount = reserved_amount - $1 WHERE id = $2`, [
-        claimed.amount,
-        claimed.cash_account_id,
-      ]);
-      await db.query(
+  } catch {
+    logger.error('[disbursements] dispatch outcome is unknown', { disbursementId: id });
+    await withAdminDb((db) =>
+      db.query(
         `UPDATE disbursement_requests
-         SET    status = 'failed', failure_reason = $2
-         WHERE  id = $1 AND status = 'dispatched'`,
-        [id, failureReason],
-      );
-
-      // Record audit log for disbursement failure
-      await db.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          claimed.group_id,
-          null, // System-triggered failure, no user actor
-          'disbursement.failed',
-          'disbursement',
-          claimed.id,
-          JSON.stringify({ status: 'dispatched' }),
-          JSON.stringify({ status: 'failed', failure_reason: failureReason }),
-        ],
-      );
-    });
+            SET failure_reason = 'Dispatch outcome is unknown. Reconcile with M-Pesa before retrying.'
+          WHERE id = $1 AND status = 'dispatched'`,
+        [id],
+      ),
+    );
   }
+
+  await triggerDisbursementWatchdog({ kind: 'disbursement', rowId: claimed.id });
 }

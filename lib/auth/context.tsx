@@ -59,6 +59,7 @@ interface AuthState {
 }
 
 interface AuthContextValue extends AuthState {
+  sessionRevision: number;
   login: (data: LoginResponse) => void;
   loginAdmin: (data: AdminLoginResponse) => void;
   logout: () => void;
@@ -82,12 +83,13 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 const STORAGE_KEY = 'ky_auth';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [state, setState] = useState<AuthState>({
+  const [state, setState] = useState<AuthState & { sessionRevision: number }>({
     user: null,
     accessToken: null,
     refreshToken: null,
     audience: 'tenant',
     isLoading: true,
+    sessionRevision: 0,
   });
 
   // Client-only hydration from localStorage. Cannot run in useState initializer
@@ -99,13 +101,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (raw) {
         const parsed = JSON.parse(raw) as Partial<AuthState>;
         // eslint-disable-next-line react-hooks/set-state-in-effect
-        setState({
+        setState((previous) => ({
           user: parsed.user ?? null,
           accessToken: parsed.accessToken ?? null,
           refreshToken: parsed.refreshToken ?? null,
           audience: parsed.audience ?? 'tenant', // legacy payloads default to tenant
           isLoading: false,
-        });
+          sessionRevision: previous.sessionRevision + 1,
+        }));
       } else {
         setState((s) => ({ ...s, isLoading: false }));
       }
@@ -122,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       audience: 'tenant',
       isLoading: false,
     };
-    setState(next);
+    setState((previous) => ({ ...next, sessionRevision: previous.sessionRevision + 1 }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
 
@@ -134,7 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       audience: 'backoffice',
       isLoading: false,
     };
-    setState(next);
+    setState((previous) => ({ ...next, sessionRevision: previous.sessionRevision + 1 }));
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   }, []);
 
@@ -146,19 +149,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       audience: 'tenant',
       isLoading: false,
     };
-    setState(next);
+    setState((previous) => ({ ...next, sessionRevision: previous.sessionRevision + 1 }));
     localStorage.removeItem(STORAGE_KEY);
   }, []);
 
   const setAccessToken = useCallback((token: string, rotatedRefreshToken?: string) => {
-    setState((s) => {
+    setState(({ sessionRevision, ...session }) => {
       const next = {
-        ...s,
+        ...session,
         accessToken: token,
-        refreshToken: rotatedRefreshToken ?? s.refreshToken,
+        refreshToken: rotatedRefreshToken ?? session.refreshToken,
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-      return next;
+      return { ...next, sessionRevision };
     });
   }, []);
 

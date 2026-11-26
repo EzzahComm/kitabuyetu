@@ -1,5 +1,5 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
-import { NotFoundError, ConflictError } from '@/lib/utils/errors';
+import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
 import type { Contribution, PaginatedResult } from '@/types/db.types';
 import type {
@@ -18,7 +18,8 @@ export const contributionsService = {
     params: ContributionQueryInput,
   ): Promise<PaginatedResult<Contribution & { member_name: string }>> {
     return withDb(ctx, async (client) => {
-      const { page, limit, memberId, status, from, to, sortDir } = params;
+      const { page, limit, status, from, to, sortDir } = params;
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
       const offset = (page - 1) * limit;
 
       const conditions: string[] = ['c.group_id = $1'];
@@ -210,8 +211,8 @@ export const contributionsService = {
         `SELECT c.*, m.first_name || ' ' || m.last_name AS member_name
          FROM contributions c
          JOIN members m ON m.id = c.member_id
-         WHERE c.id = $1 AND c.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE c.id = $1 AND c.group_id = $2${ctx.role === 'member' ? ' AND c.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Contribution', id);
       return rows[0];
@@ -219,6 +220,8 @@ export const contributionsService = {
   },
 
   async create(ctx: TenantContext, data: CreateContributionInput): Promise<Contribution> {
+    // This endpoint creates an unpaid obligation only. It cannot accept a
+    // provider reference or mark money received; verified callbacks own that.
     return withTransaction(ctx, async (client) => {
       // The target member must hold an active membership in THIS group —
       // RLS scopes group_id but never member_id (audit H-1). The returned
@@ -226,18 +229,11 @@ export const contributionsService = {
       // attribution are the same act.
       const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
 
-      if (data.mpesaReceiptNumber) {
-        const dup = await client.query('SELECT id FROM contributions WHERE mpesa_receipt_number = $1', [
-          data.mpesaReceiptNumber,
-        ]);
-        if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
-      }
-
       const { rows } = await client.query<Contribution>(
         `INSERT INTO contributions
            (group_id, member_id, group_membership_id, amount, contribution_date, due_date,
             status, payment_method, mpesa_receipt_number, notes, recorded_by)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
+         VALUES ($1,$2,$3,$4,$5,$6,'pending',NULL,NULL,$7,$8)
          RETURNING *`,
         [
           ctx.groupId,
@@ -246,9 +242,6 @@ export const contributionsService = {
           data.amount.toFixed(2),
           data.contributionDate,
           data.dueDate ?? null,
-          data.paymentMethod ? 'completed' : 'pending',
-          data.paymentMethod ?? null,
-          data.mpesaReceiptNumber ?? null,
           data.notes ?? null,
           ctx.userId,
         ],
@@ -367,6 +360,9 @@ export const contributionsService = {
   },
 
   async update(ctx: TenantContext, id: string, data: UpdateContributionInput): Promise<Contribution> {
+    if ((data as { status?: string }).status === 'completed') {
+      throw new ValidationError('A contribution can only be completed by a verified M-Pesa provider callback');
+    }
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Contribution>(
         'SELECT * FROM contributions WHERE id = $1 AND group_id = $2',
@@ -383,14 +379,6 @@ export const contributionsService = {
       if (data.status !== undefined) {
         sets.push(`status = $${idx++}`);
         values.push(data.status);
-      }
-      if (data.paymentMethod !== undefined) {
-        sets.push(`payment_method = $${idx++}`);
-        values.push(data.paymentMethod);
-      }
-      if (data.mpesaReceiptNumber !== undefined) {
-        sets.push(`mpesa_receipt_number = $${idx++}`);
-        values.push(data.mpesaReceiptNumber);
       }
       if (data.notes !== undefined) {
         sets.push(`notes = $${idx++}`);

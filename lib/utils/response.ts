@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { ZodError } from 'zod';
+import { ZodError } from 'zod/v3';
 import { AppError } from './errors';
 import { logger } from '@/lib/logger';
 import type { ApiSuccess, ApiError } from '@/types/api.types';

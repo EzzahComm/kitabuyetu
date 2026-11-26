@@ -9,7 +9,7 @@
  * render + upload happens inside the existing lib/jobs queue, off any HTTP
  * request/response cycle. A signed download URL is never stored — it is
  * minted fresh, bounded by a short TTL, every time a caller asks for one
- * (getExportStatus below, and emailScheduledReport for the mailed link).
+ * by getExportStatus below.
  *
  * Reused, not rebuilt:
  *   - organizationFinanceService.programBudgetReport/donorSpendReport are the
@@ -23,7 +23,7 @@
  *     organization_report_export and organization_report_schedules_process
  *     are new job TYPES in it, not a second queue.
  *   - email.service.ts's sendTemplatedEmail is the existing send path used
- *     to email a scheduled report's signed link once it's ready.
+ *     to email the authenticated report page once a scheduled export is ready.
  */
 import ExcelJS from 'exceljs';
 import { renderToBuffer } from '@react-pdf/renderer';
@@ -37,14 +37,10 @@ import {
 } from './organization-finance.service';
 import { assertReportsAccess } from './organization-plan.service';
 import { sendTemplatedEmail } from './email.service';
-import {
-  uploadReportArtifact,
-  createReportSignedUrl,
-  REPORT_SIGNED_URL_TTL_SECONDS,
-  REPORT_EMAIL_SIGNED_URL_TTL_SECONDS,
-} from '@/lib/supabase/storage';
+import { uploadReportArtifact, createReportSignedUrl, REPORT_SIGNED_URL_TTL_SECONDS } from '@/lib/supabase/storage';
 import { ProgramBudgetReportPdf, DonorSpendReportPdf } from '@/components/pdf/organization-report';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
+import { officialAppUrl } from '@/lib/app-links';
 import { logger } from '@/lib/logger';
 import type {
   CreateReportExportInput,
@@ -446,14 +442,14 @@ async function renderReportArtifact(
 }
 
 /**
- * Email a finished scheduled report's signed link via the existing
+ * Email a link to the authenticated export page via the existing
  * templated-send path (email.service.ts). Best-effort per recipient — one
  * bad address must not block the others.
  */
 async function emailScheduledReport(
   organizationId: string,
   scheduleId: string,
-  objectPath: string,
+  exportId: string,
   reportType: ReportType,
   format: ReportFormat,
 ): Promise<void> {
@@ -478,7 +474,7 @@ async function emailScheduledReport(
   }
   if (recipients.size === 0) return;
 
-  const downloadUrl = await createReportSignedUrl(objectPath, REPORT_EMAIL_SIGNED_URL_TTL_SECONDS);
+  const reportUrl = new URL(`/enterprise/reports/exports/${exportId}`, officialAppUrl).href;
   const organizationName = await getOrganizationName(organizationId);
 
   for (const to of recipients) {
@@ -488,10 +484,12 @@ async function emailScheduledReport(
       vars: {
         reportName: REPORT_NAMES[reportType],
         organizationName,
-        downloadUrl,
+        reportUrl,
+        downloadUrl: reportUrl, // Support stored templates that still use the original variable.
         format: format.toUpperCase(),
-        generatedAt: new Date().toLocaleString('en-KE'),
+        generatedAt: new Date().toLocaleString('en-KE', { timeZone: 'Africa/Nairobi' }),
       },
+      referenceId: exportId,
       referenceType: 'organization_report_export',
     }).catch((err) => logger.warn('[report-export] scheduled report email failed', { to, err: String(err) }));
   }
@@ -538,7 +536,7 @@ export async function processReportExport(exportId: string, opts: { isFinalAttem
     );
 
     if (row.schedule_id) {
-      await emailScheduledReport(row.organization_id, row.schedule_id, objectPath, row.report_type, row.format).catch(
+      await emailScheduledReport(row.organization_id, row.schedule_id, exportId, row.report_type, row.format).catch(
         (err) => logger.error('[report-export] scheduled-report email failed', { exportId, err: String(err) }),
       );
     }

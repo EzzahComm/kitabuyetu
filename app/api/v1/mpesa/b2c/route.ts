@@ -52,6 +52,10 @@ export async function POST(req: NextRequest): Promise<Response> {
       ).catch(() => {});
     });
 
+    // A queue timeout reports an unknown outcome. Keep the reservation for
+    // a final result or reconciliation.
+    if (type === 'timeout') return ack();
+
     // A vendor payment on the 'b2c' channel lands here rather than on the
     // B2B route — same OriginatorConversationID correlation, different
     // Daraja product. handleVendorPaymentResult is a safe no-op when the id

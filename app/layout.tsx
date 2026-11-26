@@ -32,6 +32,8 @@ export const viewport: Viewport = {
   userScalable: false,
 };
 
+const GOOGLE_TAG_ID = 'G-7BM93MVBVY';
+
 const TAGLINE = 'The Digital Operating System for Community Organisations';
 const LONG_DESCRIPTION =
   'Kitabu Yetu equips community organisations and the institutions that support them with digital tools for membership, finances, communication and programme management.';
@@ -111,6 +113,19 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        {/* Google tag (gtag.js) */}
+        <script async src={`https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}`} />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+
+gtag('config', '${GOOGLE_TAG_ID}');`,
+          }}
+        />
+      </head>
       <body className={`${inter.variable} ${dmMono.variable} font-sans antialiased`}>
         <Providers>{children}</Providers>
         <SpeedInsights />

@@ -6,6 +6,7 @@ import {
   getRevenueTrend,
   getRiskDashboardData,
   getMonitoringDashboardData,
+  getProductRevenueBreakdown,
 } from '@/lib/services/admin.service';
 import { canViewPlatformFinance, redactPlatformStatsForRole } from '@/lib/services/platform-revenue-classification';
 import { ForbiddenError } from '@/lib/utils/errors';
@@ -22,6 +23,11 @@ export function GET(req: NextRequest) {
         throw new ForbiddenError('Revenue trend is restricted to super_admin');
       }
       const data = await getRevenueTrend();
+      return ok(data);
+    }
+
+    if (widget === 'product_revenue') {
+      const data = await getProductRevenueBreakdown();
       return ok(data);
     }
 

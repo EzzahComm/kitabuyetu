@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 
 /**
@@ -61,13 +61,9 @@ export const MemberPayoutSchema = z
     purpose: z.enum(['savings_withdrawal', 'merry_go_round', 'other']),
     description: z.string().trim().min(3, 'Describe the purpose (3+ characters)').max(200),
     notes: z.string().trim().max(500).optional(),
-    paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']).default('mpesa'),
-    paymentReference: z.string().trim().max(100).optional(),
+    paymentMethod: z.enum(['mpesa']).default('mpesa'),
   })
-  .refine((v) => v.paymentMethod !== 'bank_transfer' || !!v.paymentReference, {
-    message: 'A bank transfer needs the payee account / transfer reference',
-    path: ['paymentReference'],
-  });
+  .strict();
 
 export type MemberPayoutInput = z.input<typeof MemberPayoutSchema>;
 

@@ -226,6 +226,11 @@ export const sharesService = {
   // ── Share transactions ───────────────────────────────────────────────
 
   async createTransaction(ctx: TenantContext, input: CreateShareTransactionInput): Promise<ShareTransaction[]> {
+    if (input.type === 'purchase' || input.type === 'redemption') {
+      throw new ValidationError(
+        'Manual share purchases and redemptions are disabled. Only provider-confirmed M-Pesa allocations may post financial transactions.',
+      );
+    }
     return withTransaction(ctx, async (client) => {
       // Resolve share class and lock it FOR SHARE so its config doesn't shift mid-txn.
       const { rows: cls } = await client.query<{
@@ -389,8 +394,8 @@ export const sharesService = {
           unit_price: unitPrice,
           total_amount: totalAmount,
           counterparty_member_id: null,
-          payment_method: input.paymentMethod ?? null,
-          payment_reference: input.paymentReference ?? null,
+          payment_method: null,
+          payment_reference: null,
           certificate_serial: serial,
           notes: input.notes ?? null,
           created_by: ctx.userId,
@@ -444,7 +449,8 @@ export const sharesService = {
           addCond(`t.type = $$`, params.type);
         }
       }
-      if (params.memberId) addCond(`t.member_id      = $$`, params.memberId);
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
+      if (memberId) addCond(`t.member_id      = $$`, memberId);
       if (params.shareClassId) addCond(`t.share_class_id = $$`, params.shareClassId);
       if (params.from) addCond(`t.posted_at     >= $$`, params.from);
       if (params.to) addCond(`t.posted_at     <= ($$ ::date + INTERVAL '1 day')`, params.to);
@@ -499,8 +505,8 @@ export const sharesService = {
            JOIN members        m  ON m.id  = t.member_id
            JOIN share_classes  c  ON c.id  = t.share_class_id
       LEFT JOIN members        cp ON cp.id = t.counterparty_member_id
-          WHERE t.group_id = $1 AND t.id = $2`,
-        [ctx.groupId, txnId],
+          WHERE t.group_id = $1 AND t.id = $2${ctx.role === 'member' ? ' AND t.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [ctx.groupId, txnId, ctx.userId] : [ctx.groupId, txnId],
       );
       if (!rows[0]) throw new NotFoundError('Share transaction', txnId);
       return rows[0];
@@ -589,9 +595,10 @@ export const sharesService = {
       const conds: string[] = ['h.group_id = $1'];
       const vals: unknown[] = [ctx.groupId];
       if (!params.includeZero) conds.push(`h.quantity > 0`);
-      if (params.memberId) {
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
+      if (memberId) {
         conds.push(`h.member_id      = $${vals.length + 1}`);
-        vals.push(params.memberId);
+        vals.push(memberId);
       }
       if (params.shareClassId) {
         conds.push(`h.share_class_id = $${vals.length + 1}`);
@@ -639,8 +646,8 @@ export const sharesService = {
           `SELECT COUNT(*) AS count FROM share_classes WHERE group_id = $1 AND is_active = TRUE`,
           [ctx.groupId],
         ),
-        client.query<{ count: string }>(
-          `SELECT COUNT(DISTINCT member_id) AS count
+        client.query<{ count: string; total_invested: string }>(
+          `SELECT COUNT(DISTINCT member_id) AS count, COALESCE(SUM(total_invested), 0) AS total_invested
              FROM share_holdings WHERE group_id = $1 AND quantity > 0`,
           [ctx.groupId],
         ),
@@ -701,7 +708,7 @@ export const sharesService = {
 
       const totalShares = byClass.reduce((s, c) => s + c.sharesIssued, 0);
       const totalShareCapital = byClass.reduce((s, c) => s + Number(c.capitalAtValue || 0), 0).toFixed(2);
-      const totalInvested = topQ.rows.reduce((s, r) => s + Number(r.total_invested || 0), 0).toFixed(2);
+      const totalInvested = holdersQ.rows[0].total_invested;
 
       return {
         totalClasses: parseInt(classesQ.rows[0].count, 10),
@@ -710,7 +717,7 @@ export const sharesService = {
         totalShareCapital,
         totalInvested,
         byClass,
-        topHolders: topQ.rows.map((r) => ({
+        topHolders: (ctx.role === 'member' ? [] : topQ.rows).map((r) => ({
           memberId: r.member_id,
           firstName: r.first_name,
           lastName: r.last_name,

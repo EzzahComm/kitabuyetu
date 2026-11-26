@@ -3,7 +3,6 @@ import { sendTemplatedEmail, queueEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import type { EmailResult } from '@/lib/email/provider';
-import { env } from '@/lib/env';
 
 const SHORTCODE = process.env.MPESA_SHORTCODE ?? '';
 /**
@@ -366,7 +365,7 @@ export async function processRecurringInvoices(): Promise<void> {
              (CURRENT_DATE + INTERVAL '30 days')::date,
              $3, 0, $3, 'pending', $4
            )
-           RETURNING id`,
+           RETURNING id, invoice_number, invoice_date, due_date`,
           [sched.group_id, billingAccountId, sched.amount, sched.description ?? null],
         );
 
@@ -400,7 +399,9 @@ export async function processRecurringInvoices(): Promise<void> {
           templateKey: 'invoice',
           to: sched.recipient_email,
           vars: {
-            invoiceNumber: inv.id,
+            invoiceNumber: inv.invoice_number,
+            invoiceDate: formatDate(inv.invoice_date),
+            dueDate: formatDate(inv.due_date),
             recipientName: sched.recipient_name ?? '',
             amountDue: formatMoney(sched.amount),
             shortcode: SHORTCODE,

@@ -65,6 +65,7 @@ export default function AdminDashboardPage() {
   const r: { total?: string; this_month?: string; this_week?: string } = stats?.revenue ?? {};
   const t = stats?.tickets ?? {};
 
+  const hasFinanceAccess = stats?.revenue !== undefined;
   const mrr = parseFloat(s.mrr ?? '0');
 
   return (
@@ -115,9 +116,9 @@ export default function AdminDashboardPage() {
           onClick={() => router.push('/admin/users')}
         />
         <StatCard
-          title="Monthly Recurring Revenue"
-          value={isLoading ? '—' : formatKES(mrr)}
-          description={`${s.active_subscriptions ?? 0} active subscriptions`}
+          title="Active Monthly Plan Value"
+          value={isLoading || !hasFinanceAccess ? '—' : formatKES(mrr)}
+          description={`${s.active_enterprise_subscriptions ?? 0} Enterprise subscriptions`}
           icon={CreditCard}
           accent="green"
           loading={isLoading}
@@ -125,8 +126,8 @@ export default function AdminDashboardPage() {
         />
         <StatCard
           title="Platform Revenue"
-          value={isLoading ? '—' : formatKES(parseFloat(r.this_month ?? '0'))}
-          description={`${formatKES(parseFloat(r.this_week ?? '0'))} this week`}
+          value={isLoading || !hasFinanceAccess ? '—' : formatKES(parseFloat(r.this_month ?? '0'))}
+          description={hasFinanceAccess ? `${formatKES(parseFloat(r.this_week ?? '0'))} this week` : undefined}
           icon={TrendingUp}
           accent="orange"
           loading={isLoading}
@@ -204,12 +205,14 @@ export default function AdminDashboardPage() {
             <StatusRow label="Expired" value={s.expired_subscriptions ?? 0} color="bg-gray-400" />
             <div className="pt-3 border-t border-border mt-2">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Monthly Recurring Revenue</span>
-                <span className="font-bold text-green-600">{formatKES(mrr)}</span>
+                <span className="text-muted-foreground">Active monthly plan value</span>
+                <span className="font-bold text-green-600">{hasFinanceAccess ? formatKES(mrr) : '—'}</span>
               </div>
               <div className="flex justify-between text-xs mt-1">
                 <span className="text-muted-foreground">Overdue invoices</span>
-                <span className="font-bold text-red-500">{s.overdue_count ?? 0}</span>
+                <span className="font-bold text-red-500">
+                  {hasFinanceAccess ? (s.overdue_invoice_count ?? 0) : '—'}
+                </span>
               </div>
             </div>
             <Link href="/admin/billing-admin" className="block pt-2">

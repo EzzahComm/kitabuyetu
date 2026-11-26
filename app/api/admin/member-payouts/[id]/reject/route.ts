@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { memberPayoutsService } from '@/lib/services/member-payouts.service';
 import { ok } from '@/lib/utils/response';

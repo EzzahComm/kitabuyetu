@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * Fines issuance and tracking (Phase 3, migration 180). Style mirrors

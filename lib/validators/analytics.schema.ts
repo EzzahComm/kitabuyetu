@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const ANALYTICS_PERIODS = ['30d', '90d', '12mo', 'all'] as const;
 export type AnalyticsPeriod = (typeof ANALYTICS_PERIODS)[number];

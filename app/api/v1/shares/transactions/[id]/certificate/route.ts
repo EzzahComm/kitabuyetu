@@ -68,8 +68,8 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
            JOIN members       m  ON m.id  = t.member_id
            JOIN group_members gm ON gm.group_id = t.group_id AND gm.member_id = t.member_id
            JOIN share_classes c  ON c.id  = t.share_class_id
-          WHERE t.group_id = $1 AND t.id = $2`,
-          [ctx.groupId, id],
+          WHERE t.group_id = $1 AND t.id = $2${ctx.role === 'member' ? ' AND t.member_id = $3' : ''}`,
+          ctx.role === 'member' ? [ctx.groupId, id, ctx.userId] : [ctx.groupId, id],
         );
         if (!rows[0]) throw new NotFoundError('Share transaction', id);
         return rows[0];

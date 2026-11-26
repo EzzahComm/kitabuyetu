@@ -113,7 +113,7 @@ const COMMUNITIES: CommunityCard[] = [
     title: 'The savings, the loans and the social fund — in one ledger.',
     body: 'Meet the way you always have. The record lives in one shared book.',
     points: [
-      'Record cash by hand — M-Pesa payments record themselves',
+      'Members pay by M-Pesa — provider-confirmed payments post automatically',
       'Loans, repayments and welfare tracked member by member',
       'Every member checks her own balance',
     ],

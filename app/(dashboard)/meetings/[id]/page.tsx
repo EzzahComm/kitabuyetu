@@ -40,7 +40,7 @@ import { useHasPermission } from '@/lib/auth/use-permission';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { zodResolver } from '@hookform/resolvers/zod';
 
 const typeLabels: Record<string, string> = {

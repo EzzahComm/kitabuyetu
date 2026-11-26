@@ -50,8 +50,8 @@ export async function GET(req: NextRequest, { params }: RouteParams): Promise<Re
            JOIN groups  g  ON g.id = c.group_id
            JOIN members m  ON m.id = c.member_id
            LEFT JOIN group_members gm ON gm.group_id = c.group_id AND gm.member_id = c.member_id
-           WHERE c.group_id = $1 AND c.id = $2`,
-          [ctx.groupId, id],
+           WHERE c.group_id = $1 AND c.id = $2${ctx.role === 'member' ? ' AND c.member_id = $3' : ''}`,
+          ctx.role === 'member' ? [ctx.groupId, id, ctx.userId] : [ctx.groupId, id],
         );
         if (!rows[0]) throw new NotFoundError('Contribution', id);
         return rows[0];

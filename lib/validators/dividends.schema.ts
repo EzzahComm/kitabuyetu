@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const DIVIDEND_STATUSES = ['draft', 'pending_approval', 'approved', 'paid', 'cancelled'] as const;
 
@@ -8,8 +8,6 @@ export const DIVIDEND_STATUSES = ['draft', 'pending_approval', 'approved', 'paid
 export const DIVIDEND_POLICY_TYPES = ['proportional_to_shares', 'flat_per_member'] as const;
 
 export const ALLOCATION_STATUSES = ['pending', 'paid', 'reinvested', 'cancelled'] as const;
-
-export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'other'] as const;
 
 export const CreateDividendDeclarationSchema = z
   .object({
@@ -52,18 +50,21 @@ export const CancelDeclarationSchema = z.object({
   reason: z.string().min(3).max(500),
 });
 
-export const PayAllocationSchema = z.object({
-  paymentMethod: z.enum(PAYMENT_METHODS),
-  paymentReference: z.string().max(80).optional().nullable(),
-  notes: z.string().max(500).optional().nullable(),
-});
+export const PayAllocationSchema = z
+  .object({})
+  .strict()
+  .refine(() => false, {
+    message:
+      'Manual dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.',
+  });
 
-export const BulkPayAllocationsSchema = z.object({
-  allocationIds: z.array(z.string().uuid()).min(1).max(500),
-  paymentMethod: z.enum(PAYMENT_METHODS),
-  paymentReference: z.string().max(80).optional().nullable(),
-  notes: z.string().max(500).optional().nullable(),
-});
+export const BulkPayAllocationsSchema = z
+  .object({ allocationIds: z.array(z.string().uuid()).min(1).max(500) })
+  .strict()
+  .refine(() => false, {
+    message:
+      'Manual bulk dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.',
+  });
 
 export type CreateDividendDeclarationInput = z.infer<typeof CreateDividendDeclarationSchema>;
 export type UpdateDividendDeclarationInput = z.infer<typeof UpdateDividendDeclarationSchema>;

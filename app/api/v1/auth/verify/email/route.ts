@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { completeGroupVerificationByToken } from '@/lib/services/group-verification.service';
 import { ok, handleError, errorResponse } from '@/lib/utils/response';
 

@@ -1,11 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import {
-  postTemplatedJournal,
-  postLoanDisbursementJournal,
-  postLoanRepaymentJournal,
-} from './posting-templates.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
@@ -27,7 +23,8 @@ import type {
 export const loansService = {
   async list(ctx: TenantContext, params: LoanQueryInput): Promise<PaginatedResult<Loan & { member_name: string }>> {
     return withDb(ctx, async (client) => {
-      const { page, limit, memberId, status, from, to, sortDir } = params;
+      const { page, limit, status, from, to, sortDir } = params;
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
       const offset = (page - 1) * limit;
       const conditions: string[] = ['l.group_id = $1'];
       const values: unknown[] = [ctx.groupId];
@@ -81,10 +78,10 @@ export const loansService = {
         `SELECT lr.*, m.first_name || ' ' || m.last_name AS member_name
          FROM loan_repayments lr
          JOIN members m ON m.id = lr.member_id
-         WHERE lr.group_id = $1 AND lr.status = 'pending'
+         WHERE lr.group_id = $1 AND lr.status = 'pending'${ctx.role === 'member' ? ' AND lr.member_id = $3' : ''}
          ORDER BY lr.due_date ASC
          LIMIT $2`,
-        [ctx.groupId, limit],
+        ctx.role === 'member' ? [ctx.groupId, limit, ctx.userId] : [ctx.groupId, limit],
       );
       return rows;
     });
@@ -98,8 +95,8 @@ export const loansService = {
       const { rows: loanRows } = await client.query<Loan & { member_name: string; member_phone: string }>(
         `SELECT l.*, m.first_name || ' ' || m.last_name AS member_name, m.phone AS member_phone
          FROM loans l JOIN members m ON m.id = l.member_id
-         WHERE l.id = $1 AND l.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE l.id = $1 AND l.group_id = $2${ctx.role === 'member' ? ' AND l.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!loanRows[0]) throw new NotFoundError('Loan', id);
 
@@ -339,220 +336,18 @@ export const loansService = {
     });
   },
 
-  async disburse(ctx: TenantContext, id: string, data: DisburseLoanInput): Promise<Loan> {
-    return withTransaction(ctx, async (client) => {
-      const { rows: existing } = await client.query<Loan>(`SELECT * FROM loans WHERE id = $1 AND group_id = $2`, [
-        id,
-        ctx.groupId,
-      ]);
-      if (!existing[0]) throw new NotFoundError('Loan', id);
-      if (existing[0].status !== 'approved') {
-        throw new ValidationError(`Only approved loans can be disbursed`);
-      }
-
-      // Transition to disbursed — the DB trigger generates the repayment schedule
-      const prev = existing[0];
-
-      const { rows } = await client.query<Loan>(
-        `UPDATE loans
-         SET status = 'disbursed',
-             disbursement_date    = $1,
-             payment_method       = $2,
-             mpesa_receipt_number = $3,
-             disbursed_by         = $4,
-             disbursed_at         = NOW()
-         WHERE id = $5 RETURNING *`,
-        [data.disbursementDate, data.paymentMethod, data.mpesaReceiptNumber ?? null, ctx.userId, id],
-      );
-
-      const updated = rows[0];
-
-      // Attribute the money to its funding source(s) — migration 118.
-      //
-      // This is what distinguishes "the group lent its own savings" from "the
-      // group on-lent an organization's capital", which are otherwise the same
-      // row. With no plan supplied it defaults to internal savings, so every
-      // pre-existing caller keeps working unchanged.
-      //
-      // A deferred constraint trigger asserts these sum to the principal, so a
-      // loan can never reach 'disbursed' only partly attributed.
-      const principal = parseFloat(updated.principal_amount);
-      const plan = await resolveFundingPlan(client, ctx.groupId, principal, data.fundingPlan);
-
-      for (const split of plan) {
-        await client.query(
-          `INSERT INTO loan_funding_splits (group_id, loan_id, funding_source_id, amount)
-           VALUES ($1, $2, $3, $4)
-           ON CONFLICT (loan_id, funding_source_id) DO UPDATE SET amount = EXCLUDED.amount`,
-          [ctx.groupId, updated.id, split.fundingSourceId, split.amount.toFixed(2)],
-        );
-      }
-
-      // Post disbursement journal
-      await postLoanDisbursementJournal(client, {
-        groupId: ctx.groupId,
-        loanId: updated.id,
-        principal,
-        entryDate: updated.disbursement_date!,
-        reference: updated.mpesa_receipt_number,
-        createdBy: ctx.userId,
-      });
-
-      // Auto-apply any configured one-time charges (processing fee, insurance
-      // fee, …) — migration 179. A no-op today for every group, since nothing
-      // seeds a default charge type; only fires once a chairperson configures
-      // one via loanChargesService.configureChargeType. Inside this same
-      // transaction so a charge is atomic with the disbursement itself.
-      await applyDisbursementCharges(client, ctx, updated);
-
-      // Record audit log
-      await writeAuditLog(
-        client,
-        ctx,
-        'loan.disburse',
-        id,
-        { status: prev.status },
-        { status: updated.status, principal_amount: updated.principal_amount },
-      );
-
-      // Emit event for trigger engine (best-effort, never throws)
-      const { emitBusinessEvent } = await import('@/lib/sms/trigger-engine');
-      await emitBusinessEvent({
-        eventType: SMS_EVENTS.LOAN_DISBURSED,
-        eventId: updated.id,
-        groupId: ctx.groupId,
-        payload: {
-          amount: parseFloat(updated.principal_amount),
-          memberId: updated.member_id,
-          principalAmount: parseFloat(updated.principal_amount),
-          disbursementDate: updated.disbursement_date!.toISOString().split('T')[0],
-        },
-        actorId: ctx.userId,
-      }).catch((err) =>
-        logger.warn('[loans] event emit failed', { loanId: updated.id, error: (err as Error).message }),
-      );
-
-      await recordActivityInTx(client, {
-        type: ActivityEventType.LOAN_DISBURSED,
-        dedupKey: `loan:${updated.id}:disbursed`,
-        group: { id: ctx.groupId, name: '' },
-        actor: { userId: ctx.userId },
-        transaction: {
-          id: updated.id,
-          type: 'Loan',
-          amount: parseFloat(updated.principal_amount),
-          currency: 'KES',
-          status: 'disbursed',
-        },
-      });
-
-      return updated;
-    });
+  async disburse(_ctx: TenantContext, _id: string, _data: DisburseLoanInput): Promise<Loan> {
+    throw new ValidationError(
+      'Manual loan disbursement is disabled. Initiate the M-Pesa B2C transfer and wait for the provider callback.',
+    );
   },
 
-  async recordRepayment(ctx: TenantContext, loanId: string, data: RecordRepaymentInput): Promise<LoanRepayment> {
-    return withTransaction(ctx, async (client) => {
-      const { rows: installment } = await client.query<LoanRepayment>(
-        `SELECT * FROM loan_repayments
-         WHERE loan_id = $1 AND installment_number = $2 AND group_id = $3
-         FOR UPDATE`,
-        [loanId, data.installmentNumber, ctx.groupId],
-      );
-      if (!installment[0]) throw new NotFoundError(`Installment ${data.installmentNumber}`, loanId);
-      if (installment[0].status === 'completed') {
-        throw new ConflictError('Installment already fully paid');
-      }
-
-      if (data.mpesaReceiptNumber) {
-        const dup = await client.query('SELECT id FROM loan_repayments WHERE mpesa_receipt_number = $1', [
-          data.mpesaReceiptNumber,
-        ]);
-        if (dup.rows[0]) throw new ConflictError(`M-Pesa receipt ${data.mpesaReceiptNumber} already recorded`);
-      }
-
-      const oldInstallment = installment[0];
-      const { rows } = await client.query<LoanRepayment>(
-        `UPDATE loan_repayments
-         SET amount_paid          = $1,
-             payment_date         = $2,
-             status               = 'completed',
-             payment_method       = $3,
-             mpesa_receipt_number = $4,
-             penalty_amount       = GREATEST(penalty_amount, $5)
-         WHERE loan_id = $6 AND installment_number = $7
-         RETURNING *`,
-        [
-          data.amountPaid.toFixed(2),
-          data.paymentDate,
-          data.paymentMethod,
-          data.mpesaReceiptNumber ?? null,
-          data.penaltyAmount.toFixed(2),
-          loanId,
-          data.installmentNumber,
-        ],
-      );
-
-      const updatedInstallment = rows[0];
-
-      // Update the parent loan's outstanding balance and next payment date
-      const { rows: loanRows } = await client.query<Loan>(
-        `UPDATE loans SET
-           outstanding_balance = outstanding_balance - $1,
-           next_payment_date = (
-             SELECT MIN(due_date) FROM loan_repayments
-             WHERE loan_id = $2 AND status = 'pending'
-           ),
-           status = CASE
-             WHEN (SELECT COUNT(*) FROM loan_repayments WHERE loan_id = $2 AND status != 'completed') = 0
-             THEN 'completed' ELSE status
-           END
-         WHERE id = $2
-         RETURNING *`,
-        [updatedInstallment.principal_component, loanId],
-      );
-
-      // Post repayment journal
-      await postLoanRepaymentJournal(client, {
-        groupId: ctx.groupId,
-        repaymentId: updatedInstallment.id,
-        loanId: loanId,
-        principalPortion: parseFloat(updatedInstallment.principal_component),
-        interestPortion: parseFloat(updatedInstallment.interest_component),
-        entryDate: updatedInstallment.payment_date!,
-        reference: updatedInstallment.mpesa_receipt_number,
-        createdBy: ctx.userId,
-      });
-
-      // Auto-apply any configured late-payment charge when this instalment was
-      // paid after its due date — migration 179. Parallel to, not a
-      // replacement for, the manual `penalty_amount` above: a no-op today for
-      // every group, since nothing seeds a default charge type. Idempotent —
-      // an instalment can only reach this point once (the completed-status
-      // guard above), and applyOverdueCharges itself checks for a prior
-      // application before inserting.
-      await applyOverdueCharges(
-        client,
-        ctx,
-        { id: loanId, principal_amount: loanRows[0].principal_amount },
-        oldInstallment,
-        data.paymentDate,
-      );
-
-      // Record audit log for repayment
-      await writeAuditLog(
-        client,
-        ctx,
-        'loan.repayment_recorded',
-        loanId,
-        { installment: data.installmentNumber, status: oldInstallment.status },
-        { installment: data.installmentNumber, amount_paid: data.amountPaid, status: updatedInstallment.status },
-      );
-
-      return updatedInstallment;
-    });
+  async recordRepayment(_ctx: TenantContext, _loanId: string, _data: RecordRepaymentInput): Promise<LoanRepayment> {
+    throw new ValidationError(
+      'Manual loan repayment recording is disabled. Only provider-confirmed M-Pesa callbacks can settle repayments.',
+    );
   },
 
-  /** First step of the write-off workflow — flags an active loan as uncollectible. */
   async markDefaulted(ctx: TenantContext, id: string, data: MarkDefaultedInput): Promise<Loan> {
     return withTransaction(ctx, async (client) => {
       const { rows: existing } = await client.query<Loan>(

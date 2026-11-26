@@ -12,7 +12,7 @@
  * POST /api/v1/mpesa/bill-manager?type=reconciliation â€” Safaricom callback
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withRole, withPermission } from '@/lib/auth/middleware';
 import {
   billManagerOptIn,

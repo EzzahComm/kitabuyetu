@@ -74,6 +74,11 @@ function buildRequestBody(body: unknown, multipart = false): BodyInit | undefine
   return body !== undefined ? JSON.stringify(body) : undefined;
 }
 
+function isCurrentAuthorization(authorization: string | undefined): boolean {
+  const token = readAccessTokenFromStorage();
+  return authorization === (token ? `Bearer ${token}` : undefined);
+}
+
 /**
  * A 401 means different things depending on whether the request was
  * authenticated:
@@ -85,7 +90,7 @@ function buildRequestBody(body: unknown, multipart = false): BodyInit | undefine
  *    server's real message ("Invalid email or password", "Sign-in session
  *    expired. Start again.", …) instead of the misleading generic one.
  */
-async function handle401(res: Response, hadToken: boolean): Promise<never> {
+async function handle401(res: Response, authorization: string | undefined): Promise<never> {
   let serverError: { error?: string; code?: string } | null = null;
   try {
     serverError = (await res.json()) as { error?: string; code?: string };
@@ -93,8 +98,8 @@ async function handle401(res: Response, hadToken: boolean): Promise<never> {
     /* non-JSON body */
   }
 
-  if (hadToken) {
-    _onUnauthorized?.();
+  if (authorization) {
+    if (isCurrentAuthorization(authorization)) _onUnauthorized?.();
     throw new ApiError(
       serverError?.error ?? 'Session expired. Please log in again.',
       serverError?.code ?? 'SESSION_EXPIRED',
@@ -119,7 +124,7 @@ async function request<T>(
   });
 
   if (res.status === 401) {
-    return handle401(res, Boolean(headers['Authorization']));
+    return handle401(res, headers['Authorization']);
   }
 
   const json = (await res.json()) as ApiResponse<T>;
@@ -132,7 +137,7 @@ async function request<T>(
     // outside the lock, so paying from here is exactly what we want the user to
     // do next. The error is still thrown so the calling query settles as an
     // error instead of hanging.
-    if (res.status === 402) _onPaymentRequired?.(json.code);
+    if (res.status === 402 && isCurrentAuthorization(headers['Authorization'])) _onPaymentRequired?.(json.code);
     throw new ApiError(json.error, json.code, res.status);
   }
 
@@ -160,7 +165,7 @@ async function openBlob(path: string): Promise<void> {
   const headers = buildHeaders(undefined);
   const res = await fetch(`${BASE}${path}`, { headers });
   if (res.status === 401) {
-    await handle401(res, Boolean(headers['Authorization']));
+    await handle401(res, headers['Authorization']);
   }
   if (!res.ok) {
     // Binary endpoints still return JSON errors via handleError.
@@ -174,6 +179,7 @@ async function openBlob(path: string): Promise<void> {
     throw new Error(msg);
   }
   const blob = await res.blob();
+  if (!isCurrentAuthorization(headers['Authorization'])) return;
   const url = URL.createObjectURL(blob);
   window.open(url, '_blank', 'noopener');
   // Revoke after a tick so the new tab has time to load the blob.

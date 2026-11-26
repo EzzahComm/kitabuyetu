@@ -18,8 +18,13 @@
  * rather than in production.
  */
 import { CreateJournalSchema, SetPostingTemplateSchema } from '@/lib/validators/accounting.schema';
-import { StkPushSchema } from '@/lib/validators/mpesa.schema';
-import { ReviewWelfareRequestSchema } from '@/lib/services/welfare.service';
+import { MemberPayoutSchema, StkPushSchema } from '@/lib/validators/mpesa.schema';
+import {
+  ReviewWelfareRequestSchema,
+  RecordWelfarePoolSchema,
+  DisburseWelfareSchema,
+} from '@/lib/services/welfare.service';
+import { ContributionCsvRowSchema } from '@/lib/validators/import.schema';
 import {
   ApplyLoanSchema,
   RejectLoanSchema,
@@ -28,6 +33,134 @@ import {
 } from '@/lib/validators/loan.schema';
 import { ChangePasswordSchema } from '@/lib/validators/auth.schema';
 import { BulkSmsSchema } from '@/lib/validators/sms.schema';
+import { RecordManualPaymentSchema } from '@/lib/validators/billing.schema';
+import { PayAllocationSchema, BulkPayAllocationsSchema } from '@/lib/validators/dividends.schema';
+import { CreateShareTransactionSchema } from '@/lib/validators/shares.schema';
+import { DepositSchema, DisburseSchema, TopUpSmsCreditsSchema } from '@/lib/validators/organization.schema';
+
+describe('callback-only money movement payloads', () => {
+  it('rejects organization wallet deposits, organization-to-group disbursements, and SMS-credit top-ups until provider flows exist', () => {
+    expect(DepositSchema.safeParse({ amount: 5000, source: 'donor grant' }).success).toBe(false);
+    expect(
+      DisburseSchema.safeParse({
+        groupId: '11111111-1111-4111-8111-111111111111',
+        amount: 5000,
+        disbursementType: 'grant',
+      }).success,
+    ).toBe(false);
+    expect(TopUpSmsCreditsSchema.safeParse({ amountKes: 5000, reference: 'typed reference' }).success).toBe(false);
+  });
+
+  it('rejects cash, bank, cheque and standing-order organization disbursement methods', () => {
+    const base = {
+      groupId: '11111111-1111-4111-8111-111111111111',
+      amount: 1000,
+      disbursementType: 'grant',
+    };
+    for (const paymentMethod of ['cash', 'bank_transfer', 'cheque', 'standing_order']) {
+      expect(DisburseSchema.safeParse({ ...base, paymentMethod }).success).toBe(false);
+    }
+  });
+
+  it('rejects a manually supplied member payout reference', () => {
+    expect(
+      MemberPayoutSchema.safeParse({
+        memberId: '11111111-1111-4111-8111-111111111111',
+        amount: 1000,
+        purpose: 'other',
+        description: 'Member payout',
+        paymentMethod: 'mpesa',
+        paymentReference: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects typed receipts for welfare and imported contributions', () => {
+    const memberId = '11111111-1111-4111-8111-111111111111';
+    expect(
+      RecordWelfarePoolSchema.safeParse({
+        memberId,
+        amount: 500,
+        paymentMethod: 'mpesa',
+        mpesaReceiptNumber: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+    expect(
+      DisburseWelfareSchema.safeParse({
+        amountDisbursed: 500,
+        paymentMethod: 'mpesa',
+        mpesaReceiptNumber: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+    expect(
+      ContributionCsvRowSchema.safeParse({
+        member_phone: '0712345678',
+        amount: 500,
+        contribution_date: '2026-08-04',
+        payment_method: 'mpesa',
+        mpesa_receipt: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+  });
+
+  it.each(['cash', 'bank_transfer'])('rejects offline member payout method %s', (paymentMethod) => {
+    expect(
+      MemberPayoutSchema.safeParse({
+        memberId: '11111111-1111-4111-8111-111111111111',
+        amount: 1000,
+        purpose: 'other',
+        description: 'Member payout',
+        paymentMethod,
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects manually recorded invoice settlements', () => {
+    expect(
+      RecordManualPaymentSchema.safeParse({
+        amount: 500,
+        paymentMethod: 'mpesa',
+        paymentDate: '2026-08-04T10:00:00.000Z',
+        mpesaReceiptNumber: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects individual and bulk manual dividend settlements', () => {
+    expect(
+      PayAllocationSchema.safeParse({
+        paymentMethod: 'mpesa',
+        paymentReference: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+    expect(
+      BulkPayAllocationsSchema.safeParse({
+        allocationIds: ['11111111-1111-4111-8111-111111111111'],
+        paymentMethod: 'mpesa',
+        paymentReference: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+  });
+
+  it('rejects manual share purchases and typed payment references', () => {
+    const base = {
+      memberId: '11111111-1111-4111-8111-111111111111',
+      shareClassId: '22222222-2222-4222-8222-222222222222',
+      quantity: 1,
+    };
+    expect(
+      CreateShareTransactionSchema.safeParse({
+        ...base,
+        type: 'purchase',
+        paymentMethod: 'mpesa',
+        paymentReference: 'QAB123XYZ',
+      }).success,
+    ).toBe(false);
+    expect(
+      CreateShareTransactionSchema.safeParse({ ...base, type: 'allocation', paymentReference: 'QAB123XYZ' }).success,
+    ).toBe(false);
+  });
+});
 
 describe('client payload contracts', () => {
   describe('accounting: POST /accounting/journals', () => {
@@ -187,7 +320,7 @@ describe('client payload contracts', () => {
       expect(RejectLoanSchema.safeParse({ reason: 'Insufficient savings history' }).success).toBe(true);
     });
 
-    it('rejects a disburse with no date/method — what the Mark disbursed button used to send', () => {
+    it('rejects all manual loan disbursement payloads', () => {
       expect(DisburseLoanSchema.safeParse({}).success).toBe(false);
       expect(
         DisburseLoanSchema.safeParse({
@@ -195,10 +328,10 @@ describe('client payload contracts', () => {
           paymentMethod: 'cash',
           mpesaReceiptNumber: null,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
     });
 
-    it('accepts the rebuilt repayment payload and rejects the old {amount, reference} one', () => {
+    it('rejects manual repayment payloads; provider callbacks own completion', () => {
       expect(
         RecordRepaymentSchema.safeParse({
           installmentNumber: 1,
@@ -208,7 +341,7 @@ describe('client payload contracts', () => {
           mpesaReceiptNumber: null,
           penaltyAmount: 0,
         }).success,
-      ).toBe(true);
+      ).toBe(false);
       expect(
         RecordRepaymentSchema.safeParse({
           amount: 5000,

@@ -124,6 +124,9 @@ jobs:
       - name: Install dependencies
         run: npm ci --include=dev
 
+      - name: Audit production dependencies for critical advisories
+        run: npm audit --omit=dev --audit-level=critical
+
       # ── Lint ──────────────────────────────────────────────────────────────
       - name: Lint (eslint)
         run: npm run lint
@@ -597,19 +600,11 @@ jobs:
             sleep 10
           done
 
-      - name: Smoke test — /api/v1/groups (public endpoint)
+      - name: Smoke test — public registration lookup
         run: |
           BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
-          status=$(curl -s -o /dev/null -w "%{http_code}" \
-            --max-time 15 \
-            "$BASE/api/v1/groups" || echo "000")
-
-          if [ "$status" = "200" ] || [ "$status" = "304" ]; then
-            echo "OK: /api/v1/groups returned $status"
-          else
-            echo "WARN: /api/v1/groups returned $status (expected 200/304)"
-            # Non-fatal — groups endpoint may need DB to be seeded
-          fi
+          curl --fail --silent --show-error --max-time 15 "$BASE/api/v1/jurisdictions/counties" \
+            | node -e 'const body = JSON.parse(require("node:fs").readFileSync(0, "utf8")); if (!Array.isArray(body.data) || body.data.length !== 47) process.exit(1);'
 
       - name: Smoke test — landing page renders
         run: |

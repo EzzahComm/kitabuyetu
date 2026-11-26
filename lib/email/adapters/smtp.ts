@@ -69,7 +69,7 @@ export class SmtpAdapter implements IEmailAdapter {
         bcc: payload.bcc,
         attachments: payload.attachments?.map((a) => ({
           filename: a.filename,
-          content: a.content,
+          content: typeof a.content === 'string' ? Buffer.from(a.content, 'base64') : a.content,
           contentType: a.contentType,
         })),
       });

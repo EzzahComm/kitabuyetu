@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const MemberPassbookQuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

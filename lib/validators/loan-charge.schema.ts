@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * Configurable loan charges/fees engine (migration 179). Mirrors this

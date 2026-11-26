@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Shared with app/api/v1/organization/programs/route.ts and
 // app/api/v1/organization/disbursements/route.ts — a single source so a
@@ -239,16 +239,23 @@ export const UpdateProgramStatusSchema = z.object({
   status: z.enum(['active', 'paused', 'closed']),
 });
 
-export const DepositSchema = z.object({
-  amount: z.number().positive('Amount must be positive').max(1_000_000_000),
-  source: z.string().max(160).optional(),
-  reference: z.string().max(64).optional(),
-  notes: z.string().max(500).optional(),
-});
+export const DepositSchema = z
+  .object({
+    amount: z.number().positive('Amount must be positive').max(1_000_000_000),
+    source: z.string().max(160).optional(),
+    reference: z.string().max(64).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .strict()
+  .superRefine((_value, ctx) => {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Organization wallet deposits are disabled until a verified inbound M-Pesa provider flow is connected',
+    });
+  });
 
-/** How money physically moves. Mirrors the `payment_method` enum, which
- *  `loans.payment_method` already uses — deliberately not a second vocabulary. */
-export const PAYMENT_METHODS = ['mpesa', 'cash', 'bank_transfer', 'cheque', 'standing_order'] as const;
+/** Organization disbursement payloads accept M-Pesa only. Historical cash/bank values remain readable. */
+export const PAYMENT_METHODS = ['mpesa'] as const;
 
 export const DisburseSchema = z
   .object({
@@ -266,7 +273,13 @@ export const DisburseSchema = z
      *  method is a data-entry error, and the DB enforces the same rule. */
     paymentReference: z.string().max(120).optional(),
   })
+  .strict()
   .superRefine((v, ctx) => {
+    ctx.addIssue({
+      code: 'custom',
+      message:
+        'Organization-to-group disbursements are disabled until a verified M-Pesa or KCB Buni transfer flow is connected',
+    });
     if (v.paymentReference && !v.paymentMethod) {
       ctx.addIssue({
         code: 'custom',
@@ -298,11 +311,19 @@ export const BrandingSchema = z.object({
  * the KES suffix matches billing.schema.ts's own StkPushSchema convention for
  * an amount that specifically means shillings, not credits.
  */
-export const TopUpSmsCreditsSchema = z.object({
-  amountKes: z.number().positive('Amount must be positive').max(1_000_000_000),
-  reference: z.string().max(64).optional(),
-  notes: z.string().max(500).optional(),
-});
+export const TopUpSmsCreditsSchema = z
+  .object({
+    amountKes: z.number().positive('Amount must be positive').max(1_000_000_000),
+    reference: z.string().max(64).optional(),
+    notes: z.string().max(500).optional(),
+  })
+  .strict()
+  .superRefine((_value, ctx) => {
+    ctx.addIssue({
+      code: 'custom',
+      message: 'Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected',
+    });
+  });
 
 /** Super_admin only (enforced at the route) — the organization's negotiated per-SMS rate. */
 export const SetSmsRateSchema = z.object({

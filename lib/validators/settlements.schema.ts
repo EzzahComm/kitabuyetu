@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const CreateSettlementSchema = z.object({
   bankAccountId: z.string().uuid(),

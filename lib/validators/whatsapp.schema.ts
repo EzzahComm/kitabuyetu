@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 
 export const WHATSAPP_STATUSES = ['pending', 'sent', 'delivered', 'read', 'failed', 'dry_run'] as const;

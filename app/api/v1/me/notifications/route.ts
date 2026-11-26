@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withAuth } from '@/lib/auth/middleware';
 import { listMyNotifications } from '@/lib/services/member-notifications.service';
 import { ok } from '@/lib/utils/response';

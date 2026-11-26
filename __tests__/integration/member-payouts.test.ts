@@ -5,13 +5,12 @@
  *   off → the system executes and posts the group ledger + member ledger.
  *
  * Covers authorization (server-side, incl. cross-group and bypass attempts),
- * validation, the full workflow with ledger reconciliation (cash and M-Pesa),
- * rollback on a ledger failure, idempotency, double/concurrent approval, and
+ * validation, provider-confirmed ledger reconciliation, recovery from a posting
+ * failure, idempotency, double/concurrent approval, and
  * that notifications fire only after commit.
  *
- * Hermetic: Daraja's HTTP call is the only thing mocked (the real
- * mpesa-b2c.service bookkeeping still runs), and the SMS trigger engine is
- * mocked so notifications are asserted rather than sent.
+ * Daraja's HTTP call and the SMS trigger engine are mocked. Fee computation
+ * is set to zero so these tests isolate payout and reservation accounting.
  */
 jest.mock('@/lib/services/daraja.service', () => ({
   ...jest.requireActual('@/lib/services/daraja.service'),
@@ -19,6 +18,11 @@ jest.mock('@/lib/services/daraja.service', () => ({
 }));
 jest.mock('@/lib/sms/trigger-engine', () => ({
   emitBusinessEvent: jest.fn().mockResolvedValue({ evaluated: 0, matched: 0, dispatched: 0, deferred: 0, skipped: 0 }),
+}));
+
+jest.mock('@/lib/services/mpesa-charges.service', () => ({
+  ...jest.requireActual('@/lib/services/mpesa-charges.service'),
+  computeB2CCharge: jest.fn().mockResolvedValue(0),
 }));
 
 import { createTestGroup, addGroupOfficer, fundGroupCashAccount } from './helpers/fixtures';
@@ -30,8 +34,9 @@ import { GET as detailRoute, POST as actionRoute } from '@/app/api/v1/member-pay
 import { POST as platformApproveRoute } from '@/app/api/admin/member-payouts/[id]/approve/route';
 import { POST as platformRejectRoute } from '@/app/api/admin/member-payouts/[id]/reject/route';
 import { POST as spineActionRoute } from '@/app/api/v1/mpesa/disbursements/[id]/route';
+import { resolveWatchdogTimeout } from '@/lib/services/disbursement-watchdog.service';
 import { handleB2CResult } from '@/lib/services/mpesa-b2c.service';
-import { getReconciliation } from '@/lib/services/member-payouts.service';
+import { getReconciliation, repostMissingJournals } from '@/lib/services/member-payouts.service';
 import { computeMemberFinancialSnapshot } from '@/lib/services/member-balances.service';
 import { listMyPassbook } from '@/lib/services/member-passbook.service';
 import { initiateB2C as darajaB2C } from '@/lib/services/daraja.service';
@@ -79,7 +84,7 @@ async function initiate(g: Officers, by: Actor, body: Record<string, unknown>, k
         amount: 10_000,
         purpose: 'other',
         description: 'Member emergency support',
-        paymentMethod: 'cash',
+        paymentMethod: 'mpesa',
         ...body,
       },
     }),
@@ -122,6 +127,33 @@ const row = async (id: string) =>
       [id],
     )
   )[0];
+function mockProviderDispatch(reference: string) {
+  (darajaB2C as jest.Mock).mockResolvedValueOnce({
+    conversationId: `conv-${reference}`,
+    originatorConversationId: `oc-${reference}`,
+    responseDescription: 'Accepted',
+  });
+}
+
+function providerSuccess(reference: string, amount: number) {
+  return {
+    Result: {
+      ResultType: 0,
+      ResultCode: 0,
+      ResultDesc: 'Processed',
+      OriginatorConversationID: `oc-${reference}`,
+      ConversationID: `conv-${reference}`,
+      TransactionID: reference,
+      ResultParameters: {
+        ResultParameter: [
+          { Key: 'TransactionReceipt', Value: reference },
+          { Key: 'TransactionAmount', Value: amount },
+        ],
+      },
+    },
+  };
+}
+
 const emitted = (type: string) =>
   (emitBusinessEvent as jest.Mock).mock.calls.filter(([e]) => e.eventType === type).map(([e]) => e.eventId as string);
 
@@ -231,6 +263,12 @@ describe('member disbursements', () => {
       expect((await initiate(g, chair, { amount })).status).toBe(422);
     });
 
+    it.each(['cash', 'bank_transfer'])('refuses unconfirmed %s disbursements', async (paymentMethod) => {
+      const res = await initiate(g, chair, { paymentMethod, paymentReference: 'entered-reference' });
+      expect(res.status).toBe(422);
+      expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
+    });
+
     it('requires a purpose', async () => {
       expect((await initiate(g, chair, { description: '' })).status).toBe(422);
     });
@@ -267,18 +305,20 @@ describe('member disbursements', () => {
     });
   });
 
-  // ─── Workflow + reconciliation ──────────────────────────────────────────
-
   describe('workflow and ledger reconciliation', () => {
-    it('100,000 − 10,000 cash disbursement reconciles the group and member ledgers', async () => {
+    it('100,000 − 10,000 provider-confirmed disbursement reconciles the group and member ledgers', async () => {
       const { json } = await initiate(g, chair, { amount: 10_000 });
       const id = json.data!.id;
       expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 10_000 });
 
       expect((await act(g, treasurer, id, { action: 'approve' })).json.data?.status).toBe('awaiting_platform');
+      mockProviderDispatch('FIRSTPAYOUT');
       const done = await platform(id, 'approve');
       expect(done.status).toBe(200);
-      expect(done.json.data?.status).toBe('completed');
+      expect((await row(id)).status).toBe('dispatched');
+      expect((await row(id)).journal_entry_id).toBeNull();
+      await handleB2CResult(providerSuccess('FIRSTPAYOUT', 10_000), '127.0.0.1');
+      expect((await row(id)).status).toBe('completed');
 
       // Group ledger: one member-attributed journal, DR 4001 / CR 1001, same reference.
       const r = await row(id);
@@ -333,7 +373,9 @@ describe('member disbursements', () => {
       const { json } = await initiate(g, secretary, { amount: 20_000, purpose: 'savings_withdrawal' });
       const id = json.data!.id;
       await act(g, treasurer, id, { action: 'approve' });
-      expect((await platform(id, 'approve')).json.data?.status).toBe('completed');
+      mockProviderDispatch('SAVINGSPAYOUT');
+      expect((await platform(id, 'approve')).status).toBe(200);
+      await handleB2CResult(providerSuccess('SAVINGSPAYOUT', 20_000), '127.0.0.1');
 
       expect(await cash(g.groupId)).toEqual({ balance: 70_000, reserved: 0 });
       const [snap] = await withAdminDb((db) => computeMemberFinancialSnapshot(db, g.groupId, g.memberId));
@@ -344,7 +386,7 @@ describe('member disbursements', () => {
       expect(recon.postedToLedger).toEqual({ count: 2, total: 30_000 });
     });
 
-    it('a ledger failure at execution rolls everything back', async () => {
+    it('a ledger failure after provider confirmation is visible and repairable', async () => {
       const { json } = await initiate(g, chair, { amount: 5_000 });
       const id = json.data!.id;
       await act(g, treasurer, id, { action: 'approve' });
@@ -353,22 +395,21 @@ describe('member disbursements', () => {
         g.groupId,
       ]);
       try {
-        const failed = await platform(id, 'approve');
-        expect(failed.status).toBe(422);
-        expect(await row(id)).toEqual(expect.objectContaining({ status: 'awaiting_platform', journal_entry_id: null }));
-        expect(await cash(g.groupId)).toEqual({ balance: 70_000, reserved: 5_000 });
-        const signoffs = await rawQuery(
-          `SELECT 1 FROM settlement_approvals WHERE subject_id = $1 AND approver_kind = 'backoffice'`,
-          [id],
-        );
-        expect(signoffs).toHaveLength(0);
+        mockProviderDispatch('RECOVERPAYOUT');
+        expect((await platform(id, 'approve')).status).toBe(200);
+        await handleB2CResult(providerSuccess('RECOVERPAYOUT', 5_000), '127.0.0.1');
+        expect(await row(id)).toEqual(expect.objectContaining({ status: 'completed', journal_entry_id: null }));
+        expect((await reconFor()).reconciled).toBe(false);
         expect(emitted('member_payout.completed')).toEqual([]);
       } finally {
         await rawQuery(`UPDATE accounts SET is_active = true WHERE group_id = $1 AND account_code = '4001'`, [
           g.groupId,
         ]);
       }
-      expect((await platform(id, 'approve')).json.data?.status).toBe('completed');
+      const ctx = { userId: g.chairId, groupId: g.groupId, role: 'chairperson' };
+      expect((await repostMissingJournals(ctx)).posted).toBe(1);
+      expect((await repostMissingJournals(ctx)).posted).toBe(0);
+      expect((await reconFor()).reconciled).toBe(true);
       expect(await cash(g.groupId)).toEqual({ balance: 65_000, reserved: 0 });
     });
   });
@@ -386,19 +427,23 @@ describe('member disbursements', () => {
       await act(g, chair, first.json.data!.id, { action: 'cancel' });
     });
 
-    it('double and concurrent approvals execute exactly once', async () => {
+    it('double and concurrent approvals dispatch exactly once; settlement waits for the provider callback', async () => {
       const { json } = await initiate(g, chair, { amount: 3_000 });
       const id = json.data!.id;
       expect((await act(g, treasurer, id, { action: 'approve' })).status).toBe(200);
       expect((await act(g, treasurer, id, { action: 'approve' })).status).toBe(422);
 
+      mockProviderDispatch('CONCURRENTPAYOUT');
       const results = await Promise.all([platform(id, 'approve'), platform(id, 'approve')]);
       expect(results.map((r) => r.status).sort()).toEqual([200, 422]);
+      expect((await row(id)).status).toBe('dispatched');
+      expect((await row(id)).journal_entry_id).toBeNull();
+      await handleB2CResult(providerSuccess('CONCURRENTPAYOUT', 3_000), '127.0.0.1');
       const journals = await rawQuery(`SELECT 1 FROM journal_entries WHERE reference = $1`, [
         (await row(id)).reference,
       ]);
       expect(journals).toHaveLength(1);
-      expect(await cash(g.groupId)).toEqual({ balance: 62_000, reserved: 0 });
+      expect((await cash(g.groupId)).reserved).toBe(0);
     });
 
     it('concurrent requests cannot together exceed the available balance', async () => {
@@ -451,11 +496,7 @@ describe('member disbursements', () => {
 
   describe('M-Pesa disbursement', () => {
     it('dispatches on sign-off and posts both ledgers when Safaricom confirms — once', async () => {
-      (darajaB2C as jest.Mock).mockResolvedValueOnce({
-        conversationId: 'conv-member-1',
-        originatorConversationId: 'oc-member-1',
-        responseDescription: 'Accept the service request successfully.',
-      });
+      mockProviderDispatch('RCPTMEMBER1');
       const { json } = await initiate(g, chair, { amount: 5_000, paymentMethod: 'mpesa' });
       const id = json.data!.id;
       await act(g, treasurer, id, { action: 'approve' });
@@ -463,19 +504,15 @@ describe('member disbursements', () => {
       expect((await row(id)).status).toBe('dispatched');
       expect(emitted('member_payout.completed')).toEqual([]);
 
-      const success = {
-        Result: {
-          ResultType: 0,
-          ResultCode: 0,
-          ResultDesc: 'The service request is processed successfully.',
-          OriginatorConversationID: 'oc-member-1',
-          ConversationID: 'conv-member-1',
-          TransactionID: 'RCPTMEMBER1',
-          ResultParameters: { ResultParameter: [{ Key: 'TransactionReceipt', Value: 'RCPTMEMBER1' }] },
-        },
-      };
+      const success = providerSuccess('RCPTMEMBER1', 5_000);
+      await handleB2CResult(providerSuccess('RCPTMEMBER1', 1_000), '127.0.0.1');
+      expect(await row(id)).toEqual(expect.objectContaining({ status: 'dispatched', journal_entry_id: null }));
+      await resolveWatchdogTimeout('disbursement', id);
+      expect((await row(id)).status).toBe('timed_out');
+      expect((await cash(g.groupId)).reserved).toBe(5_000);
       await handleB2CResult(success, '127.0.0.1');
-      await handleB2CResult(success, '127.0.0.1'); // Safaricom replay
+      await handleB2CResult(success, '127.0.0.1');
+      await handleB2CResult({ Result: { ...success.Result, ResultCode: 1 } }, '127.0.0.1');
 
       const r = await row(id);
       expect(r.status).toBe('completed');

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const ComposeNewsletterDigestSchema = z.object({
   templateKey: z.enum(['feature_highlight', 'changisha_spotlight', 'pricing_nudge']),

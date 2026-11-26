@@ -1,8 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { postTemplatedJournal } from './posting-templates.service';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
@@ -31,12 +30,13 @@ export const ReviewWelfareRequestSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const DisburseWelfareSchema = z.object({
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']),
-  mpesaReceiptNumber: z.string().optional(),
-  amountDisbursed: z.coerce.number().positive(),
-  notes: z.string().optional(),
-});
+export const DisburseWelfareSchema = z
+  .object({
+    amountDisbursed: z.coerce.number().positive(),
+    notes: z.string().optional(),
+  })
+  .strict()
+  .refine(() => false, { message: 'Manual welfare disbursement is disabled; wait for the M-Pesa provider callback.' });
 
 export const WelfareQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -45,16 +45,19 @@ export const WelfareQuerySchema = z.object({
   memberId: z.string().uuid().optional(),
 });
 
-export const RecordWelfarePoolSchema = z.object({
-  memberId: z.string().uuid(),
-  amount: z.coerce.number().positive(),
-  contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
-  paymentMethod: z.enum(['mpesa', 'cash', 'bank_transfer']).optional(),
-  mpesaReceiptNumber: z.string().optional(),
-  periodMonth: z.coerce.number().int().min(1).max(12).optional(),
-  periodYear: z.coerce.number().int().min(2020).optional(),
-  notes: z.string().optional(),
-});
+export const RecordWelfarePoolSchema = z
+  .object({
+    memberId: z.string().uuid(),
+    amount: z.coerce.number().positive(),
+    contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
+    periodMonth: z.coerce.number().int().min(1).max(12).optional(),
+    periodYear: z.coerce.number().int().min(2020).optional(),
+    notes: z.string().optional(),
+  })
+  .strict()
+  .refine(() => false, {
+    message: 'Manual welfare pool entries are disabled; use provider-confirmed payment allocation.',
+  });
 
 export type CreateWelfareRequestInput = z.infer<typeof CreateWelfareRequestSchema>;
 export type ReviewWelfareRequestInput = z.infer<typeof ReviewWelfareRequestSchema>;
@@ -76,9 +79,10 @@ export const welfareService = {
         conditions.push(`wr.status = $${i++}`);
         args.push(params.status);
       }
-      if (params.memberId) {
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
+      if (memberId) {
         conditions.push(`wr.member_id = $${i++}`);
-        args.push(params.memberId);
+        args.push(memberId);
       }
 
       const where = conditions.join(' AND ');
@@ -127,8 +131,8 @@ export const welfareService = {
          LEFT JOIN members ab ON ab.id = wr.approved_by
          LEFT JOIN members rb ON rb.id = wr.rejected_by
          LEFT JOIN members db ON db.id = wr.disbursed_by
-         WHERE  wr.id = $1 AND wr.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE  wr.id = $1 AND wr.group_id = $2${ctx.role === 'member' ? ' AND wr.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Welfare request', id);
       return rows[0];
@@ -249,60 +253,10 @@ export const welfareService = {
     });
   },
 
-  async disburse(ctx: TenantContext, id: string, data: DisburseWelfareInput) {
-    return withTransaction(ctx, async (client) => {
-      const {
-        rows: [req],
-      } = await client.query('SELECT * FROM welfare_requests WHERE id=$1 AND group_id=$2', [id, ctx.groupId]);
-      if (!req) throw new NotFoundError('Welfare request', id);
-      if (req.status !== 'approved') {
-        throw new ValidationError(`Cannot disburse a request with status '${req.status}'`);
-      }
-      const { rows } = await client.query(
-        `UPDATE welfare_requests SET
-           status='disbursed', amount_disbursed=$1, disbursed_by=$2, disbursed_at=now(),
-           payment_method=$3, mpesa_receipt_number=$4, notes=COALESCE($5, notes), updated_at=now()
-         WHERE id=$6 AND group_id=$7 RETURNING *`,
-        [
-          data.amountDisbursed,
-          ctx.userId,
-          data.paymentMethod,
-          data.mpesaReceiptNumber ?? null,
-          data.notes ?? null,
-          id,
-          ctx.groupId,
-        ],
-      );
-
-      // Record audit log for welfare request disbursement — user-triggered
-      await client.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          ctx.groupId,
-          ctx.userId,
-          'welfareRequest.disburse',
-          'welfare_request',
-          id,
-          JSON.stringify({ status: 'approved' }),
-          JSON.stringify({ status: 'disbursed', amount_disbursed: data.amountDisbursed }),
-        ],
-      );
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: a real cash payout with
-      // previously zero GL trace.
-      await postTemplatedJournal(
-        client,
-        ctx.groupId,
-        ctx.userId,
-        'welfare_disbursement',
-        `Welfare disbursement — ${req.request_type} (request ${id})`,
-        { amount: data.amountDisbursed },
-        { reference: id, memberId: req.member_id },
-      );
-
-      return rows[0];
-    });
+  async disburse(_ctx: TenantContext, _id: string, _data: DisburseWelfareInput) {
+    throw new ValidationError(
+      'Manual welfare disbursement is disabled. Complete the M-Pesa B2C transfer and wait for the provider callback.',
+    );
   },
 
   async getPoolSummary(ctx: TenantContext) {
@@ -338,82 +292,29 @@ export const welfareService = {
     });
   },
 
-  async recordPoolContribution(ctx: TenantContext, data: RecordWelfarePoolInput) {
-    return withTransaction(ctx, async (client) => {
-      // The target member must hold an active membership in THIS group (audit
-      // H-1); its id is stamped on the row (§6a).
-      const { membershipId } = await assertActiveMembership(client, ctx.groupId, data.memberId);
-
-      const { rows } = await client.query(
-        `INSERT INTO welfare_pool_contributions
-           (group_id, member_id, group_membership_id, amount, contribution_type, payment_method,
-            mpesa_receipt_number, period_month, period_year, recorded_by, notes)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-        [
-          ctx.groupId,
-          data.memberId,
-          membershipId,
-          data.amount,
-          data.contributionType,
-          data.paymentMethod ?? null,
-          data.mpesaReceiptNumber ?? null,
-          data.periodMonth ?? null,
-          data.periodYear ?? null,
-          ctx.userId,
-          data.notes ?? null,
-        ],
-      );
-
-      // Record audit log for welfare pool contribution — user-triggered
-      await client.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          ctx.groupId,
-          ctx.userId,
-          'welfarePoolContribution.create',
-          'welfare_pool_contribution',
-          rows[0].id,
-          null,
-          JSON.stringify({
-            member_id: data.memberId,
-            amount: data.amount,
-            contribution_type: data.contributionType,
-          }),
-        ],
-      );
-
-      // ACCOUNTING_ARCHITECTURE_AUDIT.md §7: money coming in with previously
-      // zero GL trace.
-      await postTemplatedJournal(
-        client,
-        ctx.groupId,
-        ctx.userId,
-        'welfare_pool_contribution',
-        `Welfare pool contribution — ${data.contributionType}`,
-        { amount: data.amount },
-        { reference: rows[0].id, memberId: data.memberId },
-      );
-
-      return rows[0];
-    });
+  async recordPoolContribution(_ctx: TenantContext, _data: RecordWelfarePoolInput) {
+    throw new ValidationError(
+      'Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.',
+    );
   },
 
   async listPoolContributions(ctx: TenantContext, params: { page: number; limit: number }) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
+      const where = ctx.role === 'member' ? 'wpc.group_id = $1 AND wpc.member_id = $2' : 'wpc.group_id = $1';
+      const args = ctx.role === 'member' ? [ctx.groupId, ctx.userId] : [ctx.groupId];
       const { rows: items } = await client.query(
         `SELECT wpc.*, m.first_name || ' ' || m.last_name AS member_name
          FROM welfare_pool_contributions wpc
          JOIN members m ON m.id = wpc.member_id
-         WHERE wpc.group_id = $1
+         WHERE ${where}
          ORDER BY wpc.created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [ctx.groupId, params.limit, offset],
+         LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
+        [...args, params.limit, offset],
       );
       const {
         rows: [{ count }],
-      } = await client.query('SELECT COUNT(*) FROM welfare_pool_contributions WHERE group_id=$1', [ctx.groupId]);
+      } = await client.query(`SELECT COUNT(*) FROM welfare_pool_contributions wpc WHERE ${where}`, args);
       return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit) };
     });
   },

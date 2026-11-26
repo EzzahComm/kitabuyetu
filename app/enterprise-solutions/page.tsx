@@ -3,59 +3,12 @@ import Link from 'next/link';
 import { Building2, ClipboardCheck, BarChart3, ShieldCheck, UsersRound, Workflow } from 'lucide-react';
 import { PageShell } from '@/components/marketing/page-shell';
 import { CONTACT, ROUTES } from '@/components/marketing/routes';
+import { ENTERPRISE_SETUP_SERVICES } from '@/lib/billing/enterprise-setup-services';
 import { marketingMetadata } from '@/components/marketing/page-metadata';
 import { ORGANIZATION_PLAN_FEATURES, ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
 
 const standardPlans = ['starter', 'growth', 'premium'] as const;
 const formatKes = (amount: number) => `KES ${amount.toLocaleString('en-KE')}`;
-
-const services = [
-  {
-    name: 'Website development',
-    price: `${formatKes(25_000)} one-time`,
-    description:
-      'Up to five pages using your supplied content and branding, with a mobile layout, contact form and a link to Kitabu Yetu registration. The site is hosted separately.',
-  },
-  {
-    name: 'SMS sender ID registration',
-    price: `${formatKes(13_000)} per sender ID`,
-    description:
-      'Application preparation, submission and coordination with the SMS provider. Activation requires provider approval. SMS credits are billed separately.',
-  },
-  {
-    name: 'Assisted onboarding',
-    price: `${formatKes(10_000)} one-time`,
-    description: 'Help setting up your workspace, preparing branded invitation copy and testing the signup links.',
-  },
-  {
-    name: 'Managed website hosting and maintenance',
-    price: `From ${formatKes(3_000)} / month`,
-    description: 'Hosting, backups, updates and minor edits within the agreed scope.',
-  },
-  {
-    name: 'Domain purchase or renewal',
-    price: 'Registrar cost',
-    description: 'For new domains and renewals. An existing domain can normally be used for a subdomain.',
-  },
-  {
-    name: 'Custom API integration',
-    price: `From ${formatKes(25_000)} one-time`,
-    description:
-      'Scope a connection between Kitabu Yetu and one external system, such as a CRM or programme management platform.',
-  },
-  {
-    name: 'Custom M-Pesa PayBill integration and automation',
-    price: `${formatKes(25_000)} one-time per integration`,
-    description:
-      'Configure your approved PayBill and agree how payment notifications, matching and reconciliation will work. Safaricom charges are separate.',
-  },
-  {
-    name: 'Bank integration and automation',
-    price: `${formatKes(100_000)} one-time per integration`,
-    description:
-      'Implement and test an agreed workflow for one bank connection. Supported actions depend on the bank’s APIs, approvals and credentials. Bank charges are separate.',
-  },
-] as const;
 
 export const metadata: Metadata = marketingMetadata({
   path: '/enterprise-solutions',
@@ -206,7 +159,7 @@ export default function EnterpriseSolutionsPage() {
           third-party fees.
         </p>
         <dl className="divide-y divide-brand-100 rounded-lg border border-brand-100">
-          {services.map(({ name, price, description }) => (
+          {ENTERPRISE_SETUP_SERVICES.map(({ name, price, description }) => (
             <div key={name} className="grid gap-x-4 px-4 py-4 sm:grid-cols-[1fr_auto]">
               <dt className="font-semibold text-finanza-dark">{name}</dt>
               <dd className="font-semibold text-finanza-dark">{price}</dd>

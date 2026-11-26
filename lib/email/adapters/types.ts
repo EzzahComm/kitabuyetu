@@ -1,5 +1,6 @@
 export interface EmailAttachment {
   filename: string;
+  /** Binary attachment contents, or a base64-encoded string. */
   content: Buffer | string;
   contentType: string;
 }

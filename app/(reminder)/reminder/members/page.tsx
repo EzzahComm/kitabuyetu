@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { useMembers, useCreateMember } from '@/hooks/use-members';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';

@@ -10,7 +10,6 @@ export interface ResendWebhookEvent {
   };
 }
 
-// Process Resend webhook events
 export async function processResendEvent(event: ResendWebhookEvent): Promise<void> {
   const messageId = event.data.email_id;
   if (!messageId) return;
@@ -19,93 +18,75 @@ export async function processResendEvent(event: ResendWebhookEvent): Promise<voi
     case 'email.delivered':
     case 'email.sent':
       await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET status='sent', sent_at=COALESCE(sent_at, NOW()) WHERE provider_message_id=$1`, [
-          messageId,
-        ]),
-      ).catch(() => {});
+        db.query(
+          `UPDATE email_logs SET status='sent', sent_at=COALESCE(sent_at, NOW())
+           WHERE provider_message_id=$1 AND provider='resend' AND status NOT IN ('bounced', 'complained')`,
+          [messageId],
+        ),
+      );
       break;
 
     case 'email.opened':
       await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET opened_at=COALESCE(opened_at, NOW()) WHERE provider_message_id=$1`, [
-          messageId,
-        ]),
-      ).catch(() => {});
+        db.query(
+          `WITH first_opens AS (
+             UPDATE email_logs SET opened_at=NOW()
+             WHERE provider_message_id=$1 AND provider='resend' AND opened_at IS NULL
+             RETURNING reference_type, reference_id
+           )
+           UPDATE email_campaigns AS campaign
+           SET opened_count=campaign.opened_count+totals.opens
+           FROM (
+             SELECT reference_id, COUNT(*)::integer AS opens
+             FROM first_opens WHERE reference_type='campaign' GROUP BY reference_id
+           ) AS totals
+           WHERE campaign.id=totals.reference_id`,
+          [messageId],
+        ),
+      );
       break;
 
     case 'email.clicked':
       await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET clicked_at=COALESCE(clicked_at, NOW()) WHERE provider_message_id=$1`, [
-          messageId,
-        ]),
-      ).catch(() => {});
+        db.query(
+          `UPDATE email_logs SET clicked_at=COALESCE(clicked_at, NOW()) WHERE provider_message_id=$1 AND provider='resend'`,
+          [messageId],
+        ),
+      );
       break;
 
     case 'email.bounced':
-      await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET status='bounced', bounced_at=NOW() WHERE provider_message_id=$1`, [messageId]),
-      ).catch(() => {});
-      await updateCampaignOpenCount(messageId);
-      await suppressFromLog(messageId, 'bounce').catch(() => {});
-      break;
-
     case 'email.complained':
-      await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET status='complained', unsubscribed_at=NOW() WHERE provider_message_id=$1`, [
-          messageId,
-        ]),
-      ).catch(() => {});
-      await suppressFromLog(messageId, 'complaint').catch(() => {});
+      await withAdminDb(async (db) => {
+        const complained = event.type === 'email.complained';
+        const update = complained
+          ? `UPDATE email_logs SET status='complained', unsubscribed_at=COALESCE(unsubscribed_at, NOW())
+             WHERE provider_message_id=$1 AND provider='resend'`
+          : `UPDATE email_logs SET status=CASE WHEN status='complained' THEN status ELSE 'bounced' END,
+                   bounced_at=COALESCE(bounced_at, NOW())
+             WHERE provider_message_id=$1 AND provider='resend'`;
+
+        // Persist the recipient suppression in the same transaction as the log update.
+        await db.query(
+          `WITH affected AS (${update} RETURNING group_id, "to")
+           INSERT INTO email_suppressions (group_id, email, source)
+           SELECT group_id, "to", $2 FROM affected WHERE group_id IS NOT NULL
+           ON CONFLICT (group_id, email) WHERE group_id IS NOT NULL DO NOTHING`,
+          [messageId, complained ? 'complaint' : 'bounce'],
+        );
+      });
       break;
 
     case 'email.delivery_delayed':
       await withAdminDb((db) =>
-        db.query(`UPDATE email_logs SET status='delayed' WHERE provider_message_id=$1`, [messageId]),
-      ).catch(() => {});
+        db.query(
+          `UPDATE email_logs SET status='delayed'
+           WHERE provider_message_id=$1 AND provider='resend' AND status NOT IN ('bounced', 'complained')`,
+          [messageId],
+        ),
+      );
       break;
   }
-}
-
-/**
- * Phase 9.1: record a real, enforced suppression on bounce/complaint. Looks
- * up the recipient + group from the email_logs row this webhook already
- * updated (no new lookup path). Only group-scoped log rows produce a
- * suppression — email_suppressions requires exactly one of group_id/
- * organization_id (migration 192), and there is no org-level email send yet
- * for a scopeless row to meaningfully attach to.
- */
-async function suppressFromLog(providerMessageId: string, source: 'bounce' | 'complaint'): Promise<void> {
-  await withAdminDb(async (db) => {
-    const { rows } = await db.query<{ to: string; group_id: string | null }>(
-      `SELECT "to", group_id FROM email_logs WHERE provider_message_id = $1 LIMIT 1`,
-      [providerMessageId],
-    );
-    const log = rows[0];
-    if (!log || !log.group_id) return;
-
-    await db.query(
-      `INSERT INTO email_suppressions (group_id, email, source)
-       VALUES ($1, $2, $3)
-       ON CONFLICT (group_id, email) WHERE group_id IS NOT NULL DO NOTHING`,
-      [log.group_id, log.to, source],
-    );
-  });
-}
-
-// Increment campaign opened_count when a campaign email is opened
-async function updateCampaignOpenCount(messageId: string): Promise<void> {
-  const { rows } = await withAdminDb((db) =>
-    db.query(
-      `SELECT reference_id FROM email_logs
-       WHERE provider_message_id=$1 AND reference_type='campaign' LIMIT 1`,
-      [messageId],
-    ),
-  );
-  if (!rows.length || !rows[0].reference_id) return;
-
-  await withAdminDb((db) =>
-    db.query(`UPDATE email_campaigns SET opened_count=opened_count+1 WHERE id=$1`, [rows[0].reference_id]),
-  ).catch(() => {});
 }
 
 // Analytics summary for the analytics dashboard

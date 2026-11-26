@@ -1,5 +1,8 @@
 import { createHmac, randomInt } from 'node:crypto';
 import { sendEmailWithFallback } from '@/lib/email/provider';
+import { departmentEmail } from '@/lib/departments';
+import { interpolate, wrapWithBranding } from '@/lib/email/templates/engine';
+import { DEFAULT_TEMPLATES } from '@/lib/email/templates/defaults';
 import { env } from '@/lib/env';
 import { redis } from '@/lib/redis';
 import { AppError, ValidationError } from '@/lib/utils/errors';
@@ -62,12 +65,16 @@ export async function sendOrganizationSignupCode(email: string, ip: string): Pro
   );
   if (!accepted) throw new AppError('Wait before requesting another code.', 'SIGNUP_CODE_RATE_LIMIT', 429);
 
-  const text = `Your Kitabu Yetu Enterprise verification code is ${code}. It expires in 10 minutes.`;
+  const expiresIn = `${CODE_TTL / 60} minutes`;
+  const template = DEFAULT_TEMPLATES.otp;
+  const text = `Enter ${code} on the Kitabu Yetu Enterprise signup page. The code expires in ${expiresIn}. Keep it private. If you did not request it, you can ignore this email.`;
   const sent = await sendEmailWithFallback({
     to: email,
     subject: 'Your Kitabu Yetu Enterprise verification code',
     text,
-    html: `<p>${text}</p>`,
+    html: wrapWithBranding(interpolate(template.body, { otp: code, expiresIn }), {}),
+    replyTo: departmentEmail('support'),
+    category: 'auth',
     templateKey: 'enterprise_signup_verification',
   });
   if (!sent.success || sent.dryRun) {

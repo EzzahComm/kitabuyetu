@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission, withAnyPermission } from '@/lib/auth/middleware';
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { scheduleEmail } from '@/lib/services/email.service';

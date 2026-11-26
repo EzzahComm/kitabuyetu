@@ -87,8 +87,6 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
     ? await safe('email_campaign_process', {}, { priority: 5, dedup_key: 'email_campaign_process' })
     : null;
 
-  queued.email_retry_failed = await safe('email_retry_failed', {}, { priority: 5, dedup_key: 'email_retry_failed' });
-
   // Replaces the old lib/queue-based per-recipient campaign fan-out — claims a
   // batch of 'pending' email_campaign_recipients rows for in-flight
   // campaigns directly from Postgres (OPTIMIZATION_CLEANUP_AUDIT.md's

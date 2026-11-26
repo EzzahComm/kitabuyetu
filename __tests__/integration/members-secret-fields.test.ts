@@ -12,7 +12,7 @@
  * there" proves nothing.
  */
 import { membersService } from '@/lib/services/members.service';
-import { createTestGroup } from './helpers/fixtures';
+import { addGroupOfficer, createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 import type { TenantContext } from '@/lib/db';
@@ -27,7 +27,7 @@ const SENSITIVE_FIELDS = [
 ];
 
 describe('members.service — sensitive fields never leave the service', () => {
-  let groupId: string, officerId: string;
+  let groupId: string, officerId: string, otherMemberId: string;
   // An ordinary member's context — the attacker's own role in the finding.
   // Sensitive-field stripping is unconditional in stripSecrets, unlike
   // applyMemberMask's phone/email/PII masking, so this must hold for every
@@ -40,6 +40,7 @@ describe('members.service — sensitive fields never leave the service', () => {
     await resetDatabase();
     ({ groupId, officerId } = await createTestGroup('treasurer', { subscribed: true }));
     attackerCtx = { userId: officerId, groupId, role: 'member' };
+    otherMemberId = await addGroupOfficer(groupId, officerId, 'member');
 
     // Simulate an in-flight password reset + a bumped session epoch, so the
     // row genuinely carries every sensitive field non-null — the exact state
@@ -69,6 +70,16 @@ describe('members.service — sensitive fields never leave the service', () => {
     // actually got the row back, not an empty/failed result.
     expect(member.id).toBe(officerId);
     expect(member.first_name).toBeTruthy();
+  });
+
+  it('limits member profile reads to self while a treasurer can read another group member', async () => {
+    const { items, total } = await membersService.list(attackerCtx, MemberQuerySchema.parse({}));
+    expect(items.map((member) => member.id)).toEqual([officerId]);
+    expect(total).toBe(1);
+    await expect(membersService.getById(attackerCtx, otherMemberId)).rejects.toMatchObject({ statusCode: 404 });
+    await expect(membersService.getById({ ...attackerCtx, role: 'treasurer' }, otherMemberId)).resolves.toMatchObject({
+      id: otherMemberId,
+    });
   });
 
   it('list() never returns password_hash, reset_otp_*, or session_version', async () => {

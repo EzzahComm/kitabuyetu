@@ -5,9 +5,8 @@ import { ConflictError, NotFoundError, ValidationError } from '@/lib/utils/error
 import { DEFAULT_PRODUCT, type SubscriptionProduct, type PlanType, type BillingCycle } from '@/types/enums';
 import { cached, keys } from '@/lib/redis';
 import { computeMemberFinancialSnapshot } from './member-balances.service';
-import { assertActiveMembership } from './membership-guard';
 import { postContributionJournal } from './accounting.service';
-import { IS_SANDBOX, markSpineAllocated, logPaymentEvent, spinePaymentId } from './mpesa-spine.service';
+import { markSpineAllocated } from './mpesa-spine.service';
 import { billingService } from './billing.service';
 import {
   PAYMENT_OWNER_TOTALS_SQL,
@@ -208,12 +207,49 @@ export function buildMonitoringDashboardPayload(input: {
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform dashboard stats
 // ─────────────────────────────────────────────────────────────────────────────
+const ACTIVE_ENTERPRISE_PLANS_SQL = `
+  SELECT s.plan_type::text AS plan, s.monthly_fee
+  FROM public.organization_subscriptions s
+  JOIN public.organizations o ON o.id = s.organization_id
+  WHERE s.status = 'active' AND o.is_active
+`;
+
+const OPEN_INVOICE_SQL = `i.status = 'pending' AND i.total_amount > COALESCE(i.paid_amount, 0)`;
+const OVERDUE_INVOICE_SQL = `i.due_date < (NOW() AT TIME ZONE 'Africa/Nairobi')::date`;
+
+const PLATFORM_SUBSCRIPTION_SUMMARY_SQL = `
+  WITH group_plans AS (
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'active') AS active,
+      COUNT(*) FILTER (WHERE status = 'expired') AS expired,
+      COUNT(*) FILTER (WHERE status = 'suspended') AS suspended,
+      COUNT(*) FILTER (WHERE status IN ('expired', 'suspended')) AS at_risk,
+      COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count,
+      COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS monthly_value
+    FROM public.subscriptions
+  ), enterprise_plans AS (
+    SELECT COUNT(*) AS active, COALESCE(SUM(monthly_fee), 0) AS monthly_value
+    FROM (${ACTIVE_ENTERPRISE_PLANS_SQL}) AS enterprise
+  )
+  SELECT
+    group_plans.active + enterprise_plans.active AS active_subscriptions,
+    enterprise_plans.active AS active_enterprise_subscriptions,
+    group_plans.expired AS expired_subscriptions,
+    group_plans.suspended AS suspended_subscriptions,
+    group_plans.at_risk,
+    group_plans.overdue_count,
+    (SELECT COUNT(*) FROM public.invoices i WHERE ${OPEN_INVOICE_SQL} AND ${OVERDUE_INVOICE_SQL}) AS overdue_invoice_count,
+    group_plans.monthly_value + enterprise_plans.monthly_value AS mrr,
+    enterprise_plans.monthly_value AS enterprise_mrr
+  FROM group_plans CROSS JOIN enterprise_plans
+`;
+
 export async function getPlatformStats() {
   // TTL raised 90s->150s: the client poll interval is 120s (hooks/use-admin.ts
   // useAdminDashboard), so a 90s TTL had already expired before every
   // scheduled refetch fired — guaranteeing a cache miss on the one request
   // this cache exists to absorb (docs/audits/optimization-2026-09).
-  return cached(keys.cache('platform-stats', 'platform'), 150, () =>
+  return cached(keys.cache('platform-stats-v2', 'platform'), 150, () =>
     withAdminDb(async (db: PoolClient) => {
       const [groups, organizations, members, subscriptions, revenueByProductPlan, ownerTotals, tickets, activity] =
         await Promise.all([
@@ -239,19 +275,8 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.members
       `),
-          db.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'active')     AS active_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired')    AS expired_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'suspended')  AS suspended_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired' OR status = 'suspended') AS at_risk,
-          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
-          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
-        FROM public.subscriptions
-      `),
-          // Platform revenue = subscription-linked payments only, attributed by
-          // product and plan. Group collections and unclassified money are
-          // reported separately so they never inflate Kitabu Yetu's revenue.
+          db.query(PLATFORM_SUBSCRIPTION_SUMMARY_SQL),
+          // Settled platform payments are reported separately from monthly plan value.
           db.query(PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL),
           db.query(PAYMENT_OWNER_TOTALS_SQL),
           db.query(`
@@ -308,6 +333,52 @@ export async function getPlatformStats() {
 // ─────────────────────────────────────────────────────────────────────────────
 // Revenue trend (last 6 months)
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Platform revenue and subscription book split by product and plan
+ * (kitabu_yetu | chama_reminder × starter | growth | enterprise).
+ *
+ * `collected` is completed payments tagged with a product (migration 219).
+ * Registration, SMS top-up, PayBill and manual payments carry no product and
+ * are reported separately as `untagged`, so the breakdown never mixes them in.
+ */
+export async function getProductRevenueBreakdown() {
+  return cached(keys.cache('product-revenue', 'platform'), 120, () =>
+    withAdminDb(async (db: PoolClient) => {
+      const [collected, untagged, book] = await Promise.all([
+        db.query(`
+        SELECT product, plan_type,
+               COUNT(*)                                                       AS payment_count,
+               COALESCE(SUM(amount), 0)                                       AS total_collected,
+               COALESCE(SUM(amount) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'), 0) AS collected_30d
+        FROM public.payments
+        WHERE status = 'completed' AND product IS NOT NULL
+        GROUP BY product, plan_type
+        ORDER BY product, plan_type
+      `),
+        db.query(`
+        SELECT COUNT(*) AS payment_count, COALESCE(SUM(amount), 0) AS total_collected
+        FROM public.payments
+        WHERE status = 'completed' AND product IS NULL
+      `),
+        db.query(`
+        SELECT product, plan_type,
+               COUNT(*)                          AS active_subscriptions,
+               COALESCE(SUM(monthly_fee), 0)     AS mrr
+        FROM public.subscriptions
+        WHERE status = 'active'
+        GROUP BY product, plan_type
+        ORDER BY product, plan_type
+      `),
+      ]);
+      return {
+        collected: collected.rows,
+        untagged: untagged.rows[0],
+        subscriptionBook: book.rows,
+      };
+    }),
+  );
+}
+
 export async function getRevenueTrend() {
   return cached(keys.cache('revenue-trend', 'platform'), 120, () =>
     withAdminDb(async (db: PoolClient) => {
@@ -1343,33 +1414,29 @@ export async function updatePlatformUserRole(memberId: string, platformRole: str
 export async function getBillingOverview() {
   return withAdminDb(async (db: PoolClient) => {
     const [summary, byPlan, recentPayments, outstanding] = await Promise.all([
+      db.query(PLATFORM_SUBSCRIPTION_SUMMARY_SQL),
       db.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'active')    AS active_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired')   AS expired_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'suspended') AS suspended_subscriptions,
-          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
-          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
-        FROM public.subscriptions
+        WITH active_plans AS (
+          SELECT product::text AS product, plan_type::text AS plan, monthly_fee
+          FROM public.subscriptions WHERE status = 'active'
+          UNION ALL
+          SELECT 'enterprise' AS product, plan, monthly_fee FROM (${ACTIVE_ENTERPRISE_PLANS_SQL}) AS enterprise
+        )
+        SELECT product, plan, COUNT(*) AS count, SUM(monthly_fee) AS revenue
+        FROM active_plans
+        GROUP BY product, plan
+        ORDER BY revenue DESC, product, plan
       `),
-      db.query(`
-        SELECT product, plan_type AS plan, COUNT(*) AS count,
-          COALESCE(SUM(monthly_fee), 0) AS revenue
-        FROM public.subscriptions WHERE status = 'active'
-        GROUP BY product, plan_type ORDER BY revenue DESC
-      `),
-      // Platform billing only: subscription and SMS top-up payments. Group
-      // collections are not billing revenue and must not appear in this list.
       db.query(PLATFORM_RECENT_PAYMENTS_SQL),
       db.query(`
         SELECT i.id, i.invoice_number,
                (i.total_amount - COALESCE(i.paid_amount, 0)) AS amount_due,
                i.due_date, i.status,
-               (i.status = 'pending' AND i.due_date < NOW()) AS is_overdue,
+               (${OVERDUE_INVOICE_SQL}) AS is_overdue,
                g.name AS group_name
         FROM public.invoices i
         LEFT JOIN public.groups g ON g.id = i.group_id
-        WHERE i.status = 'pending'
+        WHERE ${OPEN_INVOICE_SQL}
         ORDER BY i.due_date ASC LIMIT 20
       `),
     ]);
@@ -1798,6 +1865,12 @@ export async function listUnroutedPayments(params: { page: number; limit: number
  * resolution_notes — mirroring how updateTicketStatus above attributes a
  * staff action without assuming a members-table identity for the actor.
  */
+/**
+ * Platform staff may dismiss an unrouted receipt after review. Manual
+ * contribution allocation and subscription activation from this queue are
+ * disabled; corrections must use the audited reallocation flow for an
+ * existing provider-confirmed payment.
+ */
 export async function resolveUnroutedPayment(
   id: string,
   action: 'allocate' | 'dismiss' | 'activate_subscription',
@@ -1811,180 +1884,34 @@ export async function resolveUnroutedPayment(
     billingCycle?: BillingCycle;
   },
 ): Promise<{ success: true }> {
+  if (String(action) !== 'dismiss') {
+    throw new ValidationError(
+      'Manual allocation of unrouted M-Pesa receipts is disabled. Use audited reallocation for an existing provider-confirmed payment.',
+    );
+  }
+
   return withAdminDb(async (db: PoolClient) => {
-    const { rows } = await db.query<{
-      id: string;
-      receipt: string;
-      phone: string;
-      amount: string;
-      bill_ref: string | null;
-      raw_payload: unknown;
-      resolved: boolean;
-    }>(
-      `SELECT id, receipt, phone, amount, bill_ref, raw_payload, resolved FROM public.mpesa_unrouted WHERE id = $1 FOR UPDATE`,
+    const { rows } = await db.query<{ id: string; resolved: boolean }>(
+      `SELECT id, resolved
+       FROM public.mpesa_unrouted
+       WHERE id = $1
+       FOR UPDATE`,
       [id],
     );
     const row = rows[0];
     if (!row) throw new NotFoundError('Unrouted receipt', id);
-    if (row.resolved) return { success: true }; // already handled — idempotent
+    if (row.resolved) return { success: true };
 
-    const amount = parseFloat(row.amount);
-
-    // mpesa_unrouted.resolved_by is a real FK to members(id); opts.adminId is
-    // a platform_users id, not a member, so it goes in resolution_notes only
-    // (same reasoning as payment_events.actor above) — resolved_by stays NULL
-    // for a staff-initiated resolution, same as recorded_by/createdBy below.
     const notes = opts.notes
       ? `${opts.notes} (staff action, admin ${opts.adminId})`
       : `Resolved by staff (admin ${opts.adminId})`;
 
-    if (action === 'activate_subscription') {
-      if (!opts.groupId) throw new ValidationError('groupId is required to activate a subscription');
-      if (!opts.planType || !opts.product)
-        throw new ValidationError('planType and product are required to activate a subscription');
-
-      // This receipt never went through recordC2BInbound — the router bailed
-      // to mpesa_unrouted before that runs. Create the same two rows it would
-      // have, ON CONFLICT-safe like the original so a retry can't duplicate
-      // them if this action is ever run twice for the same receipt.
-      const rawPayload = JSON.stringify(row.raw_payload ?? {});
-      await db.query(
-        `INSERT INTO public.mpesa_transactions
-           (group_id, transaction_type, direction, mpesa_receipt_number,
-            phone_number, amount, status, reference, raw_response, completed_at, is_test)
-         VALUES ($1,'c2b','inbound',$2,$3,$4,'completed',$5,$6::jsonb,NOW(),$7)
-         ON CONFLICT (mpesa_receipt_number) DO NOTHING`,
-        [opts.groupId, row.receipt, row.phone, amount.toFixed(2), row.bill_ref, rawPayload, IS_SANDBOX],
-      );
-      const { rows: payRows } = await db.query<{ id: string }>(
-        `INSERT INTO public.payments
-           (group_id, amount, payment_method, status, mpesa_receipt_number,
-            mpesa_phone, mpesa_raw_callback, payment_date, channel)
-         VALUES ($1,$2,'mpesa','completed',$3,$4,$5::jsonb,NOW(),'paybill')
-         ON CONFLICT (mpesa_receipt_number) DO NOTHING
-         RETURNING id`,
-        [opts.groupId, amount.toFixed(2), row.receipt, row.phone, rawPayload],
-      );
-      const paymentId = payRows[0]?.id ?? (await spinePaymentId(db, row.receipt));
-      if (!paymentId) throw new ConflictError('Could not create or find a payment row for this receipt');
-
-      await logPaymentEvent(db, paymentId, 'received', {
-        billRef: row.bill_ref,
-        via: 'admin_unrouted_subscription_activation',
-      });
-
-      // Returns null only when this exact payment already activated a
-      // subscription (idempotent replay) — not an error, just nothing new to do.
-      // billingCycle defaults to 'monthly' inside the function if omitted; if
-      // staff picks a cycle the amount doesn't actually cover (e.g. 'annual'
-      // on a 150-shilling receipt), activateSubscriptionForPayment's own
-      // amountPaid < fee check throws PaymentRequiredError rather than
-      // under-activating — no separate guard needed here.
-      await billingService.activateSubscriptionForPayment(db, {
-        groupId: opts.groupId,
-        planType: opts.planType,
-        product: opts.product,
-        paymentId,
-        amountPaid: amount,
-        billingCycle: opts.billingCycle,
-      });
-
-      await markSpineAllocated(db, row.receipt, {
-        actor: null, // see the allocate branch below for why this is never opts.adminId
-        detail: {
-          product: opts.product,
-          planType: opts.planType,
-          groupId: opts.groupId,
-          via: 'admin_unrouted_subscription_activation',
-          staffAdminId: opts.adminId,
-        },
-      });
-
-      await db.query(
-        `UPDATE public.mpesa_unrouted
-         SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
-             resolved_to_group_id=$2, resolution_notes=$3
-         WHERE id=$1`,
-        [id, opts.groupId, notes],
-      );
-      return { success: true };
-    }
-
-    if (action === 'dismiss') {
-      await db.query(
-        `UPDATE public.mpesa_unrouted
-         SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
-             resolved_to_group_id=$2, resolution_notes=$3
-         WHERE id=$1`,
-        [id, opts.groupId ?? null, notes],
-      );
-      return { success: true };
-    }
-
-    if (!opts.groupId) throw new ValidationError('groupId is required to allocate');
-    if (!opts.memberId) throw new ValidationError('memberId is required to allocate');
-
-    const { membershipId } = await assertActiveMembership(db, opts.groupId, opts.memberId);
-
-    const { rows: contribRows } = await db.query<{ id: string }>(
-      `INSERT INTO public.contributions
-         (group_id, member_id, group_membership_id, amount, contribution_date,
-          status, payment_method, mpesa_receipt_number, notes, recorded_by)
-       VALUES ($1,$2,$3,$4,CURRENT_DATE,'completed','mpesa',$5,$6,NULL)
-       ON CONFLICT (mpesa_receipt_number) DO NOTHING
-       RETURNING id`,
-      [
-        opts.groupId,
-        opts.memberId,
-        membershipId,
-        amount.toFixed(2),
-        row.receipt,
-        `Manually routed from unrouted receipt by platform staff (${row.bill_ref ?? 'no ref'})`,
-      ],
-    );
-    const contributionId = contribRows[0]?.id ?? null;
-
-    if (contributionId) {
-      await postContributionJournal(db, {
-        groupId: opts.groupId,
-        contributionId,
-        amount,
-        entryDate: new Date().toISOString().slice(0, 10),
-        reference: row.receipt,
-        createdBy: null,
-        isTest: IS_SANDBOX,
-      });
-
-      await db.query(
-        `UPDATE public.contributions
-         SET    payment_id = (SELECT id FROM public.payments WHERE mpesa_receipt_number = $1)
-         WHERE  id = $2 AND payment_id IS NULL`,
-        [row.receipt, contributionId],
-      );
-      await markSpineAllocated(db, row.receipt, {
-        // NOT opts.adminId: payment_events.actor is a real FK to members(id),
-        // and a backoffice staff/platform_users id is not a member — passing
-        // it here would either FK-violate or silently misattribute the event
-        // to an unrelated member. NULL means "system", same as every other
-        // non-member-initiated action in this table. The real staff id is
-        // still recorded, just in detail (no FK) rather than actor.
-        actor: null,
-        detail: {
-          product: 'savings',
-          contributionId,
-          groupId: opts.groupId,
-          via: 'admin_unrouted_resolution',
-          staffAdminId: opts.adminId,
-        },
-      });
-    }
-
     await db.query(
       `UPDATE public.mpesa_unrouted
-       SET resolved=true, resolved_by=NULL, resolved_at=NOW(),
-           resolved_to_group_id=$2, resolved_to_contribution=$3, resolution_notes=$4
-       WHERE id=$1`,
-      [id, opts.groupId, contributionId, notes],
+       SET resolved = true, resolved_by = NULL, resolved_at = NOW(),
+           resolved_to_group_id = $2, resolution_notes = $3
+       WHERE id = $1`,
+      [id, opts.groupId ?? null, notes],
     );
     return { success: true };
   });

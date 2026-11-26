@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * Budget tracking (migration 178, lib/services/budget.service.ts). A budget

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const CreateAccountSchema = z.object({
   accountCode: z.string().min(1).max(20),
@@ -94,6 +94,8 @@ export const SetPostingTemplateSchema = z.object({
     'dividend_declaration',
     'dividend_payment',
     'subscription_payment',
+    'registration_fee',
+    'sms_topup_expense',
     'loan_writeoff',
     'loan_disbursement',
     'loan_repayment',
