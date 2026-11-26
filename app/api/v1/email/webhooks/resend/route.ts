@@ -61,7 +61,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     await processResendEvent(event);
   } catch (err) {
     logger.error('[resend.webhook] processing failed', err);
-    // 500 lets svix retry — events are idempotent (UPDATE ... WHERE id = $1).
+    // Let Svix retry events whose database transaction failed.
     return NextResponse.json({ error: 'Processing failed' }, { status: 500 });
   }
   return NextResponse.json({ received: true });

@@ -188,12 +188,14 @@ export const PLATFORM_REVENUE_TREND_SQL = `
 export const PLATFORM_RECENT_PAYMENTS_SQL = `
   WITH ${PLATFORM_PAYMENTS_CTE}
   SELECT p.id, p.amount, p.status, p.payment_method, p.created_at,
-         g.name AS group_name, i.invoice_number,
+         COALESCE(o.name, g.name) AS group_name, i.invoice_number,
          pp.product, pp.plan, pp.stream
   FROM platform_payments pp
   JOIN public.payments p ON p.id = pp.id
   LEFT JOIN public.groups g ON g.id = p.group_id
   LEFT JOIN public.invoices i ON i.id = p.invoice_id
+  LEFT JOIN public.organization_sms_credits credits ON credits.payment_id = p.id AND pp.stream = 'sms_credits'
+  LEFT JOIN public.organizations o ON o.id = credits.organization_id
   ORDER BY p.created_at DESC
   LIMIT 20
 `;
@@ -243,7 +245,12 @@ export function redactPlatformStatsForRole<T extends RedactablePlatformStats>(
 ): Omit<T, 'revenue'> & { revenue?: unknown } {
   if (platformRole === 'super_admin') return stats;
   const { revenue: _revenue, subscriptions, ...rest } = stats;
-  const { mrr: _mrr, ...subsWithoutMrr } = subscriptions ?? {};
+  const {
+    mrr: _mrr,
+    enterprise_mrr: _enterpriseMrr,
+    overdue_invoice_count: _invoiceCount,
+    ...subsWithoutMrr
+  } = subscriptions ?? {};
   return {
     ...rest,
     subscriptions: subscriptions ? subsWithoutMrr : undefined,

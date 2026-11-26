@@ -195,23 +195,26 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
       group_id: string;
       loan_id: string | null;
       amount: string;
+      status: string;
       phone: string;
       disbursed_by: string | null;
       mpesa_transaction_id: string | null;
       disbursement_request_id: string | null;
     }>(
-      `SELECT id, group_id, loan_id, amount, phone, disbursed_by, mpesa_transaction_id,
+      `SELECT id, group_id, loan_id, amount, status, phone, disbursed_by, mpesa_transaction_id,
               disbursement_request_id
        FROM   mpesa_b2c_transactions
        WHERE  originator_conversation_id=$1
        FOR UPDATE`,
       [r.OriginatorConversationID],
     );
-    const b2c = b2cRows[0] ?? null;
-    const groupId = b2c?.group_id ?? null;
+    const b2c = b2cRows[0];
+    if (!b2c || b2c.status === 'completed') return undefined;
+    const groupId = b2c.group_id;
 
     // ── Failure ──────────────────────────────────────────────────────────
     if (r.ResultCode !== 0) {
+      if (b2c.status === 'failed') return undefined;
       await db.query(
         `UPDATE mpesa_b2c_transactions
          SET    status='failed', raw_result=$1, result_received_at=NOW()
@@ -263,7 +266,21 @@ export async function handleB2CResult(body: B2CResultBody, callerIp: string): Pr
 
     // ── Success ──────────────────────────────────────────────────────────
     const get = (k: string) => r.ResultParameters?.ResultParameter.find((p) => p.Key === k)?.Value;
-    const receipt = (get('TransactionReceipt') as string | undefined) ?? null;
+    const receiptValue = get('TransactionReceipt') ?? r.TransactionID;
+    const receipt = typeof receiptValue === 'string' ? receiptValue.trim() : '';
+    const amount = get('TransactionAmount');
+    if (
+      !receipt ||
+      (typeof amount !== 'number' && typeof amount !== 'string') ||
+      !Number.isFinite(Number(amount)) ||
+      Number(amount) <= 0 ||
+      Number(amount) !== Number(b2c.amount)
+    ) {
+      logger.warn('[b2c result] success lacked matching receipt or amount; payment requires reconciliation', {
+        b2cId: b2c.id,
+      });
+      return undefined;
+    }
 
     await db.query(
       `UPDATE mpesa_b2c_transactions
@@ -414,7 +431,7 @@ async function releaseDisbursementReservation(
             mpesa_receipt_number = COALESCE($2, mpesa_receipt_number),
             failure_reason = $3,
             completed_at = CASE WHEN $1 = 'completed' THEN NOW() ELSE completed_at END
-     WHERE  id = $4 AND status IN ('approved', 'dispatched')
+     WHERE  id = $4 AND status IN ('approved', 'dispatched', 'timed_out')
      RETURNING cash_account_id, amount`,
     [args.status, args.mpesaReceiptNumber ?? null, args.failureReason ?? null, id],
   );

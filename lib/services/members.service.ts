@@ -166,6 +166,10 @@ export const membersService = {
       const values: unknown[] = [ctx.groupId];
       let idx = 2;
 
+      if (ctx.role === 'member') {
+        conditions.push(`m.id = $${idx++}`);
+        values.push(ctx.userId);
+      }
       if (search) {
         conditions.push(
           `(m.first_name ILIKE $${idx} OR m.last_name ILIKE $${idx} OR m.phone ILIKE $${idx} OR m.middle_name ILIKE $${idx})`,
@@ -242,6 +246,9 @@ export const membersService = {
       active_loans_count: number;
     }
   > {
+    if (ctx.role === 'member' && memberId !== ctx.userId) {
+      throw new NotFoundError('Member', memberId);
+    }
     return withDb(ctx, async (client) => {
       // total_contributed/active_loans_count are computed here (correlated
       // subqueries, same shared connection as the member row) rather than

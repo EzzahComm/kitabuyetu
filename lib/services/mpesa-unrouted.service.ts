@@ -28,9 +28,10 @@ export async function listUnrouted(ctx: TenantContext): Promise<UnroutedRow[]> {
       `SELECT id, receipt, phone, amount, bill_ref, reason,
               candidate_group_id, resolved, created_at
        FROM   mpesa_unrouted
-       WHERE  resolved = false
+       WHERE  resolved = false AND candidate_group_id = $1
        ORDER  BY created_at DESC
        LIMIT  200`,
+      [ctx.groupId],
     );
     return rows;
   });

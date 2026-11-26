@@ -208,12 +208,49 @@ export function buildMonitoringDashboardPayload(input: {
 // ─────────────────────────────────────────────────────────────────────────────
 // Platform dashboard stats
 // ─────────────────────────────────────────────────────────────────────────────
+const ACTIVE_ENTERPRISE_PLANS_SQL = `
+  SELECT s.plan_type::text AS plan, s.monthly_fee
+  FROM public.organization_subscriptions s
+  JOIN public.organizations o ON o.id = s.organization_id
+  WHERE s.status = 'active' AND o.is_active
+`;
+
+const OPEN_INVOICE_SQL = `i.status = 'pending' AND i.total_amount > COALESCE(i.paid_amount, 0)`;
+const OVERDUE_INVOICE_SQL = `i.due_date < (NOW() AT TIME ZONE 'Africa/Nairobi')::date`;
+
+const PLATFORM_SUBSCRIPTION_SUMMARY_SQL = `
+  WITH group_plans AS (
+    SELECT
+      COUNT(*) FILTER (WHERE status = 'active') AS active,
+      COUNT(*) FILTER (WHERE status = 'expired') AS expired,
+      COUNT(*) FILTER (WHERE status = 'suspended') AS suspended,
+      COUNT(*) FILTER (WHERE status IN ('expired', 'suspended')) AS at_risk,
+      COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count,
+      COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS monthly_value
+    FROM public.subscriptions
+  ), enterprise_plans AS (
+    SELECT COUNT(*) AS active, COALESCE(SUM(monthly_fee), 0) AS monthly_value
+    FROM (${ACTIVE_ENTERPRISE_PLANS_SQL}) AS enterprise
+  )
+  SELECT
+    group_plans.active + enterprise_plans.active AS active_subscriptions,
+    enterprise_plans.active AS active_enterprise_subscriptions,
+    group_plans.expired AS expired_subscriptions,
+    group_plans.suspended AS suspended_subscriptions,
+    group_plans.at_risk,
+    group_plans.overdue_count,
+    (SELECT COUNT(*) FROM public.invoices i WHERE ${OPEN_INVOICE_SQL} AND ${OVERDUE_INVOICE_SQL}) AS overdue_invoice_count,
+    group_plans.monthly_value + enterprise_plans.monthly_value AS mrr,
+    enterprise_plans.monthly_value AS enterprise_mrr
+  FROM group_plans CROSS JOIN enterprise_plans
+`;
+
 export async function getPlatformStats() {
   // TTL raised 90s->150s: the client poll interval is 120s (hooks/use-admin.ts
   // useAdminDashboard), so a 90s TTL had already expired before every
   // scheduled refetch fired — guaranteeing a cache miss on the one request
   // this cache exists to absorb (docs/audits/optimization-2026-09).
-  return cached(keys.cache('platform-stats', 'platform'), 150, () =>
+  return cached(keys.cache('platform-stats-v2', 'platform'), 150, () =>
     withAdminDb(async (db: PoolClient) => {
       const [groups, organizations, members, subscriptions, revenueByProductPlan, ownerTotals, tickets, activity] =
         await Promise.all([
@@ -239,19 +276,8 @@ export async function getPlatformStats() {
           COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days') AS new_this_month
         FROM public.members
       `),
-          db.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'active')     AS active_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired')    AS expired_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'suspended')  AS suspended_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired' OR status = 'suspended') AS at_risk,
-          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
-          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
-        FROM public.subscriptions
-      `),
-          // Platform revenue = subscription-linked payments only, attributed by
-          // product and plan. Group collections and unclassified money are
-          // reported separately so they never inflate Kitabu Yetu's revenue.
+          db.query(PLATFORM_SUBSCRIPTION_SUMMARY_SQL),
+          // Settled platform payments are reported separately from monthly plan value.
           db.query(PLATFORM_REVENUE_BY_PRODUCT_PLAN_SQL),
           db.query(PAYMENT_OWNER_TOTALS_SQL),
           db.query(`
@@ -1343,33 +1369,29 @@ export async function updatePlatformUserRole(memberId: string, platformRole: str
 export async function getBillingOverview() {
   return withAdminDb(async (db: PoolClient) => {
     const [summary, byPlan, recentPayments, outstanding] = await Promise.all([
+      db.query(PLATFORM_SUBSCRIPTION_SUMMARY_SQL),
       db.query(`
-        SELECT
-          COUNT(*) FILTER (WHERE status = 'active')    AS active_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'expired')   AS expired_subscriptions,
-          COUNT(*) FILTER (WHERE status = 'suspended') AS suspended_subscriptions,
-          COALESCE(SUM(monthly_fee) FILTER (WHERE status = 'active'), 0) AS mrr,
-          COUNT(*) FILTER (WHERE expires_at < NOW() AND status = 'active') AS overdue_count
-        FROM public.subscriptions
+        WITH active_plans AS (
+          SELECT product::text AS product, plan_type::text AS plan, monthly_fee
+          FROM public.subscriptions WHERE status = 'active'
+          UNION ALL
+          SELECT 'enterprise' AS product, plan, monthly_fee FROM (${ACTIVE_ENTERPRISE_PLANS_SQL}) AS enterprise
+        )
+        SELECT product, plan, COUNT(*) AS count, SUM(monthly_fee) AS revenue
+        FROM active_plans
+        GROUP BY product, plan
+        ORDER BY revenue DESC, product, plan
       `),
-      db.query(`
-        SELECT product, plan_type AS plan, COUNT(*) AS count,
-          COALESCE(SUM(monthly_fee), 0) AS revenue
-        FROM public.subscriptions WHERE status = 'active'
-        GROUP BY product, plan_type ORDER BY revenue DESC
-      `),
-      // Platform billing only: subscription and SMS top-up payments. Group
-      // collections are not billing revenue and must not appear in this list.
       db.query(PLATFORM_RECENT_PAYMENTS_SQL),
       db.query(`
         SELECT i.id, i.invoice_number,
                (i.total_amount - COALESCE(i.paid_amount, 0)) AS amount_due,
                i.due_date, i.status,
-               (i.status = 'pending' AND i.due_date < NOW()) AS is_overdue,
+               (${OVERDUE_INVOICE_SQL}) AS is_overdue,
                g.name AS group_name
         FROM public.invoices i
         LEFT JOIN public.groups g ON g.id = i.group_id
-        WHERE i.status = 'pending'
+        WHERE ${OPEN_INVOICE_SQL}
         ORDER BY i.due_date ASC LIMIT 20
       `),
     ]);

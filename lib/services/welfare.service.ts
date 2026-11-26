@@ -76,9 +76,10 @@ export const welfareService = {
         conditions.push(`wr.status = $${i++}`);
         args.push(params.status);
       }
-      if (params.memberId) {
+      const memberId = ctx.role === 'member' ? ctx.userId : params.memberId;
+      if (memberId) {
         conditions.push(`wr.member_id = $${i++}`);
-        args.push(params.memberId);
+        args.push(memberId);
       }
 
       const where = conditions.join(' AND ');
@@ -127,8 +128,8 @@ export const welfareService = {
          LEFT JOIN members ab ON ab.id = wr.approved_by
          LEFT JOIN members rb ON rb.id = wr.rejected_by
          LEFT JOIN members db ON db.id = wr.disbursed_by
-         WHERE  wr.id = $1 AND wr.group_id = $2`,
-        [id, ctx.groupId],
+         WHERE  wr.id = $1 AND wr.group_id = $2${ctx.role === 'member' ? ' AND wr.member_id = $3' : ''}`,
+        ctx.role === 'member' ? [id, ctx.groupId, ctx.userId] : [id, ctx.groupId],
       );
       if (!rows[0]) throw new NotFoundError('Welfare request', id);
       return rows[0];
@@ -402,18 +403,20 @@ export const welfareService = {
   async listPoolContributions(ctx: TenantContext, params: { page: number; limit: number }) {
     return withDb(ctx, async (client) => {
       const offset = (params.page - 1) * params.limit;
+      const where = ctx.role === 'member' ? 'wpc.group_id = $1 AND wpc.member_id = $2' : 'wpc.group_id = $1';
+      const args = ctx.role === 'member' ? [ctx.groupId, ctx.userId] : [ctx.groupId];
       const { rows: items } = await client.query(
         `SELECT wpc.*, m.first_name || ' ' || m.last_name AS member_name
          FROM welfare_pool_contributions wpc
          JOIN members m ON m.id = wpc.member_id
-         WHERE wpc.group_id = $1
+         WHERE ${where}
          ORDER BY wpc.created_at DESC
-         LIMIT $2 OFFSET $3`,
-        [ctx.groupId, params.limit, offset],
+         LIMIT $${args.length + 1} OFFSET $${args.length + 2}`,
+        [...args, params.limit, offset],
       );
       const {
         rows: [{ count }],
-      } = await client.query('SELECT COUNT(*) FROM welfare_pool_contributions WHERE group_id=$1', [ctx.groupId]);
+      } = await client.query(`SELECT COUNT(*) FROM welfare_pool_contributions wpc WHERE ${where}`, args);
       return { items, total: Number(count), totalPages: Math.ceil(Number(count) / params.limit) };
     });
   },
