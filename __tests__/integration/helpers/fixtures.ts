@@ -233,7 +233,7 @@ export async function createTestOrgDisbursement(
   status: 'pending_approval' | 'completed' = 'pending_approval',
 ): Promise<TestOrgDisbursement> {
   await assignGroupToOrganization(organizationId, groupId, coordinatorId, 'read');
-  const [disbursement] = await rawQuery<TestOrgDisbursement>(
+  const [disbursement] = await rawQuery<{ id: string }>(
     `WITH wallet AS (
        INSERT INTO organization_wallets
          (organization_id, available_balance, committed_balance, total_deposited, total_disbursed)
