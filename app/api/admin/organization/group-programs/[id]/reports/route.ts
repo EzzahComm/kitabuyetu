@@ -1,15 +1,16 @@
 export const dynamic = 'force-dynamic';
 
 import { NextRequest } from 'next/server';
+import { z } from 'zod/v3';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
-import { programMembershipsService } from '@/lib/services/programs.service';
+import { getProgramReport } from '@/lib/services/program-reports.service';
 import { ok } from '@/lib/utils/response';
+
+const ParamsSchema = z.object({ id: z.string().uuid('Invalid program id') });
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   return withOrganizationAccess(req, 'organization.group_programs.view', async (ctx) => {
-    const { id } = await params;
-    const memberships = await programMembershipsService.listForProgram(ctx, id);
-    const active = memberships.filter((membership) => membership.status === 'active').length;
-    return ok({ active, total: memberships.length });
+    const { id } = ParamsSchema.parse(await params);
+    return ok(await getProgramReport(ctx, id));
   });
 }
