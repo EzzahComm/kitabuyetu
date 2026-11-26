@@ -214,6 +214,11 @@ export async function createTestOrganization(): Promise<TestOrganization> {
     type: 'ngo',
   });
   const coordinatorId = await createOrgCoordinator();
+  await rawQuery(
+    `INSERT INTO organization_members (organization_id, member_id, org_role)
+     VALUES ($1, $2, 'lead')`,
+    [(org as { id: string }).id, coordinatorId],
+  );
   await assignOrganizationPlan((org as { id: string }).id, 'premium_plus', coordinatorId, {
     custom: { monthlyFee: 0 },
   });

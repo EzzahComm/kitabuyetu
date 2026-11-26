@@ -20,6 +20,7 @@ import { GET as walletGet } from '@/app/api/admin/organization/wallet/route';
 import { backofficeHeaders, buildRequest } from '../helpers/request';
 import { createTestOrganization } from '../helpers/fixtures';
 import { resetDatabase } from '../helpers/cleanup';
+import { rawQuery } from '../helpers/db';
 
 describe('Organization/* permission gates (platform-role axis, backoffice audience)', () => {
   let organizationId: string, coordinatorId: string;
@@ -97,5 +98,23 @@ describe('Organization/* permission gates (platform-role axis, backoffice audien
       }),
     );
     expect(res.status).toBe(200);
+  });
+
+  it('denies access through the existing session after its membership is archived', async () => {
+    const headers = backofficeHeaders({
+      userId: coordinatorId,
+      platformRole: 'organization_coordinator',
+      organizationId,
+    });
+    const path = '/api/admin/organization/profile';
+    expect((await profileGet(buildRequest(path, { headers }))).status).toBe(200);
+
+    await rawQuery(
+      `UPDATE organization_members SET status = 'archived'
+       WHERE organization_id = $1 AND member_id = $2`,
+      [organizationId, coordinatorId],
+    );
+
+    expect((await profileGet(buildRequest(path, { headers }))).status).toBe(403);
   });
 });

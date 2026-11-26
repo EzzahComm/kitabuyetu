@@ -16,6 +16,7 @@ import {
   createTestOrgDisbursement,
 } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
+import { rawQuery } from './helpers/db';
 
 describe('organization disbursements tenant isolation', () => {
   let orgAId: string, coordinatorAId: string;
@@ -27,6 +28,10 @@ describe('organization disbursements tenant isolation', () => {
     ({ organizationId: orgAId, coordinatorId: coordinatorAId } = await createTestOrganization());
     ({ organizationId: orgBId, coordinatorId: coordinatorBId } = await createTestOrganization());
     secondCoordinatorBId = await createOrgCoordinator();
+    await rawQuery('INSERT INTO organization_members (organization_id, member_id) VALUES ($1, $2)', [
+      orgBId,
+      secondCoordinatorBId,
+    ]);
     ({ groupId: groupBId } = await createTestGroup('treasurer'));
   });
 
