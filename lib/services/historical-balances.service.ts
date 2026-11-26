@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { parse } from 'csv-parse/sync';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withDb, type TenantContext } from '@/lib/db';
 import { ValidationError } from '@/lib/utils/errors';
 import { isValidMembershipNo, normalizeAccountRef } from '@/lib/utils/membership-no';

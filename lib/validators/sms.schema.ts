@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 
 const phoneSchema = z.string().refine(isValidKenyanPhone, 'Invalid Kenyan phone number');

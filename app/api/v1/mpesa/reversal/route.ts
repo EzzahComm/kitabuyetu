@@ -5,7 +5,7 @@
  * POST /api/v1/mpesa/reversal?type=timeout â€” Safaricom timeout  (no JWT)
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission } from '@/lib/auth/middleware';
 import { requestReversal, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleReversalResult } from '@/lib/services/mpesa.service';

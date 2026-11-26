@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const CreateAccountSchema = z.object({
   accountCode: z.string().min(1).max(20),

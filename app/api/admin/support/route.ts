@@ -3,7 +3,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest } from '@/lib/utils/response';
 import { listSupportTickets, createSupportTicket } from '@/lib/services/admin.service';
 import { parsePagination } from '@/lib/utils/pagination';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const dynamic = 'force-dynamic';
 

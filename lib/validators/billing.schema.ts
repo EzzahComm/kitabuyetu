@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const UpgradePlanSchema = z.object({
   // `enterprise` is absent on purpose: it is negotiated, not self-serve, and

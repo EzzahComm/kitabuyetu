@@ -1,6 +1,6 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError } from '@/lib/utils/errors';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 

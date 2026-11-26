@@ -1,6 +1,6 @@
 import { createHash, createHmac } from 'node:crypto';
 import type { PoolClient } from 'pg';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withAdminDb } from '@/lib/db';
 import { insertJob } from '@/lib/jobs/db';
 import { logger } from '@/lib/logger';

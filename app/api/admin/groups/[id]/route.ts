@@ -3,7 +3,7 @@ import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest, notFound } from '@/lib/utils/response';
 import { getGroupById, updateGroupStatus, updateGroupProfile } from '@/lib/services/admin.service';
 import { GROUP_TYPES } from '@/types/enums';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const dynamic = 'force-dynamic';
 

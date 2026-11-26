@@ -5,7 +5,7 @@
  * POST /api/v1/mpesa/transaction-status?type=timeout â€” Safaricom timeout
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withAuth } from '@/lib/auth/middleware';
 import { queryTransactionStatus, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleTransactionStatusResult } from '@/lib/services/mpesa.service';

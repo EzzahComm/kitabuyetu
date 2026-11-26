@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission } from '@/lib/auth/middleware';
 import { resolveUnrouted } from '@/lib/services/mpesa.service';
 import { assertAuthFresh } from '@/lib/services/membership-guard';

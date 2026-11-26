@@ -2,6 +2,7 @@ const path = require('path');
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  transpilePackages: ['jose'],
   serverExternalPackages: [
     // These packages use Node.js native modules / dynamic requires — exclude from bundling.
     'pg',

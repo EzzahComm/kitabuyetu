@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * gated behind MPESA_AIRTIME_COMMAND_ID and returns 501 until configured.
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission } from '@/lib/auth/middleware';
 import { initiateAirtime, handleAirtimeResult } from '@/lib/services/mpesa.service';
 import { isValidKenyanPhone } from '@/lib/utils/phone';

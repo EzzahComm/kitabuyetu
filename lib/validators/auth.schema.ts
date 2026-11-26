@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { GROUP_TYPES, ORGANIZATION_TYPES } from '@/types/enums';
 

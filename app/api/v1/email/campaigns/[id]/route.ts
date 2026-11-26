@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission } from '@/lib/auth/middleware';
 import { withAdminDb, withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { enqueueJob } from '@/lib/jobs';

@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 import { createRemoteJWKSet, jwtVerify } from 'jose';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withAdminDb } from '@/lib/db';
 import { signMfaChallenge } from '@/lib/auth/jwt';
 import { redis } from '@/lib/redis';

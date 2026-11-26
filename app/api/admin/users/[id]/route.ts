@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, badRequest } from '@/lib/utils/response';
 import { updatePlatformUserRole } from '@/lib/services/admin.service';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const dynamic = 'force-dynamic';
 

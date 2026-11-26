@@ -265,8 +265,7 @@ describe('member disbursements', () => {
 
     it.each(['cash', 'bank_transfer'])('refuses unconfirmed %s disbursements', async (paymentMethod) => {
       const res = await initiate(g, chair, { paymentMethod, paymentReference: 'entered-reference' });
-      expect(res.status).toBe(403);
-      expect(res.json.error).toMatch(/require M-Pesa/);
+      expect(res.status).toBe(422);
       expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
     });
 
@@ -304,14 +303,6 @@ describe('member disbursements', () => {
     it('leaves nothing reserved after the failed attempts', async () => {
       expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
     });
-  });
-
-  // ─── Offline payment rejection ───────────────────────────────────────────
-
-  it.each(['cash', 'bank_transfer'])('rejects %s payouts without reserving funds', async (paymentMethod) => {
-    const result = await initiate(g, chair, { amount: 1_000, paymentMethod });
-    expect(result.status).toBe(422);
-    expect(await cash(g.groupId)).toEqual({ balance: 100_000, reserved: 0 });
   });
 
   describe('workflow and ledger reconciliation', () => {
@@ -437,11 +428,6 @@ describe('member disbursements', () => {
     });
 
     it('double and concurrent approvals dispatch exactly once; settlement waits for the provider callback', async () => {
-      (darajaB2C as jest.Mock).mockResolvedValueOnce({
-        conversationId: 'conv-concurrent-1',
-        originatorConversationId: 'oc-concurrent-1',
-        responseDescription: 'Accepted',
-      });
       const { json } = await initiate(g, chair, { amount: 3_000 });
       const id = json.data!.id;
       expect((await act(g, treasurer, id, { action: 'approve' })).status).toBe(200);

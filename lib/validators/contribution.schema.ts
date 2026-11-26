@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Cashless policy: only M-Pesa can be selected for new contribution records.
 // Historical cash rows remain readable; this schema does not rewrite them.

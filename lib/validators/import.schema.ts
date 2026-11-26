@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Kinds supported by the two-phase importer. Add new strings here AND in the
 // import_jobs.kind CHECK constraint (mig 024 onwards).

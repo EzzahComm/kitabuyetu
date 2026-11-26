@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 /**
  * One split rule on the `group_contribution_splits` table. Exactly one of

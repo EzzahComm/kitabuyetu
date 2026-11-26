@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { assignOrganizationPlan, getOrganizationPlan } from '@/lib/services/organization-plan.service';
 import { ok, badRequest } from '@/lib/utils/response';

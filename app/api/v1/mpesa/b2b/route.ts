@@ -6,7 +6,7 @@
  * GET  /api/v1/mpesa/b2b              â€” List B2B transactions for the group
  */
 import { NextRequest, NextResponse, after } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPermission } from '@/lib/auth/middleware';
 import { initiateB2B, isValidCallbackToken } from '@/lib/services/daraja.service';
 import { handleB2BResult } from '@/lib/services/mpesa.service';

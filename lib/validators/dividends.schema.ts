@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 export const DIVIDEND_STATUSES = ['draft', 'pending_approval', 'approved', 'paid', 'cancelled'] as const;
 

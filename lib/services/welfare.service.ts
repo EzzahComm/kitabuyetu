@@ -1,7 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { ZodError } from 'zod';
+import { ZodError } from 'zod/v3';
 import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
 import { signAccessToken, signRefreshToken, hashToken, refreshTtlSeconds } from '@/lib/auth/jwt';

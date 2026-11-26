@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // groups.is_government_registered / registration_number — see
 // group-registration.service.ts. Deliberately permissive: a group can flag

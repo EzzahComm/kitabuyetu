@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { HR_EMPLOYMENT_TYPES } from './hr.schema';
 
 export const JOB_APPLICATION_STAGES = ['applied', 'screening', 'interview', 'offer', 'hired', 'rejected'] as const;

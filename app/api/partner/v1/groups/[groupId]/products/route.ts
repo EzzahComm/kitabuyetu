@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { authenticateEnterpriseClient } from '@/lib/enterprise-integration/auth';
 import { readEnterpriseGroupProducts } from '@/lib/enterprise-integration/reads';
 import { enterpriseResponse } from '@/lib/enterprise-integration/response';

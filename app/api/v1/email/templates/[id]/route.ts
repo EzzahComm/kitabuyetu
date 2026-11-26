@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { PoolClient } from 'pg';
 import { withPermission } from '@/lib/auth/middleware';
 import { withDb, type TenantContext } from '@/lib/db';

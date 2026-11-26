@@ -17,7 +17,7 @@ import { StatCard } from '@/components/shared/stat-card';
 import { useMeetings, useMeetingStats, useCreateMeeting, type MeetingRow } from '@/hooks/use-meetings';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { formatDate, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';

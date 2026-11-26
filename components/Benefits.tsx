@@ -18,7 +18,7 @@ interface BenefitsProps {
       title: string;
       desc: string;
       /** Cloned to inject sizing classes, so it must be an element, not any node. */
-      icon: React.ReactElement;
+      icon: React.ReactElement<{ className?: string }>;
     }[];
     /** Optional CTA shown once the section has made its case. Omit to render no button. */
     cta?: {
@@ -75,7 +75,7 @@ export const Benefits = (props: Readonly<BenefitsProps>) => {
 };
 
 interface BenefitProps {
-  icon: React.ReactElement;
+  icon: React.ReactElement<{ className?: string }>;
   title: string;
   children: React.ReactNode;
 }

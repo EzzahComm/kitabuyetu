@@ -31,16 +31,13 @@ import { formatDate } from '@/lib/utils';
 import type { PaginatedResult } from '@/types/db.types';
 import { DISBURSEMENT_TYPES, PAYMENT_METHODS } from '@/lib/validators/organization.schema';
 
-const PAYMENT_METHOD_LABELS: Record<(typeof PAYMENT_METHODS)[number], string> = {
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mpesa: 'M-Pesa',
   cash: 'Cash',
   cheque: 'Cheque',
   bank_transfer: 'Bank transfer',
   standing_order: 'Standing order',
 };
-
-/** Only these leave a number worth capturing. Cash has nothing to reference. */
-const METHODS_WITH_REFERENCE = ['cheque', 'bank_transfer', 'standing_order'] as const;
 
 interface DisbursementRow {
   id: string;
@@ -74,7 +71,6 @@ export default function DisbursementsPage() {
   // '' means "not recorded" and is sent as undefined — never defaulted to a
   // channel, because guessing invents an audit trail for real money.
   const [paymentMethod, setPaymentMethod] = useState<'' | (typeof PAYMENT_METHODS)[number]>('');
-  const [paymentReference, setPaymentReference] = useState('');
   const [busy, setBusy] = useState(false);
 
   const [approving, setApproving] = useState<DisbursementRow | null>(null);
@@ -134,7 +130,6 @@ export default function DisbursementsPage() {
     setFundingProgramId('');
     setNotes('');
     setPaymentMethod('');
-    setPaymentReference('');
   };
 
   const submitDisbursement = async () => {
@@ -152,7 +147,6 @@ export default function DisbursementsPage() {
         fundingProgramId: fundingProgramId || undefined,
         notes: notes.trim() || undefined,
         paymentMethod: paymentMethod || undefined,
-        paymentReference: paymentReference.trim() || undefined,
       });
       toast({
         title: res.needsApproval ? 'Disbursement submitted — awaiting a second officer' : 'Disbursement sent',
@@ -425,9 +419,6 @@ export default function DisbursementsPage() {
                 onChange={(e) => {
                   const next = e.target.value as typeof paymentMethod;
                   setPaymentMethod(next);
-                  // Clearing the method must clear the reference too, or the
-                  // DB check constraint rejects a reference with no method.
-                  if (!next || !METHODS_WITH_REFERENCE.includes(next as never)) setPaymentReference('');
                 }}
               >
                 <option value="">Not recorded</option>
@@ -437,22 +428,8 @@ export default function DisbursementsPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-xs text-muted-foreground">
-                Cash and cheque leave no receipt of their own — recording it here is the only trace.
-              </p>
+              <p className="text-xs text-muted-foreground">M-Pesa is the supported settlement method.</p>
             </div>
-            {/* Cash has no number to capture, so the field only appears for the
-                channels that actually produce one. */}
-            {METHODS_WITH_REFERENCE.includes(paymentMethod as never) && (
-              <div className="space-y-1">
-                <Label>{paymentMethod === 'cheque' ? 'Cheque number' : 'Transfer reference'} (optional)</Label>
-                <Input
-                  value={paymentReference}
-                  onChange={(e) => setPaymentReference(e.target.value)}
-                  placeholder={paymentMethod === 'cheque' ? 'e.g. 004512' : 'e.g. bank slip no.'}
-                />
-              </div>
-            )}
             <div className="space-y-1">
               <Label>Notes (optional)</Label>
               <Input

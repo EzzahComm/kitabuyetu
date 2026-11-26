@@ -3,7 +3,7 @@ import { NextRequest } from 'next/server';
 import { withPermission } from '@/lib/auth/middleware';
 import { smsService } from '@/lib/services/sms.service';
 import { ok } from '@/lib/utils/response';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 const QuerySchema = z.object({
   page: z.coerce.number().int().min(1).default(1),

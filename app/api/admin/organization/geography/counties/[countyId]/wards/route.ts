@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withOrganizationAccess } from '@/lib/auth/middleware';
 import { organizationGeographyService } from '@/lib/services/organization-geography.service';
 import { ok } from '@/lib/utils/response';

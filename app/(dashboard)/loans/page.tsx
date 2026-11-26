@@ -15,7 +15,7 @@ import { useLoans, useApplyLoan, useLoanPolicy } from '@/hooks/use-loans';
 import { useMembers } from '@/hooks/use-members';
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import {

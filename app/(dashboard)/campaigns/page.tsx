@@ -15,7 +15,7 @@ import { StatusPill } from '@/components/shared/status-pill';
 import { useCampaigns, useCampaignEligibility, useCreateCampaign } from '@/hooks/use-campaigns';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, getErrorMessage } from '@/lib/utils';
 import { useHasPermission } from '@/lib/auth/use-permission';

@@ -6,7 +6,7 @@
  * Import `env` from this module instead of accessing process.env directly.
  * Exception: middleware.ts (Edge Runtime) validates its own slim subset.
  */
-import { z } from 'zod';
+import { z } from 'zod/v3';
 
 // Split from the cross-field `envSchema` below (which chains `.superRefine`)
 // so build-time parsing can read `.shape` directly — see `buildTimeEnv()`.

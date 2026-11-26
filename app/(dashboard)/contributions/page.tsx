@@ -15,7 +15,7 @@ import { useMembers } from '@/hooks/use-members';
 import { api } from '@/lib/api/client';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import type { Contribution } from '@/types/db.types';

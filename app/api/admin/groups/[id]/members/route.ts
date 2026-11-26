@@ -1,5 +1,5 @@
 import { NextRequest } from 'next/server';
-import { z } from 'zod';
+import { z } from 'zod/v3';
 import { withPlatformRole } from '@/lib/auth/middleware';
 import { ok, created, badRequest } from '@/lib/utils/response';
 import { listGroupMembers, createGroupMember } from '@/lib/services/admin.service';
