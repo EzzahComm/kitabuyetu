@@ -72,7 +72,7 @@ describe('organization disbursements tenant isolation', () => {
     expect(res.status).toBe(404);
   });
 
-  it("blocks same-organization approval until provider-backed settlement is available", async () => {
+  it('blocks same-organization approval until provider-backed settlement is available', async () => {
     const { id } = await createTestOrgDisbursement(orgBId, coordinatorBId, groupBId);
 
     const res = await POST(

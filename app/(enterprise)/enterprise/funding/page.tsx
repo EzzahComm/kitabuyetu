@@ -315,7 +315,10 @@ export default function FundingPortalPage() {
         }
       />
 
-      <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">Organization wallet deposits and group transfers are temporarily unavailable until verified M-Pesa or KCB Buni provider flows are connected.</p>
+      <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+        Organization wallet deposits and group transfers are temporarily unavailable until verified M-Pesa or KCB Buni
+        provider flows are connected.
+      </p>
 
       {/* Financial position */}
       {isLoading ? (

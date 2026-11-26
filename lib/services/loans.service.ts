@@ -1,9 +1,7 @@
 import { withDb, withTransaction, type TenantContext } from '@/lib/db';
 import { NotFoundError, ValidationError, ForbiddenError, ConflictError } from '@/lib/utils/errors';
 import { assertActiveMembership } from './membership-guard';
-import {
-  postTemplatedJournal,
-} from './posting-templates.service';
+import { postTemplatedJournal } from './posting-templates.service';
 import { resolveFundingPlan } from './funding-sources.service';
 import { getEffectiveLoanTerms } from './loan-policy.service';
 import { applyDisbursementCharges, applyOverdueCharges } from './loan-charges.service';
@@ -339,12 +337,15 @@ export const loansService = {
   },
 
   async disburse(_ctx: TenantContext, _id: string, _data: DisburseLoanInput): Promise<Loan> {
-    throw new ValidationError('Manual loan disbursement is disabled. Initiate the M-Pesa B2C transfer and wait for the provider callback.');
+    throw new ValidationError(
+      'Manual loan disbursement is disabled. Initiate the M-Pesa B2C transfer and wait for the provider callback.',
+    );
   },
 
-
   async recordRepayment(_ctx: TenantContext, _loanId: string, _data: RecordRepaymentInput): Promise<LoanRepayment> {
-    throw new ValidationError('Manual loan repayment recording is disabled. Only provider-confirmed M-Pesa callbacks can settle repayments.');
+    throw new ValidationError(
+      'Manual loan repayment recording is disabled. Only provider-confirmed M-Pesa callbacks can settle repayments.',
+    );
   },
 
   async markDefaulted(ctx: TenantContext, id: string, data: MarkDefaultedInput): Promise<Loan> {

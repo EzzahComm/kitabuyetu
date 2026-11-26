@@ -283,12 +283,7 @@ export default function DisbursementsPage() {
     if (elig && method === 'mpesa' && !elig.phone) return 'This member has no registered phone for M-Pesa';
     return null;
   })();
-  const formIncomplete =
-    !memberId ||
-    !elig ||
-    amt <= 0 ||
-    !!amountError ||
-    description.trim().length < 3;
+  const formIncomplete = !memberId || !elig || amt <= 0 || !!amountError || description.trim().length < 3;
 
   const refresh = () => qc.invalidateQueries({ queryKey: ['payouts'] });
 
@@ -738,7 +733,6 @@ export default function DisbursementsPage() {
                 placeholder="e.g. Member emergency support"
               />
             </div>
-
 
             <div className="space-y-1">
               <Label htmlFor="payout-notes">Additional notes (optional)</Label>

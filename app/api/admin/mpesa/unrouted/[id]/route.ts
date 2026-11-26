@@ -6,11 +6,13 @@ import { z } from 'zod/v3';
 
 export const dynamic = 'force-dynamic';
 
-const schema = z.object({
-  action: z.literal('dismiss'),
-  groupId: z.string().uuid().optional(),
-  notes: z.string().optional(),
-}).strict();
+const schema = z
+  .object({
+    action: z.literal('dismiss'),
+    groupId: z.string().uuid().optional(),
+    notes: z.string().optional(),
+  })
+  .strict();
 
 /**
  * Dismiss an unrouted M-Pesa payment after review. Allocation and subscription

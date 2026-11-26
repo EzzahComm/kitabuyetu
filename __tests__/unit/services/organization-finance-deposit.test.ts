@@ -32,8 +32,9 @@ const ctx = { groupId: 'grp-1', userId: 'coord-1', role: 'organization_coordinat
 
 describe('organizationFinanceService.deposit', () => {
   it('rejects manual wallet deposits until provider-confirmed inbound payments exist', async () => {
-    await expect(organizationFinanceService.deposit(ctx, { amount: 5000, source: 'typed reference' }))
-      .rejects.toThrow(/disabled until an inbound M-Pesa provider-confirmation flow is connected/i);
+    await expect(organizationFinanceService.deposit(ctx, { amount: 5000, source: 'typed reference' })).rejects.toThrow(
+      /disabled until an inbound M-Pesa provider-confirmation flow is connected/i,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
     expect(withTransaction).not.toHaveBeenCalled();
   });

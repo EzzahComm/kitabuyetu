@@ -442,7 +442,9 @@ export const dividendsService = {
     _allocationId: string,
     _input: PayAllocationInput,
   ): Promise<DividendAllocation> {
-    throw new ValidationError('Manual dividend payment recording is disabled. Dividend payouts must be completed through a provider-confirmed M-Pesa disbursement flow.');
+    throw new ValidationError(
+      'Manual dividend payment recording is disabled. Dividend payouts must be completed through a provider-confirmed M-Pesa disbursement flow.',
+    );
   },
 
   async bulkPayAllocations(
@@ -450,7 +452,9 @@ export const dividendsService = {
     _declarationId: string,
     _input: BulkPayAllocationsInput,
   ): Promise<{ paid: number; skipped: { id: string; reason: string }[] }> {
-    throw new ValidationError('Manual bulk dividend payment recording is disabled. Dividend payouts must be completed through provider-confirmed M-Pesa disbursements.');
+    throw new ValidationError(
+      'Manual bulk dividend payment recording is disabled. Dividend payouts must be completed through provider-confirmed M-Pesa disbursements.',
+    );
   },
 
   async cancelAllocation(

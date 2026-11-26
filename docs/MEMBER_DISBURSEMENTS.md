@@ -93,7 +93,6 @@ in their passbook.
 - "Request correction" is reject-with-reason followed by a new submission.
 - A failed M-Pesa dispatch (Daraja refused the POST) releases the funds and shows as failed; no SMS is sent for it.
 
-
 ## Cashless inflows and outflows (PR #245)
 
 - New member payout requests are M-Pesa only; platform sign-off for legacy cash/bank payouts is blocked.
@@ -103,7 +102,6 @@ in their passbook.
 - Manually typed M-Pesa receipt/reference values are rejected by the contribution, welfare, loan, share, dividend, billing, payout, and reconciliation entry points; a reference is not proof of settlement.
 
 - Manual journal creation and draft posting reject accounts 1001 (legacy Cash/M-Pesa), 1002 (Bank), and any account named Cash, Bank, M-Pesa, or Mobile Money. Posting revalidates older drafts, so a draft created before the guard cannot be posted into a liquid-payment account. Historical posted journals remain unchanged.
-
 
 ## Group-wide mobile-money-only payment entry
 

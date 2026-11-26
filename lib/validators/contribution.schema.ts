@@ -3,20 +3,24 @@ import { z } from 'zod/v3';
 // Cashless policy: only M-Pesa can be selected for new contribution records.
 // Historical cash rows remain readable; this schema does not rewrite them.
 
-export const CreateContributionSchema = z.object({
-  memberId: z.string().uuid(),
-  amount: z.number().positive('Amount must be positive'),
-  contributionDate: z.string().date(),
-  dueDate: z.string().date().optional().nullable(),
-  notes: z.string().max(500).optional().nullable(),
-}).strict();
+export const CreateContributionSchema = z
+  .object({
+    memberId: z.string().uuid(),
+    amount: z.number().positive('Amount must be positive'),
+    contributionDate: z.string().date(),
+    dueDate: z.string().date().optional().nullable(),
+    notes: z.string().max(500).optional().nullable(),
+  })
+  .strict();
 
-export const UpdateContributionSchema = z.object({
-  // A user may annotate or cancel a pending obligation, but only a verified
-  // provider callback may move it to completed.
-  status: z.enum(['pending', 'failed', 'cancelled', 'overdue']).optional(),
-  notes: z.string().max(500).optional().nullable(),
-}).strict();
+export const UpdateContributionSchema = z
+  .object({
+    // A user may annotate or cancel a pending obligation, but only a verified
+    // provider callback may move it to completed.
+    status: z.enum(['pending', 'failed', 'cancelled', 'overdue']).optional(),
+    notes: z.string().max(500).optional().nullable(),
+  })
+  .strict();
 
 // Manual receipt-based reconciliation is deliberately unsupported. A future
 // reallocation action must reference an existing provider-confirmed payment ID.

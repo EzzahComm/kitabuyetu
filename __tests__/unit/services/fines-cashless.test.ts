@@ -15,10 +15,7 @@ describe('cashless fine settlement', () => {
       ),
     ).rejects.toThrow(/collection and settlement are disabled until a verified M-Pesa callback flow is connected/i);
     await expect(
-      finesService.markPaid(
-        { userId: 'officer-1', groupId: 'group-1', role: 'chairperson' } as never,
-        'fine-1',
-      ),
+      finesService.markPaid({ userId: 'officer-1', groupId: 'group-1', role: 'chairperson' } as never, 'fine-1'),
     ).rejects.toThrow(/collection and settlement are disabled until a verified M-Pesa callback flow is connected/i);
 
     expect(withTransaction).not.toHaveBeenCalled();

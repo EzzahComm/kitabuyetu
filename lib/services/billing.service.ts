@@ -609,11 +609,10 @@ export const billingService = {
     });
   },
 
-  async recordPayment(
-    _ctx: TenantContext,
-    _data: RecordManualPaymentInput,
-  ): Promise<Payment> {
-    throw new ValidationError('Manual invoice payment entry is disabled. Only verified M-Pesa provider callbacks may settle invoices.');
+  async recordPayment(_ctx: TenantContext, _data: RecordManualPaymentInput): Promise<Payment> {
+    throw new ValidationError(
+      'Manual invoice payment entry is disabled. Only verified M-Pesa provider callbacks may settle invoices.',
+    );
   },
 
   async addSmsCredits(ctx: TenantContext, amountKes: number, paymentId?: string): Promise<void> {
@@ -941,7 +940,9 @@ export async function setOrganizationSmsRate(
  * caller must not report a top-up either.
  */
 function rejectUnverifiedOrganizationSmsTopUp(): void {
-  throw new ValidationError('Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected');
+  throw new ValidationError(
+    'Organization SMS-credit top-ups are disabled until a verified provider payment flow is connected',
+  );
 }
 
 export async function addOrganizationSmsCredits(

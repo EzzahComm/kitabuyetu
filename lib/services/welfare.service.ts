@@ -30,10 +30,13 @@ export const ReviewWelfareRequestSchema = z.object({
   notes: z.string().optional(),
 });
 
-export const DisburseWelfareSchema = z.object({
-  amountDisbursed: z.coerce.number().positive(),
-  notes: z.string().optional(),
-}).strict().refine(() => false, { message: 'Manual welfare disbursement is disabled; wait for the M-Pesa provider callback.' });
+export const DisburseWelfareSchema = z
+  .object({
+    amountDisbursed: z.coerce.number().positive(),
+    notes: z.string().optional(),
+  })
+  .strict()
+  .refine(() => false, { message: 'Manual welfare disbursement is disabled; wait for the M-Pesa provider callback.' });
 
 export const WelfareQuerySchema = z.object({
   page: z.coerce.number().int().positive().default(1),
@@ -42,14 +45,19 @@ export const WelfareQuerySchema = z.object({
   memberId: z.string().uuid().optional(),
 });
 
-export const RecordWelfarePoolSchema = z.object({
-  memberId: z.string().uuid(),
-  amount: z.coerce.number().positive(),
-  contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
-  periodMonth: z.coerce.number().int().min(1).max(12).optional(),
-  periodYear: z.coerce.number().int().min(2020).optional(),
-  notes: z.string().optional(),
-}).strict().refine(() => false, { message: 'Manual welfare pool entries are disabled; use provider-confirmed payment allocation.' });
+export const RecordWelfarePoolSchema = z
+  .object({
+    memberId: z.string().uuid(),
+    amount: z.coerce.number().positive(),
+    contributionType: z.enum(['regular', 'emergency_levy', 'special', 'bereavement_levy']).default('regular'),
+    periodMonth: z.coerce.number().int().min(1).max(12).optional(),
+    periodYear: z.coerce.number().int().min(2020).optional(),
+    notes: z.string().optional(),
+  })
+  .strict()
+  .refine(() => false, {
+    message: 'Manual welfare pool entries are disabled; use provider-confirmed payment allocation.',
+  });
 
 export type CreateWelfareRequestInput = z.infer<typeof CreateWelfareRequestSchema>;
 export type ReviewWelfareRequestInput = z.infer<typeof ReviewWelfareRequestSchema>;
@@ -246,9 +254,10 @@ export const welfareService = {
   },
 
   async disburse(_ctx: TenantContext, _id: string, _data: DisburseWelfareInput) {
-    throw new ValidationError('Manual welfare disbursement is disabled. Complete the M-Pesa B2C transfer and wait for the provider callback.');
+    throw new ValidationError(
+      'Manual welfare disbursement is disabled. Complete the M-Pesa B2C transfer and wait for the provider callback.',
+    );
   },
-
 
   async getPoolSummary(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
@@ -284,7 +293,9 @@ export const welfareService = {
   },
 
   async recordPoolContribution(_ctx: TenantContext, _data: RecordWelfarePoolInput) {
-    throw new ValidationError('Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.');
+    throw new ValidationError(
+      'Manual welfare contributions are disabled. Contributions are allocated only from provider-confirmed M-Pesa payments.',
+    );
   },
 
   async listPoolContributions(ctx: TenantContext, params: { page: number; limit: number }) {

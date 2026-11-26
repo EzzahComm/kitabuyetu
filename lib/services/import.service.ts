@@ -569,7 +569,9 @@ export const importService = {
     _ctx: TenantContext,
     _csvBuffer: Buffer,
   ): Promise<{ imported: number; errors: ImportRowError[] }> {
-    throw new ValidationError('Manual contribution imports are disabled. Historical records require a separate controlled history-import workflow.');
+    throw new ValidationError(
+      'Manual contribution imports are disabled. Historical records require a separate controlled history-import workflow.',
+    );
   },
 
   // ── Two-phase contribution import (Phase E7) ─────────────────────────
@@ -583,14 +585,18 @@ export const importService = {
     _csvBuffer: Buffer,
     _filename: string | null,
   ): Promise<ImportJob & { preview_rows: PreparedContributionRow[] }> {
-    throw new ValidationError('Manual contribution imports are disabled. New payments must be confirmed by the M-Pesa provider callback.');
+    throw new ValidationError(
+      'Manual contribution imports are disabled. New payments must be confirmed by the M-Pesa provider callback.',
+    );
   },
 
   async commitContributions(
     _ctx: TenantContext,
     _jobId: string,
   ): Promise<ImportJob & { imported: number; skipped: number }> {
-    throw new ValidationError('Contribution imports cannot create completed payments. Only provider-confirmed M-Pesa callbacks may post contributions.');
+    throw new ValidationError(
+      'Contribution imports cannot create completed payments. Only provider-confirmed M-Pesa callbacks may post contributions.',
+    );
   },
 
   async rollbackContributions(

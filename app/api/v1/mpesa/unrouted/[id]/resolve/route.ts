@@ -7,10 +7,12 @@ import { assertAuthFresh } from '@/lib/services/membership-guard';
 import { requirePermission } from '@/lib/auth/permissions';
 import { ok, handleError } from '@/lib/utils/response';
 
-const Schema = z.object({
-  action: z.literal('dismiss'),
-  notes: z.string().max(500).optional(),
-}).strict();
+const Schema = z
+  .object({
+    action: z.literal('dismiss'),
+    notes: z.string().max(500).optional(),
+  })
+  .strict();
 
 /** POST /api/v1/mpesa/unrouted/[id]/resolve — dismiss an unrouted receipt after review (treasurer+). */
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {

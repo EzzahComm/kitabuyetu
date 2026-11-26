@@ -265,7 +265,8 @@ export default function MpesaUnroutedPage() {
               </div>
 
               <div className="rounded-md border p-3 text-sm text-muted-foreground">
-                Unrouted receipts cannot be manually allocated or used to activate subscriptions. Only an existing provider-confirmed payment can be corrected through the audited reallocation workflow.
+                Unrouted receipts cannot be manually allocated or used to activate subscriptions. Only an existing
+                provider-confirmed payment can be corrected through the audited reallocation workflow.
               </div>
 
               {(action === 'allocate' || action === 'activate_subscription') && (

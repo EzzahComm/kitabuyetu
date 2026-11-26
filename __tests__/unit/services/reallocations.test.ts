@@ -43,16 +43,18 @@ const contribution = (over: Record<string, unknown> = {}) => ({
   ],
 });
 const paymentAllocated = (amount = '5000.00', over: Record<string, unknown> = {}) => ({
-  rows: [{
-    id: 'pay-1',
-    allocation_status: 'allocated',
-    status: 'completed',
-    payment_method: 'mpesa',
-    mpesa_receipt_number: 'RX123',
-    group_id: 'grp-1',
-    amount,
-    ...over,
-  }],
+  rows: [
+    {
+      id: 'pay-1',
+      allocation_status: 'allocated',
+      status: 'completed',
+      payment_method: 'mpesa',
+      mpesa_receipt_number: 'RX123',
+      group_id: 'grp-1',
+      amount,
+      ...over,
+    },
+  ],
 });
 
 describe('reallocationsService.initiate', () => {

@@ -370,7 +370,11 @@ export const accountingService = {
     data: CreateJournalInput,
   ): Promise<JournalEntry & { lines: JournalLine[] }> {
     return withTransaction(ctx, async (client) => {
-      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, data.lines.map((line) => line.accountId));
+      await assertNoManualLiquidPaymentAccount(
+        client,
+        ctx.groupId,
+        data.lines.map((line) => line.accountId),
+      );
       const { rows: jeRows } = await client.query<JournalEntry>(
         `INSERT INTO journal_entries (group_id, entry_date, reference, description, created_by)
          VALUES ($1,$2,$3,$4,$5) RETURNING *`,
@@ -419,9 +423,14 @@ export const accountingService = {
       // Re-check at posting time so pre-existing drafts cannot bypass the new
       // cashless policy. Lock the target accounts through the transaction.
       const { rows: draftLines } = await client.query<{ account_id: string }>(
-        `SELECT account_id FROM journal_lines WHERE journal_entry_id = $1`, [id],
+        `SELECT account_id FROM journal_lines WHERE journal_entry_id = $1`,
+        [id],
       );
-      await assertNoManualLiquidPaymentAccount(client, ctx.groupId, draftLines.map((line) => line.account_id));
+      await assertNoManualLiquidPaymentAccount(
+        client,
+        ctx.groupId,
+        draftLines.map((line) => line.account_id),
+      );
 
       // Maker-checker (ACCOUNTING_ARCHITECTURE_AUDIT.md §15): above the
       // group's threshold, the poster must differ from the creator. The DB

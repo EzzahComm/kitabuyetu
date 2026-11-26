@@ -525,11 +525,7 @@ export default function SmsPricingPage() {
             <Button variant="outline" onClick={() => setTopUpTarget(null)}>
               Cancel
             </Button>
-            <Button
-              onClick={handleTopUp}
-              loading={topUpOrg.isPending}
-              disabled
-            >
+            <Button onClick={handleTopUp} loading={topUpOrg.isPending} disabled>
               Add credits
             </Button>
           </DialogFooter>

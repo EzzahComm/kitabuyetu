@@ -49,7 +49,6 @@ export default function UnroutedPage() {
     queryFn: () => api.get<{ items: Unrouted[] }>('/mpesa/unrouted'),
   });
 
-
   const items = data?.items ?? [];
 
   const openResolve = (row: Unrouted) => {
@@ -167,7 +166,10 @@ export default function UnroutedPage() {
                   {active.bill_ref ? ` · Ref ${active.bill_ref}` : ''}
                 </p>
               </div>
-              <p className="text-sm text-muted-foreground">Manual allocation is disabled. Only an existing provider-confirmed payment can be corrected through the audited reallocation workflow.</p>
+              <p className="text-sm text-muted-foreground">
+                Manual allocation is disabled. Only an existing provider-confirmed payment can be corrected through the
+                audited reallocation workflow.
+              </p>
               <div className="space-y-1">
                 <Label>Review notes (optional)</Label>
                 <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Reason / context" />

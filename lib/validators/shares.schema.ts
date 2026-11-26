@@ -73,7 +73,8 @@ export const CreateShareTransactionSchema = z
 
     notes: z.string().max(1000).optional().nullable(),
     postedAt: z.string().datetime().optional(),
-  }).strict()
+  })
+  .strict()
   .refine((v) => v.type !== 'transfer' || !!v.counterpartyMemberId, {
     path: ['counterpartyMemberId'],
     message: 'counterpartyMemberId is required for transfers',

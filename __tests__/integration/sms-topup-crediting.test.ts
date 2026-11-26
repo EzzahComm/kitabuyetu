@@ -87,8 +87,7 @@ describe('SMS top-up crediting', () => {
       [groupId],
     );
 
-    await expect(billingService.addSmsCredits(ctx, 100, payment.id))
-      .rejects.toThrow(/provider receipt/i);
+    await expect(billingService.addSmsCredits(ctx, 100, payment.id)).rejects.toThrow(/provider receipt/i);
     expect(await creditBalance(groupId)).toBe(0);
     expect(await ledgerCount(payment.id)).toBe(0);
   });
@@ -111,13 +110,14 @@ describe('SMS top-up crediting', () => {
   });
 
   it('rejects repeated manual grants without a provider payment ID', async () => {
-    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(/Manual SMS-credit top-ups are disabled/i);
-    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(/Manual SMS-credit top-ups are disabled/i);
-    expect(await creditBalance(groupId)).toBe(0);
-    const [row] = await rawQuery<{ n: string }>(
-      `SELECT count(*) AS n FROM sms_credits WHERE group_id = $1`,
-      [groupId],
+    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(
+      /Manual SMS-credit top-ups are disabled/i,
     );
+    await expect(billingService.addSmsCredits(ctx, 50, undefined)).rejects.toThrow(
+      /Manual SMS-credit top-ups are disabled/i,
+    );
+    expect(await creditBalance(groupId)).toBe(0);
+    const [row] = await rawQuery<{ n: string }>(`SELECT count(*) AS n FROM sms_credits WHERE group_id = $1`, [groupId]);
     expect(Number(row.n)).toBe(0);
   });
 

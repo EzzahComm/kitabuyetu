@@ -13,9 +13,9 @@ describe('unrouted M-Pesa receipts', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('does not allow an unrouted receipt to be manually allocated as a contribution', async () => {
-    await expect(
-      resolveUnrouted(ctx, 'unrouted-1', 'allocate', { memberId: 'member-1' }),
-    ).rejects.toBeInstanceOf(ValidationError);
+    await expect(resolveUnrouted(ctx, 'unrouted-1', 'allocate', { memberId: 'member-1' })).rejects.toBeInstanceOf(
+      ValidationError,
+    );
     expect(withTransaction).not.toHaveBeenCalled();
   });
 });

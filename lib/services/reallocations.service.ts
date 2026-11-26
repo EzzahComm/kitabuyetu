@@ -118,7 +118,9 @@ export const reallocationsService = {
         payment.group_id !== ctx.groupId ||
         Number(payment.amount) !== Number(contrib.amount)
       ) {
-        throw new ValidationError('Only a completed, provider-confirmed M-Pesa payment linked to this contribution can be reallocated');
+        throw new ValidationError(
+          'Only a completed, provider-confirmed M-Pesa payment linked to this contribution can be reallocated',
+        );
       }
 
       // The payment row is already locked. Also prevent a second correction

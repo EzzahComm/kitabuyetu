@@ -15,7 +15,6 @@ import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
 import { rawQuery } from './helpers/db';
 
-
 async function lots(groupId: string) {
   return rawQuery<{ credits_added: string; remaining_credits: string; rate_applied: string }>(
     `SELECT credits_added, remaining_credits, rate_applied

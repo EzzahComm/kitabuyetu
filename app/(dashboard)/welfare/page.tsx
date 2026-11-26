@@ -50,7 +50,6 @@ type WelfareRequestForm = z.infer<typeof requestSchema>;
 // call sites in this file for the same pattern.
 type WelfareRequestFormInput = z.input<typeof requestSchema>;
 
-
 const priorityClass: Record<string, string> = {
   urgent: 'text-red-600 font-semibold',
   high: 'text-orange-500 font-medium',
@@ -97,7 +96,6 @@ export default function WelfarePage() {
       toast({ variant: 'destructive', title: 'Error', description: getErrorMessage(e) });
     }
   };
-
 
   const openReview = (row: WelfareRequestRow) => {
     setReviewRow(row);

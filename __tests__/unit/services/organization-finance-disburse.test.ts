@@ -150,8 +150,9 @@ function sqlRouter(threshold: number) {
 
 describe('organizationFinanceService.disburse', () => {
   it('rejects organization-to-group ledger-only disbursements without a provider transfer', async () => {
-    await expect(organizationFinanceService.disburse(ctx, input))
-      .rejects.toThrow(/disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i);
+    await expect(organizationFinanceService.disburse(ctx, input)).rejects.toThrow(
+      /disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
     expect(withTransaction).not.toHaveBeenCalled();
   });
@@ -159,8 +160,9 @@ describe('organizationFinanceService.disburse', () => {
 
 describe('organizationFinanceService.approveDisbursement', () => {
   it('rejects approval while no verified provider settlement flow exists', async () => {
-    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2'))
-      .rejects.toThrow(/disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i);
+    await expect(organizationFinanceService.approveDisbursement(ctx, 'disb-2')).rejects.toThrow(
+      /disabled until a verified M-Pesa or KCB Buni transfer flow is connected/i,
+    );
     expect(mockQuery).not.toHaveBeenCalled();
     expect(withTransaction).not.toHaveBeenCalled();
   });

@@ -46,7 +46,9 @@ export async function resolveUnrouted(
   opts: { memberId?: string; notes?: string },
 ): Promise<void> {
   if (String(action) !== 'dismiss') {
-    throw new ValidationError('Unrouted receipts cannot be manually allocated. Use the audited reallocation workflow for an existing provider-confirmed payment.');
+    throw new ValidationError(
+      'Unrouted receipts cannot be manually allocated. Use the audited reallocation workflow for an existing provider-confirmed payment.',
+    );
   }
 
   return withTransaction(ctx, async (db) => {

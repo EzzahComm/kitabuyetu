@@ -556,11 +556,7 @@ export default function DividendDetailPage() {
         }}
       />
 
-      <BulkPayDialog
-        open={bulkOpen}
-        count={selected.size}
-        onOpenChange={setBulkOpen}
-      />
+      <BulkPayDialog open={bulkOpen} count={selected.size} onOpenChange={setBulkOpen} />
     </div>
   );
 }
@@ -647,13 +643,16 @@ function PayDialog({
           <DialogTitle>Dividend payout pending provider integration</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Manual receipt entry is disabled. This allocation will only be marked paid after a verified payout-provider callback.
+          Manual receipt entry is disabled. This allocation will only be marked paid after a verified payout-provider
+          callback.
         </p>
         <p className="text-sm font-medium">
           {allocation.member_first_name} {allocation.member_last_name} · {fmtMoney(allocation.net_amount)}
         </p>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -676,10 +675,13 @@ function BulkPayDialog({
           <DialogTitle>Dividend payouts pending provider integration</DialogTitle>
         </DialogHeader>
         <p className="text-sm text-muted-foreground">
-          Manual bulk receipt entry is disabled. {count} selected allocation(s) will only be marked paid after verified payout-provider callbacks.
+          Manual bulk receipt entry is disabled. {count} selected allocation(s) will only be marked paid after verified
+          payout-provider callbacks.
         </p>
         <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

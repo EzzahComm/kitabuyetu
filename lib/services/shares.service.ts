@@ -227,7 +227,9 @@ export const sharesService = {
 
   async createTransaction(ctx: TenantContext, input: CreateShareTransactionInput): Promise<ShareTransaction[]> {
     if (input.type === 'purchase' || input.type === 'redemption') {
-      throw new ValidationError('Manual share purchases and redemptions are disabled. Only provider-confirmed M-Pesa allocations may post financial transactions.');
+      throw new ValidationError(
+        'Manual share purchases and redemptions are disabled. Only provider-confirmed M-Pesa allocations may post financial transactions.',
+      );
     }
     return withTransaction(ctx, async (client) => {
       // Resolve share class and lock it FOR SHARE so its config doesn't shift mid-txn.

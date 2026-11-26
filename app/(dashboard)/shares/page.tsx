@@ -488,19 +488,21 @@ export default function SharesPage() {
 
 // ── New-transaction dialog ────────────────────────────────────────────
 
-const txnSchema = z.object({
-  type: z.enum(['allocation', 'transfer', 'adjustment']),
-  memberId: z.string().uuid('Pick a member'),
-  shareClassId: z.string().uuid('Pick a class'),
-  quantity: z.coerce
-    .number()
-    .int()
-    .refine((n) => n !== 0, 'Quantity is required'),
-  unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
-  totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
-  counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
-  notes: z.string().max(1000).optional().or(z.literal('')),
-}).strict();
+const txnSchema = z
+  .object({
+    type: z.enum(['allocation', 'transfer', 'adjustment']),
+    memberId: z.string().uuid('Pick a member'),
+    shareClassId: z.string().uuid('Pick a class'),
+    quantity: z.coerce
+      .number()
+      .int()
+      .refine((n) => n !== 0, 'Quantity is required'),
+    unitPrice: z.coerce.number().nonnegative().optional().or(z.literal('')),
+    totalAmount: z.coerce.number().nonnegative().optional().or(z.literal('')),
+    counterpartyMemberId: z.string().uuid().optional().or(z.literal('')),
+    notes: z.string().max(1000).optional().or(z.literal('')),
+  })
+  .strict();
 type TxnForm = z.infer<typeof txnSchema>;
 
 function NewTransactionDialog({
@@ -565,7 +567,9 @@ function NewTransactionDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>New share transaction</DialogTitle>
-          <p className="text-sm text-muted-foreground">Member purchases and redemptions are unavailable until provider-backed payment allocation is enabled.</p>
+          <p className="text-sm text-muted-foreground">
+            Member purchases and redemptions are unavailable until provider-backed payment allocation is enabled.
+          </p>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
           <div className="grid gap-3 md:grid-cols-2">
@@ -656,7 +660,6 @@ function NewTransactionDialog({
               />
             </div>
           </div>
-
 
           <div className="space-y-1">
             <Label htmlFor="notes">Notes</Label>

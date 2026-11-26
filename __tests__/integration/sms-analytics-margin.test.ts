@@ -343,8 +343,9 @@ describe('Organization SMS credit top-ups', () => {
   });
 
   it('rejects self-attested organization SMS top-ups without provider settlement', async () => {
-    await expect(addOrganizationSmsCredits(organizationId, 900, coordinatorId))
-      .rejects.toThrow(/disabled until a verified provider payment flow is connected/i);
+    await expect(addOrganizationSmsCredits(organizationId, 900, coordinatorId)).rejects.toThrow(
+      /disabled until a verified provider payment flow is connected/i,
+    );
 
     const rows = await rawQuery<{ sms_credits: string }>(
       `SELECT sms_credits FROM organization_billing_accounts WHERE organization_id = $1`,

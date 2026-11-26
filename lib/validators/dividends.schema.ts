@@ -50,9 +50,21 @@ export const CancelDeclarationSchema = z.object({
   reason: z.string().min(3).max(500),
 });
 
-export const PayAllocationSchema = z.object({}).strict().refine(() => false, { message: 'Manual dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.' });
+export const PayAllocationSchema = z
+  .object({})
+  .strict()
+  .refine(() => false, {
+    message:
+      'Manual dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.',
+  });
 
-export const BulkPayAllocationsSchema = z.object({ allocationIds: z.array(z.string().uuid()).min(1).max(500) }).strict().refine(() => false, { message: 'Manual bulk dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.' });
+export const BulkPayAllocationsSchema = z
+  .object({ allocationIds: z.array(z.string().uuid()).min(1).max(500) })
+  .strict()
+  .refine(() => false, {
+    message:
+      'Manual bulk dividend payment recording is disabled; only provider-confirmed M-Pesa payouts may settle allocations.',
+  });
 
 export type CreateDividendDeclarationInput = z.infer<typeof CreateDividendDeclarationSchema>;
 export type UpdateDividendDeclarationInput = z.infer<typeof UpdateDividendDeclarationSchema>;
