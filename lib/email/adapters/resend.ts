@@ -111,7 +111,8 @@ export class ResendAdapter implements IEmailAdapter {
     try {
       const attachments = payload.attachments?.map((a) => ({
         filename: a.filename,
-        content: Buffer.isBuffer(a.content) ? a.content : Buffer.from(a.content as string, 'base64'),
+        content: typeof a.content === 'string' ? Buffer.from(a.content, 'base64') : a.content,
+        contentType: a.contentType,
       }));
 
       const { data, error } = await getResend().emails.send(

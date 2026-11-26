@@ -45,7 +45,8 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
       return handleEmailCampaignLaunch(job.payload);
 
     case 'email_retry_failed':
-      return handleEmailRetryFailed();
+      // Legacy queued jobs only have log metadata, without the original email payload.
+      return { message: 'Skipped legacy email log retry' };
 
     case 'email_send':
       return handleEmailSend(job.payload);
@@ -213,12 +214,6 @@ async function handleEmailCampaignLaunch(payload: Record<string, unknown>): Prom
   return { message: 'Email campaign launched', campaignId };
 }
 
-async function handleEmailRetryFailed(): Promise<HandlerResult> {
-  const { retryFailedEmails } = await import('@/lib/services/scheduler.service');
-  const result = await retryFailedEmails();
-  return { message: 'Failed emails retried', ...flattenResult(result) };
-}
-
 /**
  * Send one templated email. Replaces lib/queue's Redis fan-out — every
  * `queueEmail()` call now enqueues this job type instead of a Redis item.
@@ -230,9 +225,19 @@ async function handleEmailSend(payload: Record<string, unknown>): Promise<Handle
   const to = Array.isArray(payload.to) ? payload.to.map(String) : String(payload.to ?? '');
   const templateKey = String(payload.templateKey ?? '');
 
+  const attachments = payload.attachments as
+    { filename: string; content: string | { type: 'Buffer'; data: number[] }; contentType: string }[] | undefined;
+
   const result = await sendTemplatedEmail({
     templateKey,
     to,
+    locale: typeof payload.locale === 'string' ? payload.locale : undefined,
+    from: typeof payload.from === 'string' ? payload.from : undefined,
+    replyTo: typeof payload.replyTo === 'string' ? payload.replyTo : undefined,
+    attachments: attachments?.map((attachment) => ({
+      ...attachment,
+      content: typeof attachment.content === 'string' ? attachment.content : Buffer.from(attachment.content.data),
+    })),
     vars: (payload.vars ?? {}) as Record<string, string | number | boolean | null | undefined>,
     groupId: payload.groupId ? String(payload.groupId) : null,
     userId: payload.userId ? String(payload.userId) : undefined,

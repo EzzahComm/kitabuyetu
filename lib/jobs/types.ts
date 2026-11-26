@@ -4,7 +4,7 @@ export type JobType =
   | 'enterprise_webhook_delivery'
   | 'email_campaign_process' // Process due email schedules (every 5 min)
   | 'email_campaign_launch' // Ad-hoc: launch one email campaign (enqueued on demand)
-  | 'email_retry_failed' // Retry transiently-failed emails (every 5 min)
+  | 'email_retry_failed' // Legacy job retained to drain existing queue entries
   | 'email_send' // Ad-hoc: send one templated email (replaces lib/queue's Redis email fan-out)
   | 'email_campaign_drain' // Drain due email_campaign_recipients rows for in-flight campaigns (every 5 min)
   | 'newsletter_digest_drain' // Drain pending newsletter_digest_recipients rows for in-flight digests (every 5 min)
