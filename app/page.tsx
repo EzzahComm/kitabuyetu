@@ -178,9 +178,11 @@ export default function Home() {
         <HeroCarousel />
 
         {/* Partners */}
-        <section aria-label="Partners" className="border-b border-brand-100 py-10">
+        <section aria-labelledby="partners-heading" className="border-b border-brand-100 py-10">
           <Container className="flex flex-col items-center gap-6">
-            <p className="text-center font-display text-xl font-semibold text-finanza-dark">Technology and Delivery</p>
+            <h2 id="partners-heading" className="text-center font-display text-xl font-semibold text-finanza-dark">
+              Our Partners
+            </h2>
             <ul className="flex flex-wrap items-center justify-center gap-5">
               {PARTNER_LOGOS.map((partner) => (
                 <li
