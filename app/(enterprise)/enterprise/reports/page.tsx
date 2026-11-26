@@ -76,19 +76,16 @@ function BudgetReportTab() {
     );
   }
   if (isError) return <ReportLoadError error={error} retry={refetch} />;
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        icon={FileBarChart}
-        title="No funding programs yet"
-        description="Budget variance appears here once you've created a funding program."
-      />
-    );
-  }
-
   return (
     <div className="space-y-3">
       <ExportReport reportType="program_budget" />
+      {items.length === 0 && (
+        <EmptyState
+          icon={FileBarChart}
+          title="No funding programs yet"
+          description="Budget variance appears here once you've created a funding program."
+        />
+      )}
       {items.map((p) => (
         <Card key={p.id}>
           <CardContent className="space-y-3 py-4">
@@ -167,19 +164,16 @@ function DonorSpendTab() {
     );
   }
   if (isError) return <ReportLoadError error={error} retry={refetch} />;
-  if (items.length === 0) {
-    return (
-      <EmptyState
-        icon={FileBarChart}
-        title="No donor spend to report yet"
-        description="This groups settled disbursements by funding source once your programs start disbursing."
-      />
-    );
-  }
-
   return (
     <div className="space-y-3">
       <ExportReport reportType="donor_spend" />
+      {items.length === 0 && (
+        <EmptyState
+          icon={FileBarChart}
+          title="No donor spend to report yet"
+          description="This groups settled disbursements by funding source once your programs start disbursing."
+        />
+      )}
       {items.map((d) => (
         <Card key={d.fundingSource}>
           <CardHeader className="pb-2">
