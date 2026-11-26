@@ -7,16 +7,26 @@
     <meta name="description" content="Subira International website preview.">
     <title>Subira International</title>
     <link rel="stylesheet" href="/styles.css">
+    <script src="/navigation.js" defer></script>
   </head>
   <body>
-    <header>
-      <div class="container">Subira International</div>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <div class="container header-row">
+        <a class="site-brand" href="/">Subira International</a>
+        <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="primary-navigation">
+          <span aria-hidden="true">☰</span> Menu
+        </button>
+        <nav class="site-nav" id="primary-navigation" aria-label="Primary">
+          <a href="/" aria-current="page">Home</a>
+          <a class="nav-action" href="https://kitabuyetu.co.ke/enterprise/login">Staff sign in</a>
+        </nav>
+      </div>
     </header>
-    <main class="hero">
+    <main class="hero" id="main">
       <div class="container">
         <h1>Subira International</h1>
         <p>Website preview. The full site is being prepared.</p>
-        <a class="workspace-link" href="https://kitabuyetu.co.ke/enterprise/login">Sign in to the Kitabu Yetu workspace</a>
       </div>
     </main>
   </body>

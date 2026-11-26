@@ -1,5 +1,6 @@
 :root {
   /* Kitabu Yetu marketing palette, from lib/ui/finanza-palette.ts. */
+  --blue: #2d50d6;
   --navy: #011a41;
   --muted: #555555;
   --border: #dfe4fd;
@@ -15,10 +16,95 @@ body {
   width: min(100% - 3rem, 70rem);
   margin-inline: auto;
 }
-header {
-  padding-block: 1.25rem;
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
   border-bottom: 1px solid var(--border);
+  background: white;
+}
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.5rem;
+  min-height: 5rem;
+}
+.site-brand {
+  color: var(--navy);
+  font-size: 1.125rem;
   font-weight: 700;
+  text-decoration: none;
+}
+.site-nav {
+  display: flex;
+  align-items: center;
+  gap: 1.75rem;
+}
+.site-nav a {
+  padding: .625rem .75rem;
+  color: var(--navy);
+  font-weight: 600;
+  text-decoration: none;
+}
+.site-nav [aria-current], .site-nav a:hover {
+  color: var(--blue);
+}
+.site-nav .nav-action {
+  padding-inline: 1.125rem;
+  border-radius: .5rem;
+  background: var(--blue);
+  color: white;
+}
+.site-nav .nav-action:hover {
+  background: #203897;
+}
+.menu-toggle {
+  display: none;
+  padding: .625rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: .5rem;
+  background: white;
+  color: var(--navy);
+  font: inherit;
+  font-weight: 600;
+}
+.skip-link {
+  position: fixed;
+  z-index: 2;
+  inset: .5rem auto auto .5rem;
+  padding: .75rem;
+  background: white;
+  transform: translateY(-150%);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+a:focus-visible, button:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+@media (max-width: 40rem) {
+  .header-row {
+    min-height: 4rem;
+    flex-wrap: wrap;
+    gap: 0;
+  }
+  .site-nav {
+    flex: 0 0 100%;
+    align-items: stretch;
+    flex-direction: column;
+    gap: .5rem;
+    padding-block: .75rem;
+    border-top: 1px solid var(--border);
+  }
+  .menu-toggle[data-ready] {
+    display: inline-flex;
+    gap: .5rem;
+  }
+  .menu-toggle[aria-expanded="false"][data-ready] + .site-nav {
+    display: none;
+  }
 }
 .hero {
   padding-block: clamp(5rem, 13vw, 11rem);
@@ -34,16 +120,4 @@ p {
   margin-block: 1.25rem 0;
   color: var(--muted);
   font-size: 1.125rem;
-}
-
-.workspace-link {
-  display: inline-block;
-  margin-block-start: 1.5rem;
-  color: #2a4bca;
-  font-weight: 700;
-  text-underline-offset: 0.2em;
-}
-.workspace-link:focus-visible {
-  outline: 2px solid currentColor;
-  outline-offset: 4px;
 }
