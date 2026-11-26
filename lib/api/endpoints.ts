@@ -1,3 +1,5 @@
+import type { ExportRow, ScheduleRow } from '@/lib/services/report-export.service';
+import type { reportsService } from '@/lib/services/reports.service';
 import { api, adminApi } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
@@ -79,6 +81,9 @@ import type {
   DisbursePayload,
   DisbursementActionInput,
   BrandingPayload,
+  CreateReportExportInput,
+  CreateReportScheduleInput,
+  UpdateReportScheduleInput,
   UpdateProgramStatusInput,
   TopUpSmsCreditsPayload,
 } from '@/lib/validators/organization.schema';
@@ -664,9 +669,15 @@ export const mpesaApi = {
 // Reports
 // ------------------------------------------------------------------
 export const reportsApi = {
-  contributions: (from: string, to: string) => api.get<unknown>(`/reports?type=contribution&from=${from}&to=${to}`),
-  loans: () => api.get<unknown>('/reports?type=loans'),
-  financial: (from: string, to: string) => api.get<unknown>(`/reports?type=financial&from=${from}&to=${to}`),
+  contributions: (from: string, to: string) =>
+    api.get<Awaited<ReturnType<typeof reportsService.contributionSummary>>>(
+      `/reports?type=contribution&from=${from}&to=${to}`,
+    ),
+  loans: () => api.get<Awaited<ReturnType<typeof reportsService.loanReport>>>('/reports?type=loans'),
+  financial: (from: string, to: string) =>
+    api.get<Awaited<ReturnType<typeof reportsService.financialReport>>>(
+      `/reports?type=financial&from=${from}&to=${to}`,
+    ),
 };
 
 // ------------------------------------------------------------------
@@ -763,6 +774,16 @@ export const organizationApi = {
   // this is the first frontend wiring for either.
   budgetReport: () => adminApi.get<{ items: ProgramBudgetLine[] }>('/organization/programs?report=budget'),
   donorSpendReport: () => adminApi.get<{ items: DonorSpendLine[] }>('/organization/programs?report=donor'),
+  requestReportExport: (body: CreateReportExportInput) =>
+    adminApi.post<Pick<ExportRow, 'id' | 'status'>>('/organization/reports/export', body),
+  reportExport: (id: string) =>
+    adminApi.get<ExportRow & { downloadUrl: string | null }>(`/organization/reports/export/${id}`),
+  reportSchedules: () => adminApi.get<{ items: ScheduleRow[] }>('/organization/reports/schedules'),
+  createReportSchedule: (body: CreateReportScheduleInput) =>
+    adminApi.post<ScheduleRow>('/organization/reports/schedules', body),
+  updateReportSchedule: (id: string, body: UpdateReportScheduleInput) =>
+    adminApi.patch<ScheduleRow>(`/organization/reports/schedules/${id}`, body),
+  deleteReportSchedule: (id: string) => adminApi.delete<void>(`/organization/reports/schedules/${id}`),
 
   // ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md Phase 4 — members page. New
   // backend (organization.service.ts's listMembers) — customer members

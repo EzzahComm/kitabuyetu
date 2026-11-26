@@ -35,6 +35,8 @@ export const enterpriseKeys = {
       : ([...enterpriseKeys.all, 'disbursements', params] as const),
   accounting: () => [...enterpriseKeys.all, 'accounting'] as const,
   reportsBudget: () => [...enterpriseKeys.all, 'reports', 'budget'] as const,
+  reportSchedules: () => [...enterpriseKeys.all, 'reports', 'schedules'] as const,
+  reportExport: (id: string) => [...enterpriseKeys.all, 'report-export', id] as const,
   reportsDonor: () => [...enterpriseKeys.all, 'reports', 'donor'] as const,
   policies: () => [...enterpriseKeys.all, 'policies'] as const,
   members: (page?: number, search?: string) => [...enterpriseKeys.all, 'members', page, search] as const,

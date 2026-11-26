@@ -265,7 +265,7 @@ export const reportExportService = {
 
     return withDb(ctx, async (db) => {
       const { rows: current } = await db.query<ScheduleRow>(
-        `SELECT ${SCHEDULE_COLUMNS} FROM report_schedules WHERE id = $1 AND organization_id = $2`,
+        `SELECT ${SCHEDULE_COLUMNS} FROM report_schedules WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
         [scheduleId, organizationId],
       );
       const prev = current[0];
@@ -282,7 +282,13 @@ export const reportExportService = {
 
       const { rows } = await db.query<ScheduleRow>(
         `UPDATE report_schedules
-         SET cadence = $3, recipient_emails = $4, notify_coordinator = $5, is_active = $6
+         SET cadence = $3, recipient_emails = $4, notify_coordinator = $5, is_active = $6,
+             next_run_at = CASE
+               WHEN cadence <> $3 AND last_run_at IS NOT NULL THEN GREATEST(NOW(), last_run_at +
+                 CASE $3 WHEN 'daily' THEN INTERVAL '1 day' WHEN 'weekly' THEN INTERVAL '7 days' ELSE INTERVAL '1 month' END)
+               WHEN NOT is_active AND $6 THEN GREATEST(NOW(), next_run_at)
+               ELSE next_run_at
+             END
          WHERE id = $1 AND organization_id = $2
          RETURNING ${SCHEDULE_COLUMNS}`,
         [scheduleId, organizationId, cadence, recipientEmails, notifyCoordinator, isActive],
@@ -312,7 +318,7 @@ export const reportExportService = {
 
     await withDb(ctx, async (db) => {
       const { rows: current } = await db.query<ScheduleRow>(
-        `SELECT ${SCHEDULE_COLUMNS} FROM report_schedules WHERE id = $1 AND organization_id = $2`,
+        `SELECT ${SCHEDULE_COLUMNS} FROM report_schedules WHERE id = $1 AND organization_id = $2 FOR UPDATE`,
         [scheduleId, organizationId],
       );
       const prev = current[0];
