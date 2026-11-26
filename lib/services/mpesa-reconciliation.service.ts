@@ -96,20 +96,25 @@ async function fulfilReconciledContribution(db: PoolClient, row: ReconStkRow): P
     return;
   }
 
+  // payment_id links the contribution back to the spine payment this sweep just
+  // completed. Without it the contribution is real money in the ledger that no
+  // payment-level report (or the platform revenue classifier) can attribute.
   const { rows: cRows } = await db.query<{ id: string }>(
     `INSERT INTO contributions
        (group_id, member_id, group_membership_id, amount, contribution_date,
-        status, payment_method, mpesa_receipt_number, notes, recorded_by)
+        status, payment_method, mpesa_receipt_number, notes, recorded_by, payment_id)
      VALUES ($1,$2,
              (SELECT gm.id FROM group_members gm
               WHERE gm.group_id = $1 AND gm.member_id = $2),
-             $3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL)
+             $3,CURRENT_DATE,'completed','mpesa',NULL,$4,NULL,
+             (SELECT p.id FROM payments p WHERE p.mpesa_checkout_request_id = $5))
      RETURNING id`,
     [
       row.group_id,
       memberId,
       amount.toFixed(2),
       `Reconciled from STK ${row.account_reference} — callback not received; M-Pesa receipt unavailable`,
+      row.checkout_request_id,
     ],
   );
   const contributionId = cRows[0].id;
