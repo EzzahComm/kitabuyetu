@@ -4,7 +4,6 @@ import { PLAN_MONTHLY_FEES, type PlanType, type SubscriptionProduct } from '@/ty
 import { membersService } from '@/lib/services/members.service';
 import { disbursementsService } from '@/lib/services/disbursements.service';
 import { paymentRequestsService } from '@/lib/services/payment-requests.service';
-import { organizationFinanceService } from '@/lib/services/organization-finance.service';
 import { updatePlatformUserRole } from '@/lib/services/admin.service';
 import { createOrganization, assignGroupToOrganization } from '@/lib/services/admin-organizations.service';
 import { assignOrganizationPlan } from '@/lib/services/organization-plan.service';
@@ -225,35 +224,33 @@ export interface TestOrgDisbursement {
   id: string;
 }
 
-/**
- * Links the org to a group, funds the wallet, and creates a real
- * organization_disbursements row via organizationFinanceService (amount set
- * above the 50,000 default org_disbursement_threshold fallback), landing in
- * pending_approval for the approve/reject tests.
- */
+/** Seed historical settlement state without calling the disabled manual payment paths. */
 export async function createTestOrgDisbursement(
   organizationId: string,
   coordinatorId: string,
   groupId: string,
   amount = 100_000,
+  status: 'pending_approval' | 'completed' = 'pending_approval',
 ): Promise<TestOrgDisbursement> {
   await assignGroupToOrganization(organizationId, groupId, coordinatorId, 'read');
-
-  const ctx: TenantContext = {
-    userId: coordinatorId,
-    groupId,
-    role: 'organization_coordinator',
-    organizationId,
-  };
-  // getWallet() lazily bootstraps the organization_wallets row (createOrganization
-  // itself doesn't); deposit()'s own getWalletForUpdate() has no such fallback and
-  // throws NotFoundError against a brand-new org.
-  await organizationFinanceService.getWallet(ctx);
-  await organizationFinanceService.deposit(ctx, { amount: amount * 10, source: 'Integration test funding' });
-  const disb = await organizationFinanceService.disburse(ctx, {
-    groupId,
-    amount,
-    disbursementType: 'grant',
-  });
-  return { id: disb.id };
+  const [disbursement] = await rawQuery<TestOrgDisbursement>(
+    `WITH wallet AS (
+       INSERT INTO organization_wallets
+         (organization_id, available_balance, committed_balance, total_deposited, total_disbursed)
+       VALUES ($1, $3 * 9, CASE WHEN $4 = 'pending_approval' THEN $3 ELSE 0 END, $3 * 10,
+               CASE WHEN $4 = 'completed' THEN $3 ELSE 0 END)
+       ON CONFLICT (organization_id, currency) DO UPDATE SET
+         available_balance = organization_wallets.available_balance + EXCLUDED.available_balance,
+         committed_balance = organization_wallets.committed_balance + EXCLUDED.committed_balance,
+         total_deposited = organization_wallets.total_deposited + EXCLUDED.total_deposited,
+         total_disbursed = organization_wallets.total_disbursed + EXCLUDED.total_disbursed
+       RETURNING id
+     )
+     INSERT INTO organization_disbursements
+       (organization_id, wallet_id, group_id, amount, disbursement_type, status, reference, created_by)
+     SELECT $1, id, $2, $3, 'grant', $4::text, $5, $6 FROM wallet
+     RETURNING id`,
+    [organizationId, groupId, amount, status, `TEST-${crypto.randomUUID()}`, coordinatorId],
+  );
+  return disbursement;
 }

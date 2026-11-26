@@ -13,6 +13,7 @@
  * first real top-up trips the alarm. Production drift is 0 today only because
  * no purchase has run since the ledger shipped.
  */
+import { randomUUID } from 'node:crypto';
 import { billingService } from '@/lib/services/billing.service';
 import { createTestGroup } from './helpers/fixtures';
 import { resetDatabase } from './helpers/cleanup';
@@ -37,7 +38,7 @@ async function topUp(groupId: string, userId: string, amount: number): Promise<v
   const [payment] = await rawQuery<{ id: string }>(
     `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
      VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk') RETURNING id`,
-    [groupId, amount, `SMS-1794070218587-8922`],
+    [groupId, amount, `SMS-${randomUUID()}`],
   );
   await billingService.addSmsCredits({ userId, groupId, role: 'treasurer' }, amount, payment.id);
 }

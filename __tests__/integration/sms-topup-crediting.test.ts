@@ -37,7 +37,7 @@ async function provision(groupId: string): Promise<void> {
 async function createPayment(groupId: string, amount: number): Promise<string> {
   const [row] = await rawQuery<{ id: string }>(
     `INSERT INTO payments (group_id, amount, payment_method, status, payment_date, mpesa_receipt_number, channel)
-     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3)
+     VALUES ($1, $2, 'mpesa', 'completed', NOW(), $3, 'stk')
      RETURNING id`,
     [groupId, amount, `SMS-${Date.now()}-${Math.floor(Math.random() * 1_000_000)}`],
   );

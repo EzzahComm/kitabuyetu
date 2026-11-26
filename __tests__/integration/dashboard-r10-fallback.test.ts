@@ -62,7 +62,7 @@ describe('Portfolio dashboard — R10 per-metric fallback', () => {
   it('reports real figures once the organization actually has a funded group', async () => {
     const { organizationId, coordinatorId } = await createTestOrganization();
     const { groupId } = await createTestGroup();
-    await createTestOrgDisbursement(organizationId, coordinatorId, groupId, 25_000);
+    await createTestOrgDisbursement(organizationId, coordinatorId, groupId, 25_000, 'completed');
 
     const res = await call(coordinatorId, organizationId);
     expect(res.status).toBe(200);
