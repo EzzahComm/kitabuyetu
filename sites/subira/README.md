@@ -18,3 +18,25 @@ Use the managed partner API documented in [Enterprise identity, APIs and billing
 2. Register one server-side client for the pilot environment with the approved issuer. Start with `billing.read` and verify that `GET /api/partner/v1/plan` returns Subira’s expected plan. Preserve its trial terms.
 3. Confirm which linked group and products Subira approved before granting `products.read`. Verify the products response for the approved group and denial for an unlinked group.
 4. Once Subira approves an HTTPS receiver, configure the signed `subscription.updated` event and verify delivery and retries using test data. Treat the event as a signal to refresh the current plan. Avoid polling for plan changes and respect the API's rate-limit responses.
+
+### Look up an existing workspace
+
+In Kitabu Yetu backoffice, open **Organizations**, search by name or registration number, and open the exact match. The UUID is the last segment of `/admin/organizations/{id}`. Confirm the organization is active and review its assigned plan. If the backoffice is unavailable, an operator with read access can run this query in the Kitabu Yetu database:
+
+```sql
+SELECT o.id AS organization_id, o.name, o.is_active,
+       s.id AS active_subscription_id, s.plan_type, s.started_at
+FROM public.organizations AS o
+LEFT JOIN public.organization_subscriptions AS s
+  ON s.organization_id = o.id AND s.status = 'active'
+WHERE lower(btrim(o.name)) = lower(btrim('Subira International'));
+```
+
+Confirm the record with the organization administrator if the search is ambiguous. An active plan alone does not establish trial status. Where the Enterprise coverage migration is applied, verify the trial expiry in `enterprise_coverage.trial_ends_at` for the confirmed UUID. Preserve the existing workspace and its coverage.
+
+### Store and verify a pilot connection
+
+- Record the verified organization UUID, environment, owner, approved issuer, JWKS URL, audience, client ID, subject and scopes in the access-controlled integration record. Keep organization-specific details out of this public repository.
+- Add the client entry to `ENTERPRISE_INTEGRATIONS` in the **central Kitabu Yetu** project under the target environment, preserving existing entries. Keep the OAuth client secret in the calling backend's server-side secret settings. Subira's static website needs no secret.
+- Deploy the central configuration, verify that the plan API rejects a request without a token, then verify that an approved `billing.read` token returns the expected organization and plan. If the API returns 503 before authentication, check for an empty integration client list. If an authenticated request returns 503, check the shared rate limiter.
+- Add an approved product grant and webhook receiver only after the plan check. Record the endpoint ID and receiver owner in the integration record, keep the signing secret in server-side settings, and confirm that revoking the client or disabling its endpoint takes effect after deployment.
