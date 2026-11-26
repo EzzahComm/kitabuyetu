@@ -36,9 +36,11 @@ function DigestComposer() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [subject, setSubject] = useState('');
   const [htmlBody, setHtmlBody] = useState('');
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
+  const [confirmation, setConfirmation] = useState<{ id: string; subject: string; htmlBody: string } | null>(null);
 
   const draft = digests?.find((d) => d.id === editingId);
+
+  const hasUnsavedChanges = !!draft && (subject !== draft.subject || htmlBody !== draft.html_body);
 
   const onCompose = async (templateKey: MarketingTemplateKey) => {
     try {
@@ -54,7 +56,9 @@ function DigestComposer() {
   const onSaveEdits = async () => {
     if (!editingId) return;
     try {
-      await update.mutateAsync({ id: editingId, subject, htmlBody });
+      const saved = await update.mutateAsync({ id: editingId, subject, htmlBody });
+      setSubject(saved.subject);
+      setHtmlBody(saved.html_body);
       toast({ title: 'Draft saved' });
     } catch (e) {
       toast({ variant: 'destructive', title: 'Could not save', description: getErrorMessage(e) });
@@ -62,11 +66,11 @@ function DigestComposer() {
   };
 
   const onSend = async () => {
-    if (!confirmingId) return;
+    if (!confirmation) return;
     try {
-      await send.mutateAsync(confirmingId);
+      await send.mutateAsync(confirmation);
       toast({ title: 'Digest queued for sending', description: 'Delivery runs over the next few minutes.' });
-      setConfirmingId(null);
+      setConfirmation(null);
       setEditingId(null);
     } catch (e) {
       toast({ variant: 'destructive', title: 'Could not send', description: getErrorMessage(e) });
@@ -104,13 +108,19 @@ function DigestComposer() {
           <div className="space-y-4 rounded-lg border p-4">
             <div className="space-y-1.5">
               <Label htmlFor="digest-subject">Subject</Label>
-              <Input id="digest-subject" value={subject} onChange={(e) => setSubject(e.target.value)} />
+              <Input
+                id="digest-subject"
+                disabled={update.isPending}
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="digest-body">Body (HTML)</Label>
               <Textarea
                 id="digest-body"
                 rows={10}
+                disabled={update.isPending}
                 className="font-mono text-xs"
                 value={htmlBody}
                 onChange={(e) => setHtmlBody(e.target.value)}
@@ -132,7 +142,12 @@ function DigestComposer() {
               <Button size="sm" variant="outline" onClick={onSaveEdits} disabled={update.isPending}>
                 {update.isPending ? 'Saving…' : 'Save changes'}
               </Button>
-              <Button size="sm" onClick={() => setConfirmingId(editingId)}>
+              {hasUnsavedChanges && <p className="text-sm text-muted-foreground">Save edits before sending.</p>}
+              <Button
+                size="sm"
+                disabled={hasUnsavedChanges || update.isPending}
+                onClick={() => setConfirmation({ id: draft.id, subject: draft.subject, htmlBody: draft.html_body })}
+              >
                 Send to active subscribers
               </Button>
             </div>
@@ -172,7 +187,7 @@ function DigestComposer() {
         )}
       </CardContent>
 
-      <Dialog open={!!confirmingId} onOpenChange={(v) => !v && setConfirmingId(null)}>
+      <Dialog open={!!confirmation} onOpenChange={(v) => !v && setConfirmation(null)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Send this email?</DialogTitle>
@@ -180,7 +195,24 @@ function DigestComposer() {
           <p className="text-sm text-muted-foreground">
             This sends to every active newsletter subscriber. It cannot be recalled once sending starts.
           </p>
+          {confirmation && (
+            <div className="space-y-2">
+              <p className="font-medium">{confirmation.subject}</p>
+              <iframe
+                title="Saved email body"
+                sandbox=""
+                srcDoc={confirmation.htmlBody}
+                className="h-56 w-full rounded-md border bg-white"
+              />
+              <p className="text-xs text-muted-foreground">
+                The Kitabu Yetu header and unsubscribe link are added at delivery.
+              </p>
+            </div>
+          )}
           <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmation(null)} disabled={send.isPending}>
+              Cancel
+            </Button>
             <Button onClick={onSend} disabled={send.isPending}>
               {send.isPending ? 'Sending…' : 'Send now'}
             </Button>

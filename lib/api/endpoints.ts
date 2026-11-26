@@ -1,4 +1,5 @@
 import type { ExportRow, ScheduleRow } from '@/lib/services/report-export.service';
+import type { reportsService } from '@/lib/services/reports.service';
 import { api, adminApi } from './client';
 import { buildQuery } from '@/lib/utils';
 import type {
@@ -668,9 +669,15 @@ export const mpesaApi = {
 // Reports
 // ------------------------------------------------------------------
 export const reportsApi = {
-  contributions: (from: string, to: string) => api.get<unknown>(`/reports?type=contribution&from=${from}&to=${to}`),
-  loans: () => api.get<unknown>('/reports?type=loans'),
-  financial: (from: string, to: string) => api.get<unknown>(`/reports?type=financial&from=${from}&to=${to}`),
+  contributions: (from: string, to: string) =>
+    api.get<Awaited<ReturnType<typeof reportsService.contributionSummary>>>(
+      `/reports?type=contribution&from=${from}&to=${to}`,
+    ),
+  loans: () => api.get<Awaited<ReturnType<typeof reportsService.loanReport>>>('/reports?type=loans'),
+  financial: (from: string, to: string) =>
+    api.get<Awaited<ReturnType<typeof reportsService.financialReport>>>(
+      `/reports?type=financial&from=${from}&to=${to}`,
+    ),
 };
 
 // ------------------------------------------------------------------

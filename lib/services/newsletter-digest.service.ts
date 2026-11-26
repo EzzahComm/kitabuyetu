@@ -183,13 +183,20 @@ export async function updateDraft(id: string, input: { subject: string; htmlBody
  * the same launch/drain split and wait as the existing group-level
  * email_campaign_launch/email_campaign_drain pair.
  */
-export async function sendDigest(id: string, adminUserId: string): Promise<NewsletterDigest> {
+export async function sendDigest(
+  id: string,
+  adminUserId: string,
+  expected?: { subject: string; htmlBody: string },
+): Promise<NewsletterDigest> {
   const digest = await withAdminDb(async (client) => {
     const { rows: existing } = await client.query<NewsletterDigest>(
       `SELECT * FROM newsletter_digests WHERE id = $1 AND status = 'draft' FOR UPDATE`,
       [id],
     );
     if (!existing.length) throw new ValidationError('Digest not found or already sent');
+    if (expected && (existing[0].subject !== expected.subject || existing[0].html_body !== expected.htmlBody)) {
+      throw new ValidationError('This draft changed. Reopen it and review the saved version before sending.');
+    }
 
     const { rows: subs } = await client.query<{ id: string; email: string }>(
       `SELECT id, email FROM newsletter_subscribers WHERE unsubscribed_at IS NULL`,
