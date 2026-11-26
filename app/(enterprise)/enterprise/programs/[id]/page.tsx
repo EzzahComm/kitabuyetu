@@ -1,8 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { adminApi } from '@/lib/api/client';
 import { useParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage, formatDate } from '@/lib/utils';
 import {
   useGroupProgram,
+  useProgramReport,
   useUpdateGroupProgram,
   useTransitionGroupProgramStatus,
   useGroupProgramApplications,
@@ -28,7 +27,7 @@ import {
   useInviteGroupToProgram,
   useCancelProgramInvitation,
 } from '@/hooks/use-enterprise-programs';
-import type { ProgramStatus } from '@/lib/services/programs.service';
+import type { ProgramMembershipStatus, ProgramStatus } from '@/lib/services/programs.service';
 import type { ProgramApplicationStatus } from '@/lib/services/program-applications.service';
 import type { ProgramInvitationRow } from '@/lib/services/program-invitations.service';
 
@@ -75,11 +74,20 @@ const INV_STATUS_LABEL: Record<ProgramInvitationRow['status'], string> = {
 export default function EnterpriseProgramDetailPage() {
   const params = useParams<{ id: string }>();
   const id = params.id;
-  const { data: program, isLoading } = useGroupProgram(id);
+  const { data: program, isLoading, isError, error, refetch } = useGroupProgram(id);
   const transition = useTransitionGroupProgramStatus(id);
   const { toast } = useToast();
 
   if (isLoading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (isError)
+    return (
+      <div role="alert" className="space-y-2">
+        <p>{getErrorMessage(error)}</p>
+        <Button variant="outline" onClick={() => void refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
   if (!program) return <p className="text-sm text-muted-foreground">Program not found.</p>;
 
   return (
@@ -145,34 +153,174 @@ export default function EnterpriseProgramDetailPage() {
   );
 }
 
-function ProgramReportsPanel({ programId }: { programId: string }) {
-  const { data, isPending, isError } = useQuery({
-    queryKey: ['enterprise', 'group-program-report', programId],
-    queryFn: () => adminApi.get<{ active: number; total: number }>(`/organization/group-programs/${programId}/reports`),
-  });
+const MEMBERSHIP_LABEL: Record<ProgramMembershipStatus, string> = {
+  invited: 'Invited',
+  active: 'Active',
+  suspended: 'Suspended',
+  withdrawn: 'Withdrawn',
+  completed: 'Completed',
+  removed: 'Removed',
+};
 
-  if (isPending) return <p>Loading programme report…</p>;
-  if (isError) return <p>The programme report could not be loaded.</p>;
-
+function StatusBreakdown<T extends string>({
+  title,
+  labels,
+  counts,
+  empty,
+}: {
+  title: string;
+  labels: Record<T, string>;
+  counts: Partial<Record<T, number>>;
+  empty: string;
+}) {
+  const statuses = (Object.keys(labels) as T[]).filter((status) => (counts[status] ?? 0) > 0);
+  const total = statuses.reduce((sum, status) => sum + (counts[status] ?? 0), 0);
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Group enrolment</CardTitle>
-        <CardDescription>Group memberships recorded for this programme.</CardDescription>
+        <CardTitle className="text-base">
+          {title} <span className="text-muted-foreground">({total})</span>
+        </CardTitle>
       </CardHeader>
       <CardContent>
-        <dl className="grid grid-cols-2 gap-4">
-          <div>
-            <dt>Active memberships</dt>
-            <dd className="text-2xl font-semibold">{data.active}</dd>
-          </div>
-          <div>
-            <dt>Total memberships</dt>
-            <dd className="text-2xl font-semibold">{data.total}</dd>
-          </div>
-        </dl>
+        {statuses.length ? (
+          <dl className="space-y-2">
+            {statuses.map((status) => (
+              <div key={status} className="flex justify-between gap-3 text-sm">
+                <dt>{labels[status]}</dt>
+                <dd className="font-medium tabular-nums">{counts[status]}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="text-sm text-muted-foreground">{empty}</p>
+        )}
       </CardContent>
     </Card>
+  );
+}
+
+const monthLabel = new Intl.DateTimeFormat('en-KE', { month: 'short', year: 'numeric', timeZone: 'UTC' });
+
+function ProgramReportsPanel({ programId }: { programId: string }) {
+  const { data, isPending, isError, error, refetch } = useProgramReport(programId);
+
+  if (isPending) return <p role="status">Loading programme report…</p>;
+  if (isError)
+    return (
+      <div role="alert" className="space-y-2">
+        <p>Could not load the programme report. {getErrorMessage(error)}</p>
+        <Button variant="outline" onClick={() => void refetch()}>
+          Try again
+        </Button>
+      </div>
+    );
+  if (!data.total && !Object.keys(data.applications).length && !Object.keys(data.invitations).length) {
+    return (
+      <Card>
+        <CardHeader>
+          <CardTitle>Programme activity</CardTitle>
+          <CardDescription>
+            No applications, invitations or memberships have been recorded for this programme.
+          </CardDescription>
+        </CardHeader>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Group enrolment</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <dl className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <dt className="text-sm text-muted-foreground">Active groups</dt>
+              <dd className="text-2xl font-semibold">{data.active}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Distinct groups with membership records</dt>
+              <dd className="text-2xl font-semibold">{data.distinctGroups}</dd>
+            </div>
+            <div>
+              <dt className="text-sm text-muted-foreground">Lifetime membership records</dt>
+              <dd className="text-2xl font-semibold">{data.total}</dd>
+            </div>
+          </dl>
+          {data.active > 0 && (
+            <p className="text-sm text-muted-foreground">
+              Of the active groups, {data.activeViaApplication} joined by application and {data.activeViaInvitation} by
+              invitation.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <div className="grid gap-4 lg:grid-cols-3">
+        <StatusBreakdown
+          title="Memberships"
+          labels={MEMBERSHIP_LABEL}
+          counts={data.memberships}
+          empty="No membership records yet."
+        />
+        <StatusBreakdown
+          title="Applications"
+          labels={APP_STATUS_LABEL}
+          counts={data.applications}
+          empty="No applications yet."
+        />
+        <StatusBreakdown
+          title="Invitations"
+          labels={INV_STATUS_LABEL}
+          counts={data.invitations}
+          empty="No invitations yet."
+        />
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly recruitment</CardTitle>
+          <CardDescription>
+            Applications created, invitations sent and memberships accepted in the last six calendar months (Nairobi
+            time). The current month is in progress.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table aria-label="Monthly recruitment" className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-right text-muted-foreground">
+                  <th scope="col" className="py-2 pr-2 text-left">
+                    Month
+                  </th>
+                  <th scope="col" className="px-1">
+                    Applications
+                  </th>
+                  <th scope="col" className="px-1">
+                    Invitations
+                  </th>
+                  <th scope="col" className="pl-1">
+                    Enrolments
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.monthlyActivity.map((row) => (
+                  <tr key={row.month} className="border-b text-right tabular-nums last:border-0">
+                    <th scope="row" className="whitespace-nowrap py-2 pr-2 text-left font-medium">
+                      {monthLabel.format(new Date(row.month + '-01T00:00:00Z'))}
+                    </th>
+                    <td className="px-1">{row.applications}</td>
+                    <td className="px-1">{row.invitations}</td>
+                    <td className="pl-1">{row.enrolments}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

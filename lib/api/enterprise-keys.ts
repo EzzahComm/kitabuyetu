@@ -50,6 +50,7 @@ export const enterpriseKeys = {
   // the route path and permission strings, see feedback_funding_programs_is_money_only.
   groupPrograms: () => [...enterpriseKeys.all, 'group-programs'] as const,
   groupProgram: (id: string) => [...enterpriseKeys.all, 'group-programs', id] as const,
+  groupProgramReport: (id: string) => [...enterpriseKeys.groupProgram(id), 'report'] as const,
   groupProgramApplications: (programId: string) =>
     [...enterpriseKeys.all, 'group-programs', programId, 'applications'] as const,
   groupProgramInvitations: (programId: string) =>

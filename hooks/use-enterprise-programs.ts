@@ -10,6 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { adminApi } from '@/lib/api/client';
 import { enterpriseKeys } from '@/lib/api/enterprise-keys';
 import type { ProgramRow, ProgramMembershipRow } from '@/lib/services/programs.service';
+import type { ProgramReport } from '@/lib/services/program-reports.service';
 import type { ProgramApplicationRow } from '@/lib/services/program-applications.service';
 import type { ProgramInvitationRow } from '@/lib/services/program-invitations.service';
 import type { CreateGroupProgramInput, UpdateGroupProgramInput } from '@/lib/validators/organization.schema';
@@ -28,6 +29,15 @@ export function useGroupProgram(id: string) {
     queryKey: enterpriseKeys.groupProgram(id),
     queryFn: () => adminApi.get<ProgramRow>(`${BASE}/${id}`),
     enabled: !!id,
+  });
+}
+
+export function useProgramReport(programId: string) {
+  return useQuery({
+    queryKey: enterpriseKeys.groupProgramReport(programId),
+    queryFn: () => adminApi.get<ProgramReport>(`${BASE}/${programId}/reports`),
+    enabled: !!programId,
+    staleTime: 0,
   });
 }
 
@@ -77,7 +87,11 @@ function useApplicationAction(programId: string, action: 'accept' | 'decline' | 
         `${BASE}/${programId}/applications/${appId}/${action}`,
         reviewNotes !== undefined ? { reviewNotes } : {},
       ),
-    onSuccess: () => qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramApplications(programId) }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramApplications(programId) }),
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramReport(programId) }),
+      ]),
   });
 }
 
@@ -100,7 +114,11 @@ export function useInviteGroupToProgram(programId: string) {
   return useMutation({
     mutationFn: (body: { groupCode: string; message?: string }) =>
       adminApi.post<ProgramInvitationRow>(`${BASE}/${programId}/invitations`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramInvitations(programId) }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramInvitations(programId) }),
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramReport(programId) }),
+      ]),
   });
 }
 
@@ -109,6 +127,10 @@ export function useCancelProgramInvitation(programId: string) {
   return useMutation({
     mutationFn: (invId: string) =>
       adminApi.post<ProgramInvitationRow>(`${BASE}/${programId}/invitations/${invId}/cancel`, {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramInvitations(programId) }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramInvitations(programId) }),
+        qc.invalidateQueries({ queryKey: enterpriseKeys.groupProgramReport(programId) }),
+      ]),
   });
 }
