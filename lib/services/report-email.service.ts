@@ -1,3 +1,4 @@
+import { officialAppUrl } from '@/lib/app-links';
 import { sendFinancialReport, sendTemplatedEmail } from './email.service';
 import { withAdminDb } from '@/lib/db';
 import type { EmailResult, EmailPayload } from '@/lib/email/provider';
@@ -133,6 +134,7 @@ export async function sendWeeklySummaries(): Promise<void> {
 
     const vars = {
       weekLabel,
+      reportUrl: new URL('/reports', officialAppUrl).href,
       weekContributions: Number(contribRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
       weekLoans: Number(loanRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
       weekRepayments: Number(repayRow.rows[0]?.total ?? 0).toLocaleString('en-KE', { minimumFractionDigits: 2 }),
@@ -143,7 +145,7 @@ export async function sendWeeklySummaries(): Promise<void> {
       db.query(
         `SELECT m.email, m.first_name || ' ' || m.last_name AS full_name FROM members m
          JOIN group_members gm ON gm.member_id = m.id AND gm.group_id = $1
-         WHERE m.email IS NOT NULL AND gm.role IN ('chairperson','treasurer')`,
+         WHERE m.email IS NOT NULL AND gm.status = 'active' AND gm.role IN ('chairperson','treasurer')`,
         [group.id],
       ),
     );

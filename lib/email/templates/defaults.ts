@@ -59,8 +59,8 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
     body: `
       <h2 style="margin:0 0 16px;color:#0B3C88;">Your scheduled report is ready</h2>
       <p style="margin:0 0 12px;color:#374151;"><strong>{{reportName}}</strong> for <strong>{{organizationName}}</strong> has finished generating.</p>
-      <a href="{{downloadUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Download report ({{format}})</a>
-      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">This link expires in 24 hours. Generated {{generatedAt}}.</p>
+      <a href="{{reportUrl}}" style="display:inline-block;background:${GREEN};color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:600;">Open report ({{format}})</a>
+      <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">Sign in to the organisation to download this report. Generated {{generatedAt}}.</p>
     `,
   },
 
@@ -334,6 +334,7 @@ export const DEFAULT_TEMPLATES: Record<string, { subject: string; body: string }
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">Repayments Received</td><td style="padding:8px;border:1px solid #e5e7eb;">KES {{weekRepayments}}</td></tr>
         <tr><td style="padding:8px;border:1px solid #e5e7eb;background:#f9fafb;font-weight:600;color:#374151;">New Members</td><td style="padding:8px;border:1px solid #e5e7eb;">{{newMembers}}</td></tr>
       </table>
+      <p><a href="{{reportUrl}}" style="color:${GREEN};font-weight:600;">Open group reports</a></p>
     `,
   },
 
