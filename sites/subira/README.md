@@ -8,8 +8,13 @@ For production, add `subirainternational.kitabuyetu.co.ke` to the dedicated proj
 
 ## Enterprise workspace
 
-Use Kitabu Yetu's existing organization setup and invitation flows to create Subira's workspace, approve the plan, and enroll its designated administrator. Keep authentication on the central Kitabu Yetu portal and link to it from the website after workspace acceptance. Keep database credentials on the central backend. Verify invitations and roles in staging with two test organizations. Confirm that authorized users can view their own records and that application routes, data queries, exports, and storage used by the agreed workflows enforce tenant boundaries.
+Use Kitabu Yetu's existing organization setup and invitation flows to create Subira's workspace, approve the plan, and enroll its designated administrator. Trial staff sign in through the central Kitabu Yetu portal linked from the website. Keep database credentials on the central backend. Verify invitations and roles in staging with two test organizations. Confirm that authorized users can view their own records and that application routes, data queries, exports, and storage used by the agreed workflows enforce tenant boundaries.
 
 ## Enterprise API
 
-Confirm the first Subira workflow and eligible plan before selecting endpoints. Add approved operations to Kitabu Yetu's versioned API, keeping tenant membership, integration scopes, plan entitlements, rate limits, and audit logging on the platform. Store integration credentials in the consuming Vercel project's server environment. Use test credentials in previews.
+Use the managed partner API documented in [Enterprise identity, APIs and billing events](https://github.com/EzzahComm/kitabuyetu/blob/main/docs/integrations/ENTERPRISE-IDENTITY-AND-BILLING.md).
+
+1. Confirm Subira’s existing organization UUID and verify how its trial is represented. The partner plan read currently requires an active organization and an active organization subscription.
+2. Register one server-side client for the pilot environment with the approved issuer. Start with `billing.read` and verify that `GET /api/partner/v1/plan` returns Subira’s expected plan. Preserve its trial terms.
+3. Confirm which linked group and products Subira approved before granting `products.read`. Verify the products response for the approved group and denial for an unlinked group.
+4. Once Subira approves an HTTPS receiver, configure the signed `subscription.updated` event and verify delivery and retries using test data. Treat the event as a signal to refresh the current plan. Avoid polling for plan changes and respect the API's rate-limit responses.

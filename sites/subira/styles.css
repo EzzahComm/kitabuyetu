@@ -35,3 +35,15 @@ p {
   color: var(--muted);
   font-size: 1.125rem;
 }
+
+.workspace-link {
+  display: inline-block;
+  margin-block-start: 1.5rem;
+  color: #2a4bca;
+  font-weight: 700;
+  text-underline-offset: 0.2em;
+}
+.workspace-link:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
