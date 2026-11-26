@@ -1,0 +1,37 @@
+:root {
+  /* Kitabu Yetu marketing palette, from lib/ui/finanza-palette.ts. */
+  --navy: #011a41;
+  --muted: #555555;
+  --border: #dfe4fd;
+  --background: #f0f3ff;
+  font-family: system-ui, sans-serif;
+  color: var(--navy);
+  background: white;
+}
+body {
+  margin: 0;
+}
+.container {
+  width: min(100% - 3rem, 70rem);
+  margin-inline: auto;
+}
+header {
+  padding-block: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  font-weight: 700;
+}
+.hero {
+  padding-block: clamp(5rem, 13vw, 11rem);
+  background: var(--background);
+}
+h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 8vw, 5rem);
+  line-height: 1.07;
+  letter-spacing: -0.045em;
+}
+p {
+  margin-block: 1.25rem 0;
+  color: var(--muted);
+  font-size: 1.125rem;
+}
