@@ -12,3 +12,8 @@ export const UpdateNewsletterDigestSchema = z.object({
 });
 
 export type UpdateNewsletterDigestInput = z.infer<typeof UpdateNewsletterDigestSchema>;
+
+export const ConfirmNewsletterDigestSchema = z.object({
+  subject: z.string().min(3).max(200),
+  htmlBody: z.string().min(10).max(50_000),
+});

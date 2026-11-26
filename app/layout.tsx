@@ -4,7 +4,6 @@ import './globals.css';
 import { Providers } from '@/providers';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { HOME_DESCRIPTION, HOME_TITLE, OG_FALLBACK } from '@/components/marketing/page-metadata';
-import { BRAND_TAGLINE } from '@/lib/ui/brand-mark';
 import { finanzaDark } from '@/lib/ui/finanza-palette';
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -28,8 +27,6 @@ export const viewport: Viewport = {
   themeColor: finanzaDark.DEFAULT, // brand-kit navy (#011A41)
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
 };
 
 const GOOGLE_TAG_ID = 'G-7BM93MVBVY';

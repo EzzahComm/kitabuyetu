@@ -1141,8 +1141,8 @@ export function useUpdateNewsletterDigest() {
 export function useSendNewsletterDigest() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) =>
-      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}/send`, { method: 'POST' }),
+    mutationFn: ({ id, ...expected }: { id: string; subject: string; htmlBody: string }) =>
+      adminFetch<NewsletterDigest>(`/api/admin/newsletter/digest/${id}/send`, { method: 'POST', json: expected }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'newsletter', 'digests'] }),
   });
 }

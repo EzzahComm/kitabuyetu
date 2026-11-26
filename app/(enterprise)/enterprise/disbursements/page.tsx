@@ -1,13 +1,5 @@
 'use client';
 
-/**
- * Organization → branch disbursements (ORGANIZATION_LOGIN_ARCHITECTURE_AUDIT.md
- * Phase 4). Backend (organization-finance.service.ts's disburse/approve/reject/
- * listDisbursements) already existed and is live — this is the first frontend
- * wiring for it. Maker-checker pattern mirrors app/(dashboard)/mpesa/reallocations:
- * MoneyActionDialog for approve (executes real money movement), a plain reason
- * dialog for reject.
- */
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Banknote, Plus, AlertTriangle } from 'lucide-react';
@@ -15,7 +7,6 @@ import { PageHeader } from '@/components/shared/page-header';
 import { StatusPill } from '@/components/shared/status-pill';
 import { MoneyDisplay } from '@/components/shared/money-display';
 import { PaginatedTable } from '@/components/shared/paginated-table';
-import { MoneyActionDialog } from '@/components/shared/confirm-dialog';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Card, CardContent } from '@/components/ui/card';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
@@ -73,7 +64,6 @@ export default function DisbursementsPage() {
   const [paymentMethod, setPaymentMethod] = useState<'' | (typeof PAYMENT_METHODS)[number]>('');
   const [busy, setBusy] = useState(false);
 
-  const [approving, setApproving] = useState<DisbursementRow | null>(null);
   const [rejecting, setRejecting] = useState<DisbursementRow | null>(null);
   const [rejectReason, setRejectReason] = useState('');
 
@@ -158,24 +148,6 @@ export default function DisbursementsPage() {
       toast({
         variant: 'destructive',
         title: 'Disbursement failed',
-        description: err instanceof ApiError ? err.message : '',
-      });
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const approve = async (row: DisbursementRow) => {
-    setBusy(true);
-    try {
-      await organizationApi.disbursementAction(row.id, { action: 'approve' });
-      toast({ title: 'Disbursement approved and sent' });
-      setApproving(null);
-      await Promise.all([refresh(), refreshWallet()]);
-    } catch (err) {
-      toast({
-        variant: 'destructive',
-        title: 'Approval failed',
         description: err instanceof ApiError ? err.message : '',
       });
     } finally {
@@ -326,9 +298,6 @@ export default function DisbursementsPage() {
                   >
                     Reject
                   </Button>
-                  <Button size="sm" onClick={() => setApproving(r)} disabled={busy}>
-                    Approve
-                  </Button>
                 </div>
               ) : null,
           },
@@ -449,25 +418,6 @@ export default function DisbursementsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Approve — executes the money move immediately */}
-      {approving && (
-        <MoneyActionDialog
-          open={!!approving}
-          onOpenChange={(o) => !o && setApproving(null)}
-          title="Approve this disbursement?"
-          amount={parseFloat(approving.amount)}
-          details={[
-            { label: 'Branch', value: approving.group_name ?? '—' },
-            { label: 'Program', value: approving.program_name ?? '—' },
-            { label: 'Type', value: approving.disbursement_type.replace(/_/g, ' ') },
-            { label: 'Reference', value: approving.reference },
-          ]}
-          warning="Approving sends the funds immediately — the wallet balance and the branch's own ledger both update."
-          confirmLabel="Approve & send"
-          onConfirm={() => approve(approving)}
-        />
-      )}
 
       {/* Reject */}
       <Dialog open={!!rejecting} onOpenChange={(o) => !o && setRejecting(null)}>

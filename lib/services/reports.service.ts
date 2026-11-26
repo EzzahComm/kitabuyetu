@@ -4,7 +4,15 @@ import { accountingService } from './accounting.service';
 export const reportsService = {
   async contributionSummary(ctx: TenantContext, from: string, to: string) {
     return withDb(ctx, async (client) => {
-      const { rows: totals } = await client.query(
+      const { rows: totals } = await client.query<{
+        total_count: number;
+        total_collected: string;
+        total_pending: string;
+        total_overdue: string;
+        completed_count: number;
+        pending_count: number;
+        overdue_count: number;
+      }>(
         `SELECT
            COUNT(*)::int                                              AS total_count,
            COALESCE(SUM(amount) FILTER (WHERE status='completed'),0)::text AS total_collected,
@@ -18,7 +26,7 @@ export const reportsService = {
         [ctx.groupId, from, to],
       );
 
-      const { rows: byMember } = await client.query(
+      const { rows: byMember } = await client.query<{ member_name: string; count: number; total: string }>(
         `SELECT
            m.first_name || ' ' || m.last_name AS member_name,
            COUNT(c.id)::int                  AS count,
@@ -33,7 +41,7 @@ export const reportsService = {
         [ctx.groupId, from, to],
       );
 
-      const { rows: monthly } = await client.query(
+      const { rows: monthly } = await client.query<{ month: string; count: number; total: string }>(
         `SELECT
            DATE_TRUNC('month', contribution_date)::date::text AS month,
            COUNT(*)::int                                      AS count,
@@ -53,7 +61,15 @@ export const reportsService = {
 
   async loanReport(ctx: TenantContext) {
     return withDb(ctx, async (client) => {
-      const { rows: portfolio } = await client.query(
+      const { rows: portfolio } = await client.query<{
+        pending_applications: number;
+        active_loans: number;
+        completed_loans: number;
+        defaulted_loans: number;
+        total_outstanding: string;
+        total_disbursed: string;
+        total_defaulted: string;
+      }>(
         `SELECT
            COUNT(*) FILTER (WHERE status = 'pending')::int         AS pending_applications,
            COUNT(*) FILTER (WHERE status IN ('disbursed','active'))::int AS active_loans,
@@ -66,7 +82,13 @@ export const reportsService = {
         [ctx.groupId],
       );
 
-      const { rows: overdue } = await client.query(
+      const { rows: overdue } = await client.query<{
+        member_name: string;
+        due_date: string;
+        total_due: string;
+        amount_paid: string;
+        balance_due: string;
+      }>(
         `SELECT
            m.first_name || ' ' || m.last_name AS member_name,
            lr.due_date::text,
