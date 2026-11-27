@@ -47,7 +47,14 @@ export default function EnterpriseLoginPage() {
               <CardTitle className="text-brand-blue-900">
                 {phase.kind === 'password' && 'Enterprise sign-in'}
                 {phase.kind === 'enroll' && 'Set up two-factor authentication'}
-                {phase.kind === 'verify' && 'Enter your authenticator code'}
+                {phase.kind === 'verify' &&
+                  (phase.method === 'sms' ? (
+                    <span>Enter the six-digit code sent to your verified phone. It expires after five minutes.</span>
+                  ) : (
+                    <span>
+                      Open your authenticator app and enter the current six-digit code, or use a recovery code.
+                    </span>
+                  ))}
                 {phase.kind === 'chooseOrg' && 'Choose an organization'}
               </CardTitle>
             </div>
@@ -105,6 +112,7 @@ export default function EnterpriseLoginPage() {
             )}
             {phase.kind === 'verify' && (
               <VerifyForm
+                method={phase.method}
                 variant="light"
                 form={codeForm}
                 submitting={submitting}

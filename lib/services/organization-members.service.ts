@@ -734,6 +734,12 @@ export async function completeOrgInvitation(token: string, password: string): Pr
       passwordHash,
     });
 
+    // Invitation verification proved possession of this phone.
+    await db.query('UPDATE members SET phone_verified = TRUE WHERE id = $1 AND phone = $2', [
+      memberId,
+      normalizePhone(inv.phone),
+    ]);
+
     // The seat is consumed HERE, at acceptance — not when the invitation was
     // sent (createOrgInvitation), since a pending, never-accepted invite must
     // not permanently hold a slot the plan caps.

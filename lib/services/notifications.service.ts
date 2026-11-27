@@ -513,6 +513,7 @@ export async function sendServiceSms(input: {
   groupId?: string | null;
   memberId?: string | null;
   correlationId?: string | null;
+  redactBody?: boolean;
 }): Promise<{ sent: boolean; detail?: string }> {
   if (!isValidKenyanPhone(input.phone)) {
     return { sent: false, detail: 'invalid phone' };
@@ -529,7 +530,12 @@ export async function sendServiceSms(input: {
     referenceType: input.notificationType,
   };
 
-  const logId = await insertSmsLog(rcpt, phone, 'platform', 0);
+  const logId = await insertSmsLog(
+    input.redactBody ? { ...rcpt, body: '[Verification code redacted]' } : rcpt,
+    phone,
+    'platform',
+    0,
+  );
 
   try {
     const sms = await sendSingleSms({ mobile: phone, message: input.body });
@@ -538,11 +544,13 @@ export async function sendServiceSms(input: {
       sms.success ? 'sent' : 'failed',
       sms.messageId,
       sms.networkId,
-      sms.success ? null : sms.responseDescription,
+      sms.success ? null : input.redactBody ? 'SMS delivery failed' : sms.responseDescription,
     );
-    return sms.success ? { sent: true } : { sent: false, detail: sms.responseDescription };
+    return sms.success
+      ? { sent: true }
+      : { sent: false, detail: input.redactBody ? 'SMS delivery failed' : sms.responseDescription };
   } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
+    const detail = input.redactBody ? 'SMS delivery failed' : err instanceof Error ? err.message : String(err);
     logger.error('[notifications] service SMS failed', { notificationType: input.notificationType, detail });
     await finaliseSmsLog(logId, 'failed', null, null, detail);
     return { sent: false, detail };

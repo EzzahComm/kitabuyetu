@@ -165,13 +165,14 @@ export function refreshTtlSeconds(audience: TokenAudience = 'tenant'): number {
 
 const MFA_CHALLENGE_TTL_SECONDS = 5 * 60;
 
-export type MfaChallengeKind = 'enrollment' | 'verify';
+export type MfaChallengeKind = 'enrollment' | 'verify' | 'sms';
 
 interface MfaChallengePayload {
   sub: string;
   aud: 'backoffice_mfa';
   kind: MfaChallengeKind;
   lockedOrganizationId?: string;
+  smsNonce?: string;
   secret?: string; // only present when kind === 'enrollment'
 }
 

@@ -35,6 +35,8 @@ import bcrypt from 'bcryptjs';
 import { withAdminDb } from '@/lib/db';
 import { env } from '@/lib/env';
 import { signMfaChallenge } from '@/lib/auth/jwt';
+import { issueStaffSmsCode } from '@/lib/auth/staff-sms-mfa';
+import { isValidKenyanPhone } from '@/lib/utils/phone';
 import { generateTotpSecret, buildOtpAuthQrCode, generateRecoveryCodes } from '@/lib/auth/mfa';
 import { incrementLoginAttempts, clearLoginAttempts, isAccountLocked, lockAccount } from '@/lib/redis';
 import { AdminLoginSchema } from '@/lib/validators/auth.schema';
@@ -69,6 +71,8 @@ interface AdminMemberRow {
   email: string | null;
   platform_role: string;
   is_active: boolean;
+  phone: string;
+  phone_verified: boolean;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -89,7 +93,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const result = await withAdminDb(async (client) => {
       const { rows } = await client.query<AdminMemberRow>(
         `SELECT id, password_hash, first_name, last_name, email,
-                platform_role, is_active
+                platform_role, is_active, phone, phone_verified
            FROM members
           WHERE lower(email) = $1
           LIMIT 1`,
@@ -154,6 +158,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     // but we don't want a transient TOTP retry counting against the
     // password-attempt budget.
     await clearLoginAttempts(lockKey);
+
+    if (
+      process.env.ENTERPRISE_SMS_MFA_ENABLED === 'true' &&
+      input.surface === 'organization' &&
+      member.platform_role === 'organization_coordinator' &&
+      member.phone_verified &&
+      isValidKenyanPhone(member.phone)
+    ) {
+      const result = await issueStaffSmsCode(member);
+      if (result.status === 'cooldown') {
+        return errorResponse('Wait one minute before requesting another SMS code.', 'SMS_CODE_COOLDOWN', 429);
+      }
+      if (result.status === 'failed') {
+        return errorResponse('We could not send the sign-in code. Try again in a minute.', 'SMS_DELIVERY_FAILED', 503);
+      }
+      const challenge = signMfaChallenge({ sub: member.id, kind: 'sms', smsNonce: result.nonce });
+      return ok<AdminLoginMfaChallenge>({ needsMfaCode: true, challenge, method: 'sms' });
+    }
 
     if (enrolled) {
       // Step-1 done. UI prompts for a TOTP / recovery code next.

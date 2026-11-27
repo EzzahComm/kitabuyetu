@@ -248,12 +248,14 @@ export function VerifyForm({
   submitting,
   onSubmit,
   onBack,
+  method,
 }: {
   variant: LoginVariant;
   form: UseFormReturn<CodeValues>;
   submitting: boolean;
   onSubmit: (v: CodeValues) => void;
   onBack: () => void;
+  method?: 'sms';
 }) {
   const t = THEME[variant];
   const {
@@ -269,11 +271,11 @@ export function VerifyForm({
         </Label>
         <Input
           id="code"
-          inputMode="text"
+          inputMode={method === 'sms' ? 'numeric' : 'text'}
           autoComplete="one-time-code"
           autoFocus
-          maxLength={20}
-          placeholder="123456 or recovery code"
+          maxLength={method === 'sms' ? 6 : 20}
+          placeholder={method === 'sms' ? '123456' : '123456 or recovery code'}
           className={cn(t.input, 'text-center font-mono text-lg tracking-widest')}
           {...register('code')}
         />
