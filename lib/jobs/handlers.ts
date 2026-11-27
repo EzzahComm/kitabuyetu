@@ -137,7 +137,7 @@ export async function handleJob(job: Job): Promise<HandlerResult> {
       return handleMarketingCampaignSmsSend(job.payload, job.id);
 
     case 'sms_retry_failed':
-      return handleSmsRetryFailed();
+      return { message: 'Legacy SMS retry skipped: failed messages are terminal' };
 
     case 'sms_process_schedules':
       return handleSmsProcessSchedules();
@@ -1405,15 +1405,6 @@ async function handleMarketingCampaignSmsSend(payload: Record<string, unknown>, 
 
   return {
     message: `Marketing campaign SMS dispatched (${result.sent} sent, ${result.failed} failed)`,
-    ...flattenResult(result),
-  };
-}
-
-async function handleSmsRetryFailed(): Promise<HandlerResult> {
-  const { smsService } = await import('@/lib/services/sms.service');
-  const result = await smsService.retryFailures();
-  return {
-    message: `SMS failures retried (${result.resolved} resolved, ${result.failed} still failing)`,
     ...flattenResult(result),
   };
 }

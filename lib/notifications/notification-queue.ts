@@ -5,13 +5,19 @@
  * Delivery is logically separate from the business transaction: rows are
  * created after the activity is recorded, sent inline (best effort, HIGH and
  * CRITICAL only) and always backstopped by a job_queue job that retries with
- * exponential backoff up to MAX_DELIVERY_ATTEMPTS, then persists FAILED.
+ * exponential backoff for email. SMS deliveries receive one attempt.
  */
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { enqueueJob } from '@/lib/jobs';
-import { getAdminRecipients, MAX_DELIVERY_ATTEMPTS } from './config';
+import {
+  ADMIN_BILLING_SMS_EVENTS,
+  BILLING_ONLY_ADMIN_PHONE,
+  canSendAdminSms,
+  getAdminRecipients,
+  MAX_DELIVERY_ATTEMPTS,
+} from './config';
 import { renderEmail, renderSms } from './notification-templates';
 import { sendAdminSms } from './sms';
 import { sendAdminEmail } from './email';
@@ -138,7 +144,7 @@ export type DeliverOutcome = 'sent' | 'skipped' | 'failed_permanent' | 'failed_r
 /**
  * Attempt one delivery. Claims the row first so an inline send and the backstop
  * job can never both send. A row stuck in QUEUED (function frozen mid-send) is
- * reclaimable after 3 minutes.
+ * reclaimable after 3 minutes for email only.
  *
  * Throws on a retryable failure so the job queue applies its backoff; returns
  * 'failed_permanent' once attempts are exhausted (the row is FAILED and an
@@ -153,8 +159,11 @@ export async function deliverNotification(
       `UPDATE notification_deliveries
        SET    status = 'QUEUED', attempt_count = attempt_count + 1, updated_at = NOW()
        WHERE  id = $1
-         AND (status IN ('PENDING','RETRYING')
-              OR (status = 'QUEUED' AND updated_at < NOW() - INTERVAL '3 minutes'))
+         AND (
+           (channel = 'sms' AND status = 'PENDING' AND attempt_count = 0)
+           OR (channel = 'email' AND (status IN ('PENDING','RETRYING')
+               OR (status = 'QUEUED' AND updated_at < NOW() - INTERVAL '3 minutes')))
+         )
        RETURNING id, seq, activity_id, channel, recipient, attempt_count, created_at`,
       [deliveryId],
     );
@@ -171,6 +180,17 @@ export async function deliverNotification(
   if (!claimed) return 'skipped';
 
   const { delivery, activity } = claimed;
+  if (delivery.channel === 'sms' && !canSendAdminSms(delivery.recipient, activity.event_type)) {
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE notification_deliveries
+         SET status = 'CANCELLED', attempt_count = 0, error_message = 'Admin SMS limited to billing alerts', updated_at = NOW()
+         WHERE id = $1`,
+        [deliveryId],
+      ),
+    );
+    return 'skipped';
+  }
   const event = rowToEvent(activity);
   const adminPath =
     typeof activity.metadata?.adminPath === 'string' ? (activity.metadata.adminPath as string) : undefined;
@@ -195,7 +215,7 @@ export async function deliverNotification(
     return 'sent';
   }
 
-  const exhausted = delivery.attempt_count >= MAX_DELIVERY_ATTEMPTS;
+  const exhausted = delivery.channel === 'sms' || delivery.attempt_count >= MAX_DELIVERY_ATTEMPTS;
   await withAdminDb((db) =>
     db.query(
       `UPDATE notification_deliveries
@@ -220,7 +240,7 @@ export async function deliverNotification(
       await emitActivity({
         type: ActivityEventType.NOTIFICATION_DELIVERY_FAILED,
         dedupKey: `delivery-failed:${deliveryId}`,
-        description: `An administrator ${delivery.channel} for "${event.title}" could not be delivered after ${MAX_DELIVERY_ATTEMPTS} attempts.`,
+        description: `An administrator ${delivery.channel} for "${event.title}" could not be delivered after ${delivery.attempt_count} attempt(s).`,
         metadata: { channel: delivery.channel, originalActivity: event.activityRef, error: result.error },
       });
     }
@@ -228,4 +248,41 @@ export async function deliverNotification(
   }
   if (opts.throwOnRetry) throw new Error(`${delivery.channel} delivery failed: ${result.error ?? 'unknown'}`);
   return 'failed_retry';
+}
+
+/** Retire queued SMS backlogs in bounded batches before the worker claims jobs. */
+export async function retireLegacyAdminSms(): Promise<number> {
+  const { rowCount } = await withAdminDb((db) =>
+    db.query(
+      `WITH obsolete AS (
+         SELECT j.id AS job_id, d.id AS delivery_id,
+                CASE WHEN d.status = 'PENDING' AND d.attempt_count = 0
+                     THEN 'CANCELLED' ELSE 'FAILED' END AS terminal_status
+         FROM job_queue j
+         JOIN notification_deliveries d ON j.dedup_key = 'admin_alert:' || d.id::text
+         JOIN platform_activity_logs a ON a.id = d.activity_id
+         WHERE j.type = 'admin_alert_deliver' AND j.status = 'pending' AND d.channel = 'sms'
+           AND (
+             d.status = 'RETRYING'
+             OR (d.status = 'QUEUED' AND d.updated_at < NOW() - INTERVAL '3 minutes')
+             OR (d.status = 'PENDING' AND (d.attempt_count > 0 OR
+                 (d.recipient = $1 AND a.event_type <> ALL($2::text[]))))
+           )
+         LIMIT 500
+         FOR UPDATE OF j, d SKIP LOCKED
+       ), retired AS (
+         UPDATE notification_deliveries d
+         SET status = o.terminal_status,
+             error_message = COALESCE(d.error_message, CASE WHEN o.terminal_status = 'CANCELLED'
+               THEN 'Admin SMS limited to billing alerts' ELSE 'Prior SMS attempt closed without replay' END),
+             updated_at = NOW()
+         FROM obsolete o WHERE d.id = o.delivery_id
+         RETURNING o.job_id
+       )
+       UPDATE job_queue j SET status = 'completed', updated_at = NOW()
+       FROM retired r WHERE j.id = r.job_id`,
+      [BILLING_ONLY_ADMIN_PHONE, [...ADMIN_BILLING_SMS_EVENTS]],
+    ),
+  );
+  return rowCount ?? 0;
 }

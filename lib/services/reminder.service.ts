@@ -60,10 +60,8 @@ type ClaimResult = { outcome: 'send'; id: string } | { outcome: 'already_sent' |
 /**
  * Claim (or resume) the (reference_type, reference_id, reminder_stage) slot.
  * The INSERT is the atomic claim — its UNIQUE constraint is what makes this
- * race-safe, unlike a SELECT NOT EXISTS check performed before a separate
- * INSERT. 'sent'/'suppressed' are terminal (never re-claimed); 'pending'/
- * 'failed' are resumable, so a genuine delivery failure gets a fresh attempt
- * on the next scheduled run instead of being silently abandoned forever.
+ * race-safe. A pending cooldown slot can resume. SMS failures are terminal
+ * unless dispatch was paused or capped before calling the provider.
  */
 async function claim(input: ReminderInput): Promise<ClaimResult> {
   return withAdminDb(async (db) => {
@@ -105,8 +103,8 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
       return { outcome: 'send', id: inserted.rows[0].id };
     }
 
-    const existing = await db.query<{ id: string; status: string }>(
-      `SELECT id, status FROM reminder_dispatch_log
+    const existing = await db.query<{ id: string; status: string; channel: string | null; reason: string | null }>(
+      `SELECT id, status, channel, reason FROM reminder_dispatch_log
        WHERE reference_type=$1 AND reference_id=$2 AND reminder_stage=$3`,
       [input.referenceType, input.referenceId, input.reminderStage],
     );
@@ -123,7 +121,15 @@ async function claim(input: ReminderInput): Promise<ClaimResult> {
     }
     if (row.status === 'sent') return { outcome: 'already_sent' };
     if (row.status === 'suppressed') return { outcome: 'already_suppressed' };
-    return { outcome: 'send', id: row.id }; // 'pending' or 'failed' — retry.
+    if (
+      row.status === 'failed' &&
+      row.channel === 'sms' &&
+      row.reason !== 'dispatch_halted' &&
+      row.reason !== 'daily_limit_reached'
+    ) {
+      return { outcome: 'already_suppressed' };
+    }
+    return { outcome: 'send', id: row.id };
   });
 }
 
@@ -138,7 +144,6 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
     if (!existing[0]) return;
 
     const prev = existing[0];
-    const newAttempts = prev.attempts + 1;
 
     await db.query(
       // $2 is cast explicitly in BOTH the SET and the CASE below. Left
@@ -151,7 +156,7 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
       // reached a candidate; notify_loan_due_alerts happened to never hit it
       // only because it never had a real candidate to settle either.
       `UPDATE reminder_dispatch_log
-       SET status=$2::reminder_dispatch_status, channel=$3, reason=$4, attempts=attempts+1,
+       SET status=$2::reminder_dispatch_status, channel=$3, reason=$4,
            sent_at=CASE WHEN $2::reminder_dispatch_status='sent' THEN NOW() ELSE sent_at END
        WHERE id=$1 AND status IN ('pending','failed')`,
       [id, status, outcome.channel === 'none' ? null : outcome.channel, outcome.detail ?? null],
@@ -166,8 +171,12 @@ async function settle(id: string, outcome: NotifyOutcome): Promise<void> {
         'reminder_dispatch.settled',
         'reminder_dispatch_log',
         id,
-        JSON.stringify({ status: prev.status, attempts: prev.attempts }),
-        JSON.stringify({ status, attempts: newAttempts, channel: outcome.channel === 'none' ? null : outcome.channel }),
+        JSON.stringify({ status: prev.status, attempts: prev.attempts - 1 }),
+        JSON.stringify({
+          status,
+          attempts: prev.attempts,
+          channel: outcome.channel === 'none' ? null : outcome.channel,
+        }),
       ],
     );
   });
@@ -344,6 +353,19 @@ export async function sendOnce(input: ReminderInput): Promise<ReminderResult> {
   if (await inCooldown(input, claimed.id)) {
     return { sent: false, status: 'cooldown' };
   }
+
+  // Claim the actual dispatch separately from the cooldown slot. A worker
+  // that disappears during a send leaves a pending row with an attempt.
+  const started = await withAdminDb((db) =>
+    db.query(
+      `UPDATE reminder_dispatch_log
+       SET status = 'pending', attempts = attempts + 1
+       WHERE id = $1 AND ((status = 'pending' AND attempts = 0) OR (status = 'failed' AND (channel IS DISTINCT FROM 'sms' OR
+           reason IN ('dispatch_halted', 'daily_limit_reached'))))`,
+      [claimed.id],
+    ),
+  );
+  if (!started.rowCount) return { sent: false, status: 'already_suppressed' };
 
   const outcome = await notifyMember(input);
   await settle(claimed.id, outcome);

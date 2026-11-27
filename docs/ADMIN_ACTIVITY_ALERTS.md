@@ -10,7 +10,7 @@ business logic (commits) ─► emitActivity() ─► platform_activity_logs (au
                         │                     │
                   digest job (≤60 min)   notification_deliveries (sms/email × recipient)
                                               ├─ inline send (HIGH/CRITICAL)
-                                              └─ job_queue `admin_alert_deliver` (retry, backoff, max 5)
+                                              └─ job_queue `admin_alert_deliver` (one SMS attempt, up to 5 email attempts)
 ```
 
 ## Emitting an event (all products)
@@ -52,13 +52,22 @@ above `KITABU_HIGH_VALUE_THRESHOLD_KES` (default 100,000) is alerted individuall
 Delivery uses the existing SMS (TextSMS) and email (Resend/SMTP) providers. Admin SMS goes straight to the
 provider, not through the group-billed path, so alerts never consume a customer's credits.
 
+The official number **+254 182 625 807** receives SMS only for Kitabu Yetu payment and subscription
+events that have SMS routing enabled. The rule also applies to queued alerts and direct outage fallback.
+Other contacts keep their existing routing. Daily and scheduled jobs can still send distinct future messages.
+
+A rejected or interrupted SMS stays in the delivery or usage history. The worker closes legacy
+SMS retries and queued non-billing SMS addressed to the official number. A credit top-up never
+replays those messages. The SMS Centre shows failure history, and the activity dashboard can still
+retry failed email. Delivery-report polling checks existing sends without sending another SMS.
+
 ## Availability monitoring
 
 `system_health_check` (every 5 min) checks the database, Redis, job-queue lag, the SMS circuit breaker and the
 M-Pesa callback backlog, records a heartbeat and reports a gap as downtime once the app is back. A burst of
 server errors raises `ERROR_SPIKE`. If the database is unreachable, HIGH/CRITICAL alerts are sent directly
 (unpersisted). **A total outage can only be reported by an external monitor** — point one at `/api/health` and
-`/api/health/deep` and route its alerts to the contacts above.
+`/api/health/deep` and use the configured admin email.
 
 ## Privacy
 
@@ -69,5 +78,5 @@ group's own message text.
 
 ## Operating
 
-- Dashboard: `/admin/activity` (super-admin): filters, delivery status per channel, retry for failed deliveries.
+- Dashboard: `/admin/activity` (super-admin): filters, delivery status per channel, retry for failed email deliveries.
 - Tables are RLS-protected (super-admin SELECT only, no grants to `anon`/`authenticated`).

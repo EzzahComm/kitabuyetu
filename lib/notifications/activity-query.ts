@@ -123,14 +123,14 @@ export async function listActivity(f: ActivityFilters) {
   });
 }
 
-/** Re-arm a FAILED delivery for another round of attempts. */
+/** Re-arm a FAILED email delivery for another round of attempts. */
 export async function retryDelivery(deliveryId: string): Promise<boolean> {
   const row = await withAdminDb(async (db) => {
     const { rows } = await db.query<{ severity: NotificationSeverity }>(
       `UPDATE notification_deliveries d
        SET    status = 'PENDING', attempt_count = 0, error_message = NULL, updated_at = NOW()
        FROM   platform_activity_logs a
-       WHERE  d.id = $1 AND d.status = 'FAILED' AND a.id = d.activity_id
+       WHERE  d.id = $1 AND d.status = 'FAILED' AND d.channel = 'email' AND a.id = d.activity_id
        RETURNING a.severity`,
       [deliveryId],
     );

@@ -7,7 +7,7 @@ it('holds recurring SMS jobs while allowing unrelated jobs and plain manual bulk
   jest.mocked(withAdminDb).mockResolvedValue(false);
   await expect(shouldPauseScheduledSmsJob({ type: 'sms_process_schedules' })).resolves.toBe(true);
   await expect(shouldPauseScheduledSmsJob({ type: 'notify_weekly_savings_update' })).resolves.toBe(true);
-  await expect(shouldPauseScheduledSmsJob({ type: 'sms_retry_failed' })).resolves.toBe(true);
+  await expect(shouldPauseScheduledSmsJob({ type: 'sms_retry_failed' })).resolves.toBe(false);
   await expect(shouldPauseScheduledSmsJob({ type: 'email_birthday' })).resolves.toBe(false);
   await expect(shouldPauseScheduledSmsJob({ type: 'enterprise_webhook_delivery' })).resolves.toBe(false);
   await expect(shouldPauseScheduledBulkSms({})).resolves.toBe(false);

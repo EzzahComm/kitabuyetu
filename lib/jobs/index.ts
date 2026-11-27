@@ -136,15 +136,6 @@ export async function enqueueTimeBasedJobs(): Promise<Record<string, string | nu
   // outbox_dispatch the same way as the SMS four (distinct_payloads = 1,
   // empty_payload = pending, for every one) and confirmed they are equally
   // payload-free self-idempotent sweeps — converted below alongside them.
-  queued.sms_retry_failed = await safe(
-    'sms_retry_failed',
-    {},
-    {
-      priority: 6, // SMS retries are time-sensitive (transactional receipts/OTPs)
-      dedup_key: 'sms_retry_failed',
-    },
-  );
-
   queued.sms_process_schedules = await safe(
     'sms_process_schedules',
     {},

@@ -491,7 +491,6 @@ export const smsApi = {
   // learn an id to retry with.
   failures: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<SmsFailure>>(`/sms/failures${buildQuery(params ?? {})}`),
-  retryFailure: (id: string) => api.post<{ status: string }>(`/sms/failures/${id}/retry`, {}),
   // Reminder/automation history, suppressed outcomes included — the DSAR view.
   reminderHistory: (params?: Record<string, unknown>) =>
     api.get<PaginatedResult<ReminderHistoryRow>>(`/sms/reminder-history${buildQuery(params ?? {})}`),

@@ -44,6 +44,7 @@ function useDb(handlers: {
   insertActivity?: () => unknown;
   deliveryClaim?: () => unknown;
   extra?: (sql: string) => unknown;
+  storedEventType?: ActivityEventType;
 }) {
   let deliveryN = 0;
   mockQuery.mockImplementation(async (sql: string) => {
@@ -52,7 +53,8 @@ function useDb(handlers: {
     if (/INSERT INTO notification_deliveries/.test(sql)) return { rows: [{ id: `del-${++deliveryN}` }] };
     if (/UPDATE notification_deliveries[\s\S]*RETURNING id, seq/.test(sql))
       return { rows: handlers.deliveryClaim ? [handlers.deliveryClaim()].flat().filter(Boolean) : [] };
-    if (/FROM platform_activity_logs WHERE id/.test(sql)) return { rows: [ACTIVITY_ROW] };
+    if (/FROM platform_activity_logs WHERE id/.test(sql))
+      return { rows: [{ ...ACTIVITY_ROW, event_type: handlers.storedEventType ?? ACTIVITY_ROW.event_type }] };
     if (/admin_notification_preferences/.test(sql)) return { rows: [] };
     const extra = handlers.extra?.(sql);
     return { rows: extra ? (Array.isArray(extra) ? extra : [extra]) : [] };
@@ -75,25 +77,24 @@ const insertCalls = () => mockQuery.mock.calls.filter(([sql]) => /INSERT INTO pl
 const deliveryCalls = () => mockQuery.mock.calls.filter(([sql]) => /INSERT INTO notification_deliveries/.test(sql));
 
 describe('emitActivity', () => {
-  it('registration: records the event and queues one SMS and one email to the official contacts', async () => {
+  it('registration: records the event and queues email to the official contact', async () => {
     useDb({});
     const res = await emitActivity({
       type: ActivityEventType.USER_REGISTERED,
       dedupKey: 'register:u1',
       actor: { userId: 'u1', name: 'John Doe', email: 'john@example.com', phone: '254712345678' },
     });
-    expect(res).toMatchObject({ recorded: true, duplicate: false, queued: 2 });
+    expect(res).toMatchObject({ recorded: true, duplicate: false, queued: 1 });
     expect(res.activityRef).toBe('ACT-20260929-000007');
 
     const deliveries = deliveryCalls();
-    expect(deliveries).toHaveLength(2);
+    expect(deliveries).toHaveLength(1);
     const targets = deliveries.map(([, p]) => [p[1], p[2]]);
-    expect(targets).toContainEqual(['sms', '254182625807']);
     expect(targets).toContainEqual(['email', 'info@kitabuyetu.co.ke']);
     // each delivery has a deterministic idempotency key: activity:channel:recipient
-    expect(deliveries.map(([, p]) => p[3])).toEqual(['act-1:sms:254182625807', 'act-1:email:info@kitabuyetu.co.ke']);
+    expect(deliveries.map(([, p]) => p[3])).toEqual(['act-1:email:info@kitabuyetu.co.ke']);
     // backed by a retrying job per delivery
-    expect(enqueueJob).toHaveBeenCalledTimes(2);
+    expect(enqueueJob).toHaveBeenCalledTimes(1);
     expect(enqueueJob).toHaveBeenCalledWith(
       'admin_alert_deliver',
       { deliveryId: 'del-1' },
@@ -127,12 +128,12 @@ describe('emitActivity', () => {
       type: ActivityEventType.CONTRIBUTION_RECEIVED,
       transaction: { amount: 250_000, reference: 'RCP2' },
     });
-    expect(res.queued).toBe(2);
+    expect(res.queued).toBe(1);
     expect(insertCalls()[0][1][1]).toBe('HIGH');
     expect(insertCalls()[0][1][20]).toBe(false);
   });
 
-  it('withdrawal request: HIGH severity, SMS + email, delivered inline', async () => {
+  it('withdrawal request: HIGH severity with department email routing', async () => {
     useDb({
       deliveryClaim: () => ({
         id: 'del-1',
@@ -151,18 +152,13 @@ describe('emitActivity', () => {
       adminPath: '/admin/campaigns',
     });
     expect(insertCalls()[0][1][1]).toBe('HIGH');
-    // 1 SMS + emails to info@ (official), billing@ and admin@ (responsible departments)
-    expect(res.queued).toBe(4);
+    // Email to info@ (official), billing@ and admin@ (responsible departments)
+    expect(res.queued).toBe(3);
     const targets = deliveryCalls().map(([, p]) => p[2]);
     expect(targets).toEqual(
-      expect.arrayContaining([
-        '254182625807',
-        'info@kitabuyetu.co.ke',
-        'billing@kitabuyetu.co.ke',
-        'admin@kitabuyetu.co.ke',
-      ]),
+      expect.arrayContaining(['info@kitabuyetu.co.ke', 'billing@kitabuyetu.co.ke', 'admin@kitabuyetu.co.ke']),
     );
-    expect(sendAdminSms).toHaveBeenCalled();
+    expect(sendAdminSms).not.toHaveBeenCalled();
   });
 
   it('never persists passwords, OTPs, tokens, API keys or PINs', async () => {
@@ -185,7 +181,7 @@ describe('emitActivity', () => {
   it('a database outage still sends HIGH/CRITICAL alerts directly', async () => {
     (withAdminDb as jest.Mock).mockRejectedValue(new Error('connection refused'));
     await emitActivity({ type: ActivityEventType.DATABASE_FAILURE, description: 'db down' });
-    expect(sendAdminSms).toHaveBeenCalledWith('254182625807', expect.stringContaining('Database Failure'));
+    expect(sendAdminSms).not.toHaveBeenCalled();
     expect(sendAdminEmail).toHaveBeenCalled();
   });
 });
@@ -204,27 +200,34 @@ describe('deliverNotification', () => {
     });
 
   it('marks SENT with the provider message id on success', async () => {
-    useDb({ deliveryClaim: claim(1) });
+    useDb({ deliveryClaim: claim(1), storedEventType: ActivityEventType.PAYMENT_RECEIVED });
     await expect(deliverNotification('del-1')).resolves.toBe('sent');
     const upd = mockQuery.mock.calls.find(([sql]) => /SET status = 'SENT'/.test(sql));
     expect(upd?.[1]).toEqual(['del-1', 'textsms', 'm1']);
   });
 
   it('failure leaves the transaction alone: marks RETRYING and throws so the queue backs off', async () => {
-    (sendAdminSms as jest.Mock).mockResolvedValue({ ok: false, provider: 'textsms', error: 'provider down' });
-    useDb({ deliveryClaim: claim(1) });
+    (sendAdminEmail as jest.Mock).mockResolvedValue({ ok: false, provider: 'resend', error: 'provider down' });
+    useDb({ deliveryClaim: claim(1, 'email') });
     await expect(deliverNotification('del-1', { throwOnRetry: true })).rejects.toThrow('provider down');
     const upd = mockQuery.mock.calls.find(([sql]) => /SET status = \$2/.test(sql));
     expect(upd?.[1][1]).toBe('RETRYING');
   });
 
-  it('after the last attempt: persists FAILED and records a delivery-failure event', async () => {
+  it('the first SMS failure is terminal and records a delivery-failure event', async () => {
     (sendAdminSms as jest.Mock).mockResolvedValue({ ok: false, provider: 'textsms', error: 'still down' });
-    useDb({ deliveryClaim: claim(5) });
+    useDb({ deliveryClaim: claim(1), storedEventType: ActivityEventType.SUBSCRIPTION_CREATED });
     await expect(deliverNotification('del-1', { throwOnRetry: true })).resolves.toBe('failed_permanent');
     const upd = mockQuery.mock.calls.find(([sql]) => /SET status = \$2/.test(sql));
     expect(upd?.[1][1]).toBe('FAILED');
     expect(insertCalls().some(([, p]) => p[0] === ActivityEventType.NOTIFICATION_DELIVERY_FAILED)).toBe(true);
+  });
+
+  it('cancels an already queued non-billing alert before calling the provider', async () => {
+    useDb({ deliveryClaim: claim(1) });
+    await expect(deliverNotification('del-1')).resolves.toBe('skipped');
+    expect(mockQuery.mock.calls.some(([sql]) => /SET status = 'CANCELLED'/.test(sql))).toBe(true);
+    expect(sendAdminSms).not.toHaveBeenCalled();
   });
 
   it('is a no-op when another worker already claimed or sent it', async () => {

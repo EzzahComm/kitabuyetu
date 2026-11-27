@@ -11,7 +11,6 @@ const scheduledSmsJobs = new Set<Job['type']>([
   'notify_weekly_savings_update',
   'sms_birthday_reminders',
   'sms_process_schedules',
-  'sms_retry_failed',
   'sms_trigger_fire',
 ]);
 

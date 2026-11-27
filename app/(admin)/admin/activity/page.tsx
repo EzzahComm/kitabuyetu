@@ -224,7 +224,7 @@ export default function AdminActivityPage() {
                         {d.channel.toUpperCase()} {d.status}
                       </span>
                       {d.attempt_count > 1 && <span className="text-muted-foreground">({d.attempt_count} tries)</span>}
-                      {d.status === 'FAILED' && (
+                      {d.channel === 'email' && d.status === 'FAILED' && (
                         <Button
                           size="sm"
                           variant="outline"
