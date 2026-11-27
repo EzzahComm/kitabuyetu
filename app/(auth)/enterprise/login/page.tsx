@@ -48,15 +48,7 @@ export default function EnterpriseLoginPage() {
                 {phase.kind === 'password' && 'Enterprise sign-in'}
                 {phase.kind === 'enroll' && 'Set up two-factor authentication'}
                 {phase.kind === 'verify' &&
-                  (phase.method === 'sms' ? (
-                    <span>
-                      Enter the six-digit code sent to the phone number on your account. It expires after five minutes.
-                    </span>
-                  ) : (
-                    <span>
-                      Open your authenticator app and enter the current six-digit code, or use a recovery code.
-                    </span>
-                  ))}
+                  (phase.method === 'sms' ? 'Enter your SMS code' : 'Enter your authenticator code')}
                 {phase.kind === 'chooseOrg' && 'Choose an organization'}
               </CardTitle>
             </div>
@@ -80,12 +72,10 @@ export default function EnterpriseLoginPage() {
                   enrolling.
                 </>
               )}
-              {phase.kind === 'verify' && (
-                <>
-                  Open your authenticator app and enter the current 6-digit code. Or use one of your recovery codes (10
-                  hex characters).
-                </>
-              )}
+              {phase.kind === 'verify' &&
+                (phase.method === 'sms'
+                  ? 'Enter the six-digit code sent to the phone number on your account. It expires after five minutes.'
+                  : 'Open your authenticator app and enter the current six-digit code, or use a recovery code.')}
               {phase.kind === 'chooseOrg' && (
                 <>You&apos;re staff at more than one organization. Pick the one you want to sign into.</>
               )}

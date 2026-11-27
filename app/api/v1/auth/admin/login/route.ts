@@ -159,7 +159,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     await clearLoginAttempts(lockKey);
 
     if (
-      process.env.ENTERPRISE_SMS_MFA_ENABLED === 'true' &&
+      process.env.ENTERPRISE_SMS_MFA_ENABLED !== 'false' &&
       input.surface === 'organization' &&
       member.platform_role === 'organization_coordinator'
     ) {
