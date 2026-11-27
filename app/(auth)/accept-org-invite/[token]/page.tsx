@@ -15,14 +15,6 @@ import { getErrorMessage } from '@/lib/utils';
 
 type Step = 'loading' | 'otp' | 'password' | 'success' | 'declined' | 'error';
 
-/**
- * Public, unauthenticated (a visitor with only the emailed link, no
- * session). Visiting this page IS the "click the link" proof of inbox
- * control — it auto-confirms and sends the SMS OTP the moment the
- * invitation is still at status='invited'. Reloading mid-flow (status
- * already 'otp_sent'/'verified') resumes at the right step instead of
- * re-sending unnecessarily.
- */
 function AcceptInviteBody() {
   const params = useParams<{ token: string }>();
   const token = params.token;
@@ -31,7 +23,6 @@ function AcceptInviteBody() {
   const [error, setError] = useState('');
   const [invite, setInvite] = useState<OrgInvitationLookup | null>(null);
   const [busy, setBusy] = useState(false);
-  const [phone, setPhone] = useState('');
   const [otp, setOtp] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -56,9 +47,8 @@ function AcceptInviteBody() {
           setStep('password');
         } else if (data.status === 'otp_sent') {
           setStep('otp');
-        } else if (data.status === 'invited') {
-          const { phone: sentTo } = await orgInvitationApi.confirmEmail(token);
-          setPhone(sentTo);
+        } else if (data.status === 'invited' || data.status === 'email_confirmed') {
+          await orgInvitationApi.confirmEmail(token);
           setStep('otp');
         } else {
           throw new Error('This invitation is no longer valid.');
@@ -74,8 +64,8 @@ function AcceptInviteBody() {
     setBusy(true);
     setError('');
     try {
-      const { phone: sentTo } = await orgInvitationApi.confirmEmail(token);
-      setPhone(sentTo);
+      await orgInvitationApi.confirmEmail(token);
+      setOtp('');
     } catch (err) {
       setError(getErrorMessage(err));
     } finally {
@@ -144,7 +134,7 @@ function AcceptInviteBody() {
         {step === 'otp' && (
           <div className="space-y-3">
             <p className="text-sm text-muted-foreground">
-              Enter the 6-digit code sent to <strong>{phone || 'your phone'}</strong>.
+              Enter the 6-digit code sent to <strong>{invite?.email || 'your email address'}</strong>.
             </p>
             <Label htmlFor="otp">Verification code</Label>
             <Input

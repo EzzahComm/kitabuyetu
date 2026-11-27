@@ -780,7 +780,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
 
             <TabsContent value="invite" className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Emails a link to confirm and set their own password — they also verify their phone by SMS code.
+                Sends an invitation link. Staff verify their email with a code and then set their password.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1">

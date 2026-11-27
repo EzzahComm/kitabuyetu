@@ -6,16 +6,12 @@ import { ok, handleError } from '@/lib/utils/response';
 
 const Schema = z.object({ token: z.string().min(32).max(128) });
 
-/**
- * POST /api/v1/organization-invitations/confirm-email — public. Marks the
- * emailed link as used (proves inbox control) and sends the SMS OTP that
- * proves phone control — the second, distinct channel.
- */
+/** Send the invitation email verification code. */
 export async function POST(req: NextRequest): Promise<Response> {
   try {
     const { token } = Schema.parse(await req.json());
-    const { phone } = await confirmOrgInvitationEmail(token);
-    return ok({ phone });
+    await confirmOrgInvitationEmail(token);
+    return ok({ status: 'otp_sent' });
   } catch (err) {
     return handleError(err);
   }

@@ -49,7 +49,9 @@ export default function EnterpriseLoginPage() {
                 {phase.kind === 'enroll' && 'Set up two-factor authentication'}
                 {phase.kind === 'verify' &&
                   (phase.method === 'sms' ? (
-                    <span>Enter the six-digit code sent to your verified phone. It expires after five minutes.</span>
+                    <span>
+                      Enter the six-digit code sent to the phone number on your account. It expires after five minutes.
+                    </span>
                   ) : (
                     <span>
                       Open your authenticator app and enter the current six-digit code, or use a recovery code.

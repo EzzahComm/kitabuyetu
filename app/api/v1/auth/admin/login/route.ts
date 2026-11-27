@@ -72,7 +72,6 @@ interface AdminMemberRow {
   platform_role: string;
   is_active: boolean;
   phone: string;
-  phone_verified: boolean;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -93,7 +92,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const result = await withAdminDb(async (client) => {
       const { rows } = await client.query<AdminMemberRow>(
         `SELECT id, password_hash, first_name, last_name, email,
-                platform_role, is_active, phone, phone_verified
+                platform_role, is_active, phone
            FROM members
           WHERE lower(email) = $1
           LIMIT 1`,
@@ -162,10 +161,25 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (
       process.env.ENTERPRISE_SMS_MFA_ENABLED === 'true' &&
       input.surface === 'organization' &&
-      member.platform_role === 'organization_coordinator' &&
-      member.phone_verified &&
-      isValidKenyanPhone(member.phone)
+      member.platform_role === 'organization_coordinator'
     ) {
+      if (!isValidKenyanPhone(member.phone)) {
+        return errorResponse(
+          'Ask your administrator to check the phone number on your account.',
+          'SMS_PHONE_REQUIRED',
+          422,
+        );
+      }
+      const activeStaff = await withAdminDb(async (db) => {
+        const rows = await db.query(
+          `SELECT 1 FROM organization_members om
+           JOIN organizations o ON o.id = om.organization_id AND o.is_active
+           WHERE om.member_id = $1 AND om.status = 'active' LIMIT 1`,
+          [member.id],
+        );
+        return Boolean(rows.rowCount);
+      });
+      if (!activeStaff) return errorResponse('No active organization membership.', 'NO_ACTIVE_ORG', 403);
       const result = await issueStaffSmsCode(member);
       if (result.status === 'cooldown') {
         return errorResponse('Wait one minute before requesting another SMS code.', 'SMS_CODE_COOLDOWN', 429);

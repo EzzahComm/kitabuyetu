@@ -152,7 +152,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       if (
         process.env.ENTERPRISE_SMS_MFA_ENABLED !== 'true' ||
         member.platform_role !== 'organization_coordinator' ||
-        !member.phone_verified ||
         (!organizationId && !orgChoices) ||
         !challenge.smsNonce ||
         !(await verifyStaffSmsCode(member, challenge.smsNonce, input.code, !orgChoices))
@@ -160,6 +159,19 @@ export async function POST(req: NextRequest): Promise<Response> {
         return errorResponse('Invalid or expired SMS code. Start again to request a new one.', 'MFA_INVALID_CODE', 401);
       }
       if (orgChoices) return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
+      if (!member.phone_verified) {
+        const verified = await withAdminDb((db) =>
+          db.query(
+            `UPDATE members SET phone_verified = TRUE
+             WHERE id = $1 AND phone = $2 AND email = $3 AND is_active
+               AND platform_role = 'organization_coordinator'`,
+            [member.id, member.phone, member.email],
+          ),
+        );
+        if (!verified.rowCount) {
+          return errorResponse('Sign-in session is no longer valid.', 'MFA_CHALLENGE_INVALID', 401);
+        }
+      }
       return issueBackofficeTokens(req, member, organizationId, false);
     }
 
