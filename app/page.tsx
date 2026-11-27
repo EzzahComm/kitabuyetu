@@ -47,6 +47,7 @@ import { FaqSection, TrustSection } from '@/components/marketing/sections/trust'
 import ezzahcommLogo from '../public/img/partners/ezzahcomm.jpg';
 import ezzahcommIntelligentSystemsLogo from '../public/img/partners/ezzahcomm-intelligent-systems.png';
 import nexusLogo from '../public/img/partners/nexus-by-ezzahcomm.png';
+import subiraLogo from '../public/img/partners/subira-international.png';
 
 // No page-level openGraph/twitter: they would replace the og:image app/opengraph-image.tsx attaches here.
 // Social title/description for `/` come from the root layout; every other indexable page sets its own.
@@ -95,6 +96,7 @@ const PARTNER_LOGOS = [
     image: ezzahcommIntelligentSystemsLogo,
   },
   { id: 'nexus', name: 'NEXUS by EzzahComm', image: nexusLogo },
+  { id: 'subira', name: 'Subira International', image: subiraLogo },
 ] as const;
 
 const PROMISES = [
