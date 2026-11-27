@@ -40,8 +40,8 @@ export const ABOUT = {
 export const TEAM: { role: string; name?: string }[] = [
   { role: 'Executive Director', name: 'Bsp Christine Macheusi Mbani' },
   { role: 'Head of Programs', name: 'Abel Simiyu' },
-  { role: 'Director of Training & Learning', name: 'Monica Nelima' },
-  { role: 'Head of SELI Program' },
+  { role: 'Director of Training & Learning' },
+  { role: 'Head of SELI Program', name: 'Monica Nelima' },
   { role: 'Head of IT & Digital', name: 'Polycap Wanyonyi' },
   { role: 'Trainer, SELI Program', name: 'Christel Kamonya' },
 ];
