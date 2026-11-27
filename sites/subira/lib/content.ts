@@ -1,6 +1,6 @@
-import hero from '../public/images/hero-one.jpg';
-import focus from '../public/images/benefit-one.jpg';
-import programs from '../public/images/benefit-two.jpg';
+import hero from '../public/images/hero-community.webp';
+import focus from '../public/images/hero-education.webp';
+import programs from '../public/images/hero-programs.webp';
 
 export type NavLink = { label: string; href: string; description?: string };
 export type NavGroup = { label: string; items: NavLink[] };
@@ -22,6 +22,35 @@ export const ABOUT_ITEMS: NavLink[] = [
   { label: 'Impact', href: '/#impact' },
   { label: 'Careers', href: '/#careers' },
 ];
+
+export const ABOUT = {
+  introduction:
+    'Subira International is a non-governmental organisation registered in Kenya and headquartered in Bungoma Town, Bungoma County.',
+  mission:
+    'To expand access to education, clean water and affordable healthcare, nurture youth talent, and strengthen food security through practical training and community projects.',
+  vision:
+    'Communities where children and young people can learn and develop their talents, and families can access essential services and build a more food-secure future.',
+  values: ['Inclusion', 'Community partnership', 'Practical learning'],
+  approach:
+    'We combine direct support, community projects, partnerships and training. Our priorities include scholarships and learning materials, water projects in underserved areas, healthcare partnerships, youth mentorship and practical farming skills.',
+  impact:
+    'Between 2020 and 2022, Subira enrolled 50 girls at Bethesda Girls High School and supported their tuition, accommodation, meals, books and uniforms.',
+};
+
+export const TEAM: { role: string; name?: string }[] = [
+  { role: 'Executive Director', name: 'Bsp Christine Macheusi Mbani' },
+  { role: 'Head of Programs', name: 'Abel Simiyu' },
+  { role: 'Director of Training & Learning', name: 'Monica Nelima' },
+  { role: 'Head of SELI Program' },
+  { role: 'Head of IT & Digital', name: 'Polycap Wanyonyi' },
+  { role: 'Trainer, SELI Program', name: 'Christel Kamonya' },
+];
+
+export const CONTACT = {
+  location: 'Bungoma Town, Bungoma County, Kenya',
+  phones: ['+254 720 053 210', '+254 733 923 010'],
+  emails: ['subirainternational0@gmail.com', 'krisskibali@gmail.com'],
+};
 
 type FocusArea = {
   id: string;
@@ -142,6 +171,9 @@ export const SLIDES = [
 export const HOME_SECTIONS = [
   { id: 'programs', title: 'Programs', description: 'Program information will be available at launch.' },
   { id: 'media-gallery', title: 'Media/Gallery', description: 'Photos and updates will be available at launch.' },
-  { id: 'contact', title: 'Contact', description: 'Contact details will be available at launch.' },
-  { id: 'donate', title: 'Donate', description: 'Online donations are coming soon.' },
+  {
+    id: 'donate',
+    title: 'Donate',
+    description: 'To support our programmes or make a donation, contact our Executive Director.',
+  },
 ];

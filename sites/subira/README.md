@@ -4,7 +4,7 @@ The dedicated Vercel project builds from `sites/subira` on the `subira/onboardin
 
 Use `npm ci` and `npm run dev` from this directory to edit the site locally. Update navigation labels, hero slides, section copy, and links in `lib/content.ts`. The section-specific layout lives in `app/page.tsx`. The header, hero carousel, section components, and footer adapt Kitabu Yetu’s Finanza marketing components.
 
-The current homepage uses template photos as preview imagery. Replace them with approved Subira photos and publish approved content, contact details, and a donation destination before the full launch. Review the robots directives at launch.
+The hero carousel uses AI-generated preview imagery. Replace these images with approved Subira photos when available. Add an approved online donation destination before enabling online payments. Review the robots directives at launch.
 
 ## Enterprise workspace
 
