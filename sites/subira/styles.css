@@ -1,10 +1,10 @@
 :root {
   /* Kitabu Yetu marketing palette, from lib/ui/finanza-palette.ts. */
-  --blue: #2d50d6;
+  --blue: #092e75;
   --navy: #011a41;
   --muted: #555555;
   --border: #dfe4fd;
-  --background: #f0f3ff;
+  --background: #f1f7f1;
   font-family: system-ui, sans-serif;
   color: var(--navy);
   background: white;
@@ -31,10 +31,14 @@ body {
   min-height: 5rem;
 }
 .site-brand {
-  color: var(--navy);
-  font-size: 1.125rem;
-  font-weight: 700;
-  text-decoration: none;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+.site-brand img {
+  display: block;
+  width: clamp(9rem, 37vw, 13rem);
+  max-width: 100%;
+  height: auto;
 }
 .site-nav {
   display: flex;
