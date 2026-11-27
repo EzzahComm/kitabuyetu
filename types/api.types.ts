@@ -125,6 +125,7 @@ export interface AdminLoginEnrollmentChallenge {
 // to /admin/login/verify with the same challenge token.
 export interface AdminLoginMfaChallenge {
   needsMfaCode: true;
+  method?: 'sms';
   challenge: string; // short-lived JWT (5 min)
 }
 

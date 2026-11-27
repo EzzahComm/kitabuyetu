@@ -29,6 +29,7 @@ export const dynamic = 'force-dynamic';
 import { NextRequest } from 'next/server';
 import { withAdminDb } from '@/lib/db';
 import { env } from '@/lib/env';
+import { verifyStaffSmsCode } from '@/lib/auth/staff-sms-mfa';
 import {
   signBackofficeAccessToken,
   signRefreshToken,
@@ -63,6 +64,8 @@ interface MemberRow {
   email: string | null;
   platform_role: string;
   is_active: boolean;
+  phone: string;
+  phone_verified: boolean;
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const memberLookup = await withAdminDb(async (client) => {
       const { rows } = await client.query<MemberRow>(
-        `SELECT id, first_name, last_name, email, platform_role, is_active
+        `SELECT id, first_name, last_name, email, platform_role, is_active, phone, phone_verified
            FROM members WHERE id = $1 LIMIT 1`,
         [memberId],
       );
@@ -135,9 +138,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       return errorResponse('Sign-in session is no longer valid.', 'MFA_CHALLENGE_INVALID', 401);
     }
     const { member, organizationId, orgChoices } = memberLookup;
-    if (orgChoices) {
-      return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
-    }
     const lockKey = `admin:${(member.email ?? '').toLowerCase()}`;
 
     if (await isAccountLocked(lockKey)) {
@@ -147,6 +147,23 @@ export async function POST(req: NextRequest): Promise<Response> {
         429,
       );
     }
+
+    if (challenge.kind === 'sms') {
+      if (
+        process.env.ENTERPRISE_SMS_MFA_ENABLED !== 'true' ||
+        member.platform_role !== 'organization_coordinator' ||
+        !member.phone_verified ||
+        (!organizationId && !orgChoices) ||
+        !challenge.smsNonce ||
+        !(await verifyStaffSmsCode(member, challenge.smsNonce, input.code, !orgChoices))
+      ) {
+        return errorResponse('Invalid or expired SMS code. Start again to request a new one.', 'MFA_INVALID_CODE', 401);
+      }
+      if (orgChoices) return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
+      return issueBackofficeTokens(req, member, organizationId, false);
+    }
+
+    if (orgChoices) return ok<NeedsOrgSelection>({ needsOrgSelection: true, organizations: orgChoices });
 
     // ── Branch on challenge type ───────────────────────────────────────
     if (challenge.kind === 'enrollment') {

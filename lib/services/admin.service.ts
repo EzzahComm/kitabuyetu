@@ -1025,12 +1025,32 @@ export async function updateMemberProfile(
   input: UpdateMemberProfileInput,
   adminId: string,
   groupId?: string,
+  organizationId?: string,
 ) {
   const wantsName = input.firstName !== undefined || input.lastName !== undefined;
   const wantsEmail = input.email !== undefined;
   if (!wantsName && !wantsEmail) throw new ValidationError('No fields to update');
 
   return withAdminDb(async (db: PoolClient) => {
+    if (organizationId) {
+      const { rowCount } = await db.query(
+        `SELECT 1 FROM organization_members om
+          JOIN organizations o ON o.id = om.organization_id AND o.is_active
+          JOIN members m ON m.id = om.member_id AND m.is_active
+          WHERE om.organization_id = $1 AND om.member_id = $2
+            AND om.status = 'active' AND m.platform_role = 'organization_coordinator'
+          FOR UPDATE OF om, m`,
+        [organizationId, memberId],
+      );
+      if (!rowCount) throw new NotFoundError('Organization staff member', memberId);
+      if (input.email) {
+        const duplicate = await db.query('SELECT 1 FROM members WHERE lower(email) = lower($1) AND id <> $2 LIMIT 1', [
+          input.email,
+          memberId,
+        ]);
+        if (duplicate.rowCount) throw new ConflictError('That email address is already in use by another member.');
+      }
+    }
     const { rows: beforeRows } = await db.query<{
       first_name: string;
       last_name: string;
@@ -1052,6 +1072,7 @@ export async function updateMemberProfile(
     }
     if (wantsEmail) {
       sets.push(`email = $${idx++}`);
+      if (organizationId) sets.push('email_verified = TRUE');
       vals.push(input.email === '' ? null : input.email);
     }
 
@@ -1089,14 +1110,15 @@ export async function updateMemberProfile(
     }
 
     await db.query(
-      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-       VALUES ($1, $2, 'member.profile_update', 'member', $3, $4::jsonb, $5::jsonb)`,
+      `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values, organization_id)
+       VALUES ($1, $2, 'member.profile_update', 'member', $3, $4::jsonb, $5::jsonb, $6)`,
       [
         groupId ?? null,
         adminId,
         memberId,
         JSON.stringify(before),
         JSON.stringify({ first_name: after.first_name, last_name: after.last_name, email: after.email }),
+        organizationId ?? null,
       ],
     );
 

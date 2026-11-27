@@ -39,7 +39,7 @@ export type CodeValues = z.infer<typeof codeSchema>;
 export type LoginPhase =
   | { kind: 'password' }
   | { kind: 'enroll'; data: AdminLoginEnrollmentChallenge }
-  | { kind: 'verify'; challenge: string }
+  | { kind: 'verify'; challenge: string; method?: 'sms' }
   | { kind: 'chooseOrg'; challenge: string; code: string; organizations: NeedsOrgSelection['organizations'] };
 
 export interface BackofficeLoginState {
@@ -106,7 +106,7 @@ export function useBackofficeLogin(surface: 'platform' | 'organization', redirec
       if (isAdminEnrollment(res)) {
         setPhase({ kind: 'enroll', data: res });
       } else if (isAdminMfaChallenge(res)) {
-        setPhase({ kind: 'verify', challenge: res.challenge });
+        setPhase({ kind: 'verify', challenge: res.challenge, method: res.method });
       } else {
         // Legacy / MFA-disabled path: token is already in the response.
         loginAdmin(res);

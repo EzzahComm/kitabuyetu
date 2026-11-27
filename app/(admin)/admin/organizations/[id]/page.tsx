@@ -46,6 +46,7 @@ import {
   useAddOrgStaff,
   useInviteOrgStaff,
   useChangeOrgStaffRole,
+  useEditOrgStaff,
   useRemoveOrgStaff,
   useOrgInvitations,
   useResendOrgInvitation,
@@ -53,6 +54,7 @@ import {
   useOrganizationPlan,
   useAssignOrganizationPlan,
 } from '@/hooks/use-admin';
+import { useAuth } from '@/lib/auth/context';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
@@ -100,6 +102,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const canEditStaff = user?.platformRole === 'super_admin';
 
   const { data: org, isLoading } = useAdminOrganization(id);
   const updateStatus = useUpdateOrganizationStatus();
@@ -111,6 +115,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   const inviteStaff = useInviteOrgStaff();
   const changeStaffRole = useChangeOrgStaffRole();
   const removeStaff = useRemoveOrgStaff();
+  const editStaff = useEditOrgStaff();
 
   const { data: invitations, isLoading: invitationsLoading } = useOrgInvitations(id);
   const resendInvitation = useResendOrgInvitation();
@@ -140,6 +145,34 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   const [staffLast, setStaffLast] = useState('');
   const [staffRole, setStaffRole] = useState<'lead' | 'staff'>('staff');
   const [removingStaff, setRemovingStaff] = useState<{ memberId: string; name: string } | null>(null);
+
+  const [staffEdit, setStaffEdit] = useState<{
+    memberId: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    originalEmail: string;
+    phone: string;
+  } | null>(null);
+  const [emailOwnershipConfirmed, setEmailOwnershipConfirmed] = useState(false);
+  const emailChanged = !!staffEdit && staffEdit.email.trim().toLowerCase() !== staffEdit.originalEmail.toLowerCase();
+
+  const saveStaffDetails = async () => {
+    if (!staffEdit || (emailChanged && !emailOwnershipConfirmed)) return;
+    try {
+      await editStaff.mutateAsync({
+        orgId: id,
+        memberId: staffEdit.memberId,
+        firstName: staffEdit.firstName.trim(),
+        lastName: staffEdit.lastName.trim(),
+        ...(emailChanged ? { email: staffEdit.email.trim(), emailOwnershipConfirmed: true as const } : {}),
+      });
+      setStaffEdit(null);
+      toast({ title: 'Staff details updated' });
+    } catch (error) {
+      toast({ variant: 'destructive', title: 'Could not update staff details', description: getErrorMessage(error) });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -515,6 +548,27 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-1.5">
+                      {canEditStaff && s.status === 'active' && (
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-6 px-2 text-xs"
+                          aria-label={`Edit details for ${s.firstName} ${s.lastName}`}
+                          onClick={() => {
+                            setEmailOwnershipConfirmed(false);
+                            setStaffEdit({
+                              memberId: s.memberId,
+                              firstName: s.firstName,
+                              lastName: s.lastName,
+                              email: s.email ?? '',
+                              originalEmail: s.email ?? '',
+                              phone: s.phone,
+                            });
+                          }}
+                        >
+                          Edit
+                        </Button>
+                      )}
                       <button
                         type="button"
                         onClick={() => doChangeStaffRole(s.memberId, s.orgRole === 'lead' ? 'staff' : 'lead')}
@@ -757,6 +811,90 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
               </DialogFooter>
             </TabsContent>
           </Tabs>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!staffEdit}
+        onOpenChange={(open) => {
+          if (!open && !editStaff.isPending) setStaffEdit(null);
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit staff details</DialogTitle>
+          </DialogHeader>
+          {staffEdit && (
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void saveStaffDetails();
+              }}
+            >
+              <p className="text-sm text-muted-foreground">
+                These changes apply to this account across its organizations. Phone: {staffEdit.phone}
+              </p>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-staff-first">First name</Label>
+                <Input
+                  id="edit-staff-first"
+                  value={staffEdit.firstName}
+                  required
+                  maxLength={100}
+                  onChange={(e) => setStaffEdit({ ...staffEdit, firstName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-staff-last">Last name</Label>
+                <Input
+                  id="edit-staff-last"
+                  value={staffEdit.lastName}
+                  required
+                  maxLength={100}
+                  onChange={(e) => setStaffEdit({ ...staffEdit, lastName: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-staff-email">Sign-in email</Label>
+                <Input
+                  id="edit-staff-email"
+                  type="email"
+                  value={staffEdit.email}
+                  required={emailChanged}
+                  maxLength={254}
+                  onChange={(e) => {
+                    setEmailOwnershipConfirmed(false);
+                    setStaffEdit({ ...staffEdit, email: e.target.value });
+                  }}
+                />
+              </div>
+              {emailChanged && (
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    required
+                    checked={emailOwnershipConfirmed}
+                    onChange={(e) => setEmailOwnershipConfirmed(e.target.checked)}
+                  />
+                  I verified that this staff member controls the new email address.
+                </label>
+              )}
+              <DialogFooter>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={editStaff.isPending}
+                  onClick={() => setStaffEdit(null)}
+                >
+                  Cancel
+                </Button>
+                <Button type="submit" loading={editStaff.isPending}>
+                  Save details
+                </Button>
+              </DialogFooter>
+            </form>
+          )}
         </DialogContent>
       </Dialog>
 

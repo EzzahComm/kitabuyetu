@@ -651,6 +651,31 @@ export function useChangeOrgStaffRole() {
   });
 }
 
+export function useEditOrgStaff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      orgId,
+      memberId,
+      ...body
+    }: {
+      orgId: string;
+      memberId: string;
+      firstName: string;
+      lastName: string;
+      email?: string;
+      emailOwnershipConfirmed?: true;
+    }) =>
+      adminFetch<{ success: true }>(`/api/admin/organizations/${orgId}/staff/${memberId}`, {
+        method: 'PATCH',
+        json: body,
+      }),
+    onSuccess: (_data, input) => {
+      qc.invalidateQueries({ queryKey: ['admin', 'organizations', input.orgId] });
+    },
+  });
+}
+
 export function useRemoveOrgStaff() {
   const qc = useQueryClient();
   return useMutation({
