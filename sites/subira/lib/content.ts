@@ -23,9 +23,73 @@ export const ABOUT_ITEMS: NavLink[] = [
   { label: 'Careers', href: '/#careers' },
 ];
 
+type FocusArea = {
+  id: string;
+  title: string;
+  heading: string;
+  paragraphs: string[];
+  link?: NavLink;
+};
+
+export const FOCUS_AREAS: FocusArea[] = [
+  {
+    id: 'education',
+    title: 'Education',
+    heading: 'Scholarships and education',
+    paragraphs: [
+      'Between 2020 and 2022, Subira enrolled 50 girls at Bethesda Girls High School. Its support covered tuition, accommodation, meals, books and uniforms.',
+      'Subira also aims to provide learning facilities and materials for children who need them.',
+    ],
+  },
+  {
+    id: 'water-and-sanitation',
+    title: 'Water & Sanitation',
+    heading: 'Clean drinking water',
+    paragraphs: [
+      'Subira established water projects in Township and Bukembe West wards. Its project flyer reported that the Township project was operational and served more than 100,000 people per month.',
+      'The flyer identified pump replacement as the priority in Bukembe West and named Sirisia and Nambale as locations for planned projects.',
+    ],
+  },
+  {
+    id: 'talent-development',
+    title: 'Talent Development',
+    heading: 'Music, film and mentorship',
+    paragraphs: [
+      'Subira identified music and film as starting points for youth talent development. The proposed youth programme would combine creative activities with wellness education, career awareness and sustained mentorship.',
+    ],
+    link: {
+      label: 'Read the youth programme overview',
+      href: 'https://bethesda.co.ke/youth-mentorship.html',
+    },
+  },
+  {
+    id: 'healthcare',
+    title: 'Healthcare',
+    heading: 'Access to healthcare',
+    paragraphs: [
+      'Subira aims to help establish health facilities and improve access to affordable care, including for people living with disabilities and other underserved groups.',
+      'Its project flyer reported partnerships with eight health facilities in Kenya and medicine distribution valued at more than US$1.5 million. It cited cancer and fistula among the conditions addressed.',
+    ],
+  },
+  {
+    id: 'climate-change-and-agriculture',
+    title: 'Climate Change & Agriculture',
+    heading: 'Farming and food security',
+    paragraphs: [
+      'Subira aims to train community members in modern farming techniques and help them strengthen the management skills needed to improve food security.',
+    ],
+  },
+];
+
 export const NAV_ITEMS: NavItem[] = [
   { label: 'About', items: ABOUT_ITEMS },
-  { label: 'Focus Areas', items: [{ label: 'Focus Areas Overview', href: '/#focus-areas' }] },
+  {
+    label: 'Focus Areas',
+    items: [
+      { label: 'Focus Areas Overview', href: '/#focus-areas' },
+      ...FOCUS_AREAS.map(({ id, title }) => ({ label: title, href: `/#${id}` })),
+    ],
+  },
   { label: 'Programs', items: [{ label: 'Programs Overview', href: '/#programs' }] },
   { label: 'Media/Gallery', href: '/#media-gallery' },
   { label: 'Contact', href: '/#contact' },
@@ -76,7 +140,6 @@ export const SLIDES = [
 ];
 
 export const HOME_SECTIONS = [
-  { id: 'focus-areas', title: 'Focus Areas', description: 'Details will be available at launch.' },
   { id: 'programs', title: 'Programs', description: 'Program information will be available at launch.' },
   { id: 'media-gallery', title: 'Media/Gallery', description: 'Photos and updates will be available at launch.' },
   { id: 'contact', title: 'Contact', description: 'Contact details will be available at launch.' },

@@ -104,6 +104,7 @@ function NavDropdown({ group, transparent, pathname }: { group: NavGroup; transp
       <button
         type="button"
         onClick={onClick}
+        onPointerEnter={onPointerEnter}
         aria-expanded={open}
         className={cn(
           'flex items-center gap-1.5 rounded-sm py-2 text-[0.9375rem] font-medium transition-colors focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-4 focus-visible:ring-offset-transparent',
