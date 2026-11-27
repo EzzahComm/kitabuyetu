@@ -24,7 +24,9 @@ afterAll(resetDatabase);
 afterEach(() => jest.restoreAllMocks());
 
 it('uses the recorded phone for the first SMS sign-in and verifies it after the code', async () => {
-  jest.replaceProperty(process, 'env', { ...process.env, ENTERPRISE_SMS_MFA_ENABLED: 'true' });
+  const testEnv = { ...process.env };
+  delete testEnv.ENTERPRISE_SMS_MFA_ENABLED;
+  jest.replaceProperty(process, 'env', testEnv);
   const { organizationId, coordinatorId } = await createTestOrganization();
   const email = 'sms-staff@example.test';
   const password = 'LocalTestPassword1';

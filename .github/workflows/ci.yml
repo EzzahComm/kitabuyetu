@@ -509,6 +509,9 @@ jobs:
     name: Deploy → Vercel Production
     needs: [quality, security, migrations, api-contracts, db-integration]
     runs-on: ubuntu-latest
+    concurrency:
+      group: kitabuyetu-production
+      cancel-in-progress: false
 
     # Only deploy when a commit lands on main (not on PRs)
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -543,17 +546,26 @@ jobs:
           VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
-      # Deploy to production — Vercel reads env vars from the dashboard
+      # Build as production, then assign the domain only if this commit is still current.
       - name: Deploy to Vercel production
         id: deploy
         run: |
           set -euo pipefail
 
+          main_head() {
+            git ls-remote --exit-code origin refs/heads/main | cut -f1
+          }
+
+          if [[ "$(main_head)" != "$GITHUB_SHA" ]]; then
+            echo "Skipping outdated production run for $GITHUB_SHA."
+            exit 0
+          fi
+
           # Vercel prints the deployment URL to stdout; progress/status lines
           # (e.g. "✓ Ready in 3m") go to stderr. Capture stdout ONLY — merging
           # 2>&1 would let `tail -1` grab a progress line instead of the URL.
-          url=$(vercel deploy --prod \
-            --token=${{ secrets.VERCEL_TOKEN }} \
+          url=$(vercel deploy --prod --skip-domain \
+            --token="$VERCEL_TOKEN" \
             --yes | tail -1)
 
           # Guard: fail loudly if we didn't capture a real URL, rather than
@@ -563,19 +575,27 @@ jobs:
             exit 1
           fi
 
+          if [[ "$(main_head)" != "$GITHUB_SHA" ]]; then
+            echo "Skipping production promotion: main changed during the build."
+            exit 0
+          fi
+
+          vercel promote "$url" --yes --token="$VERCEL_TOKEN"
           echo "deployment_url=$url" >> "$GITHUB_OUTPUT"
           echo "Deployed to: $url"
         env:
           VERCEL_ORG_ID:     ${{ secrets.VERCEL_ORG_ID }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN:      ${{ secrets.VERCEL_TOKEN }}
 
       # ── Smoke tests ─────────────────────────────────────────────────────────
       # Hit the production alias (NEXT_PUBLIC_APP_URL), NOT the per-deployment
       # *.vercel.app URL. The deployment URL is gated by Vercel Deployment
       # Protection and returns 401 to unauthenticated CI requests; the
-      # production domain is public. `vercel deploy --prod` updates this alias
+      # production domain is public. `vercel promote` updates this alias
       # atomically before returning, so it already points at this deployment.
       - name: Smoke test — /api/health
+        if: steps.deploy.outputs.deployment_url != ''
         run: |
           BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           echo "Smoke testing $BASE ..."
@@ -601,12 +621,14 @@ jobs:
           done
 
       - name: Smoke test — public registration lookup
+        if: steps.deploy.outputs.deployment_url != ''
         run: |
           BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           curl --fail --silent --show-error --max-time 15 "$BASE/api/v1/jurisdictions/counties" \
             | node -e 'const body = JSON.parse(require("node:fs").readFileSync(0, "utf8")); if (!Array.isArray(body.data) || body.data.length !== 47) process.exit(1);'
 
       - name: Smoke test — landing page renders
+        if: steps.deploy.outputs.deployment_url != ''
         run: |
           BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           status=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -621,6 +643,7 @@ jobs:
           fi
 
       - name: Smoke test — /api/cron rejects unauthenticated requests
+        if: steps.deploy.outputs.deployment_url != ''
         run: |
           BASE="${{ env.NEXT_PUBLIC_APP_URL }}"
           status=$(curl -s -o /dev/null -w "%{http_code}" \
@@ -636,6 +659,7 @@ jobs:
           fi
 
       - name: Report deployment URL
+        if: steps.deploy.outputs.deployment_url != ''
         run: |
           echo "### Deployment successful" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"

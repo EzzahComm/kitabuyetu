@@ -150,7 +150,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     if (challenge.kind === 'sms') {
       if (
-        process.env.ENTERPRISE_SMS_MFA_ENABLED !== 'true' ||
+        process.env.ENTERPRISE_SMS_MFA_ENABLED === 'false' ||
         member.platform_role !== 'organization_coordinator' ||
         (!organizationId && !orgChoices) ||
         !challenge.smsNonce ||
