@@ -54,7 +54,7 @@ provider, not through the group-billed path, so alerts never consume a customer'
 
 The official number **+254 182 625 807** receives SMS only for Kitabu Yetu payment and subscription
 events that have SMS routing enabled. The rule also applies to queued alerts and direct outage fallback.
-Other contacts keep their existing routing. Daily and scheduled jobs can still send distinct future messages.
+Each SMS to this number fits within one billable segment. Other contacts keep their existing routing. Daily and scheduled jobs can still send distinct future messages.
 
 A rejected or interrupted SMS stays in the delivery or usage history. The worker closes legacy
 SMS retries and queued non-billing SMS addressed to the official number. A credit top-up never

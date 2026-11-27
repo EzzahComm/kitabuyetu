@@ -7,7 +7,9 @@
  */
 import { officialAppUrl } from '@/lib/app-links';
 import { gsmSafe } from './sanitize';
-import { ActivityEventType } from './activity-events';
+import { segmentsOf } from '@/lib/sms/segments';
+import { ActivityEventType, getEventDefinition } from './activity-events';
+import { BILLING_ONLY_ADMIN_PHONE } from './config';
 import type { PlatformActivityEvent } from './notification-types';
 
 const SMS_MAX = 320; // two GSM segments
@@ -84,7 +86,25 @@ function metaLines(e: PlatformActivityEvent): string[] {
   return Array.isArray(lines) ? lines.map(String) : [];
 }
 
-export function renderSms(e: PlatformActivityEvent): string {
+export function renderSms(e: PlatformActivityEvent, recipient?: string): string {
+  if (recipient === BILLING_ONLY_ADMIN_PHONE) {
+    const title = getEventDefinition(e.type).title;
+    let body = gsmSafe(['KITABU YETU', title, e.activityRef].filter(Boolean).join(' | '));
+    const details = [
+      formatMoney(e.transaction?.amount, e.transaction?.currency),
+      e.transaction?.reference,
+      e.transaction?.status,
+      e.organization?.name,
+    ];
+    for (const detail of details) {
+      if (!detail) continue;
+      const value = gsmSafe(detail.replaceAll('`', "'"));
+      const candidate = `${body} | ${value}`;
+      if (value && segmentsOf(candidate) === 1) body = candidate;
+    }
+    return body;
+  }
+
   const head = isActionRequired(e.type) ? 'KITABU YETU - ACTION REQUIRED' : 'KITABU YETU ALERT';
   const lines = [head, e.title + (e.severity === 'CRITICAL' || e.severity === 'HIGH' ? ` [${e.severity}]` : '')];
   for (const r of coreRows(e)) lines.push(`${r.label}: ${r.value}`);

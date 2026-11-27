@@ -198,7 +198,7 @@ export async function deliverNotification(
 
   const result =
     delivery.channel === 'sms'
-      ? await sendAdminSms(delivery.recipient, renderSms(event))
+      ? await sendAdminSms(delivery.recipient, renderSms(event, delivery.recipient))
       : await sendAdminEmail(delivery.recipient, renderEmail(event, adminPath), ref);
 
   if (result.ok) {
