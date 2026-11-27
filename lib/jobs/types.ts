@@ -34,7 +34,7 @@ export type JobType =
   | 'payment_requests_expire' // Transition open payment_requests past expires_at to 'expired' (hourly, rule A6)
   | 'sms_bulk_send' // Ad-hoc: bill + dispatch a bulk/campaign SMS send (enqueued on demand)
   | 'marketing_campaign_sms_send' // Ad-hoc: dispatch an approved marketing_campaigns SMS leg (Phase 9.2)
-  | 'sms_retry_failed' // Retry due rows in sms_failures (every 5 min)
+  | 'sms_retry_failed' // Legacy SMS retry job, retained for queued rows
   | 'sms_process_schedules' // Fire due sms_schedules + scheduled campaigns (every 5 min)
   | 'sms_poll_dlr' // Poll provider for delivery status of sent messages (every 5 min)
   | 'sms_trigger_fire' // Ad-hoc: dispatch a delayed/retried trigger-rule execution

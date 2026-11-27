@@ -1,3 +1,4 @@
+import { segmentsOf } from '@/lib/sms/segments';
 import { sanitizeMetadata, gsmSafe } from '@/lib/notifications/sanitize';
 import { ActivityEventType, ALL_EVENT_TYPES, getEventDefinition } from '@/lib/notifications/activity-events';
 import { renderSms, renderEmail, formatEat } from '@/lib/notifications/notification-templates';
@@ -132,14 +133,34 @@ describe('admin recipients', () => {
   it('reads and normalises phone and email from the environment', () => {
     process.env.KITABU_ADMIN_ALERT_PHONE = '+254182625807';
     process.env.KITABU_ADMIN_ALERT_EMAIL = 'Info@kitabuyetu.co.ke';
-    expect(getAdminRecipients()).toEqual({ phones: ['254182625807'], emails: ['info@kitabuyetu.co.ke'] });
+    expect(getAdminRecipients('SUBSCRIPTION_CREATED')).toEqual({
+      phones: ['254182625807'],
+      emails: ['info@kitabuyetu.co.ke', 'billing@kitabuyetu.co.ke'],
+    });
   });
 
   it('supports several recipients without code changes', () => {
     process.env.KITABU_ADMIN_ALERT_PHONE = '+254182625807, 0712345678';
     process.env.KITABU_ADMIN_ALERT_EMAIL = 'a@x.com,b@x.com';
     const r = getAdminRecipients();
-    expect(r.phones).toHaveLength(2);
+    expect(r.phones).toEqual(['254712345678']);
+    expect(getAdminRecipients('PAYMENT_RECEIVED').phones).toHaveLength(2);
     expect(r.emails).toEqual(['a@x.com', 'b@x.com']);
   });
+});
+
+it('keeps official billing alerts to one segment and retains the amount and activity reference', () => {
+  const sms = renderSms(
+    {
+      ...withdrawal,
+      type: ActivityEventType.PAYMENT_RECEIVED,
+      transaction: { amount: 5000, reference: '['.repeat(160), status: 'confirmed' },
+      organization: { id: 'o1', name: 'A long organization '.repeat(15) },
+    },
+    '254182625807',
+  );
+  expect(sms).toContain('Payment Received');
+  expect(sms).toContain('KES 5,000');
+  expect(sms).toContain(withdrawal.activityRef);
+  expect(segmentsOf(sms)).toBe(1);
 });

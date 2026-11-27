@@ -26,6 +26,7 @@ import {
   logJob,
 } from './db';
 import { handleJob } from './handlers';
+import { InsufficientSmsCreditsError, PaymentRequiredError } from '@/lib/utils/errors';
 
 /**
  * Ceiling on jobs claimed per tick. Raised from 25 alongside TIME_BUDGET_MS
@@ -143,6 +144,14 @@ export async function processJobBatch(): Promise<ProcessResult> {
       logger.error(`[jobs] ${failed} stuck job(s) exhausted max_attempts and were failed`);
     }
 
+    try {
+      const { retireLegacyAdminSms } = await import('@/lib/notifications/notification-queue');
+      const retired = await retireLegacyAdminSms();
+      if (retired > 0) logger.info('[jobs] Retired legacy admin SMS', { retired });
+    } catch (err) {
+      logger.error('[jobs] Could not retire legacy admin SMS', err);
+    }
+
     const snapshot = await getJobQueueSnapshot();
     emitQueueDepth(snapshot);
 
@@ -241,6 +250,7 @@ function rotateStartingType(types: JobType[], now: number): JobType[] {
 
 async function processSingleJob(job: Job, result: ProcessResult): Promise<void> {
   const startedAt = Date.now();
+  const isBulkSms = job.type === 'sms_bulk_send' || job.type === 'marketing_campaign_sms_send';
 
   // Skip the 'started' row on a job's very first attempt — it carried no
   // content beyond "a job started" (job_logs was 451,892 inserts, 52% of
@@ -254,6 +264,9 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
   }
 
   try {
+    if (isBulkSms && job.last_error === new InsufficientSmsCreditsError().message) {
+      throw new InsufficientSmsCreditsError();
+    }
     const handlerResult = await handleJob(job);
     const durationMs = Date.now() - startedAt;
 
@@ -273,7 +286,9 @@ async function processSingleJob(job: Job, result: ProcessResult): Promise<void> 
     const error = err instanceof Error ? err.message : String(err);
     const newAttempts = job.attempts + 1;
 
-    if (newAttempts >= job.max_attempts) {
+    const smsCreditFailure =
+      isBulkSms && (err instanceof InsufficientSmsCreditsError || err instanceof PaymentRequiredError);
+    if (smsCreditFailure || newAttempts >= job.max_attempts) {
       await markJobFailed(job.id, error);
       await logJob(job.id, 'failed', `Permanently failed after ${newAttempts} attempt(s): ${error}`, durationMs);
       result.failed++;

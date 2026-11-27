@@ -1,14 +1,5 @@
-/**
- * T3-5's operational surfaces against real Postgres (SMS-AUDIT-v3):
- * manual retry (G22), reminder history including suppressed rows (G21), and
- * the pre-send cost preview (G28).
- *
- * The closure tests these encode, verbatim from the pathway doc:
- *   - "a manual retry of an opted-out number resolves suppressed and bills
- *      nothing"
- *   - "a DSAR for one member is answerable from the UI" — i.e. one member's
- *      full reminder history, suppressed outcomes included, is retrievable
- */
+import { handleJob } from '@/lib/jobs/handlers';
+import type { Job } from '@/lib/jobs/types';
 import { smsService } from '@/lib/services/sms.service';
 import { listReminderHistory } from '@/lib/services/reminder.service';
 import { createTestGroup } from './helpers/fixtures';
@@ -37,7 +28,7 @@ async function provisionBilling(groupId: string, credits: number): Promise<void>
   ]);
 }
 
-/** One failed send, so a retryable sms_failures row exists as production makes it. */
+/** Record a provider rejection using the normal send path. */
 async function queueOneFailedSend(groupId: string, userId: string, phone = '254700000001') {
   mockSendSingleSms.mockResolvedValueOnce({
     success: false,
@@ -70,97 +61,20 @@ describe('T3-5 ops surfaces', () => {
     ctx = { groupId, userId: officerId, role: 'chairperson' } as never;
   });
 
-  // ── G22: manual retry ────────────────────────────────────────────────────
+  it('keeps an old failed message visible without a provider call or charge after a top-up', async () => {
+    const failureId = await queueOneFailedSend(groupId, officerId);
+    await rawQuery(`UPDATE sms_failures SET next_retry_at = NOW() - INTERVAL '1 hour' WHERE id = $1`, [failureId]);
+    await provisionBilling(groupId, 100);
+    mockSendSingleSms.mockClear();
 
-  describe('manual retry', () => {
-    it('delivers and bills exactly once when the provider accepts', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      const before = await billingOf(groupId);
+    await handleJob({ type: 'sms_retry_failed', payload: {} } as Job);
 
-      mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
-      const result = await smsService.retryFailure(ctx, failureId);
-
-      expect(result.status).toBe('resolved');
-      expect(await billingOf(groupId)).toBe(before - 1);
-
-      const [log] = await rawQuery<{ status: string; billing_state: string }>(
-        `SELECT status, billing_state FROM sms_usage_logs WHERE group_id = $1
-         ORDER BY created_at DESC LIMIT 1`,
-        [groupId],
-      );
-      expect(log.status).toBe('sent');
-      expect(log.billing_state).toBe('consumed');
-    });
-
-    it('ignores the backoff — the whole point of a manual retry', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      // The sweep would decline this row: its next_retry_at is minutes away.
-      await rawQuery(`UPDATE sms_failures SET next_retry_at = NOW() + INTERVAL '1 hour' WHERE id = $1`, [failureId]);
-
-      mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
-      const result = await smsService.retryFailure(ctx, failureId);
-
-      expect(result.status).toBe('resolved');
-    });
-
-    it('retries a message that has already exhausted max_retries', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      await rawQuery(`UPDATE sms_failures SET retry_count = max_retries WHERE id = $1`, [failureId]);
-
-      mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
-      const result = await smsService.retryFailure(ctx, failureId);
-
-      // Permanently failed to the sweep; a person can still say "try again".
-      expect(result.status).toBe('resolved');
-    });
-
-    it('resolves an opted-out number as suppressed and bills NOTHING', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      await rawQuery(`INSERT INTO sms_opt_outs (group_id, phone, source) VALUES ($1,'254700000001','officer')`, [
-        groupId,
-      ]);
-      const before = await billingOf(groupId);
-      mockSendSingleSms.mockClear();
-
-      const result = await smsService.retryFailure(ctx, failureId);
-
-      expect(result.status).toBe('suppressed');
-      expect(mockSendSingleSms).not.toHaveBeenCalled();
-      expect(await billingOf(groupId)).toBe(before);
-
-      const [row] = await rawQuery<{ resolved: boolean; failure_reason: string }>(
-        `SELECT resolved, failure_reason FROM sms_failures WHERE id = $1`,
-        [failureId],
-      );
-      expect(row.resolved).toBe(true);
-      expect(row.failure_reason).toMatch(/opted out/);
-    });
-
-    it('refuses to re-send an already-resolved message', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      mockSendSingleSms.mockResolvedValueOnce({ success: true, messageId: 'm-1', networkId: 'n-1' });
-      await smsService.retryFailure(ctx, failureId);
-
-      mockSendSingleSms.mockClear();
-      const second = await smsService.retryFailure(ctx, failureId);
-
-      // A duplicate to a real person and a second charge — the pair of harms
-      // the dedup work in T1-2 exists to stop.
-      expect(second.status).toBe('already_resolved');
-      expect(mockSendSingleSms).not.toHaveBeenCalled();
-    });
-
-    it('will not touch a failure belonging to another group', async () => {
-      const failureId = await queueOneFailedSend(groupId, officerId);
-      const other = await createTestGroup('chairperson');
-
-      const result = await smsService.retryFailure(
-        { groupId: other.groupId, userId: other.officerId, role: 'chairperson' } as never,
-        failureId,
-      );
-
-      expect(result.status).toBe('not_found');
-    });
+    expect(mockSendSingleSms).not.toHaveBeenCalled();
+    expect(await billingOf(groupId)).toBe(100);
+    const failures = await smsService.listFailures(ctx, { page: 1, limit: 20 });
+    expect(failures.items).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: failureId, retry_count: 0, resolved: false })]),
+    );
   });
 
   // ── G21: reminder history ────────────────────────────────────────────────

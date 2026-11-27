@@ -76,7 +76,7 @@ describe('alert recipients by event', () => {
   it('always includes the official address, plus the responsible departments', () => {
     const r = getAdminRecipients(ActivityEventType.WITHDRAWAL_PENDING_REVIEW);
     expect(r.emails).toEqual(['info@kitabuyetu.co.ke', 'billing@kitabuyetu.co.ke', 'admin@kitabuyetu.co.ke']);
-    expect(r.phones).toEqual(['254182625807']); // SMS stays on the single official phone
+    expect(r.phones).toEqual([]);
   });
 
   it('a job application reaches HR; an unmapped event reaches only info@', () => {

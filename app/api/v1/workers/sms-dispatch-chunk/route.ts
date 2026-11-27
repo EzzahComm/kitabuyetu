@@ -28,6 +28,8 @@ import { deriveUuid, isUuid } from '@/lib/utils/uuid';
 import type { SmsDispatchChunkPayload } from '@/lib/queue/qstash';
 
 export const runtime = 'nodejs';
+import { InsufficientSmsCreditsError, PaymentRequiredError } from '@/lib/utils/errors';
+
 export const dynamic = 'force-dynamic';
 
 function isValidPayload(v: unknown): v is SmsDispatchChunkPayload {
@@ -141,6 +143,13 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
     });
   } catch (err) {
     logger.error('[sms-dispatch-chunk] Dispatch error:', err);
+    if (err instanceof InsufficientSmsCreditsError || err instanceof PaymentRequiredError) {
+      // QStash treats 489 with this header as a permanent delivery failure.
+      return NextResponse.json(
+        { success: false, error: 'SMS billing rejected this dispatch' },
+        { status: 489, headers: { 'Upstash-NonRetryable-Error': 'true' } },
+      );
+    }
     // 500 so QStash retries — mirrors /api/cron's fail-safe: the error is
     // logged in full server-side, never echoed to the caller.
     return NextResponse.json({ success: false, error: 'Internal error' }, { status: 500 });

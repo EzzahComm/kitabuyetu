@@ -107,7 +107,7 @@ describe('sendBulkCampaign dispatch exception handling (H5)', () => {
     expect(failures).toHaveLength(2);
     for (const f of failures) {
       expect(f.failure_code).toBe('-1'); // sentinel: no provider response to report
-      expect(f.next_retry_at).not.toBeNull();
+      expect(f.next_retry_at).toBeNull();
     }
   });
 

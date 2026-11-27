@@ -7,6 +7,7 @@
  *   KITABU_ADMIN_ALERT_EMAIL=info@kitabuyetu.co.ke
  */
 import { safeNormalizePhone } from '@/lib/utils/phone';
+import { ActivityEventType as Event } from './activity-events';
 import { departmentEmail, departmentsForEvent } from '@/lib/departments';
 
 const list = (v: string | undefined) =>
@@ -14,6 +15,25 @@ const list = (v: string | undefined) =>
     .split(',')
     .map((s) => s.trim())
     .filter(Boolean);
+
+export const BILLING_ONLY_ADMIN_PHONE = '254182625807';
+export const ADMIN_BILLING_SMS_EVENTS: ReadonlySet<string> = new Set([
+  Event.PAYMENT_RECEIVED,
+  Event.PAYMENT_FAILED,
+  Event.SUBSCRIPTION_CREATED,
+  Event.SUBSCRIPTION_UPDATED,
+  Event.SUBSCRIPTION_UPGRADED,
+  Event.SUBSCRIPTION_DOWNGRADED,
+  Event.SUBSCRIPTION_RENEWED,
+  Event.SUBSCRIPTION_CANCELLED,
+  Event.SUBSCRIPTION_EXPIRED,
+  Event.SUBSCRIPTION_SUSPENDED,
+  Event.SUBSCRIPTION_REACTIVATED,
+]);
+
+export function canSendAdminSms(phone: string, eventType?: string): boolean {
+  return safeNormalizePhone(phone) !== BILLING_ONLY_ADMIN_PHONE || ADMIN_BILLING_SMS_EVENTS.has(eventType ?? '');
+}
 
 export interface AdminRecipients {
   phones: string[];
@@ -29,7 +49,7 @@ export interface AdminRecipients {
 export function getAdminRecipients(eventType?: string): AdminRecipients {
   const phones = list(process.env.KITABU_ADMIN_ALERT_PHONE)
     .map((p) => safeNormalizePhone(p))
-    .filter((p): p is string => !!p);
+    .filter((p): p is string => !!p && canSendAdminSms(p, eventType));
   const emails = list(process.env.KITABU_ADMIN_ALERT_EMAIL ?? process.env.EMAIL_ADMIN).filter((e) => e.includes('@'));
   const deptEmails = eventType ? departmentsForEvent(eventType).map((d) => departmentEmail(d)) : [];
   return {

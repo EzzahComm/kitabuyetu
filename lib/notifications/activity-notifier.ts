@@ -210,7 +210,7 @@ async function directFallback(input: EmitActivityInput, severity: NotificationSe
     event.activityRef = 'UNPERSISTED';
     const { phones, emails } = getAdminRecipients(input.type);
     await Promise.allSettled([
-      ...(def.sms ? phones.map((p) => sendAdminSms(p, renderSms(event))) : []),
+      ...(def.sms ? phones.map((p) => sendAdminSms(p, renderSms(event, p))) : []),
       ...(def.email ? emails.map((e) => sendAdminEmail(e, renderEmail(event), `fallback:${input.type}`)) : []),
     ]);
   } catch {

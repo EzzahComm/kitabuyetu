@@ -4,7 +4,7 @@
  * Wraps textsms.service.ts (raw TextSMS Kenya API) and handles:
  *  - Credit deduction + usage logging in a single atomic transaction.
  *  - Per-group opt-out list enforcement.
- *  - Failure logging and queued retry.
+ *  - Failure history.
  *  - Campaign send tracking.
  *  - Template rendering via lib/sms/templates.ts.
  *
@@ -32,7 +32,6 @@ import {
   getDeliveryReport,
   getProviderBalance,
   activeSmsProvider,
-  isProviderAvailable,
   type BulkSmsItem,
   type SmsResponse,
 } from '@/lib/sms/provider';
@@ -212,11 +211,6 @@ export interface BulkCampaignInput {
  * getDeliveryReport passes to axios, plus a little for the DB writes around it.
  */
 const DLR_CALL_BUDGET_MS = 16_000;
-
-/**
- * Same idea for a single retry send, whose provider timeout is 20s.
- */
-const SEND_CALL_BUDGET_MS = 21_000;
 
 /**
  * Recipient count at which a bulk send should ask "are you sure?"
@@ -579,12 +573,8 @@ export const smsService = {
       // Already-logged recipients under this correlation key are skipped, the
       // same guard sendBulkCampaign has had since H3 — this path never got it.
       //
-      // Without it there were TWO uncoordinated retry owners for one message.
-      // The trigger engine re-invokes send() with the same phones on its own
-      // backoff (retryOrFail), while the first attempt's failures also wrote
-      // sms_failures rows that the sms_retry_failed cron re-sends five minutes
-      // later. A transient provider outage therefore produced duplicate
-      // DELIVERED messages and duplicate charges, not just duplicate attempts.
+      // The trigger engine can re-invoke send() with the same phones.
+      // A recorded attempt is terminal for that correlation key.
       //
       // Scoped to correlation_id IS NOT NULL, i.e. event-driven sends that
       // carry a referenceId. A manual send has none, and repeating one is a
@@ -641,10 +631,7 @@ export const smsService = {
       let allowanceLeft = reservation.fromAllowanceCount;
 
       const rows: SmsUsageLog[] = [];
-      // Recorded per-row, not hardcoded: retryFailures() reads this column
-      // back to route a retry through the SAME provider that accepted the
-      // original send (SMS-AUDIT-v3 T3-3), which only means something if the
-      // row records the provider actually in use rather than a fixed string.
+      // Keep the provider identity with each usage record.
       const provider = activeSmsProvider();
       for (const phone of toSend) {
         // Allowance can part-fund a multi-segment message, so this is a
@@ -835,9 +822,7 @@ export const smsService = {
       // resetStuckJobs reclaims a timed-out job) re-invokes this with the
       // SAME full phone list. Recipients already logged under this dispatch
       // key — whether their first attempt was accepted or rejected — must
-      // not be billed or dispatched a second time; a rejected message's own
-      // retry goes through sms_failures' dedicated backoff (retryFailures()),
-      // not a wholesale re-run of the batch that created it.
+      // not be billed or dispatched a second time.
       let dedupedAway = 0;
       if (dispatchKey) {
         const { rows: already } = await db.query<{ recipient_phone: string }>(
@@ -892,9 +877,7 @@ export const smsService = {
        * See docs/audits/PRODUCT_CONCORDANCE_AUDIT_2026-08.md §2.5.
        */
       const feature = input.referenceType ?? 'campaign';
-      // See send()'s identical comment above: recorded per-row so
-      // retryFailures() can honour the provider a message actually went out
-      // through, not a fixed string.
+      // Keep the provider identity with each usage record.
       const provider = activeSmsProvider();
 
       // Insert log rows in batches, each carrying its per-message credit cost
@@ -1041,7 +1024,7 @@ export const smsService = {
       // Previously uncaught here: the exception propagated out of
       // sendBulkCampaign entirely, leaving every row in this batch at its
       // INSERT default (status='queued', billing_state='reserved') — no
-      // sms_failures row, invisible to retryFailures(), and recoverable only
+      // sms_failures row, with credits recoverable only
       // ~15 minutes later when the stale-reservation sweeper released the
       // credits without ever retrying the send itself
       // (SMS_MESSAGING_AUDIT_2026-08.md H5's surviving half — the refund half
@@ -1075,8 +1058,8 @@ export const smsService = {
 
           await db.query(
             `INSERT INTO sms_failures
-               (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
-             VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
+               (group_id, sms_log_id, phone, message, failure_code, failure_reason)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
             // -1: sentinel failure_code — there is no provider response to
             // report, only a local/network exception.
             [input.groupId, logId, phoneByLogId.get(logId)!, input.message, '-1', reason],
@@ -1186,15 +1169,15 @@ export const smsService = {
     await settleReservation(acceptedIds, 'consume');
     await settleReservation(rejectedIds, 'release');
 
-    // Log failures for retry
+    // Record failures for review
     for (const logId of logIds) {
       const r = byLogId.get(logId);
       if (r && !r.success) {
         await withAdminDb((db) =>
           db.query(
             `INSERT INTO sms_failures
-               (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
-             VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
+               (group_id, sms_log_id, phone, message, failure_code, failure_reason)
+             VALUES ($1,$2,$3,$4,$5,$6)`,
             [
               input.groupId,
               logId,
@@ -1709,97 +1692,6 @@ export const smsService = {
   },
 
   /**
-   * Retry persisted SMS failures that are due. Driven by the sms_retry_failed
-   * cron job. Re-sends through the raw provider client (NOT send()) so the
-   * credits already charged for the original attempt are not debited again.
-   * Honours the opt-out list (a number that opted out after the original
-   * attempt is resolved as suppressed rather than re-sent), and backs off
-   * exponentially up to max_retries before giving up.
-   */
-  /**
-   * `limit` lowered from 100 to 25: at a 20s provider timeout, 100 sequential
-   * sends cannot fit any plausible function budget, and this runs every 5
-   * minutes so the drain rate is unaffected in practice. The per-iteration
-   * budget check below is the real bound; the limit just keeps the query small.
-   */
-  async retryFailures(limit = 25): Promise<{ retried: number; resolved: number; failed: number; skipped: number }> {
-    // payer_type / payer_organization_id come from the ORIGINAL log row: a
-    // retry must bill whoever the first attempt was going to bill, never the
-    // group by default. `provider` too (SMS-AUDIT-v3 T3-3): a retry must go
-    // out through the provider that accepted the original send, not whatever
-    // is active now.
-    const failures = await withAdminDb((db) =>
-      db
-        .query<{
-          id: string;
-          group_id: string;
-          sms_log_id: string | null;
-          phone: string;
-          message: string;
-          retry_count: number;
-          payer_type: string | null;
-          payer_organization_id: string | null;
-          provider: string | null;
-        }>(
-          `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count,
-                l.payer_type, l.payer_organization_id, l.provider
-         FROM sms_failures f
-         LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
-         WHERE NOT f.resolved
-           AND f.retry_count < f.max_retries
-           AND (f.next_retry_at IS NULL OR f.next_retry_at <= NOW())
-         ORDER BY f.next_retry_at ASC NULLS FIRST
-         LIMIT $1`,
-          [limit],
-        )
-        .then((r) => r.rows),
-    );
-
-    // M6: read through validated env (lib/env.ts), not a second, drifted
-    // 'KITABU' fallback — env.TEXTSMS_SENDER_ID's own default is the
-    // registered sender ID, 'KITABU YETU'.
-    const sender = env.TEXTSMS_SENDER_ID;
-    let retried = 0,
-      resolved = 0,
-      failed = 0,
-      skipped = 0;
-    let stoppedEarly = false;
-
-    for (const f of failures) {
-      // Stop before starting a send there is no time to finish. This loop is
-      // the most dangerous one to have killed mid-flight: the provider may
-      // accept the message AFTER the invocation dies, so the sms_failures row
-      // stays unresolved and the SAME message is sent again on the next tick —
-      // a real duplicate to a real member, and a second charge. Leaving the
-      // remainder for the next tick costs 5 minutes and nothing else.
-      if (tickBudgetExhausted(SEND_CALL_BUDGET_MS)) {
-        stoppedEarly = true;
-        break;
-      }
-
-      const outcome = await retryOneFailure(f, sender);
-
-      // A circuit skip is not an attempt: it touched no state and must not be
-      // counted as one (SMS-AUDIT-v3 T3-3).
-      if (outcome === 'skipped_circuit') {
-        skipped++;
-        continue;
-      }
-
-      retried++;
-      if (outcome === 'resolved' || outcome === 'suppressed') resolved++;
-      else failed++;
-    }
-
-    logger.info(
-      `[sms] retryFailures: ${retried}/${failures.length} due, ${resolved} resolved, ` +
-        `${failed} still failing, ${skipped} skipped (provider circuit open)` +
-        `${stoppedEarly ? ' (stopped early: tick budget)' : ''}`,
-    );
-    return { retried, resolved, failed, skipped };
-  },
-
-  /**
    * What a bulk send would actually cost, before sending it
    * (SMS-AUDIT-v3 T3-5 / G28).
    *
@@ -1923,46 +1815,6 @@ export const smsService = {
     };
   },
 
-  /**
-   * Retry ONE failed message on an operator's say-so (SMS-AUDIT-v3 T3-5 / G22).
-   *
-   * Runs retryOneFailure — the same path the cron sweep uses — so the consent
-   * gate, the reserve-before-dispatch ordering and the settle discipline are
-   * inherited rather than re-derived. What it deliberately overrides is only
-   * the SCHEDULING: `next_retry_at` and `max_retries` are ignored, because
-   * waiting out a backoff (or being permanently out of attempts) is exactly
-   * the situation a person clicks this button in.
-   *
-   * What it does NOT override:
-   *  - the opt-out check. A manual retry of a number that has since opted out
-   *    resolves as suppressed and spends nothing, which is the closure test.
-   *  - billing. A delivered retry is charged once, through the same
-   *    reservation the sweep uses. "Manual" is not a synonym for "free".
-   *  - the circuit breaker. If the provider is down, a person clicking retry
-   *    does not make it up.
-   *
-   * Group-scoped by an explicit WHERE on ctx.groupId rather than by relying on
-   * sms_failures' RLS: this row drives a real spend on that group's balance,
-   * so ownership is asserted here in a way that does not depend on which pool
-   * the caller happens to be using.
-   */
-  /**
-   * This group's unresolved failed messages (SMS-REAUDIT-2026-09-02 F3/F6).
-   *
-   * Added because `POST /sms/failures/[id]/retry` shipped with no way to
-   * obtain an `[id]`: there was no GET over sms_failures anywhere, so the
-   * retry action was not merely un-wired, it was undiscoverable. A capability
-   * nothing can address is not a capability.
-   *
-   * `exhausted` is computed rather than left to the caller: it is the whole
-   * reason a person needs this screen. Those rows are the ones the 5-minute
-   * sweep has permanently abandoned, so a human deciding to retry is the only
-   * thing that will ever move them — 7 such rows existed on the day this
-   * shipped.
-   *
-   * Tenant pool, so RLS scopes the read; the explicit group_id predicate is
-   * belt-and-braces on a table whose rows drive real spend.
-   */
   async listFailures(
     ctx: TenantContext,
     params: { page: number; limit: number; includeResolved?: boolean },
@@ -1991,42 +1843,6 @@ export const smsService = {
 
       return { items: rows, total, page, pageSize: limit, totalPages: Math.ceil(total / limit) };
     });
-  },
-
-  async retryFailure(
-    ctx: TenantContext,
-    failureId: string,
-  ): Promise<{ status: RetryOutcome | 'not_found' | 'already_resolved' }> {
-    // Ownership lookup runs on the RLS-enforced tenant pool: RLS's own
-    // `group_id = app_current_group_id()` policy is now the real reason an
-    // officer of one group can never resolve another tenant's failure id,
-    // not merely this hand-written `f.group_id = $2` (kept below as
-    // defense-in-depth). retryOneFailure() itself stays on the admin pool
-    // below — it is shared with the cron sweep (retryFailures()), which has
-    // no per-request session — but every write inside it is already scoped
-    // to this specific row's own f.group_id.
-    const [row] = await withDb(ctx, (db) =>
-      db
-        .query<RetryableFailure & { resolved: boolean }>(
-          `SELECT f.id, f.group_id, f.sms_log_id, f.phone, f.message, f.retry_count, f.resolved,
-                l.payer_type, l.payer_organization_id, l.provider
-           FROM sms_failures f
-           LEFT JOIN sms_usage_logs l ON l.id = f.sms_log_id
-          WHERE f.id = $1 AND f.group_id = $2`,
-          [failureId, ctx.groupId],
-        )
-        .then((r) => r.rows),
-    );
-
-    if (!row) return { status: 'not_found' };
-    // Already delivered or already suppressed. Re-sending would be a duplicate
-    // to a real person and a second charge — the exact pair of harms the
-    // dedup work in T1-2 existed to stop.
-    if (row.resolved) return { status: 'already_resolved' };
-
-    const outcome = await retryOneFailure(row, env.TEXTSMS_SENDER_ID);
-    logger.info('[sms] manual retry', { failureId, groupId: ctx.groupId, outcome });
-    return { status: outcome };
   },
 
   async listUsage(ctx: TenantContext, params: SmsUsageQueryInput): Promise<PaginatedResult<SmsUsageLog>> {
@@ -2412,325 +2228,6 @@ async function updateLogRow(
   }
 }
 
-export type RetryOutcome = 'resolved' | 'suppressed' | 'failed' | 'skipped_circuit';
-
-/** The columns retryOneFailure needs, joined from sms_failures + its log row. */
-interface RetryableFailure {
-  id: string;
-  group_id: string;
-  sms_log_id: string | null;
-  phone: string;
-  message: string;
-  retry_count: number;
-  payer_type: string | null;
-  payer_organization_id: string | null;
-  provider: string | null;
-}
-
-/**
- * Retry ONE failed message: consent gate, re-reserve, dispatch, settle.
- *
- * Extracted from retryFailures' loop so the manual retry action
- * (SMS-AUDIT-v3 T3-5 / G22) runs the identical path rather than a second
- * implementation of it. Everything delicate about this sequence was learned
- * from a production defect — the reservation ordering (a retry that delivered
- * for free, 2026-08-16), the release-on-throw (a stranded earmark), the
- * opt-out check preceding any spend — and a hand-rolled "retry" button that
- * re-derived it would eventually get one of them wrong.
- *
- * Returns an outcome rather than mutating counters, so both callers can
- * describe the result in their own terms.
- */
-async function retryOneFailure(f: RetryableFailure, sender: string): Promise<RetryOutcome> {
-  const provider = f.provider ?? undefined;
-
-  // Circuit open ⇒ skip without touching retry_count/next_retry_at at all
-  // (SMS-AUDIT-v3 T3-3 closure test: "an outage does not exhaust a message's
-  // max_retries budget while the circuit is open"). Checked BEFORE the opt-out
-  // lookup and the credit reservation below, deliberately — an outage is not
-  // this row's fault, so nothing about it should change state, including work
-  // that would otherwise need undoing.
-  if (!isProviderAvailable(provider)) return 'skipped_circuit';
-
-  // Consent gate — never re-send to a number that has since opted out. Ahead
-  // of the reservation, so a suppressed retry costs nothing.
-  if (await smsService.isOptedOut(f.group_id, f.phone)) {
-    await withAdminDb((db) =>
-      db.query(
-        `UPDATE sms_failures
-         SET resolved=true, resolved_at=NOW(), last_retry_at=NOW(),
-             failure_reason='suppressed: recipient opted out', updated_at=NOW()
-         WHERE id=$1`,
-        [f.id],
-      ),
-    );
-
-    // Audit: retry suppressed due to opt-out
-    await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          f.group_id,
-          null,
-          'sms_failure.suppressed',
-          'sms_failure',
-          f.id,
-          JSON.stringify({ resolved: false, failure_reason: null }),
-          JSON.stringify({
-            resolved: true,
-            failure_reason: 'suppressed: recipient opted out',
-          }),
-        ],
-      ),
-    );
-
-    return 'suppressed';
-  }
-
-  // ── Re-reserve BEFORE dispatch ──────────────────────────────────────
-  // The first attempt reserved credits and RELEASED them when it failed
-  // (billing_state='released'). Nothing re-reserved on retry, so a message
-  // that failed once and succeeded on retry was delivered with
-  // credits_deducted = 0 — free, for every tenant, silently. Confirmed on
-  // real production sends 2026-08-16.
-  //
-  // The reservation has to happen BEFORE sendSingleSms, not after: once the
-  // provider has accepted the message we can no longer decline to send it, so
-  // discovering an empty balance at that point would leave us having delivered
-  // something unbilled all over again. This mirrors the order in send() —
-  // reserve, dispatch, then consume or release.
-  const target = {
-    payerType: (f.payer_type as 'group' | 'organization' | 'platform') ?? 'group',
-    groupId: f.group_id,
-    organizationId: f.payer_organization_id,
-  };
-  // Re-price from the body actually being resent. A retry must reserve what
-  // the provider will bill for THIS send, not a flat 1 (G5).
-  const retrySegments = segmentsOf(f.message);
-  const reservation = await withAdminDb((db) => reserveCredits(db, target, retrySegments));
-  if (!reservation.ok) {
-    // Out of credits is not a transient provider fault — retrying on a timer
-    // will not conjure a balance. Record it and stop; a top-up puts the row
-    // back in play because retry_count is untouched.
-    await bumpRetry(f.id, f.retry_count, `billing: ${reservation.reason} — ${reservation.detail}`);
-    return 'failed';
-  }
-
-  if (f.sms_log_id) {
-    const fromAllowance = Math.min(reservation.fromAllowanceCount, retrySegments);
-    await withAdminDb((db) =>
-      db.query(
-        `UPDATE sms_usage_logs
-         SET credits_reserved=$2, credits_from_allowance=$3, segments=$4,
-             billing_state='reserved', reserved_at=NOW()
-         WHERE id=$1`,
-        [f.sms_log_id, retrySegments.toFixed(4), fromAllowance.toFixed(4), retrySegments],
-      ),
-    );
-
-    // Audit: SMS credits re-reserved for retry
-    await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          f.group_id,
-          null,
-          'sms_usage.retry_reserved',
-          'sms_usage_log',
-          f.sms_log_id,
-          JSON.stringify({ billing_state: 'released', credits_reserved: null }),
-          JSON.stringify({
-            billing_state: 'reserved',
-            credits_reserved: retrySegments.toFixed(4),
-            credits_from_allowance: fromAllowance.toFixed(4),
-            segments: retrySegments,
-          }),
-        ],
-      ),
-    );
-  }
-
-  try {
-    const res = await sendSingleSms({ mobile: f.phone, message: f.message, senderId: sender }, provider);
-    if (res.success) {
-      await withAdminDb(async (db) => {
-        if (f.sms_log_id) {
-          await db.query(
-            `UPDATE sms_usage_logs
-             SET status='sent', provider_msg_id=$2,
-                 network_id=$3, sent_at=NOW(), failed_reason=NULL
-             WHERE id=$1`,
-            [f.sms_log_id, res.messageId || null, res.networkId || null],
-          );
-
-          // Audit: SMS retry succeeded
-          await db.query(
-            `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-            [
-              f.group_id,
-              null,
-              'sms_usage.retry_success',
-              'sms_usage_log',
-              f.sms_log_id,
-              JSON.stringify({ status: 'reserved', failed_reason: null }),
-              JSON.stringify({
-                status: 'sent',
-                provider_msg_id: res.messageId || null,
-                network_id: res.networkId || null,
-              }),
-            ],
-          );
-        }
-
-        await db.query(
-          `UPDATE sms_failures
-           SET resolved=true, resolved_at=NOW(),
-               retry_count=retry_count+1, last_retry_at=NOW(), updated_at=NOW()
-           WHERE id=$1`,
-          [f.id],
-        );
-
-        // Audit: SMS failure resolved
-        await db.query(
-          `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-          [
-            f.group_id,
-            null,
-            'sms_failure.resolved',
-            'sms_failure',
-            f.id,
-            JSON.stringify({ resolved: false, retry_count: f.retry_count }),
-            JSON.stringify({
-              resolved: true,
-              retry_count: f.retry_count + 1,
-            }),
-          ],
-        );
-      });
-      // Provider accepted ⇒ the earmark becomes a real debit.
-      if (f.sms_log_id) await settleReservation([f.sms_log_id], 'consume');
-      return 'resolved';
-    }
-    if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
-
-    // Audit: SMS retry failed
-    await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          f.group_id,
-          null,
-          'sms_failure.retry_failed',
-          'sms_failure',
-          f.id,
-          JSON.stringify({ resolved: false, retry_count: f.retry_count }),
-          JSON.stringify({
-            resolved: false,
-            retry_count: f.retry_count + 1,
-            failure_reason: res.responseDescription,
-          }),
-        ],
-      ),
-    );
-
-    await bumpRetry(f.id, f.retry_count, res.responseDescription);
-    return 'failed';
-  } catch (err) {
-    // Release on the throw path too, or a provider timeout strands the
-    // earmark until the stale-reservation sweeper reclaims it.
-    if (f.sms_log_id) await settleReservation([f.sms_log_id], 'release');
-
-    const errMsg = err instanceof Error ? err.message : String(err);
-
-    // Audit: SMS retry threw exception
-    await withAdminDb((db) =>
-      db.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          f.group_id,
-          null,
-          'sms_failure.retry_error',
-          'sms_failure',
-          f.id,
-          JSON.stringify({ resolved: false, retry_count: f.retry_count }),
-          JSON.stringify({
-            resolved: false,
-            retry_count: f.retry_count + 1,
-            failure_reason: errMsg,
-          }),
-        ],
-      ),
-    );
-
-    await bumpRetry(f.id, f.retry_count, errMsg);
-    return 'failed';
-  }
-}
-
-/**
- * Record a failed retry attempt and schedule the next one with exponential
- * backoff (5, 10, 20, … minutes, capped). Once retry_count reaches max_retries
- * the row stops matching the retryFailures() query and becomes a permanent
- * failure.
- */
-async function bumpRetry(id: string, retryCount: number, reason: string): Promise<void> {
-  const { pool } = await import('@/lib/db');
-  const client = await pool.connect();
-  try {
-    const nextRetryInterval = Math.min(Math.pow(2, retryCount), 8) * 5; // minutes
-
-    const { rows: oldRows } = await client.query<{ group_id: string; retry_count: number; next_retry_at: Date | null }>(
-      `SELECT group_id, retry_count, next_retry_at FROM sms_failures WHERE id=$1`,
-      [id],
-    );
-    const oldRow = oldRows[0];
-
-    await client.query(
-      `UPDATE sms_failures
-       SET retry_count   = retry_count + 1,
-           last_retry_at = NOW(),
-           next_retry_at = NOW() + (LEAST(POWER(2, retry_count)::int, 8) * INTERVAL '5 minutes'),
-           failure_reason = $2,
-           updated_at    = NOW()
-       WHERE id = $1`,
-      [id, reason],
-    );
-
-    // Audit: retry count bumped
-    if (oldRow) {
-      await client.query(
-        `INSERT INTO audit_logs (group_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          oldRow.group_id,
-          null,
-          'sms_failure.retry_bumped',
-          'sms_failure',
-          id,
-          JSON.stringify({
-            retry_count: oldRow.retry_count,
-            failure_reason: null,
-            next_retry_interval_minutes: Math.min(Math.pow(2, Math.max(retryCount - 1, 0)), 8) * 5,
-          }),
-          JSON.stringify({
-            retry_count: oldRow.retry_count + 1,
-            failure_reason: reason,
-            next_retry_interval_minutes: nextRetryInterval,
-          }),
-        ],
-      );
-    }
-  } finally {
-    client.release();
-  }
-}
-
 async function logFailure(
   groupId: string,
   logId: string,
@@ -2744,8 +2241,8 @@ async function logFailure(
   try {
     await client.query(
       `INSERT INTO sms_failures
-         (group_id, sms_log_id, phone, message, failure_code, failure_reason, next_retry_at)
-       VALUES ($1,$2,$3,$4,$5,$6, NOW() + INTERVAL '5 minutes')`,
+         (group_id, sms_log_id, phone, message, failure_code, failure_reason)
+       VALUES ($1,$2,$3,$4,$5,$6)`,
       [groupId, logId, phone, message, String(code), reason],
     );
 
@@ -2765,7 +2262,6 @@ async function logFailure(
           phone: phone,
           failure_code: String(code),
           failure_reason: reason,
-          next_retry_interval: '5 minutes',
         }),
       ],
     );

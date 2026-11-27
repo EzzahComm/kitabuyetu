@@ -14,35 +14,17 @@
  * the UI") untrue despite the service layer being correct and tested.
  */
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { PlayCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { useQuery } from '@tanstack/react-query';
 import { smsApi, type SmsFailure, type ReminderHistoryRow } from '@/lib/api/endpoints';
 import { PaginatedTable, singlePage } from '@/components/shared/paginated-table';
 import { ExpandableText } from '@/components/shared/expandable-text';
-import { useToast } from '@/hooks/use-toast';
-import { formatDate, getErrorMessage } from '@/lib/utils';
+import { formatDate } from '@/lib/utils';
 import { StatusPill } from '@/components/shared/status-pill';
 import { SectionHeader } from '@/components/shared/dashboard-sections';
 
 // ─── Failed messages ─────────────────────────────────────────────────────────
 
-/**
- * Failed messages, and the manual retry.
- *
- * The retry service and route shipped without a listing beside them, so
- * nothing could learn an id to retry — the capability existed and was
- * unreachable. Seven messages sat permanently undelivered on the day this was
- * written, every one past `max_retries` and so abandoned by the 5-minute sweep
- * for good.
- *
- * A retry runs the SAME path as the sweep: it honours the opt-out list, bills
- * once through the same reservation, and refuses while the provider circuit is
- * open. What a person overrides by clicking is only the SCHEDULE.
- */
 export function FailuresTab() {
-  const { toast } = useToast();
-  const qc = useQueryClient();
   const [page, setPage] = useState(1);
 
   const { data, isLoading, isError, error } = useQuery({
@@ -51,28 +33,9 @@ export function FailuresTab() {
     staleTime: 30_000,
   });
 
-  const retry = useMutation({
-    mutationFn: (id: string) => smsApi.retryFailure(id),
-    onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ['sms-failures'] });
-      qc.invalidateQueries({ queryKey: ['sms-logs'] });
-      // A suppressed retry is a SUCCESS worth naming rather than hiding: it
-      // means the recipient has since opted out, was correctly not messaged,
-      // and was not charged.
-      if (res.status === 'suppressed') {
-        toast({ title: 'Not sent — recipient has opted out', description: 'Resolved, and nothing was charged.' });
-      } else if (res.status === 'resolved') {
-        toast({ title: 'Message delivered' });
-      } else {
-        toast({ variant: 'destructive', title: 'Still failing', description: 'The provider rejected it again.' });
-      }
-    },
-    onError: (e) => toast({ variant: 'destructive', title: 'Retry failed', description: getErrorMessage(e) }),
-  });
-
   return (
     <div className="space-y-4">
-      <SectionHeader title="Failed messages" subtitle={data ? `${data.total} unresolved` : undefined} />
+      <SectionHeader title="Failed messages" subtitle="Failed messages are kept for review and are never resent." />
 
       <PaginatedTable
         data={data ?? singlePage<SmsFailure>([])}
@@ -81,7 +44,6 @@ export function FailuresTab() {
         error={error}
         onPageChange={setPage}
         emptyMessage="No failed messages."
-        emptyDescription="Messages that fail are retried automatically; anything still stuck appears here."
         columns={[
           {
             key: 'phone',
@@ -102,32 +64,9 @@ export function FailuresTab() {
           },
           {
             key: 'attempts',
-            header: 'Attempts',
+            header: 'Past retries',
             hideBelow: 'sm',
-            render: (f) => (
-              <span className="text-xs text-muted-foreground">
-                {f.retry_count}/{f.max_retries}
-                {f.exhausted && <span className="ml-1 text-rose-600">· given up</span>}
-              </span>
-            ),
-          },
-          {
-            key: 'actions',
-            header: '',
-            // Emphasised for exhausted rows specifically: those are the ones
-            // nothing else will ever move.
-            render: (f) => (
-              <Button
-                type="button"
-                size="sm"
-                variant={f.exhausted ? 'default' : 'ghost'}
-                className="text-xs"
-                disabled={retry.isPending}
-                onClick={() => retry.mutate(f.id)}
-              >
-                <PlayCircle size={13} /> Retry now
-              </Button>
-            ),
+            render: (f) => <span className="text-xs text-muted-foreground">{f.retry_count}</span>,
           },
         ]}
       />
