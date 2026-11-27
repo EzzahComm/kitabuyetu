@@ -271,7 +271,8 @@ export interface OrgInvitationLookup {
 export const orgInvitationApi = {
   lookup: (token: string) => api.post<OrgInvitationLookup>('/organization-invitations/lookup', { token }),
 
-  confirmEmail: (token: string) => api.post<{ phone: string }>('/organization-invitations/confirm-email', { token }),
+  confirmEmail: (token: string) =>
+    api.post<{ status: 'otp_sent' }>('/organization-invitations/confirm-email', { token }),
 
   verifyOtp: (token: string, otp: string) =>
     api.post<{ status: string }>('/organization-invitations/verify-otp', { token, otp }),

@@ -24,16 +24,17 @@
  * bypasses them entirely via withAdminDb like every other admin-organizations
  * function already does.
  */
+import { createHmac, timingSafeEqual } from 'node:crypto';
+import { env } from '@/lib/env';
 import bcrypt from 'bcryptjs';
 import type { PoolClient } from 'pg';
 import { withAdminDb } from '@/lib/db';
-import { normalizePhone, maskPhoneDisplay } from '@/lib/utils/phone';
-import { NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
+import { normalizePhone } from '@/lib/utils/phone';
+import { AppError, NotFoundError, ConflictError, ValidationError } from '@/lib/utils/errors';
 import { BCRYPT_ROUNDS, generateTempPassword } from './members.service';
-import { updatePlatformUserRole } from './admin.service';
 import { hashSecret, generateEmailToken, generateOtp } from './group-verification.service';
 import { sendTemplatedEmail } from './email.service';
-import { sendServiceSms } from './notifications.service';
+import { sendOtpEmail } from './member-email.service';
 import { assertStaffCap } from './organization-plan.service';
 
 /**
@@ -50,14 +51,21 @@ async function findOrCreateMemberForOrgStaff(
   input: { phone: string; firstName: string; lastName: string; email?: string | null; passwordHash?: string },
 ): Promise<string> {
   const phone = normalizePhone(input.phone);
-  const existing = await db.query<{ id: string; platform_role: string }>(
-    `SELECT id, platform_role FROM public.members WHERE phone = $1`,
+  const existing = await db.query<{ id: string; platform_role: string; email: string | null }>(
+    `SELECT id, platform_role, email FROM public.members WHERE phone = $1 FOR UPDATE`,
     [phone],
   );
 
   if (existing.rows[0]) {
+    if (input.email && existing.rows[0].email?.toLowerCase() !== input.email.toLowerCase()) {
+      throw new ValidationError(
+        'This phone is linked to a different sign-in email. Ask your administrator to check the staff account.',
+      );
+    }
     if (existing.rows[0].platform_role === 'member') {
-      await updatePlatformUserRole(existing.rows[0].id, 'organization_coordinator');
+      await db.query("UPDATE public.members SET platform_role = 'organization_coordinator' WHERE id = $1", [
+        existing.rows[0].id,
+      ]);
     }
     return existing.rows[0].id;
   }
@@ -296,7 +304,7 @@ export async function removeOrgStaff(organizationId: string, memberId: string, r
 // Phase 2 — real email + phone-OTP invite (migration 102), alongside the
 // Phase 1 direct-add path above (addOrgStaff() is unchanged and still used
 // for adding someone who's already a known member). Two-channel
-// verification (emailed link, then SMS OTP sent only after the link is
+// verification (emailed link, then email OTP sent only after the link is
 // clicked) before a real backoffice-privileged account is created — reuses
 // group-verification.service.ts's crypto primitives and plain-service-
 // function style rather than the DB-RPC style that flow itself happens to
@@ -326,6 +334,7 @@ function acceptInviteUrlFor(token: string): string {
 async function loadInvitationByTokenHash(
   db: PoolClient,
   tokenHash: string,
+  lock = false,
 ): Promise<{
   id: string;
   organization_id: string;
@@ -348,7 +357,7 @@ async function loadInvitationByTokenHash(
             oi.otp_hash, oi.otp_expires_at, oi.otp_attempts, oi.expires_at
        FROM public.organization_invitations oi
        JOIN public.organizations o ON o.id = oi.organization_id
-      WHERE oi.token_hash = $1`,
+      WHERE oi.token_hash = $1 ${lock ? 'FOR UPDATE OF oi' : ''}`,
     [tokenHash],
   );
   return rows[0] ?? null;
@@ -437,86 +446,73 @@ export async function getOrgInvitation(token: string): Promise<OrgInvitationRow>
   });
 }
 
-/**
- * Public. Marks the email link as used and sends the SMS OTP — the second,
- * distinct channel. Returns a masked phone (0712 ••• 678) for the UI's "we
- * sent a code to..." display, not the full number: reaching this function
- * only proves control of the invitation email link, which is a weaker bar
- * than the OTP step itself proves for the phone, so the full number shouldn't
- * ride along with something forwardable/loggable before that.
- */
-export async function confirmOrgInvitationEmail(token: string): Promise<{ phone: string }> {
+function invitationEmailOtpHash(tokenHash: string, otp: string): string {
+  return createHmac('sha256', env.JWT_SECRET).update(`org-invitation-email:${tokenHash}:${otp}`).digest('hex');
+}
+
+/** Send a fresh verification code to the email address on the invitation. */
+export async function confirmOrgInvitationEmail(token: string): Promise<void> {
   const tokenHash = hashSecret(token);
   const otp = generateOtp();
-  const otpHash = hashSecret(otp);
+  const otpHash = invitationEmailOtpHash(tokenHash, otp);
 
-  const phone = await withAdminDb(async (db: PoolClient) => {
-    const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
-    if (inv.expires_at < new Date()) throw new ValidationError('This invitation has expired');
+  const email = await withAdminDb(async (db) => {
+    const inv = await loadInvitationByTokenHash(db, tokenHash, true);
+    if (!inv || inv.expires_at <= new Date()) throw new ValidationError('This invitation is no longer valid.');
     if (!['invited', 'email_confirmed', 'otp_sent'].includes(inv.status)) {
       throw new ValidationError('This invitation has already been used');
     }
-
+    if (inv.otp_expires_at && inv.otp_expires_at.getTime() > Date.now() + (OTP_TTL_MINUTES * 60 - 60) * 1000) {
+      throw new AppError('Wait one minute before requesting another email code.', 'EMAIL_CODE_COOLDOWN', 429);
+    }
     await db.query(
       `UPDATE public.organization_invitations
        SET status = 'otp_sent', otp_hash = $2, otp_expires_at = NOW() + make_interval(mins => $3), otp_attempts = 0
        WHERE id = $1`,
       [inv.id, otpHash, OTP_TTL_MINUTES],
     );
+    return inv.email;
+  });
 
-    // Record audit log for email confirmation
-    await db.query(
-      `INSERT INTO audit_logs (organization_id, actor_id, action, resource_type, resource_id, old_values, new_values)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [
-        inv.organization_id,
-        null, // Self-service invite acceptance, no actor_id
-        'orgInvitation.emailConfirmed',
-        'organization_invitation',
-        inv.id,
-        JSON.stringify({ status: inv.status }),
-        JSON.stringify({ status: 'otp_sent' }),
-      ],
+  const result = await sendOtpEmail({ email, otp, expiresIn: `${OTP_TTL_MINUTES} minutes` }).catch(() => null);
+  if (!result?.success || result.dryRun) {
+    await withAdminDb((db) =>
+      db.query(
+        `UPDATE public.organization_invitations
+         SET status = 'email_confirmed', otp_hash = NULL, otp_expires_at = NULL
+         WHERE token_hash = $1 AND otp_hash = $2 AND status = 'otp_sent'`,
+        [tokenHash, otpHash],
+      ),
     );
-
-    return inv.phone;
-  });
-
-  // Platform-funded: organization_invitations has no group_id, so there is no
-  // tenant to bill even in principle.
-  await sendServiceSms({
-    phone,
-    notificationType: 'auth_org_invite',
-    body: `Your Kitabu Yetu staff invite code is ${otp}. It expires in ${OTP_TTL_MINUTES} minutes.`,
-  });
-
-  return { phone: maskPhoneDisplay(phone) };
+    throw new AppError('We could not send the email code. Try again.', 'EMAIL_CODE_DELIVERY_FAILED', 503);
+  }
 }
 
-/** Public. */
 export async function verifyOrgInvitationOtp(token: string, otp: string): Promise<void> {
   const tokenHash = hashSecret(token);
-  const otpHash = hashSecret(otp.trim());
+  const otpHash = invitationEmailOtpHash(tokenHash, otp.trim());
 
-  return withAdminDb(async (db: PoolClient) => {
-    const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
+  const accepted = await withAdminDb(async (db) => {
+    const inv = await loadInvitationByTokenHash(db, tokenHash, true);
+    if (!inv || inv.expires_at <= new Date()) throw new ValidationError('This invitation is no longer valid.');
     if (inv.status !== 'otp_sent') throw new ValidationError('Request a code before verifying it');
     if (!inv.otp_hash || !inv.otp_expires_at || inv.otp_expires_at < new Date()) {
-      throw new ValidationError('This code has expired — request a new one');
+      throw new ValidationError('This code has expired. Request a new one.');
     }
     if (inv.otp_attempts >= MAX_OTP_ATTEMPTS) {
-      throw new ValidationError('Too many attempts — request a new code');
+      throw new ValidationError('Too many attempts. Request a new code.');
     }
-    if (inv.otp_hash !== otpHash) {
+    if (inv.otp_hash.length !== otpHash.length || !timingSafeEqual(Buffer.from(inv.otp_hash), Buffer.from(otpHash))) {
       await db.query(`UPDATE public.organization_invitations SET otp_attempts = otp_attempts + 1 WHERE id = $1`, [
         inv.id,
       ]);
-      throw new ValidationError('Incorrect code');
+      return false;
     }
 
-    await db.query(`UPDATE public.organization_invitations SET status = 'verified' WHERE id = $1`, [inv.id]);
+    await db.query(
+      `UPDATE public.organization_invitations SET status = 'verified', otp_hash = NULL, otp_expires_at = NULL WHERE id = $1`,
+      [inv.id],
+    );
 
     // Record audit log for OTP verification
     await db.query(
@@ -532,7 +528,9 @@ export async function verifyOrgInvitationOtp(token: string, otp: string): Promis
         JSON.stringify({ status: 'verified' }),
       ],
     );
+    return true;
   });
+  if (!accepted) throw new ValidationError('Incorrect code');
 }
 
 export interface OrgInvitationListItem {
@@ -721,8 +719,8 @@ export async function completeOrgInvitation(token: string, password: string): Pr
   const tokenHash = hashSecret(token);
 
   return withAdminDb(async (db: PoolClient) => {
-    const inv = await loadInvitationByTokenHash(db, tokenHash);
-    if (!inv) throw new NotFoundError('Invitation', token);
+    const inv = await loadInvitationByTokenHash(db, tokenHash, true);
+    if (!inv || inv.expires_at <= new Date()) throw new ValidationError('This invitation is no longer valid.');
     if (inv.status !== 'verified') throw new ValidationError('Verify your code before setting a password');
 
     const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
@@ -734,10 +732,9 @@ export async function completeOrgInvitation(token: string, password: string): Pr
       passwordHash,
     });
 
-    // Invitation verification proved possession of this phone.
-    await db.query('UPDATE members SET phone_verified = TRUE WHERE id = $1 AND phone = $2', [
+    await db.query('UPDATE members SET email_verified = TRUE WHERE id = $1 AND lower(email) = lower($2)', [
       memberId,
-      normalizePhone(inv.phone),
+      inv.email,
     ]);
 
     // The seat is consumed HERE, at acceptance — not when the invitation was
