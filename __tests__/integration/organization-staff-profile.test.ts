@@ -1,3 +1,4 @@
+import { GET as getOrganization } from '@/app/api/admin/organizations/[id]/route';
 import { PATCH } from '@/app/api/admin/organizations/[id]/staff/[memberId]/route';
 import { backofficeHeaders, buildRequest } from './helpers/request';
 import { createTestOrganization } from './helpers/fixtures';
@@ -47,4 +48,18 @@ it('edits an existing staff account in its organization with audit history and a
       [organizationId, coordinatorId],
     ),
   ).toHaveLength(1);
+});
+
+it('reports the staff edit permission from the authenticated organization request', async () => {
+  const { organizationId, coordinatorId } = await createTestOrganization();
+  for (const platformRole of ['super_admin', 'support'] as const) {
+    const response = await getOrganization(
+      buildRequest(`/api/admin/organizations/${organizationId}`, {
+        headers: backofficeHeaders({ userId: coordinatorId, platformRole }),
+      }),
+      { params: Promise.resolve({ id: organizationId }) },
+    );
+    expect(response.status).toBe(200);
+    expect((await response.json()).data.canEditStaff).toBe(platformRole === 'super_admin');
+  }
 });

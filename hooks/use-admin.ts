@@ -101,7 +101,9 @@ type UpdateGroupResult = Awaited<ReturnType<typeof updateGroupStatus>>;
 type AdminGroupMemberList = Awaited<ReturnType<typeof listGroupMembers>>;
 type AdminMemberDetail = Awaited<ReturnType<typeof getAdminMemberDetail>>;
 type AdminOrgList = Awaited<ReturnType<typeof listOrganizations>>;
-type AdminOrgDetail = Awaited<ReturnType<typeof getOrganizationDetail>>;
+type AdminOrgDetail = NonNullable<Awaited<ReturnType<typeof getOrganizationDetail>>> & {
+  canEditStaff: boolean;
+};
 // The route's request body is WIDER than createOrganization()'s own service
 // signature — it also requires a plan (organization-plan.service.ts's own
 // assignOrganizationPlan is a deliberately separate call the route makes
