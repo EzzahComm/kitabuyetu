@@ -17,6 +17,7 @@ import {
   Mail,
   Info,
   UserCog,
+  Pencil,
   RotateCw,
   Ban,
   Sparkles,
@@ -54,7 +55,6 @@ import {
   useOrganizationPlan,
   useAssignOrganizationPlan,
 } from '@/hooks/use-admin';
-import { useAuth } from '@/lib/auth/context';
 import { useToast } from '@/hooks/use-toast';
 import { formatKES, formatDate, getErrorMessage } from '@/lib/utils';
 import { ORGANIZATION_PLAN_MONTHLY_FEES } from '@/types/enums';
@@ -102,15 +102,14 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   const { id } = use(params);
   const router = useRouter();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const canEditStaff = user?.platformRole === 'super_admin';
 
   const { data: org, isLoading } = useAdminOrganization(id);
+  const canEditStaff = org?.canEditStaff === true;
   const updateStatus = useUpdateOrganizationStatus();
   const assignGroup = useAssignGroupToOrg();
   const revokeGroup = useRevokeGroupFromOrg();
 
-  const { data: staff, isLoading: staffLoading } = useOrgStaff(id);
+  const { data: staff, isLoading: staffLoading, isError: staffLoadFailed, refetch: retryStaff } = useOrgStaff(id);
   const addStaff = useAddOrgStaff();
   const inviteStaff = useInviteOrgStaff();
   const changeStaffRole = useChangeOrgStaffRole();
@@ -158,7 +157,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
   const emailChanged = !!staffEdit && staffEdit.email.trim().toLowerCase() !== staffEdit.originalEmail.toLowerCase();
 
   const saveStaffDetails = async () => {
-    if (!staffEdit || (emailChanged && !emailOwnershipConfirmed)) return;
+    if (!canEditStaff || !staffEdit || (emailChanged && !emailOwnershipConfirmed)) return;
     try {
       await editStaff.mutateAsync({
         orgId: id,
@@ -383,24 +382,34 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
         description={`${org.county || 'No county set'}${org.registration_number ? ` · ${org.registration_number}` : ''}`}
         breadcrumbs={[{ label: 'Organizations', href: '/admin/organizations' }, { label: org.name }]}
         actions={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 gap-1.5">
-                Actions <MoreHorizontal size={14} />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {org.is_active ? (
-                <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={toggleActive}>
-                  <XCircle size={13} className="mr-2" /> Deactivate
-                </DropdownMenuItem>
-              ) : (
-                <DropdownMenuItem onClick={toggleActive}>
-                  <PlayCircle size={13} className="mr-2 text-green-600" /> Activate
-                </DropdownMenuItem>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex flex-wrap items-center gap-2">
+            {canEditStaff && (
+              <a
+                href="#organization-staff"
+                className="inline-flex min-h-8 items-center gap-1.5 rounded-md border border-input px-3 text-sm font-medium hover:bg-accent focus-visible:outline-2"
+              >
+                <Pencil size={14} aria-hidden="true" /> Edit staff details
+              </a>
+            )}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8 gap-1.5">
+                  Actions <MoreHorizontal size={14} />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {org.is_active ? (
+                  <DropdownMenuItem className="text-red-600 focus:text-red-600" onClick={toggleActive}>
+                    <XCircle size={13} className="mr-2" /> Deactivate
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem onClick={toggleActive}>
+                    <PlayCircle size={13} className="mr-2 text-green-600" /> Activate
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         }
       >
         <div className="flex items-center gap-2 flex-wrap">
@@ -511,12 +520,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
         </Card>
 
         <div className="space-y-5">
-          {/* Staff — multi-staff organizations (migration 101). Coordinator
-              info used to be a single read-only name/email/phone here; that
-              was also the only place org staff could ever be assigned, and
-              only by direct SQL (no UI existed at all). This replaces it
-              with the real list + add/remove/re-role actions. */}
-          <Card>
+          <Card id="organization-staff" className="scroll-mt-24">
             <CardHeader className="pb-2 flex-row items-center justify-between">
               <CardTitle className="text-sm font-semibold flex items-center gap-2">
                 <UserCog size={14} className="text-purple-500" /> Staff ({staff?.length ?? 0})
@@ -528,15 +532,26 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
             <CardContent className="space-y-2 text-xs">
               {staffLoading ? (
                 <Skeleton className="h-16 w-full" />
+              ) : staffLoadFailed ? (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3">
+                  <p role="status" className="text-muted-foreground">
+                    Could not load the staff list.
+                  </p>
+                  <Button size="sm" variant="outline" onClick={() => void retryStaff()}>
+                    Retry
+                  </Button>
+                </div>
               ) : !staff || staff.length === 0 ? (
                 <p className="text-center py-6 text-muted-foreground">
-                  No staff yet. Use &quot;Add staff&quot; to give someone access to this organization&apos;s portal.
+                  {canEditStaff
+                    ? 'There are no staff memberships to edit. Use Add staff to assign the existing account to this organization.'
+                    : 'There are no staff memberships for this organization.'}
                 </p>
               ) : (
                 staff.map((s) => (
                   <div
                     key={s.id}
-                    className="flex items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border px-2.5 py-2"
                   >
                     <div className="min-w-0">
                       <p className="truncate font-medium text-foreground">
@@ -551,8 +566,8 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                       {canEditStaff && s.status === 'active' && (
                         <Button
                           size="sm"
-                          variant="ghost"
-                          className="h-6 px-2 text-xs"
+                          variant="outline"
+                          className="h-8 gap-1.5 px-2 text-xs"
                           aria-label={`Edit details for ${s.firstName} ${s.lastName}`}
                           onClick={() => {
                             setEmailOwnershipConfirmed(false);
@@ -566,7 +581,7 @@ export default function OrganizationDetailPage({ params }: { params: Promise<{ i
                             });
                           }}
                         >
-                          Edit
+                          <Pencil size={12} aria-hidden="true" /> Edit details
                         </Button>
                       )}
                       <button

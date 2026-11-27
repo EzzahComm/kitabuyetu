@@ -7,11 +7,11 @@ import { getOrganizationDetail, setOrganizationActive } from '@/lib/services/adm
 export const dynamic = 'force-dynamic';
 
 export function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withPlatformRole(req, ['super_admin', 'support'], async () => {
+  return withPlatformRole(req, ['super_admin', 'support'], async (auth) => {
     const { id } = await params;
     const org = await getOrganizationDetail(id);
     if (!org) return notFound('Organization not found');
-    return ok(org);
+    return ok({ ...org, canEditStaff: auth.platformRole === 'super_admin' });
   });
 }
 
